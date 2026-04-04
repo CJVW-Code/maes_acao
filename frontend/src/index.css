@@ -1,0 +1,354 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap');
+@import "tailwindcss";
+/* index.css — ssTailwind 4.x */
+/* -------------------------------------------------------------
+   1) Carrega Tailwind
+   ---------------------------------------------------------------- */
+
+/* -------------------------------------------------------------
+   2) Tokens de cor (Light por padrão)
+   — “DPE Bahia – Light Justice”
+---------------------------------------------------------------- */
+:root {
+  /* Core */
+  --color-primary: #006837; /* Verde DPE-BA */
+  --color-primary-600: #00562b; /* Hover/pressed */
+  --color-secondary: #006837; /* Dourado-laranja */
+  --color-secondary-600: #00562b;
+  --color-special: #00548b; /* azul */
+  --color-laranja: #b45d35; /* laranja */
+  /* Surfaces & text */
+  --color-bg: #dddddd;
+  --color-surface: #cfcfcf;
+  --color-border: #b6b6b6;
+
+  --color-text: #000000;
+  --color-text-muted: #4f5152;
+  --color-text-thirt: #006837;
+
+  /* Feedback */
+  --color-success: #1fa97c;
+  --color-error: #d64545;
+  --color-highlight: #0e7490; /* Ciano (Cyan-700) para combinar com o verde da DPE */
+
+  /* Acessibilidade */
+  --color-focus: #0b67a3;
+  --ring-offset: 2px;
+  --radius: 0.75rem; /* 12px - cards/inputs */
+  --radius-sm: 0.5rem; /* 8px  - badges */
+  --shadow-soft: 0 6px 20px 0 rgb(0 0 0 / 0.08);
+  color-scheme: light;
+}
+
+/* -------------------------------------------------------------
+   3) Tema escuro
+   — “DPE Bahia – Dark Justice”
+---------------------------------------------------------------- */
+:root[data-theme="dark"] {
+  --color-primary: #1fa97c; /* verde sucesso como acento em dark */
+  --color-primary-600: #178963;
+  --color-secondary: #1fa97c;
+  --color-secondary-600: #178963;
+  --color-special: #1986cf; /* azul */
+  --color-bg: #202023; /* azul-petróleo escuro */
+  --color-surface: #303335; /* cards/painéis */
+  --color-border: #45494d;
+  --color-text: #ffffff;
+  --color-text-muted: #c9d1d9;
+
+  --color-success: #1fa97c;
+  --color-error: #d64545;
+  --color-highlight: #22d3ee; /* Ciano claro (Cyan-400) para dark mode */
+
+  --color-focus: #7cc3ff;
+  --shadow-soft: 0 8px 32px 0 rgb(0 0 0 / 0.35);
+  color-scheme: dark;
+}
+
+/* Preferência do sistema (se você não definir data-theme) */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+    --color-bg: #ffffff;
+    --color-surface: #f9fafb;
+    --color-border: #e5e7eb;
+    --color-text: #111827;
+    --color-text-muted: #6b7280;
+  }
+}
+/* -------------------------------------------------------------
+   thema
+---------------------------------------------------------------- */
+
+@theme {
+  /* -----------------------------------------------------------
+     CORES (Cria classes: text-*, bg-*, border-*, ring-*)
+     ----------------------------------------------------------- */
+
+  /* Primária */
+  --color-primary: var(--color-primary);
+  --color-primary-600: var(--color-primary-600);
+
+  /* Secundária */
+  --color-secondary: var(--color-secondary);
+  --color-secondary-600: var(--color-secondary-600);
+  --color-special: var(--color-special); /* azul */
+  /* Estruturais */
+  /* Cria bg-app, text-app, border-app */
+  --color-app: var(--color-bg);
+
+  /* Cria bg-surface, text-surface (para cards) */
+  --color-surface: var(--color-surface);
+
+  /* Cria border-border (para bordas genéricas) */
+  --color-border: var(--color-border);
+
+  /* Tipografia */
+  /* Cria text-main (cor padrão do texto) */
+  --color-main: var(--color-text);
+
+  /* Cria text-muted (texto cinza/secundário) */
+  --color-muted: var(--color-text-muted);
+
+  /* Cria text-thirt (seu 'text-thirt' definido no root) */
+  --color-thirt: var(--color-text-thirt);
+
+  /* Feedback */
+  --color-success: var(--color-success);
+  --color-error: var(--color-error);
+  --color-focus: var(--color-focus);
+  --color-highlight: var(--color-highlight);
+
+  /* -----------------------------------------------------------
+     OUTROS UTILITÁRIOS (Baseados nas suas variáveis)
+     ----------------------------------------------------------- */
+
+  /* Arredondamento */
+  /* Cria rounded-card (12px/0.75rem) */
+  --radius-card: var(--radius);
+
+  /* Cria rounded-badge (8px/0.5rem) */
+  --radius-badge: var(--radius-sm);
+
+  /* Sombras */
+  /* Cria shadow-soft */
+  --shadow-soft: var(--shadow-soft);
+}
+/* -------------------------------------------------------------
+   4) Base
+---------------------------------------------------------------- */
+
+@layer base {
+  html,
+  body {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 400;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-primary) 40%, var(--color-bg));
+    color: var(--color-text);
+  }
+
+  a {
+    color: var(--color-focus);
+    text-underline-offset: 2px;
+  }
+  a:hover {
+    opacity: 0.9;
+  }
+}
+
+/* -------------------------------------------------------------
+   5) Utilitários semânticos (opcionais)
+   — Use junto com utilitários do Tailwind
+---------------------------------------------------------------- */
+@layer utilities {
+  .bg-app {
+    background-color: var(--color-bg);
+  }
+  .bg-surface {
+    background-color: var(--color-surface);
+  }
+  .text-muted {
+    color: var(--color-text-muted);
+  }
+  .border-soft {
+    border-color: var(--color-border);
+  }
+  .ring-focus {
+    outline: var(--ring-offset) solid transparent;
+    box-shadow: 0 0 0 calc(var(--ring-offset) + 2px) var(--color-focus);
+  }
+}
+
+/* -------------------------------------------------------------
+   6) Componentes (com @apply + vars)
+---------------------------------------------------------------- */
+@layer components {
+  /* Cards/Painéis */
+  .card {
+    @apply p-6 rounded-2xl;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    box-shadow: var(--shadow-soft);
+  }
+button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+  /* Seções do Formulário */
+  .form-section {
+    @apply p-6 rounded-2xl space-y-4 border-l-4;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    box-shadow: var(--shadow-soft);
+  }
+
+  /* Inputs */
+  .input {
+    @apply w-full px-4 py-3 rounded-xl text-sm transition;
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    color-scheme: inherit;
+  }
+  .input::placeholder {
+    color: var(--color-text-muted);
+    opacity: 1;
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--color-focus);
+    box-shadow: 0 0 0 3px
+      color-mix(in oklab, var(--color-focus) 35%, transparent);
+  }
+  .input[aria-invalid="true"] {
+    border-color: var(--color-error);
+  }
+
+  /* Botões base */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-medium rounded-xl transition select-none;
+    border: 1px solid transparent;
+  }
+  .btn:disabled {
+    @apply opacity-60 cursor-not-allowed;
+  }
+
+  /* Botão primário (verde) */
+  .btn-primary {
+    background: var(--color-primary);
+    color: #fff;
+  }
+  .btn-primary:hover {
+    background: var(--color-primary-600);
+  }
+  .btn-primary:focus-visible {
+    box-shadow: 0 0 0 4px
+      color-mix(in oklab, var(--color-primary) 35%, transparent);
+  }
+
+  /* Botão secundário (outline verde) */
+  .btn-secondary {
+    background: transparent;
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+  .btn-secondary:hover {
+    background: color-mix(in oklab, var(--color-primary) 10%, transparent);
+  }
+
+  /* Botão de ação/destaque (dourado) */
+  .btn-accent {
+    background: var(--color-secondary);
+    color: #1e2a33;
+  }
+  .btn-accent:hover {
+    background: var(--color-secondary-600);
+  }
+
+  /* Botão fantasma (ghost) */
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-text);
+  }
+  .btn-ghost:hover {
+    background: color-mix(in oklab, var(--color-text) 08%, transparent);
+  }
+
+  /* Links */
+  .link {
+    @apply underline decoration-1;
+    color: var(--color-focus);
+    text-underline-offset: 3px;
+  }
+  .link:hover {
+    opacity: 0.9;
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-lg;
+    background-color: color-mix(in oklab, var(--color-text) 10%, transparent);
+    color: currentColor;
+    border: 1px solid var(--color-border);
+  }
+
+  /* Alertas */
+  .alert {
+    @apply rounded-2xl p-4 text-sm;
+    background: color-mix(in oklab, var(--color-text) 06%, transparent);
+    border: 1px solid var(--color-border);
+  }
+  .alert-success {
+    background: color-mix(in oklab, var(--color-success) 12%, transparent);
+    border-color: color-mix(in oklab, var(--color-success) 40%, transparent);
+    color: var(--color-text);
+  }
+  .alert-error {
+    background: color-mix(in oklab, var(--color-error) 12%, transparent);
+    border-color: color-mix(in oklab, var(--color-error) 40%, transparent);
+    color: var(--color-text);
+  }
+
+  /* Títulos */
+  .heading-hero {
+    @apply text-3xl md:text-4xl font-semibold leading-tight;
+  }
+  .heading-1 {
+    @apply text-2xl font-semibold;
+  }
+  .heading-2 {
+    @apply text-xl font-semibold;
+  }
+  .heading-3 {
+    @apply text-lg font-semibold;
+  }
+
+  /* Tabelas (básico) */
+  .table {
+    @apply w-full text-sm rounded-2xl overflow-hidden;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+  .table thead th {
+    @apply text-left font-semibold px-4 py-3;
+    color: inherit;
+  }
+  .table tbody td {
+    @apply px-4 py-3 border-t;
+    border-color: var(--color-border);
+    color: inherit;
+  }
+}
+
+/* -------------------------------------------------------------
+   7) Helpers de container
+---------------------------------------------------------------- */
+.container-app {
+  @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
+}

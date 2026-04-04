@@ -1,0 +1,303 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model cargos {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome             String             @unique
+  descricao        String?
+  ativo            Boolean            @default(true)
+  created_at       DateTime           @default(now()) @db.Timestamptz(6)
+  cargo_permissoes cargo_permissoes[]
+  defensores       defensores[]
+}
+
+model permissoes {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chave            String             @unique
+  descricao        String
+  cargo_permissoes cargo_permissoes[]
+}
+
+model cargo_permissoes {
+  cargo_id     String     @db.Uuid
+  permissao_id String     @db.Uuid
+  cargo        cargos     @relation(fields: [cargo_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  permissao    permissoes @relation(fields: [permissao_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([cargo_id, permissao_id])
+}
+
+model unidades {
+  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome       String
+  comarca    String
+  sistema    sistema_judicial @default(solar)
+  ativo      Boolean          @default(true)
+  created_at DateTime         @default(now()) @db.Timestamptz(6)
+  casos      casos[]
+  defensores defensores[]
+}
+
+model defensores {
+  id                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome                String
+  email               String           @unique
+  senha_hash          String
+  cargo_id            String           @db.Uuid
+  unidade_id          String?          @db.Uuid
+  ativo               Boolean          @default(true)
+  created_at          DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime         @default(now()) @updatedAt @db.Timestamptz(6)
+  casos_criado_por    casos[]          @relation("CasoCriadoPor")
+  casos_defensor      casos[]          @relation("CasoDefensor")
+  casos_servidor      casos[]          @relation("CasoServidor")
+  casos_ia_regenerado casos_ia[]       @relation("IaRegeneradoPor")
+  cargo               cargos           @relation(fields: [cargo_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  unidade             unidades?        @relation(fields: [unidade_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  logs_auditoria      logs_auditoria[]
+}
+
+model casos {
+  id                  BigInt           @id @default(autoincrement())
+  protocolo           String           @unique
+  unidade_id          String           @db.Uuid
+  tipo_acao           tipo_acao
+  status              status_caso      @default(aguardando_documentos)
+  numero_vara         String?
+  servidor_id         String?          @db.Uuid
+  servidor_at         DateTime?        @db.Timestamptz(6)
+  defensor_id         String?          @db.Uuid
+  defensor_at         DateTime?        @db.Timestamptz(6)
+  numero_processo     String?
+  url_capa            String?
+  protocolado_at      DateTime?        @db.Timestamptz(6)
+  status_job          status_job?      @default(pendente)
+  erro_processamento  String?
+  retry_count         Int              @default(0)
+  last_retry_at       DateTime?        @db.Timestamptz(6)
+  processed_at        DateTime?        @db.Timestamptz(6)
+  arquivado           Boolean          @default(false)
+  motivo_arquivamento String?
+  criado_por          String?          @db.Uuid
+  
+  // Campos dinâmicos do formulário
+  nome_assistido      String?
+  cpf_assistido       String?
+  telefone_assistido  String?
+  whatsapp_contato    String?
+  relato_texto        String?
+  url_audio           String?
+  url_peticao         String?
+  url_documento_gerado String?
+  urls_documentos     Json?
+  documentos_informados Json?
+  dados_formulario    Json?
+  peticao_inicial_rascunho String?
+  peticao_completa_texto   String?
+  resumo_ia           String?
+
+  created_at          DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime         @default(now()) @updatedAt @db.Timestamptz(6)
+  criador             defensores?      @relation("CasoCriadoPor", fields: [criado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  defensor            defensores?      @relation("CasoDefensor", fields: [defensor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  servidor            defensores?      @relation("CasoServidor", fields: [servidor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  unidade             unidades         @relation(fields: [unidade_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ia                  casos_ia?
+  juridico            casos_juridico?
+  partes              casos_partes?
+  documentos          documentos[]
+  logs_auditoria      logs_auditoria[]
+  logs_pipeline       logs_pipeline[]
+
+  @@index([protocolo], map: "idx_casos_protocolo")
+  @@index([status], map: "idx_casos_status")
+  @@index([unidade_id], map: "idx_casos_unidade")
+  @@index([tipo_acao], map: "idx_casos_tipo_acao")
+  @@index([status_job], map: "idx_casos_status_job")
+  @@index([servidor_id, status], map: "idx_casos_servidor")
+  @@index([defensor_id, status], map: "idx_casos_defensor")
+  @@index([servidor_at], map: "idx_casos_servidor_at")
+  @@index([defensor_at], map: "idx_casos_defensor_at")
+  @@index([protocolado_at], map: "idx_casos_protocolado_at")
+  @@index([created_at], map: "idx_casos_created_at")
+  @@index([arquivado], map: "idx_casos_arquivado")
+}
+
+model casos_partes {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caso_id                BigInt   @unique
+  nome_assistido         String
+  cpf_assistido          String
+  rg_assistido           String?
+  emissor_rg_assistido   String?
+  estado_civil           String?
+  profissao              String?
+  nome_mae_assistido     String?
+  nome_pai_assistido     String?
+  nome_mae_representante String?
+  nome_pai_representante String?
+  endereco_assistido     String?
+  telefone_assistido     String?
+  email_assistido        String?
+  nome_requerido         String?
+  cpf_requerido          String?
+  rg_requerido           String?
+  emissor_rg_requerido   String?
+  profissao_requerido    String?
+  nome_mae_requerido     String?
+  nome_pai_requerido     String?
+  endereco_requerido     String?
+  telefone_requerido     String?
+  email_requerido        String?
+  exequentes             Json     @default("[]")
+  created_at             DateTime @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  caso                   casos    @relation(fields: [caso_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([cpf_assistido], map: "idx_partes_cpf")
+  @@index([caso_id], map: "idx_partes_caso")
+}
+
+model casos_juridico {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caso_id                BigInt   @unique
+  numero_processo_titulo String?
+  percentual_salario     Decimal? @db.Decimal(5, 2)
+  vencimento_dia         Int?
+  periodo_inadimplencia  String?
+  debito_valor           String?
+  debito_extenso         String?
+  debito_penhora_valor   String?
+  debito_penhora_extenso String?
+  debito_prisao_valor    String?
+  debito_prisao_extenso  String?
+  conta_banco            String?
+  conta_agencia          String?
+  conta_operacao         String?
+  conta_numero           String?
+  empregador_nome        String?
+  empregador_cnpj        String?
+  empregador_endereco    String?
+  created_at             DateTime @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  caso                   casos    @relation(fields: [caso_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model casos_ia {
+  id                     String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caso_id                BigInt      @unique
+  relato_texto           String?
+  dados_extraidos        Json?
+  dos_fatos_gerado       String?
+  peticao_completa_texto String?
+  url_peticao            String?
+  url_peticao_penhora    String?
+  url_peticao_prisao     String?
+  versao_peticao         Int         @default(1)
+  regenerado_at          DateTime?   @db.Timestamptz(6)
+  regenerado_por         String?     @db.Uuid
+  created_at             DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
+  caso                   casos       @relation(fields: [caso_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  regenerou              defensores? @relation("IaRegeneradoPor", fields: [regenerado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([caso_id], map: "idx_casos_ia_caso")
+}
+
+model documentos {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caso_id                BigInt
+  storage_path           String
+  nome_original          String?
+  tipo                   String?
+  tamanho_bytes          BigInt?
+  tamanho_original_bytes BigInt?
+  created_at             DateTime @default(now()) @db.Timestamptz(6)
+  caso                   casos    @relation(fields: [caso_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([caso_id], map: "idx_documentos_caso")
+}
+
+model logs_auditoria {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id String?     @db.Uuid
+  caso_id    BigInt?
+  acao       String
+  detalhes   Json?
+  criado_em  DateTime    @default(dbgenerated("timezone('America/Sao_Paulo'::text, now())")) @db.Timestamptz(6)
+  caso       casos?      @relation(fields: [caso_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario    defensores? @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([caso_id], map: "idx_logs_auditoria_caso")
+  @@index([usuario_id], map: "idx_logs_auditoria_user")
+  @@index([acao], map: "idx_logs_auditoria_acao")
+}
+
+model logs_pipeline {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caso_id       BigInt
+  job_tentativa Int            @default(1)
+  etapa         etapa_pipeline
+  status        String
+  duracao_ms    Int?
+  detalhes      Json?
+  erro_mensagem String?
+  criado_em     DateTime       @default(dbgenerated("timezone('America/Sao_Paulo'::text, now())")) @db.Timestamptz(6)
+  caso          casos          @relation(fields: [caso_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([caso_id], map: "idx_logs_pipeline_caso")
+  @@index([etapa, status], map: "idx_logs_pipeline_etapa")
+  @@index([criado_em], map: "idx_logs_pipeline_tempo")
+}
+
+enum status_caso {
+  aguardando_documentos
+  documentacao_completa
+  processando_ia
+  pronto_para_analise
+  em_atendimento
+  liberado_para_protocolo
+  em_protocolo
+  protocolado
+  erro_processamento
+}
+
+enum status_job {
+  pendente
+  processando
+  concluido
+  erro
+}
+
+enum tipo_acao {
+  exec_penhora
+  exec_prisao
+  exec_cumulado
+  def_penhora
+  def_prisao
+  def_cumulado
+  fixacao_alimentos
+  alimentos_gravidicos
+}
+
+enum sistema_judicial {
+  solar
+  sigad
+}
+
+enum etapa_pipeline {
+  upload_recebido
+  compressao_imagem
+  ocr_gpt
+  extracao_dados
+  geracao_dos_fatos
+  merge_template
+  upload_docx
+  status_atualizado
+}

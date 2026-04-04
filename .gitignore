@@ -1,0 +1,12 @@
+#
+node_modules/
+.env
+.env.docker
+dist/
+build/
+*.log
+#
+backend/.env
+backend/.env.docker
+frontend/.env.docker
+frontend-defensor/.env

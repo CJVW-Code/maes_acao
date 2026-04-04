@@ -1,0 +1,2625 @@
+﻿
+> def-sul-bahia-backend@1.0.0 test
+> node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit
+
+node.exe : (node:18552) ExperimentalWarning: VM Modules is an experimental feature 
+and might change at any time
+No linha:1 caractere:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\weslley\AppData\Roamin ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:18552) Ex...nge at any 
+time:String) [    ], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS tests/dicionarioAcoes.test.js
+(node:9192) ExperimentalWarning: VM Modules is an experimental feature and might 
+change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS tests/auditMiddleware.test.js
+(node:1392) ExperimentalWarning: VM Modules is an experimental feature and might 
+change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS tests/geminiService.test.js
+(node:10372) ExperimentalWarning: VM Modules is an experimental feature and might 
+change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS tests/documentGenerationService.test.js
+  ÔùÅ Console
+
+    console.log
+      {
+        "error": [
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{vara",
+              "id": "duplicate_open_tag",
+              "context": "{{vara",
+              "offset": 12,
+              "explanation": "The tag beginning with \"{{vara\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "vara}}",
+              "id": "duplicate_close_tag",
+              "context": "vara}}",
+              "offset": 18,
+              "explanation": "The tag ending with \"vara}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{coma",
+              "id": "duplicate_open_tag",
+              "context": "{{coma",
+              "offset": 35,
+              "explanation": "The tag beginning with \"{{coma\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "arca}}",
+              "id": "duplicate_close_tag",
+              "context": "arca}}",
+              "offset": 44,
+              "explanation": "The tag ending with \"arca}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{tria",
+              "id": "duplicate_open_tag",
+              "context": "{{tria",
+              "offset": 69,
+              "explanation": "The tag beginning with \"{{tria\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "mero}}",
+              "id": "duplicate_close_tag",
+              "context": "mero}}",
+              "offset": 84,
+              "explanation": "The tag ending with \"mero}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{proc",
+              "id": "duplicate_open_tag",
+              "context": "{{proc",
+              "offset": 130,
+              "explanation": "The tag beginning with \"{{proc\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "mero}}",
+              "id": "duplicate_close_tag",
+              "context": "mero}}",
+              "offset": 152,
+              "explanation": "The tag ending with \"mero}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{exeq",
+              "id": "duplicate_open_tag",
+              "context": "{{exeq",
+              "offset": 155,
+              "explanation": "The tag beginning with \"{{exeq\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "nome}}",
+              "id": "duplicate_close_tag",
+              "context": "nome}}",
+              "offset": 171,
+              "explanation": "The tag ending with \"nome}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{exeq",
+              "id": "duplicate_open_tag",
+              "context": "{{exeq",
+              "offset": 175,
+              "explanation": "The tag beginning with \"{{exeq\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "_nao}}",
+              "id": "duplicate_close_tag",
+              "context": "_nao}}",
+              "offset": 202,
+              "explanation": "The tag ending with \"_nao}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{exeq",
+              "id": "duplicate_open_tag",
+              "context": "{{exeq",
+              "offset": 220,
+              "explanation": "The tag beginning with \"{{exeq\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "ento}}",
+              "id": "duplicate_close_tag",
+              "context": "ento}}",
+              "offset": 247,
+              "explanation": "The tag ending with \"ento}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{exeq",
+              "id": "duplicate_open_tag",
+              "context": "{{exeq",
+              "offset": 255,
+              "explanation": "The tag beginning with \"{{exeq\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "_cpf}}",
+              "id": "duplicate_close_tag",
+              "context": "_cpf}}",
+              "offset": 270,
+              "explanation": "The tag ending with \"_cpf}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{repr",
+              "id": "duplicate_open_tag",
+              "context": "{{repr",
+              "offset": 309,
+              "explanation": "The tag beginning with \"{{repr\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "nome}}",
+              "id": "duplicate_close_tag",
+              "context": "nome}}",
+              "offset": 329,
+              "explanation": "The tag ending with \"nome}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{repr",
+              "id": "duplicate_open_tag",
+              "context": "{{repr",
+              "offset": 333,
+              "explanation": "The tag beginning with \"{{repr\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "dade}}",
+              "id": "duplicate_close_tag",
+              "context": "dade}}",
+              "offset": 362,
+              "explanation": "The tag ending with \"dade}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{repr",
+              "id": "duplicate_open_tag",
+              "context": "{{repr",
+              "offset": 366,
+              "explanation": "The tag beginning with \"{{repr\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "ivil}}",
+              "id": "duplicate_close_tag",
+              "context": "ivil}}",
+              "offset": 394,
+              "explanation": "The tag ending with \"ivil}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{repr",
+              "id": "duplicate_open_tag",
+              "context": "{{repr",
+              "offset": 398,
+              "explanation": "The tag beginning with \"{{repr\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "acao}}",
+              "id": "duplicate_close_tag",
+              "context": "acao}}",
+              "offset": 422,
+              "explanation": "The tag ending with \"acao}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{repr",
+              "id": "duplicate_open_tag",
+              "context": "{{repr",
+              "offset": 430,
+              "explanation": "The tag beginning with \"{{repr\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "_cpf}}",
+              "id": "duplicate_close_tag",
+              "context": "_cpf}}",
+              "offset": 449,
+              "explanation": "The tag ending with \"_cpf}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{repr",
+              "id": "duplicate_open_tag",
+              "context": "{{repr",
+              "offset": 453,
+              "explanation": "The tag beginning with \"{{repr\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "cial}}",
+              "id": "duplicate_close_tag",
+              "context": "cial}}",
+              "offset": 489,
+              "explanation": "The tag ending with \"cial}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{repr",
+              "id": "duplicate_open_tag",
+              "context": "{{repr",
+              "offset": 493,
+              "explanation": "The tag beginning with \"{{repr\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "onal}}",
+              "id": "duplicate_close_tag",
+              "context": "onal}}",
+              "offset": 530,
+              "explanation": "The tag ending with \"onal}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{repr",
+              "id": "duplicate_open_tag",
+              "context": "{{repr",
+              "offset": 534,
+              "explanation": "The tag beginning with \"{{repr\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "mail}}",
+              "id": "duplicate_close_tag",
+              "context": "mail}}",
+              "offset": 555,
+              "explanation": "The tag ending with \"mail}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{repr",
+              "id": "duplicate_open_tag",
+              "context": "{{repr",
+              "offset": 559,
+              "explanation": "The tag beginning with \"{{repr\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "fone}}",
+              "id": "duplicate_close_tag",
+              "context": "fone}}",
+              "offset": 583,
+              "explanation": "The tag ending with \"fone}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{exec",
+              "id": "duplicate_open_tag",
+              "context": "{{exec",
+              "offset": 1007,
+              "explanation": "The tag beginning with \"{{exec\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "nome}}",
+              "id": "duplicate_close_tag",
+              "context": "nome}}",
+              "offset": 1023,
+              "explanation": "The tag ending with \"nome}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{exec",
+              "id": "duplicate_open_tag",
+              "context": "{{exec",
+              "offset": 1027,
+              "explanation": "The tag beginning with \"{{exec\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "dade}}",
+              "id": "duplicate_close_tag",
+              "context": "dade}}",
+              "offset": 1052,
+              "explanation": "The tag ending with \"dade}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{exec",
+              "id": "duplicate_open_tag",
+              "context": "{{exec",
+              "offset": 1056,
+              "explanation": "The tag beginning with \"{{exec\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "ivil}}",
+              "id": "duplicate_close_tag",
+              "context": "ivil}}",
+              "offset": 1080,
+              "explanation": "The tag ending with \"ivil}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{exec",
+              "id": "duplicate_open_tag",
+              "context": "{{exec",
+              "offset": 1084,
+              "explanation": "The tag beginning with \"{{exec\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "acao}}",
+              "id": "duplicate_close_tag",
+              "context": "acao}}",
+              "offset": 1104,
+              "explanation": "The tag ending with \"acao}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{exec",
+              "id": "duplicate_open_tag",
+              "context": "{{exec",
+              "offset": 1112,
+              "explanation": "The tag beginning with \"{{exec\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "_cpf}}",
+              "id": "duplicate_close_tag",
+              "context": "_cpf}}",
+              "offset": 1127,
+              "explanation": "The tag ending with \"_cpf}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{exec",
+              "id": "duplicate_open_tag",
+              "context": "{{exec",
+              "offset": 1131,
+              "explanation": "The tag beginning with \"{{exec\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "cial}}",
+              "id": "duplicate_close_tag",
+              "context": "cial}}",
+              "offset": 1163,
+              "explanation": "The tag ending with \"cial}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{exec",
+              "id": "duplicate_open_tag",
+              "context": "{{exec",
+              "offset": 1167,
+              "explanation": "The tag beginning with \"{{exec\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "onal}}",
+              "id": "duplicate_close_tag",
+              "context": "onal}}",
+              "offset": 1200,
+              "explanation": "The tag ending with \"onal}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{exec",
+              "id": "duplicate_open_tag",
+              "context": "{{exec",
+              "offset": 1204,
+              "explanation": "The tag beginning with \"{{exec\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "mail}}",
+              "id": "duplicate_close_tag",
+              "context": "mail}}",
+              "offset": 1221,
+              "explanation": "The tag ending with \"mail}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{exec",
+              "id": "duplicate_open_tag",
+              "context": "{{exec",
+              "offset": 1225,
+              "explanation": "The tag beginning with \"{{exec\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "fone}}",
+              "id": "duplicate_close_tag",
+              "context": "fone}}",
+              "offset": 1245,
+              "explanation": "The tag ending with \"fone}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{dos_",
+              "id": "duplicate_open_tag",
+              "context": "{{dos_",
+              "offset": 2257,
+              "explanation": "The tag beginning with \"{{dos_\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "atos}}",
+              "id": "duplicate_close_tag",
+              "context": "atos}}",
+              "offset": 2268,
+              "explanation": "The tag ending with \"atos}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{valo",
+              "id": "duplicate_open_tag",
+              "context": "{{valo",
+              "offset": 5001,
+              "explanation": "The tag beginning with \"{{valo\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "bito}}",
+              "id": "duplicate_close_tag",
+              "context": "bito}}",
+              "offset": 5015,
+              "explanation": "The tag ending with \"bito}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{valo",
+              "id": "duplicate_open_tag",
+              "context": "{{valo",
+              "offset": 5019,
+              "explanation": "The tag beginning with \"{{valo\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "enso}}",
+              "id": "duplicate_close_tag",
+              "context": "enso}}",
+              "offset": 5041,
+              "explanation": "The tag ending with \"enso}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{peri",
+              "id": "duplicate_open_tag",
+              "context": "{{peri",
+              "offset": 5070,
+              "explanation": "The tag beginning with \"{{peri\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "_ano}}",
+              "id": "duplicate_close_tag",
+              "context": "_ano}}",
+              "offset": 5089,
+              "explanation": "The tag ending with \"_ano}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{dado",
+              "id": "duplicate_open_tag",
+              "context": "{{dado",
+              "offset": 5157,
+              "explanation": "The tag beginning with \"{{dado\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "ente}}",
+              "id": "duplicate_close_tag",
+              "context": "ente}}",
+              "offset": 5184,
+              "explanation": "The tag ending with \"ente}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{valo",
+              "id": "duplicate_open_tag",
+              "context": "{{valo",
+              "offset": 7334,
+              "explanation": "The tag beginning with \"{{valo\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "ausa}}",
+              "id": "duplicate_close_tag",
+              "context": "ausa}}",
+              "offset": 7347,
+              "explanation": "The tag ending with \"ausa}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{valo",
+              "id": "duplicate_open_tag",
+              "context": "{{valo",
+              "offset": 7351,
+              "explanation": "The tag beginning with \"{{valo\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "enso}}",
+              "id": "duplicate_close_tag",
+              "context": "enso}}",
+              "offset": 7372,
+              "explanation": "The tag ending with \"enso}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{cida",
+              "id": "duplicate_open_tag",
+              "context": "{{cida",
+              "offset": 7408,
+              "explanation": "The tag beginning with \"{{cida\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "tura}}",
+              "id": "duplicate_close_tag",
+              "context": "tura}}",
+              "offset": 7432,
+              "explanation": "The tag ending with \"tura}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate open tag, expected one open tag",
+            "stack": "Error: Duplicate open tag, expected one open tag\n    at new 
+XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\errors.js:21:16)\n    at getDuplicateOpenTagException (C:\
+\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\
+\js\\errors.js:83:13)\n    at C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\lexer.js:136:23\n    at Array.reduce 
+(<anonymous>)\n    at getDelimiterErrors (C:\\Users\\weslley\\Downloads\\Assistente
+DefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:126:46)\n    at 
+parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_mod
+ules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:42
+4:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Downloads\\AssistenteDefSu
+l\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124:32)\n    at 
+Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\back
+end\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    at 
+Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\no
+de_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new Docxtemplater (
+C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplat
+er\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\src\\services\\documentGenerationService.js:28:15)\n 
+   at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "{{defe",
+              "id": "duplicate_open_tag",
+              "context": "{{defe",
+              "offset": 7434,
+              "explanation": "The tag beginning with \"{{defe\" has duplicate open 
+tags",
+              "file": "word/document.xml"
+            }
+          },
+          {
+            "name": "TemplateError",
+            "message": "Duplicate close tag, expected one close tag",
+            "stack": "Error: Duplicate close tag, expected one close tag\n    at 
+new XTTemplateError (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node
+_modules\\docxtemplater\\js\\errors.js:21:16)\n    at 
+getDuplicateCloseTagException (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\bac
+kend\\node_modules\\docxtemplater\\js\\errors.js:95:13)\n    at C:\\Users\\weslley\
+\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.js:16
+6:21\n    at Array.reduce (<anonymous>)\n    at getDelimiterErrors (C:\\Users\\wesl
+ley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\lexer.j
+s:126:46)\n    at parseDelimiters (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\
+\backend\\node_modules\\docxtemplater\\js\\lexer.js:333:29)\n    at Object.parse (C
+:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modules\\docxtemplate
+r\\js\\lexer.js:424:28)\n    at XmlTemplater.preparse (C:\\Users\\weslley\\Download
+s\\AssistenteDefSul\\backend\\node_modules\\docxtemplater\\js\\xml-templater.js:124
+:32)\n    at Docxtemplater.precompileFile (C:\\Users\\weslley\\Downloads\\Assistent
+eDefSul\\backend\\node_modules\\docxtemplater\\js\\docxtemplater.js:405:19)\n    
+at Docxtemplater.compile (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\
+\node_modules\\docxtemplater\\js\\docxtemplater.js:507:16)\n    at new 
+Docxtemplater (C:\\Users\\weslley\\Downloads\\AssistenteDefSul\\backend\\node_modul
+es\\docxtemplater\\js\\docxtemplater.js:249:12)\n    at generateDocx (C:\\Users\\we
+slley\\Downloads\\AssistenteDefSul\\backend\\src\\services\\documentGenerationServi
+ce.js:28:15)\n    at Object.<anonymous> (C:\\Users\\weslley\\Downloads\\AssistenteD
+efSul\\backend\\tests\\documentGenerationService.test.js:57:9)",
+            "properties": {
+              "xtag": "Nome}}",
+              "id": "duplicate_close_tag",
+              "context": "Nome}}",
+              "offset": 7449,
+              "explanation": "The tag ending with \"Nome}}\" has duplicate close 
+tags",
+              "file": "word/document.xml"
+            }
+          }
+        ]
+      }
+
+      at logger (node_modules/docxtemplater/js/error-logger.js:21:11)
+
+(node:9848) ExperimentalWarning: VM Modules is an experimental feature and might 
+change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS tests/submissionFlow.test.js
+  ÔùÅ Console
+
+    console.log
+      ­ƒÜÇ START
+
+      at Object.<anonymous> (tests/submissionFlow.test.js:30:13)
+
+    console.log
+      2026-03-16 16:45:27:4527 [[32minfo[39m]: [32mIniciando cria├º├úo de caso. 
+Protocolo: 202603164327938, Tipo: Fixa├º├úo - Fixa├º├úo de Pens├úo 
+Aliment├¡cia[39m
+
+      at Console.log (node_modules/winston/lib/winston/transports/console.js:87:23)
+
+    console.log
+      2026-03-16 16:45:27:4527 [[37mdebug[39m]: [37mSalvando dados b├ísicos no 
+Supabase...[39m
+
+      at Console.log (node_modules/winston/lib/winston/transports/console.js:87:23)
+
+    console.log
+      2026-03-16 16:45:27:4527 [[32minfo[39m]: [32mCaso 202603164327938 salvo. 
+Iniciando processamento background.[39m
+
+      at Console.log (node_modules/winston/lib/winston/transports/console.js:87:23)
+
+    console.log
+      2026-03-16 16:45:27:4527 [[32minfo[39m]: [32mƒôñ Job enviado para QStash: 
+202603164327938[39m
+
+      at Console.log (node_modules/winston/lib/winston/transports/console.js:87:23)
+
+    console.log
+      Ô£¿ M├ígica em cascata iniciada...
+
+      at Object.<anonymous> (tests/submissionFlow.test.js:49:13)
+
+    console.log
+      2026-03-16 16:45:27:4527 [[32minfo[39m]: [32m[Background] Processando 
+protocolo=T1 | acaoKey="fixacao_alimentos"[39m
+
+      at Console.log (node_modules/winston/lib/winston/transports/console.js:87:23)
+
+    console.log
+      2026-03-16 16:45:27:4527 [[32minfo[39m]: [32mƒñû [IA] Iniciando an├ílise 
+de caso (Resumo)...[39m
+
+      at Console.log (node_modules/winston/lib/winston/transports/console.js:87:23)
+
+    console.log
+      2026-03-16 16:45:27:4527 [[32minfo[39m]: [32mÔ£à [IA] An├ílise conclu├¡da 
+em 0.00s[39m
+
+      at Console.log (node_modules/winston/lib/winston/transports/console.js:87:23)
+
+    console.log
+      2026-03-16 16:45:28:4528 [[32minfo[39m]: [32m[IA] 
+acaoKey="fixacao_alimentos" ÔåÆ prompt=DICION├üRIO[39m
+
+      at Console.log (node_modules/winston/lib/winston/transports/console.js:87:23)
+
+    console.log
+      2026-03-16 16:45:28:4528 [[32minfo[39m]: [32mƒñû [IA] Gerando se├º├úo 
+'Dos Fatos' para Fulano de Tal (teste)...[39m
+
+      at Console.log (node_modules/winston/lib/winston/transports/console.js:87:23)
+
+    console.log
+      2026-03-16 16:45:28:4528 [[32minfo[39m]: [32mÔ£à [IA] 'Dos Fatos' gerado 
+em 0.00s[39m
+
+      at Console.log (node_modules/winston/lib/winston/transports/console.js:87:23)
+
+    console.log
+      2026-03-16 16:45:28:4528 [[32minfo[39m]: [32m[DOCX] 
+acaoKey="fixacao_alimentos" ÔåÆ template="fixacao_alimentos1.docx"[39m
+
+      at Console.log (node_modules/winston/lib/winston/transports/console.js:87:23)
+
+    console.log
+      2026-03-16 16:45:28:4528 [[32minfo[39m]: [32mÔ£à Caso T1 processado com 
+sucesso em background.[39m
+
+      at Console.log (node_modules/winston/lib/winston/transports/console.js:87:23)
+
+    console.log
+      Ô£à END
+
+      at Object.<anonymous> (tests/submissionFlow.test.js:52:13)
+
+-------------------------------|---------|----------|---------|---------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+File                           | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                                                                                                                                                                                                                                                                                                                                                                                                        
+-------------------------------|---------|----------|---------|---------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+All files                      |   36.22 |     32.9 |   41.86 |    37.1 |                                                                                                                                                                                                                                                                                                                                                                                                                          
+ backend                       |   77.77 |    66.66 |   33.33 |   77.77 |                                                                                                                                                                                                                                                                                                                                                                                                                          
+  server.js                    |   77.77 |    66.66 |   33.33 |   77.77 | 25,40,47-48                                                                                                                                                                                                                                                                                                                                                                                                              
+ backend/src/config            |   86.36 |       75 |      60 |      90 |                                                                                                                                                                                                                                                                                                                                                                                                                          
+  dicionarioAcoes.js           |     100 |      100 |     100 |     100 |                                                                                                                                                                                                                                                                                                                                                                                                                          
+  jwt.js                       |      60 |      100 |       0 |      60 | 7,11                                                                                                                                                                                                                                                                                                                                                                                                                     
+  varasMapping.js              |   85.71 |       50 |     100 |     100 | 38-41                                                                                                                                                                                                                                                                                                                                                                                                                    
+ backend/src/controllers       |   23.62 |    22.14 |    32.5 |   23.67 |                                                                                                                                                                                                                                                                                                                                                                                                                          
+  casosController.js           |   27.29 |    25.25 |   37.68 |   27.56 | 54,62-63,71-80,86,150-199,204-220,224-233,238-255,259-281,292-293,313,321-325,346-361,368,372-472,519-524,551-557,761,771,821-882,894,1030-1031,1062,1090-1093,1122,1126,1130-1133,1151-1192,1258-1280,1285-1290,1299-1335,1340-1396,1401-1431,1436-1459,1464-1499,1504-1591,1596-1683,1688-1710,1715-1746,1751-1773,1778-1838,1843-1860,1864-2008,2016-2085,2091-2126,2131-2160,2165-2238,2243-2269,2276-2288,2293-2302 
+  consultaAuditoria.js         |    9.09 |        0 |       0 |    9.09 | 4-29                                                                                                                                                                                                                                                                                                                                                                                                                     
+  debugController.js           |   11.11 |        0 |       0 |   11.11 | 4-13                                                                                                                                                                                                                                                                                                                                                                                                                     
+  defensoresController.js      |    7.14 |        0 |       0 |     7.5 | 8-67,73-116,122-138,144-169,175-196,202-230                                                                                                                                                                                                                                                                                                                                                                              
+  jobController.js             |    2.08 |        0 |       0 |    2.27 | 6-146                                                                                                                                                                                                                                                                                                                                                                                                                    
+  statusController.js          |    3.22 |        0 |       0 |    3.22 | 7-139                                                                                                                                                                                                                                                                                                                                                                                                                    
+ backend/src/middleware        |   55.31 |    41.17 |   28.57 |   54.76 |                                                                                                                                                                                                                                                                                                                                                                                                                          
+  auditMiddleware.js           |    82.6 |    56.52 |   66.66 |   88.88 | 22-23                                                                                                                                                                                                                                                                                                                                                                                                                    
+  auth.js                      |   18.18 |        0 |       0 |   18.18 | 10-27                                                                                                                                                                                                                                                                                                                                                                                                                    
+  upload.js                    |   38.46 |    14.28 |       0 |   38.46 | 8,12-21,27-32                                                                                                                                                                                                                                                                                                                                                                                                            
+ backend/src/routes            |   77.35 |        0 |       0 |   77.35 |                                                                                                                                                                                                                                                                                                                                                                                                                          
+  casos.js                     |     100 |      100 |     100 |     100 |                                                                                                                                                                                                                                                                                                                                                                                                                          
+  debug.js                     |     100 |      100 |     100 |     100 |                                                                                                                                                                                                                                                                                                                                                                                                                          
+  defensores.js                |     100 |      100 |     100 |     100 |                                                                                                                                                                                                                                                                                                                                                                                                                          
+  jobs.js                      |      25 |        0 |       0 |      25 | 14-40                                                                                                                                                                                                                                                                                                                                                                                                                    
+  status.js                    |     100 |      100 |     100 |     100 |                                                                                                                                                                                                                                                                                                                                                                                                                          
+ backend/src/services          |   74.53 |    75.36 |   65.62 |   75.59 |                                                                                                                                                                                                                                                                                                                                                                                                                          
+  documentGenerationService.js |     100 |      100 |     100 |     100 |                                                                                                                                                                                                                                                                                                                                                                                                                          
+  documentService.js           |    6.25 |        0 |       0 |    6.25 | 4-42                                                                                                                                                                                                                                                                                                                                                                                                                     
+  geminiService.js             |   81.42 |    81.05 |   84.21 |   83.45 | 143-151,161-163,217-225,259-265,279-280,319,322,325,338                                                                                                                                                                                                                                                                                                                                                                  
+  loggerService.js             |       0 |        0 |       0 |       0 | 10-28                                                                                                                                                                                                                                                                                                                                                                                                                    
+  securityService.js           |   71.42 |    33.33 |      40 |   71.42 | 42-52,55-56,60                                                                                                                                                                                                                                                                                                                                                                                                           
+ backend/src/utils             |     100 |      100 |     100 |     100 |                                                                                                                                                                                                                                                                                                                                                                                                                          
+  logger.js                    |     100 |      100 |     100 |     100 |                                                                                                                                                                                                                                                                                                                                                                                                                          
+-------------------------------|---------|----------|---------|---------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Test Suites: 5 passed, 5 total
+Tests:       31 passed, 31 total
+Snapshots:   0 total
+Time:        1.948 s, estimated 3 s
+Ran all test suites.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect 
+async operations that kept running after all tests finished?

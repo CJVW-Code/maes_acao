@@ -1,0 +1,151 @@
+// src/utils/formOptions.js
+
+export const nacionalidadeOptions = [
+  { value: "", label: "Nacionalidade" },
+  { value: "brasileiro(a)", label: "Brasileiro(a)" },
+  { value: "estrangeiro(a)", label: "Estrangeiro(a)" },
+];
+
+export const estadoCivilOptions = [
+  { value: "", label: "Estado Civil" },
+  { value: "solteiro(a)", label: "Solteiro(a)" },
+  { value: "casado(a)", label: "Casado(a)" },
+  { value: "divorciado(a)", label: "Divorciado(a)" },
+  { value: "viúvo(a)", label: "Viúvo(a)" },
+  { value: "união estável", label: "União Estável" },
+];
+
+export const orgaoEmissorOptions = [
+  { value: "", label: "Órgão emissor" },
+  { value: "SSP/AC", label: "SSP/AC" },
+  { value: "SSP/AL", label: "SSP/AL" },
+  { value: "SSP/AP", label: "SSP/AP" },
+  { value: "SSP/AM", label: "SSP/AM" },
+  { value: "SSP/BA", label: "SSP/BA" },
+  { value: "SSP/CE", label: "SSP/CE" },
+  { value: "SSP/DF", label: "SSP/DF" },
+  { value: "SSP/ES", label: "SSP/ES" },
+  { value: "SSP/GO", label: "SSP/GO" },
+  { value: "SSP/MA", label: "SSP/MA" },
+  { value: "SSP/MT", label: "SSP/MT" },
+  { value: "SSP/MS", label: "SSP/MS" },
+  { value: "SSP/MG", label: "SSP/MG" },
+  { value: "SSP/PA", label: "SSP/PA" },
+  { value: "SSP/PB", label: "SSP/PB" },
+  { value: "SSP/PR", label: "SSP/PR" },
+  { value: "SSP/PE", label: "SSP/PE" },
+  { value: "SSP/PI", label: "SSP/PI" },
+  { value: "SSP/RJ", label: "SSP/RJ" },
+  { value: "SSP/RN", label: "SSP/RN" },
+  { value: "SSP/RS", label: "SSP/RS" },
+  { value: "SSP/RO", label: "SSP/RO" },
+  { value: "SSP/RR", label: "SSP/RR" },
+  { value: "SSP/SC", label: "SSP/SC" },
+  { value: "SSP/SP", label: "SSP/SP" },
+  { value: "SSP/SE", label: "SSP/SE" },
+  { value: "SSP/TO", label: "SSP/TO" },
+  { value: "DETRAN", label: "Detran" },
+  { value: "OUTRO", label: "Outro" },
+];
+
+export const cidadesBahia = [
+  "Alagoinhas",
+  "Amargosa",
+  "Barreiras",
+  "Bom Jesus da Lapa",
+  "Brumado",
+  "Cachoeira",
+  "Camacan",
+  "Camaçari",
+  "Campo Formoso",
+  "Canavieiras",
+  "Candeias",
+  "Catu",
+  "Conceição do Coité",
+  "Cruz das Almas",
+  "Esplanada",
+  "Euclides da Cunha",
+  "Eunápolis",
+  "Feira de Santana",
+  "Guanambi",
+  "Ilhéus",
+  "Ipiaú",
+  "Ipirá",
+  "Irará",
+  "Irecê",
+  "Itaberaba",
+  "Itabuna",
+  "Itaparica",
+  "Itapetinga",
+  "Jacobina",
+  "Jequié",
+  "Juazeiro",
+  "Lauro de Freitas",
+  "Luís Eduardo Magalhães",
+  "Macaúbas",
+  "Nazaré",
+  "Paripiranga",
+  "Paulo Afonso",
+  "Poções",
+  "Porto Seguro",
+  "Riachão do Jacuípe",
+  "Ribeira do Pombal",
+  "Salvador",
+  "Santa Maria da Vitória",
+  "Santo Amaro",
+  "Santo Antônio de Jesus",
+  "Santo Estêvão",
+  "Seabra",
+  "Senhor do Bonfim",
+  "Serrinha",
+  "Simões Filho",
+  "Teixeira de Freitas",
+  "Valença",
+  "Vitória da Conquista"
+];
+
+export const outrosDadosRequeridoConfig = [
+  { key: "requeridoRg", label: "RG e órgão emissor", renderType: "rg" },
+  {
+    key: "requeridoDataNascimento",
+    label: "Data de nascimento",
+    renderType: "date",
+    field: "requeridoDataNascimento",
+  },
+  {
+    key: "requeridoOutrosDetalhes",
+    label: "Outros detalhes relevantes",
+    renderType: "textarea",
+    field: "requeridoOutrosDetalhes",
+    placeholder: "Ex: Nome do advogado, redes sociais, etc.",
+  },
+  {
+    key: "requeridoFiliacao",
+    label: "Nomes dos pais (Filiação)",
+    renderType: "filiacao",
+  },
+];
+
+export const outrosDadosRequeridoFieldMap = {
+  requeridoRg: ["requeridoRgNumero", "requeridoRgOrgao"],
+  requeridoDataNascimento: ["requeridoDataNascimento"],
+  requeridoNomeMae: ["requeridoNomeMae"],
+  requeridoNomePai: ["requeridoNomePai"],
+  requeridoOutrosDetalhes: ["requeridoOutrosDetalhes"],
+  requeridoFiliacao: ["requeridoNomeMae", "requeridoNomePai"],
+};
+
+export const currencyFields = new Set([
+  "valorMensalPensao",
+  "valorTotalDebitoExecucao",
+]);
+
+export const acoesFallbackFamilia = [
+  "Fixação de Pensão Alimentícia",
+  "Divórcio",
+  "Reconhecimento e Dissolução de União Estável",
+  "Guarda de Filhos",
+  "Alvará",
+  "Execução de Alimentos Rito Penhora/Prisão",
+  "Revisão de Alimentos",
+];

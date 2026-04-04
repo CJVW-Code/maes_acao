@@ -1,0 +1,59 @@
+services:
+  # ── PostgreSQL 17 (mesma versão do Supabase) ──────────────────────────
+  db:
+    image: postgres:17-alpine
+    container_name: maes_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: maes
+      POSTGRES_PASSWORD: maes123
+      POSTGRES_DB: maes_em_acao
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maes -d maes_em_acao"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Backend (Node.js + Express) ───────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: maes_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env.docker
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: sh -c "sleep 5 && npm run seed && npm run dev"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── Frontend (React + Vite) ──────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: maes_frontend
+    restart: unless-stopped
+    env_file:
+      - ./frontend/.env.docker
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

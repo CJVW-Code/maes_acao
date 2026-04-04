@@ -1,0 +1,180 @@
+// Arquivo: frontend-defensor/src/components/Cadastro.jsx
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { UserPlus, Shield, Eye, EyeOff, Loader2 } from "lucide-react";
+import { API_BASE } from "../../../utils/apiBase";
+import { useAuth } from "../contexts/AuthContext";
+
+export const Cadastro = () => {
+  const { token } = useAuth();
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [cargo, setCargo] = useState("estagiario");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    let timer;
+    if (success) {
+      timer = setTimeout(() => {
+        navigate("/painel/equipe"); // Redireciona para a lista de equipe após sucesso
+      }, 1500);
+    }
+    return () => clearTimeout(timer); // Função de limpeza
+  }, [success, navigate]); // Roda o efeito quando 'success' ou 'navigate' mudam
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/defensores/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ nome, email, senha, cargo }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error);
+      }
+
+      setSuccess("Membro cadastrado com sucesso!");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-8 pb-24">
+      <div className="grid gap-8 md:grid-cols-2 items-start">
+        <div className="card bg-gradient-to-br from-surface to-surface-alt border-l-4 border-l-primary h-full">
+          <div className="space-y-4">
+            <Shield className="w-10 h-10" />
+            <h1 className="heading-1">Novo Membro</h1>
+            <p className="text-muted">
+              Cadastre um novo defensor, estagiário ou recepcionista para
+              acessar o painel.
+            </p>
+            <div className="divider my-4"></div>
+            <p className="text-sm text-muted">
+              Preencha os dados abaixo para criar o acesso.
+            </p>
+          </div>
+        </div>
+
+        <div className="card space-y-6">
+          <div className="flex items-center gap-3">
+            <UserPlus className="text-primary" />
+            <div>
+              <p className="text-xs uppercase text-muted tracking-[0.3em]">
+                Novo acesso
+              </p>
+              <h2 className="heading-2">Dados do Usuário</h2>
+            </div>
+          </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted">
+                Nome completo
+              </label>
+              <input
+                type="text"
+                placeholder="Digite seu nome"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                required
+                className="input"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted">
+                Email institucional
+              </label>
+              <input
+                type="email"
+                placeholder="seu.nome@defensoria.ba.def.br"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="input"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted">Senha</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Crie uma senha"
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  required
+                  className="input pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-white"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted">
+                Cargo / Permissão
+              </label>
+              <select
+                value={cargo}
+                onChange={(e) => setCargo(e.target.value)}
+                className="input"
+              >
+                <option value="estagiario">Estagiário</option>
+                <option value="defensor">Defensor</option>
+                <option value="recepcao">Recepção</option>
+                <option value="admin">Administrador</option>
+                <option value="visualizador">Visualizador</option>
+              </select>
+            </div>
+
+            {error && <p className="alert alert-error">{error}</p>}
+            {success && <p className="alert alert-success">{success}</p>}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => navigate("/painel/equipe")}
+                className="btn btn-ghost flex-1 border border-soft"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn btn-primary flex-1 text-base flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <UserPlus size={18} />
+                )}
+                {loading ? "Salvando..." : "Cadastrar"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
