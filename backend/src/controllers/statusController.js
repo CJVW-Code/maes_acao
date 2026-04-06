@@ -1,4 +1,4 @@
-import { supabase } from "../config/supabase.js";
+import { supabase, isSupabaseConfigured } from "../config/supabase.js";
 import { prisma } from "../config/prisma.js";
 import { verifyKey } from "../services/securityService.js";
 import logger from "../utils/logger.js";
@@ -135,7 +135,7 @@ export const consultarPorCpf = async (req, res) => {
     // Buscar casos com join em casos_partes para obter nome_representante
     let casosFinal = [];
 
-    if (supabase) {
+    if (isSupabaseConfigured) {
       // Usar a syntax OR do Supabase para buscar no cpf_assistido OU na coluna json dados_formulario->>representante_cpf
       const { data: casos, error } = await supabase
         .from("casos")

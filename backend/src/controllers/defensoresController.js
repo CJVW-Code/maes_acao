@@ -70,6 +70,7 @@ export const loginDefensor = async (req, res) => {
       where: { email },
       include: {
         cargo: true,
+        unidade: true,
       },
     });
 
@@ -99,6 +100,7 @@ export const loginDefensor = async (req, res) => {
       nome: defensor.nome,
       email: defensor.email,
       cargo: defensor.cargo.nome,
+      unidade_id: defensor.unidade_id,
     };
 
     const token = generateToken(payload);
@@ -110,6 +112,8 @@ export const loginDefensor = async (req, res) => {
         nome: defensor.nome,
         email: defensor.email,
         cargo: defensor.cargo.nome,
+        unidade_id: defensor.unidade_id,
+        unidade_nome: defensor.unidade?.nome || null,
       },
     });
   } catch (err) {
@@ -133,8 +137,12 @@ export const listarDefensores = async (req, res) => {
         email: true,
         created_at: true,
         ativo: true,
+        unidade_id: true,
         cargo: {
           select: { nome: true },
+        },
+        unidade: {
+          select: { id: true, nome: true, comarca: true },
         },
       },
       orderBy: { nome: "asc" },
@@ -143,6 +151,7 @@ export const listarDefensores = async (req, res) => {
     const data = equipe.map((d) => ({
       ...d,
       cargo: d.cargo.nome,
+      unidade_nome: d.unidade?.nome || "Sem unidade",
     }));
 
     res.json(data);

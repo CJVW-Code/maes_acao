@@ -162,7 +162,7 @@ export const HomeCidadao = () => {
                         <p className="text-sm text-muted mt-2">{caso.descricao}</p>
                       </div>
                       <div className="text-right">
-                        {caso.status === "documentos pendentes" ? (
+                        {(caso.status === "aguardando_documentos" || caso.status === "documentos pendentes" || caso.status === "aguardando_docs") ? (
                           <Link to={`/consultar?cpf=${cleanCpf(cpfInput)}`} className="btn btn-primary mt-2">
                             Anexar Documentos
                           </Link>

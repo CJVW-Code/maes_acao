@@ -1,7 +1,7 @@
 // Arquivo: frontend-defensor/src/components/Cadastro.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { UserPlus, Shield, Eye, EyeOff, Loader2 } from "lucide-react";
+import { UserPlus, Shield, Eye, EyeOff, Loader2, MapPin } from "lucide-react";
 import { API_BASE } from "../../../utils/apiBase";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -11,26 +11,51 @@ export const Cadastro = () => {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [cargo, setCargo] = useState("estagiario");
+  const [unidadeId, setUnidadeId] = useState("");
+  const [unidades, setUnidades] = useState([]);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Carrega lista de unidades
+  useEffect(() => {
+    const fetchUnidades = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/unidades`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setUnidades(data);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar unidades:", err);
+      }
+    };
+    if (token) fetchUnidades();
+  }, [token]);
+
   useEffect(() => {
     let timer;
     if (success) {
       timer = setTimeout(() => {
-        navigate("/painel/equipe"); // Redireciona para a lista de equipe após sucesso
+        navigate("/painel/equipe");
       }, 1500);
     }
-    return () => clearTimeout(timer); // Função de limpeza
-  }, [success, navigate]); // Roda o efeito quando 'success' ou 'navigate' mudam
+    return () => clearTimeout(timer);
+  }, [success, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    if (!unidadeId) {
+      setError("Selecione a unidade do novo membro.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -40,7 +65,7 @@ export const Cadastro = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ nome, email, senha, cargo }),
+        body: JSON.stringify({ nome, email, senha, cargo, unidade_id: unidadeId }),
       });
       const data = await response.json();
 
@@ -91,7 +116,7 @@ export const Cadastro = () => {
               </label>
               <input
                 type="text"
-                placeholder="Digite seu nome"
+                placeholder="Digite o nome"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 required
@@ -146,6 +171,31 @@ export const Cadastro = () => {
                 <option value="admin">Administrador</option>
                 <option value="visualizador">Visualizador</option>
               </select>
+            </div>
+
+            {/* SELETOR DE UNIDADE */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted flex items-center gap-1">
+                <MapPin size={14} /> Unidade *
+              </label>
+              <select
+                value={unidadeId}
+                onChange={(e) => setUnidadeId(e.target.value)}
+                className="input border-primary/50"
+                required
+              >
+                <option value="">Selecione a unidade</option>
+                {unidades.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nome} — {u.comarca}
+                  </option>
+                ))}
+              </select>
+              {unidades.length === 0 && (
+                <p className="text-xs text-error">
+                  Nenhuma unidade cadastrada. Cadastre uma unidade antes de criar um membro.
+                </p>
+              )}
             </div>
 
             {error && <p className="alert alert-error">{error}</p>}

@@ -14,6 +14,44 @@ export const SecaoProcessoOriginal = ({
       <h4 className="font-semibold text-primary">
         Dados do Processo de Alimentos Original
       </h4>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="vara" className="label font-bold text-primary">
+            Vara da Petição Atual (ex: 1ª Vara de Família) *
+          </label>
+          <input
+            id="vara"
+            type="text"
+            placeholder="Ex: 1ª Vara de Família"
+            name="vara"
+            value={formState.vara}
+            onChange={handleFieldChange}
+            className="input border-primary/50"
+            {...validar("Informe a vara para esta petição.")}
+          />
+        </div>
+        <div>
+          <label htmlFor="percentualSalarioMinimo" className="label font-bold text-primary">
+            Percentual do Salário Mínimo (%) *
+          </label>
+          <div className="relative">
+            <input
+              id="percentualSalarioMinimo"
+              type="text"
+              placeholder="Ex: 30"
+              name="percentualSalarioMinimo"
+              value={formState.percentualSalarioMinimo}
+              onChange={handleFieldChange}
+              className="input border-primary/50 pr-10"
+              {...validar("Informe o percentual fixado.")}
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted font-bold">
+              %
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label htmlFor="numeroProcessoOriginario" className="label">

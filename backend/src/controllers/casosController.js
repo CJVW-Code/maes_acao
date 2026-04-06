@@ -1,4 +1,4 @@
-import { supabase } from "../config/supabase.js";
+import { supabase, isSupabaseConfigured } from "../config/supabase.js";
 import { prisma } from "../config/prisma.js";
 import path from "path";
 import {
@@ -240,22 +240,30 @@ const extractObjectPath = (storedValue) => {
 const buildSignedUrl = async (bucket, storedValue) => {
   const objectPath = extractObjectPath(storedValue);
   if (!objectPath) return null;
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .createSignedUrl(objectPath, signedExpires);
-  if (error) {
-    if (error.message && error.message.includes("Object not found")) {
-      logger.warn(
-        `[Storage] Arquivo ausente (Link órfão no Banco): ${objectPath}`,
-      );
-    } else {
-      logger.error(`[Storage] Erro ao gerar URL para ${objectPath}:`, {
-        error,
-      });
+
+  if (isSupabaseConfigured) {
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(objectPath, signedExpires);
+    if (error) {
+      if (error.message && error.message.includes("Object not found")) {
+        logger.warn(
+          `[Storage] Arquivo ausente (Link órfão no Banco): ${objectPath}`,
+        );
+      } else {
+        logger.error(`[Storage] Erro ao gerar URL para ${objectPath}:`, {
+          error,
+        });
+      }
+      return null;
     }
-    return null;
+    return data?.signedUrl || null;
+  } else {
+    // Local storage fallback: aponta para a rota estática do backend
+    // No Docker, o backend expõe a pasta uploads em /api/files
+    const baseUrl = process.env.API_BASE_URL ? process.env.API_BASE_URL.replace(/\/api$/, "") : "http://localhost:8001";
+    return `${baseUrl}/api/files/${bucket}/${objectPath}`;
   }
-  return data?.signedUrl || null;
 };
 
 const attachSignedUrls = async (caso) => {
@@ -292,9 +300,9 @@ const attachSignedUrls = async (caso) => {
   return enriched;
 };
 
-const ensureText = (value, fallback = "") => {
-  if (value === null || value === undefined) return fallback;
-  const text = String(value).trim();
+const ensureText = (val, fallback = "") => {
+  if (val === undefined || val === null || String(val).toLowerCase() === "undefined") return fallback;
+  const text = String(val).trim();
   return text.length ? text : fallback;
 };
 
@@ -513,10 +521,12 @@ const processarDadosFilhosParaPeticao = (baseData = {}, normalizedData = {}) => 
   const lista_filhos = lista_filhos_raw.map((f, index) => {
     const ehUltimo = index === lista_filhos_raw.length - 1;
     return {
+      NOME: (f.nome || "").toUpperCase(), // Etiqueta exata do modelo
       nome: (f.nome || "").toUpperCase(),
       qualificacao_incapacidade: "incapaz",
       nacionalidade: f.nacionalidade || "brasileiro(a)",
       nascimento: f.nascimento || "[PREENCHER]",
+      " nascimento ": f.nascimento || "[PREENCHER]", // Etiqueta com espaços
       cpf: f.cpf || "não inscrito(a)",
       rg: f.rg || "não informado(a)",
       separador: ehUltimo ? "" : "; ",
@@ -579,11 +589,9 @@ const buildDocxTemplatePayload = (
 
   const requerente = normalizedData.requerente || {};
   const requerido = normalizedData.requerido || {};
-  const varaPreferida =
-    baseData.vara_competente ||
-    normalizedData.vara ||
-    baseData.vara_originaria ||
-    baseData.vara;
+  const varaForm = baseData.vara || normalizedData.vara || baseData.vara_competente || baseData.vara_originaria;
+  const varaPreferida = ensureText(varaForm);
+
   const cidadeAssinatura =
     baseData.cidade_assinatura || normalizedData.cidadeDataAssinatura;
   const valorCausaNumero = calcularValorCausa(
@@ -722,6 +730,27 @@ const buildDocxTemplatePayload = (
     defensoraNome: ensureText(normalizedData.defensoraNome),
     valor_causa: ensureText(valorCausaCalculado),
     valor_causa_extenso: ensureText(valorCausaExtenso),
+    // Etiquetas compatíveis com o modelo do usuário (Maiúsculas e com espaços)
+    VARA: varaPreferida,
+    vara: varaPreferida,
+    CIDADE: ensureText(normalizedData.comarca ? normalizedData.comarca.split("/")[0] : ""),
+    cidade: ensureText(normalizedData.comarca ? normalizedData.comarca.split("/")[0] : ""),
+    REPRESENTANTE_NOME: ensureText(baseData.representante_nome || baseData.representanteNome).toUpperCase(),
+    NOME_REPRESENTACAO: ensureText(baseData.representante_nome || baseData.representanteNome).toUpperCase(),
+    REQUERIDO_NOME: ensureText(baseData.nome_requerido || requerido.nome || baseData.requerente_nome).toUpperCase(),
+    cpf_executado: ensureText(baseData.cpf_requerido || requerido.cpf || baseData.requerente_cpf),
+    data_atual: dataAtualTexto,
+    // Caso de uso específico: RG do executado no campo executado_cpf do modelo de Penhora
+    executado_cpf: ensureText(baseData.requeridoRgNumero || baseData.requerido_rg_numero),
+    // Campos da Execução
+    tipo_decisao: ensureText(baseData.tipo_decisao || baseData.tipoDecisao),
+    processoOrigemNumero: ensureText(baseData.numero_processo_originario || baseData.processoOrigemNumero),
+    percentual_salario_minimo: ensureText(baseData.percentual_salario_minimo || percentualDefinitivoBase),
+    dia_pagamento: ensureText(diaPagamentoBase),
+    periodo_meses_ano: ensureText(baseData.periodo_debito || baseData.periodo_debito_execucao),
+    period_meses_ano: ensureText(baseData.periodo_debito || baseData.periodo_debito_execucao), // Alias Prisão
+    valor_debito: ensureText(baseData.valor_total_debito_execucao || baseData.valor_debito),
+    valor_debito_extenso: ensureText(baseData.valor_total_extenso || baseData.valor_debito_extenso),
     dados_adicionais_requerente: ensureText(
       sanitizeInlineText(baseData.dados_adicionais_requerente),
     ),
@@ -730,16 +759,17 @@ const buildDocxTemplatePayload = (
         baseData.percentual_definitivo_extras ||
         percentualExtras,
     ),
-    nome_mae_representante: ensureText(baseData.representanteNomeMae),
-    nome_pai_representante: ensureText(baseData.representanteNomePai),
-    nome_mae_executado: ensureText(baseData.requeridoNomeMae),
-    nome_pai_executado: ensureText(baseData.requeridoNomePai),
-    rg_executado: ensureText(baseData.requeridoRgNumero),
-    emissor_rg_executado: ensureText(baseData.requeridoRgOrgao),
-    rg_exequente: ensureText(baseData.representante_rg_numero || baseData.representanteRgNumero),
+    nome_mae_representante: ensureText(baseData.representante_nome_mae || baseData.representanteNomeMae),
+    nome_pai_representante: ensureText(baseData.representante_nome_pai || baseData.representanteNomePai),
+    nome_mae_executado: ensureText(baseData.requerido_nome_mae || baseData.requeridoNomeMae),
+    nome_pai_executado: ensureText(baseData.requerido_nome_pai || baseData.requeridoNomePai),
+    rg_executado: ensureText(baseData.requerido_rg_numero || baseData.requeridoRgNumero),
+    emissor_rg_executado: ensureText(baseData.requerido_rg_orgao || baseData.requeridoRgOrgao),
+    rg_exequente: ensureText(baseData.representante_rg_numero || baseData.representanteRgNumero || baseData.rgExequente),
+    representante_rg: ensureText(baseData.representante_rg_numero || baseData.representanteRgNumero || baseData.rgExequente),
     emissor_rg_exequente: ensureText(baseData.representante_rg_orgao || baseData.representanteRgOrgao),
-    tipo_decisao: ensureText(baseData.tipoDecisao),
-    data_inadimplencia: ensureText(baseData.dataInadimplencia || baseData.periodoDebitoExecucao),
+    representante_cpf: ensureText(baseData.representante_cpf || baseData.representanteCpf || baseData.cpfExequente),
+    cpf_exequente: ensureText(baseData.representante_cpf || baseData.representanteCpf || baseData.cpfExequente),
     dos_fatos:
       ensureText(dosFatosTexto, "[DESCREVER OS FATOS]") ||
       "[DESCREVER OS FATOS]",
@@ -853,7 +883,7 @@ export async function processarCasoEmBackground(
         logger.info(`[OCR] Processando arquivo: ${docPath}`);
         try {
           // 1. Baixar o arquivo do Supabase Storage
-          if (!supabase) throw new Error("Supabase inativo. Impossível baixar arquivo.");
+          if (!isSupabaseConfigured) throw new Error("Supabase inativo. Impossível baixar arquivo.");
           
           const { data: blob, error: downloadError } = await supabase.storage
             .from(storageBuckets.documentos)
@@ -1099,7 +1129,7 @@ export async function processarCasoEmBackground(
           const docs = await generateMultiplosDocx(docxData, acaoKey, caseDataForPetition.periodo_debito_execucao);
           for (const doc of docs) {
              const docxPath = `${protocolo}/${doc.filename}`;
-             if (supabase) {
+             if (isSupabaseConfigured) {
                const { error: uploadDocxErr } = await supabase.storage
                    .from("peticoes")
                    .upload(docxPath, doc.buffer, {
@@ -1112,6 +1142,14 @@ export async function processarCasoEmBackground(
                    if (doc.tipo === "penhora") url_peticao_penhora = docxPath;
                    if (doc.tipo === "prisao") url_peticao_prisao = docxPath;
                }
+             } else {
+               // Fallback: salva localmente
+               const localDir = path.resolve("uploads", "peticoes", protocolo);
+               await fs.mkdir(localDir, { recursive: true });
+               await fs.writeFile(path.join(localDir, doc.filename), doc.buffer);
+               if (doc.tipo === "penhora") url_peticao_penhora = docxPath;
+               if (doc.tipo === "prisao") url_peticao_prisao = docxPath;
+               logger.info(`[Local] DOCX ${doc.tipo} salvo em ${localDir}/${doc.filename}`);
              }
           }
           // The main url gets the penhora as fallback
@@ -1119,7 +1157,7 @@ export async function processarCasoEmBackground(
       } else {
         const docxBuffer = await generateDocx(docxData, acaoKey);
         const docxPath = `${protocolo}/peticao_inicial_${protocolo}.docx`;
-        if (supabase) {
+        if (isSupabaseConfigured) {
           const { error: uploadDocxErr } = await supabase.storage
             .from("peticoes")
             .upload(docxPath, docxBuffer, {
@@ -1131,6 +1169,15 @@ export async function processarCasoEmBackground(
              url_documento_gerado = docxPath;
              url_peticao_penhora = docxPath;
           }
+        } else {
+          // Fallback: salva localmente
+          const localDir = path.resolve("uploads", "peticoes", protocolo);
+          await fs.mkdir(localDir, { recursive: true });
+          const localFilename = `peticao_inicial_${protocolo}.docx`;
+          await fs.writeFile(path.join(localDir, localFilename), docxBuffer);
+          url_documento_gerado = docxPath;
+          url_peticao_penhora = docxPath;
+          logger.info(`[Local] DOCX salvo em ${localDir}/${localFilename}`);
         }
       }
     } catch (docxError) {
@@ -1242,8 +1289,12 @@ export const criarNovoCaso = async (req, res) => {
         const audioFile = req.files.audio[0];
         const filePath = `${protocolo}/${audioFile.filename}`;
         
-        if (!supabase) {
-           logger.warn("Supabase desativado. Ignorando upload de áudio.");
+        if (!isSupabaseConfigured) {
+           const localDir = path.resolve("uploads", "audios", protocolo);
+           await fs.mkdir(localDir, { recursive: true });
+           await fs.copyFile(audioFile.path, path.join(localDir, audioFile.filename));
+           url_audio = filePath;
+           logger.info(`[Local] Áudio salvo em ${localDir}`);
         } else {
           const audioStream = fsSync.createReadStream(audioFile.path);
           const { error: audioErr } = await supabase.storage
@@ -1261,8 +1312,21 @@ export const criarNovoCaso = async (req, res) => {
         }
       }
       if (req.files.documentos) {
-        if (!supabase) {
-           logger.warn("Supabase desativado. Ignorando upload de documentos e petições.");
+        if (!isSupabaseConfigured) {
+          for (const docFile of req.files.documentos) {
+            const filePath = `${protocolo}/${docFile.filename}`;
+            const bucket = docFile.originalname.toLowerCase().includes("peticao") ? "peticoes" : "documentos";
+            const localDir = path.resolve("uploads", bucket, protocolo);
+            await fs.mkdir(localDir, { recursive: true });
+            await fs.copyFile(docFile.path, path.join(localDir, docFile.filename));
+            
+            if (bucket === "peticoes") {
+              url_peticao = filePath;
+            } else {
+              urls_documentos.push(filePath);
+            }
+          }
+          logger.info(`[Local] ${req.files.documentos.length} documento(s) salvos.`);
         } else {
           for (const docFile of req.files.documentos) {
             const filePath = `${protocolo}/${docFile.filename}`;
@@ -1308,14 +1372,32 @@ export const criarNovoCaso = async (req, res) => {
     // Salvar no Banco (Resposta Rápida)
     logger.debug("Salvando dados básicos no Banco...");
     
-    // Recupera a unidade padrão (primeira) para o Prisma
-    let unidadeDb = await prisma.unidades.findFirst();
+    // Busca a unidade pela cidade_assinatura informada no formulário
+    const cidadeFormulario = dados_formulario.cidade_assinatura || dados_formulario.cidadeAssinatura || "";
+    let unidadeDb = null;
+
+    if (cidadeFormulario) {
+      // Busca case-insensitive pela comarca
+      const todasUnidades = await prisma.unidades.findMany({ where: { ativo: true } });
+      unidadeDb = todasUnidades.find(
+        (u) => u.comarca.toLowerCase().trim() === cidadeFormulario.toLowerCase().trim()
+      );
+      if (!unidadeDb) {
+        logger.warn(`Nenhuma unidade encontrada para a comarca "${cidadeFormulario}". Usando a primeira unidade disponível.`);
+      }
+    }
+
+    // Fallback: usa a primeira unidade cadastrada
     if (!unidadeDb) {
-      logger.warn("Aviso: Nenhuma 'unidade' cadastrada. Criando 'Unidade Sede Defensoria' automaticamente para satisfazer o Prisma.");
+      unidadeDb = await prisma.unidades.findFirst({ where: { ativo: true } });
+    }
+
+    if (!unidadeDb) {
+      logger.warn("Aviso: Nenhuma 'unidade' cadastrada. Criando 'Unidade Sede Defensoria' automaticamente.");
       unidadeDb = await prisma.unidades.create({
          data: {
             nome: "Unidade Sede Defensoria",
-            comarca: "Teixeira de Freitas",
+            comarca: cidadeFormulario || "Teixeira de Freitas",
             sistema: "solar",
             ativo: true
          }
@@ -1329,6 +1411,10 @@ export const criarNovoCaso = async (req, res) => {
     } else if (tipoAcao.toLowerCase().includes("gravidicos")) {
        tipoAcaoPrisma = "alimentos_gravidicos";
     }
+
+    // Determina o status inicial baseado em se o usuário vai enviar documentos depois
+    const enviarDocDepois = dados_formulario.enviar_documentos_depois === "true" || dados_formulario.enviar_documentos_depois === true;
+    const statusInicial = enviarDocDepois ? "aguardando_documentos" : "documentacao_completa";
 
     // Tenta salvar via Prisma de preferência
     await prisma.casos.create({
@@ -1346,15 +1432,27 @@ export const criarNovoCaso = async (req, res) => {
         urls_documentos,
         documentos_informados: documentosInformadosArray,
         dados_formulario: dadosFormularioFinal,
-        status: "aguardando_documentos",
+        status: statusInicial,
         created_at: new Date(),
       }
     });
 
-    logger.info(`Caso ${protocolo} salvo. Iniciando processamento background.`);
+    logger.info(`Caso ${protocolo} salvo com status "${statusInicial}".`);
 
     const responsePayload = { protocolo };
     if (avisos.length) responsePayload.avisos = avisos;
+
+    // Se vai enviar documentos depois, responde e NÃO processa em background
+    if (enviarDocDepois) {
+      logger.info(`📋 Caso ${protocolo} aguardando documentos. Processamento adiado.`);
+      res.status(201).json({
+        ...responsePayload,
+        message: "Caso registrado! Envie os documentos quando possível.",
+        status: "aguardando_documentos",
+      });
+      return; // pula todo o pipeline de processamento
+    }
+
     res.status(201).json({
       ...responsePayload,
       message: "Caso registrado! Processando...",
@@ -1427,6 +1525,11 @@ export const listarCasos = async (req, res) => {
 
     const where = { arquivado: statusFiltro };
 
+    // Filtro por unidade: admin vê tudo, demais veem apenas sua unidade
+    if (req.user && req.user.cargo !== "admin" && req.user.unidade_id) {
+      where.unidade_id = req.user.unidade_id;
+    }
+
     if (cpf) {
       where.OR = [
         { cpf_assistido: cpf },
@@ -1478,8 +1581,15 @@ export const listarCasos = async (req, res) => {
  */
 export const resumoCasos = async (req, res) => {
   try {
+    const whereClause = { arquivado: false };
+
+    // Filtro por unidade: admin vê tudo, demais veem apenas sua unidade
+    if (req.user && req.user.cargo !== "admin" && req.user.unidade_id) {
+      whereClause.unidade_id = req.user.unidade_id;
+    }
+
     const data = await prisma.casos.findMany({
-      where: { arquivado: false },
+      where: whereClause,
       select: {
         status: true,
         tipo_acao: true,
@@ -1507,7 +1617,7 @@ export const resumoCasos = async (req, res) => {
 
       if (s === "processado") contagens.processado++;
       else if (s === "em_analise") contagens.em_analise++;
-      else if (s === "aguardando_docs") contagens.aguardando_docs++;
+      else if (s === "aguardando_documentos" || s === "aguardando_docs") contagens.aguardando_docs++;
       else if (s === "documentos_entregues") contagens.documentos_entregues++;
       else if (["reuniao_agendada", "reuniao_online_agendada", "reuniao_presencial_agendada"].includes(s))
         contagens.reuniao_agendada++;
@@ -1546,22 +1656,47 @@ export const obterDetalhesCaso = async (req, res) => {
   }
 
   try {
-    let { data, error } = await supabase
-      .from("casos")
-      .select("*, casos_ia(url_peticao_penhora, url_peticao_prisao)")
-      .eq("id", id)
-      .single();
-    
-    if (error) {
-      // Tratamento específico para "Nenhum resultado encontrado" no Supabase
-      if (error.code === 'PGRST116') {
+    let data;
+
+    if (isSupabaseConfigured) {
+      const result = await supabase
+        .from("casos")
+        .select("*, casos_ia(url_peticao_penhora, url_peticao_prisao)")
+        .eq("id", id)
+        .single();
+      
+      if (result.error) {
+        if (result.error.code === 'PGRST116') {
+          return res.status(404).json({ error: "Caso não encontrado." });
+        }
+        if (result.error.code === '22P02') {
+          return res.status(400).json({ error: "ID do caso inválido." });
+        }
+        throw result.error;
+      }
+      data = result.data;
+    } else {
+      // Fallback Prisma
+      data = await prisma.casos.findUnique({
+        where: { id: BigInt(id) },
+        include: {
+          ia: {
+            select: { url_peticao_penhora: true, url_peticao_prisao: true },
+          },
+          partes: true,
+          juridico: true,
+        },
+      });
+
+      if (!data) {
         return res.status(404).json({ error: "Caso não encontrado." });
       }
-      // Tratamento para ID inválido (ex: texto onde deveria ser número/uuid)
-      if (error.code === '22P02') {
-        return res.status(400).json({ error: "ID do caso inválido." });
+
+      // Normaliza formato Prisma para compatibilidade com formato Supabase
+      if (data.ia) {
+        data.casos_ia = data.ia;
+        delete data.ia;
       }
-      throw error;
     }
 
     // Garante que dados_formulario e sua propriedade document_names sejam sempre objetos
@@ -1578,24 +1713,31 @@ export const obterDetalhesCaso = async (req, res) => {
         data.dados_formulario.document_names;
     }
 
-    // Busca o histórico de agendamentos
-    const { data: historico, error: histError } = await supabase
-      .from("historico_agendamentos")
-      .select("*")
-      .eq("caso_id", id)
-      .order("created_at", { ascending: false });
+    // Busca o histórico de agendamentos (só via Supabase, Prisma não tem o model)
+    if (isSupabaseConfigured) {
+      const { data: historico, error: histError } = await supabase
+        .from("historico_agendamentos")
+        .select("*")
+        .eq("caso_id", id)
+        .order("created_at", { ascending: false });
 
-    if (!histError && historico) {
-      data.historico_agendamentos = historico;
+      if (!histError && historico) {
+        data.historico_agendamentos = historico;
+      }
+    } else {
+      data.historico_agendamentos = [];
     }
 
-    const casoComUrls = await attachSignedUrls(data);
-    res.status(200).json(casoComUrls);
+    // attachSignedUrls agora lida tanto com Supabase quanto com Local storage
+    const casoFinal = await attachSignedUrls(data);
+
+    res.status(200).json(casoFinal);
   } catch (error) {
     logger.error(`Erro ao obter detalhes do caso ${id}: ${error.message}`);
     res.status(500).json({ error: "Erro ao obter detalhes." });
   }
 };
+
 
 export const atualizarStatusCaso = async (req, res) => {
   const { id } = req.params;
@@ -1610,14 +1752,26 @@ export const atualizarStatusCaso = async (req, res) => {
       return res.status(400).json({ error: "Nenhum dado enviado para atualização." });
     }
 
-    const { data, error = null } = await supabase
-      .from("casos")
-      .update(updateData)
-      .eq("id", id)
-      .select()
-      .single();
-    if (error) throw error;
-    res.status(200).json(data);
+    let data;
+    if (isSupabaseConfigured) {
+      const result = await supabase
+        .from("casos")
+        .update(updateData)
+        .eq("id", id)
+        .select()
+        .single();
+      if (result.error) throw result.error;
+      data = result.data;
+    } else {
+      // Fallback Prisma
+      data = await prisma.casos.update({
+        where: { id: BigInt(id) },
+        data: updateData,
+      });
+    }
+
+    const casoAtualizadoComUrls = await attachSignedUrls(data);
+    res.status(200).json(casoAtualizadoComUrls);
   } catch (error) {
     logger.error(`Erro ao atualizar caso ${id}: ${error.message}`);
     
@@ -1653,7 +1807,8 @@ export const salvarFeedback = async (req, res) => {
 
     if (fetchError) throw fetchError;
 
-    res.status(200).json(data);
+    const casoComUrls = await attachSignedUrls(data);
+    res.status(200).json(casoComUrls);
   } catch (error) {
     logger.error(`Erro ao salvar feedback ${id}: ${error.message}`);
     res.status(500).json({ error: "Erro ao salvar feedback." });
@@ -1751,34 +1906,37 @@ export const gerarTermoDeclaracao = async (req, res) => {
     // Generate the term declaration document
     const docxBuffer = await generateTermoDeclaracao(termoData);
 
-    // Upload to Supabase storage
+    // Upload to storage (Supabase or Local)
     const termoPath = `${caso.protocolo}/termo_declaracao_${caso.protocolo}.docx`;
 
-    // Exclui o arquivo antigo se existir para garantir uma geração limpa (conforme solicitado)
-    await supabase.storage.from("peticoes").remove([termoPath]);
-
-    const { error: uploadError } = await supabase.storage
-      .from("peticoes")
-      .upload(termoPath, docxBuffer, {
-        contentType:
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        upsert: true,
-      });
-
-    if (uploadError) {
-      logger.error(
-        `Erro ao fazer upload do termo de declaração: ${uploadError.message}`,
-      );
-      throw new Error("Falha ao salvar o termo de declaração");
+    if (isSupabaseConfigured) {
+      await supabase.storage.from("peticoes").remove([termoPath]);
+      const { error: uploadError } = await supabase.storage
+        .from("peticoes")
+        .upload(termoPath, docxBuffer, {
+          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          upsert: true,
+        });
+      if (uploadError) throw new Error(`Erro upload Supabase: ${uploadError.message}`);
+    } else {
+      const localDir = path.resolve("uploads", "peticoes", caso.protocolo);
+      await fs.mkdir(localDir, { recursive: true });
+      await fs.writeFile(path.join(localDir, `termo_declaracao_${caso.protocolo}.docx`), docxBuffer);
+      logger.info(`[Local] Termo de declaração salvo em ${localDir}`);
     }
 
     // Update case record with term URL
-    const { error: updateError } = await supabase
-      .from("casos")
-      .update({ url_termo_declaracao: termoPath })
-      .eq("id", id);
-
-    if (updateError) throw updateError;
+    if (isSupabaseConfigured) {
+      await supabase
+        .from("casos")
+        .update({ url_termo_declaracao: termoPath })
+        .eq("id", id);
+    } else {
+      await prisma.casos.update({
+        where: { id: BigInt(id) },
+        data: { url_termo_declaracao: termoPath }
+      });
+    }
 
     // Return the updated case with signed URL
     const casoAtualizado = await attachSignedUrls({
@@ -1802,13 +1960,28 @@ export const regerarMinuta = async (req, res) => {
       });
     }
 
-    const { data: caso, error } = await supabase
-      .from("casos")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (error || !caso) throw new Error("Caso não encontrado");
+    let caso;
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase
+        .from("casos")
+        .select("*")
+        .eq("id", id)
+        .single();
+      if (error || !data) throw new Error("Caso não encontrado");
+      caso = data;
+    } else {
+      const data = await prisma.casos.findUnique({ 
+          where: { id: BigInt(id) },
+          include: { ia: true }
+      });
+      if (!data) throw new Error("Caso não encontrado");
+      
+      // Normaliza 'ia' para 'casos_ia'
+      if (data.ia) {
+          data.casos_ia = data.ia;
+      }
+      caso = data;
+    }
 
     // 1. Prepara os dados baseados no estado atual do caso no banco
     const dosFatosTexto = (caso.peticao_inicial_rascunho || "").replace(
@@ -1859,24 +2032,36 @@ export const regerarMinuta = async (req, res) => {
 
     const docxBuffer = await generateDocx(payload, acaoKey);
 
-    // 4. Define o caminho e faz o upload (substituindo o anterior)
+    // 4. Define o caminho e faz o upload (Supabase ou Local)
     const docxPath = `${caso.protocolo}/peticao_inicial_${caso.protocolo}.docx`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("peticoes")
-      .upload(docxPath, docxBuffer, {
-        contentType:
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        upsert: true,
-      });
-
-    if (uploadError) throw uploadError;
+    if (isSupabaseConfigured) {
+      const { error: uploadError } = await supabase.storage
+        .from("peticoes")
+        .upload(docxPath, docxBuffer, {
+          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          upsert: true,
+        });
+      if (uploadError) throw new Error(`Erro upload Supabase: ${uploadError.message}`);
+    } else {
+      const localDir = path.resolve("uploads", "peticoes", caso.protocolo);
+      await fs.mkdir(localDir, { recursive: true });
+      await fs.writeFile(path.join(localDir, `peticao_inicial_${caso.protocolo}.docx`), docxBuffer);
+      logger.info(`[Local] Minuta regerada salva em ${localDir}`);
+    }
 
     // 5. Garante que a URL no banco está correta
-    await supabase
-      .from("casos")
-      .update({ url_documento_gerado: docxPath })
-      .eq("id", id);
+    if (isSupabaseConfigured) {
+      await supabase
+        .from("casos")
+        .update({ url_documento_gerado: docxPath })
+        .eq("id", id);
+    } else {
+      await prisma.casos.update({
+        where: { id: BigInt(id) },
+        data: { url_documento_gerado: docxPath }
+      });
+    }
 
     // 6. Retorna o caso atualizado com as novas URLs assinadas
     const casoAtualizado = await attachSignedUrls({
@@ -2301,14 +2486,24 @@ export const reprocessarCaso = async (req, res) => {
   const { id } = req.params;
   try {
     // Busca os dados originais do caso
-    const { data: caso, error } = await supabase
-      .from("casos")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (error || !caso) {
-      return res.status(404).json({ error: "Caso não encontrado." });
+    let caso;
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase
+        .from("casos")
+        .select("*")
+        .eq("id", id)
+        .single();
+      if (error || !data) {
+        return res.status(404).json({ error: "Caso não encontrado." });
+      }
+      caso = data;
+    } else {
+      caso = await prisma.casos.findUnique({
+        where: { id: BigInt(id) },
+      });
+      if (!caso) {
+        return res.status(404).json({ error: "Caso não encontrado." });
+      }
     }
 
     // Responde imediatamente para a interface não travar

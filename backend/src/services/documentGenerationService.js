@@ -71,37 +71,64 @@ export const generateTermoDeclaracao = async (data) => {
 };
 
 // Funções para Geração Múltipla (Penhora e Prisão)
-const extractMonthsFromPeriod = (periodo) => {
+const extractMonthsFromPeriod = (periodo = "") => {
   if (!periodo || typeof periodo !== "string") return 0;
   
   const text = periodo.toLowerCase().trim();
+  logger.info(`[Storage] Analisando período para cálculo de meses: "${text}"`);
   
-  // Ex: "3 meses", "4 meses"
+  // 1. Tenta encontrar padrão "X meses"
   const exactMatch = text.match(/(\d+)\s*meses?/);
   if (exactMatch) return parseInt(exactMatch[1], 10);
   
-  if (text.includes("anos") || text.match(/\d+\s*anos?/)) return 12; // Se fala em anos, com certeza > 3
+  // 2. Tenta encontrar padrão de anos
+  if (text.includes("anos") || text.match(/\d+\s*anos?/)) return 12;
 
-  // Capture "jan/2024 a mar/2026" or "01/2024 a 03/2026"
-  const monthNames = { "jan": 0, "fev": 1, "mar": 2, "abr": 3, "mai": 4, "jun": 5, "jul": 6, "ago": 7, "set": 8, "out": 9, "nov": 10, "dez": 11, "janeiro": 0, "fevereiro": 1, "março": 2, "marco": 2, "abril": 3, "maio": 4, "junho": 5, "julho": 6, "agosto": 7, "setembro": 8, "outubro": 9, "novembro": 10, "dezembro": 11 };
+  // 3. Tenta encontrar datas no formato MM/YYYY ou NomeMes/YYYY
+  const monthNames = { 
+    "jan": 0, "fev": 1, "mar": 2, "abr": 3, "mai": 4, "jun": 5, "jul": 6, "ago": 7, "set": 8, "out": 9, "nov": 10, "dez": 11,
+    "janeiro": 0, "fevereiro": 1, "março": 2, "marco": 2, "abril": 3, "maio": 4, "junho": 5, "julho": 6, "agosto": 7, "setembro": 8, "outubro": 9, "novembro": 10, "dezembro": 11 
+  };
 
-  const dateParts = [...text.matchAll(/([a-z]+|\d{2})[\/\s]+(\d{4})/g)];
+  // Captura padrões como "01/2024", "janeiro/2024", "jan 2024"
+  const datePattern = /([a-z]{3,9}|\d{1,2})[\/\s-]+(\d{4})/g;
+  const dateParts = [...text.matchAll(datePattern)];
+  
   if (dateParts.length >= 2) {
-      const getMonth = (m) => {
-          if (/\d{2}/.test(m)) return parseInt(m, 10) - 1;
-          const key = m.substring(0,3);
-          return monthNames[key] !== undefined ? monthNames[key] : 0;
-      };
+    const getMonthIndex = (m) => {
+      if (/^\d+$/.test(m)) return parseInt(m, 10) - 1;
+      const key = m.substring(0, 3).toLowerCase();
+      return monthNames[key] !== undefined ? monthNames[key] : 0;
+    };
+    
+    try {
+      const first = dateParts[0];
+      const last = dateParts[dateParts.length - 1];
       
-      const d1 = new Date(parseInt(dateParts[0][2]), getMonth(dateParts[0][1]), 1);
-      const d2 = new Date(parseInt(dateParts[dateParts.length - 1][2]), getMonth(dateParts[dateParts.length - 1][1]), 1);
+      const m1 = getMonthIndex(first[1]);
+      const y1 = parseInt(first[2], 10);
+      const m2 = getMonthIndex(last[1]);
+      const y2 = parseInt(last[2], 10);
+      
+      const d1 = new Date(y1, m1, 1);
+      const d2 = new Date(y2, m2, 1);
       
       if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
-          return Math.abs((d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth()));
+        const diff = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth()) + 1;
+        logger.info(`[Storage] Meses calculados: ${diff} (de ${d1.toISOString()} até ${d2.toISOString()})`);
+        return Math.max(0, diff);
       }
+    } catch (e) {
+      logger.warn(`[Storage] Erro ao calcular intervalo de datas: ${e.message}`);
+    }
   }
   
-  // If we really can't figure it out, just assume 0 to be safe
+  // 4. Fallback simples para strings que contém números isolados maiores que 3
+  const numbers = text.match(/\d+/g);
+  if (numbers && numbers.length === 1 && parseInt(numbers[0], 10) >= 3 && text.includes("mês")) {
+     return parseInt(numbers[0], 10);
+  }
+
   return 0;
 };
 

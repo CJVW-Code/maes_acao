@@ -1,4 +1,4 @@
-﻿﻿import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion } from "motion/react";
 import {
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { API_BASE } from "../../../utils/apiBase";
 import { useToast } from "../../../contexts/ToastContext";
+import { DocumentUpload } from "../../../components/DocumentUpload";
 
 export const ConsultaStatus = () => {
   const { toast } = useToast();
@@ -419,7 +420,8 @@ export const ConsultaStatus = () => {
                 )}
               </div>
             </div>
-          ) : caso.status === "aguardando_docs" ||
+          ) : caso.status === "aguardando_documentos" ||
+            caso.status === "aguardando_docs" ||
             caso.status === "documentos pendente" ? (
             // --- TELA DE PENDÊNCIA DE DOCUMENTOS ---
             <div className="space-y-6 mt-6">
@@ -436,62 +438,36 @@ export const ConsultaStatus = () => {
                 </div>
               </div>
 
-              {/* ÁREA DE UPLOAD */}
+              {/* ÁREA DE UPLOAD AVANÇADO */}
               <div className="bg-surface border border-soft rounded-xl p-6">
                 <h4 className="font-semibold mb-4">
                   Enviar Documentos Solicitados
                 </h4>
 
-                <input
-                  type="file"
-                  multiple
-                  className="hidden"
-                  ref={fileInputRef}
-                  onChange={handleFileSelect}
+                <DocumentUpload
+                  nomes={{
+                    assistido: caso.nome_assistido || "",
+                    responsavel: caso.nome_representante || caso.nome_assistido || "",
+                    crianca: caso.nome_assistido || "",
+                  }}
+                  isRepresentacao={!!caso.nome_representante}
+                  outrosFilhos={[]}
+                  onFilesChange={(allFiles, namesMap) => {
+                    const mapped = allFiles.map((f) => ({
+                      file: f,
+                      customName: namesMap[f.name] || f.name,
+                    }));
+                    setFiles(mapped);
+                  }}
                 />
-
-                <button
-                  onClick={() => fileInputRef.current.click()}
-                  className="btn btn-secondary w-full border-dashed border-2 border-soft hover:border-primary mb-4"
-                >
-                  <Upload size={20} className="mr-2" />
-                  Selecionar Arquivos
-                </button>
-
-                {files.length > 0 && (
-                  <div className="space-y-3 mb-4">
-                    {files.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-2 bg-app p-2 rounded"
-                      >
-                        <input
-                          type="text"
-                          value={item.customName}
-                          onChange={(e) =>
-                            handleNameChange(idx, e.target.value)
-                          }
-                          className="input text-sm py-1 flex-1"
-                          placeholder="Nome do documento (ex: RG)"
-                        />
-                        <button
-                          onClick={() => removeFile(idx)}
-                          className="text-red-500 p-1"
-                        >
-                          <X size={18} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
 
                 {files.length > 0 && (
                   <button
                     onClick={handleUploadComplementar}
                     disabled={uploading}
-                    className="btn btn-primary w-full"
+                    className="btn btn-primary w-full mt-6"
                   >
-                    {uploading ? "Enviando..." : "Enviar Documentos"}
+                    {uploading ? "Enviando..." : `Enviar ${files.length} Documento(s)`}
                   </button>
                 )}
               </div>

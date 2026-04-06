@@ -1,7 +1,7 @@
 // Estado inicial do formulário
 export const initialState = {
   // Dados básicos da ação
-  tipoAcao: "",
+  tipoAcao: "familia",
   acaoEspecifica: "",
 
   // Dados pessoais do assistido
@@ -73,13 +73,26 @@ export const initialState = {
   documentNames: {},
   documentosMarcados: [],
 
-  // Localização
+  // Localização e Juízo
+  vara: "",
   cidadeAssinatura: "",
+
+  // Dados de Execução específicos
+  percentualSalarioMinimo: "",
+  rgExequente: "",
+  cpfExequente: "",
 };
 
 // Reducer para gerenciar o estado do formulário
 export const formReducer = (state, action) => {
   switch (action.type) {
+    case "SET_ACAO":
+      return {
+        ...state,
+        tipoAcao: action.tipoAcao,
+        acaoEspecifica: "",
+      };
+
     case "UPDATE_FIELD":
       return {
         ...state,

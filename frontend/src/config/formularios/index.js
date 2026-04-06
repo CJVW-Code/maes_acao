@@ -12,7 +12,9 @@ export const DICIONARIO_ACOES = {
 export function getAcoesVisiveis(area) {
   const acoes = DICIONARIO_ACOES[area];
   if (!acoes) return [];
-  return Object.entries(acoes).filter(([_, config]) => config.status !== "scaffold");
+  return Object.entries(acoes).filter(
+    ([_, config]) => config.status !== "scaffold",
+  );
 }
 
 /**

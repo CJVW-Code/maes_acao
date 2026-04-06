@@ -48,7 +48,15 @@ export const fieldMapping = {
   valorDivida: 'valor_divida',
   valorMulta: 'valor_multa',
   valorJuros: 'valor_juros',
-  valorHonorarios: 'valor_honorarios'
+  valorHonorarios: 'valor_honorarios',
+
+  // Controle de fluxo
+  enviarDocumentosDepois: 'enviar_documentos_depois',
+  cidadeAssinatura: 'cidade_assinatura',
+  vara: 'vara',
+  percentualSalarioMinimo: 'percentual_salario_minimo',
+  rgExequente: 'rg_exequente',
+  cpfExequente: 'cpf_exequente',
 };
 
 // Campos que devem conter apenas dígitos (para limpeza antes do envio)
@@ -63,5 +71,7 @@ export const digitsOnlyFields = new Set([
   'agenciaDeposito',
   'contaDeposito',
   'assistidoRgNumero',
-  'requeridoRgNumero'
+  'requeridoRgNumero',
+  'rgExequente',
+  'cpfExequente'
 ]);
