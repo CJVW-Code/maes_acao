@@ -1,4 +1,4 @@
-import { fieldMapping, digitsOnlyFields } from '../utils/formConstants.js';
+import { fieldMapping, digitsOnlyFields, dateFields, currencyFields } from '../utils/formConstants.js';
 
 export const processSubmission = async ({
   isAlvaraContext = false,
@@ -16,16 +16,15 @@ export const processSubmission = async ({
   formatDateToBr,
   parseBrDateToIso,
   normalizeDecimalForSubmit,
-  currencyFields,
   API_BASE
 }) => {
   const validationErrors = {};
   const nomeRequeridoTrim = (formState.nomeRequerido || "").trim();
   const enderecoRequeridoTrim = (formState.enderecoRequerido || "").trim();
   const telefoneRequeridoDigits = stripNonDigits(
-    formState.requeridoTelefone || ""
+    formState.telefoneRequerido || ""
   );
-  const requeridoEmailTrim = (formState.requeridoEmail || "").trim();
+  const requeridoEmailTrim = (formState.emailRequerido || "").trim();
 
   if (!isAlvaraContext) {
     if (!nomeRequeridoTrim) {
@@ -248,26 +247,32 @@ export const processSubmission = async ({
   if (valuesToSubmit.assistidoEhIncapaz === "sim") {
     valuesToSubmit.telefone = valuesToSubmit.representanteTelefone;
     valuesToSubmit.emailAssistido = valuesToSubmit.representanteEmail;
+    valuesToSubmit.enderecoAssistido = valuesToSubmit.representanteEnderecoResidencial;
     valuesToSubmit.assistidoEstadoCivil = "solteiro(a)";
   }
 
   // Preenche o FormData usando o mapeamento
   Object.keys(fieldMapping).forEach((key) => {
     const rawValue = valuesToSubmit[key];
-    if (!rawValue) {
+    if (rawValue === undefined || rawValue === null || rawValue === "") {
       return;
     }
     let normalizedValue = rawValue;
+    
     if (digitsOnlyFields.has(key)) {
       normalizedValue = stripNonDigits(rawValue);
     } else if (currencyFields.has(key)) {
       normalizedValue = normalizeDecimalForSubmit(rawValue);
+    } else if (dateFields.has(key)) {
+      const iso = parseBrDateToIso(rawValue);
+      if (iso) normalizedValue = iso;
     } else if (key.toLowerCase().includes("data") || key.toLowerCase().includes("nascimento")) {
-      // Tenta converter para ISO se for um campo de data
+       // Fallback para outros campos de data não listados no set explicitamente
       const iso = parseBrDateToIso(rawValue);
       if (iso) normalizedValue = iso;
     }
-    if (normalizedValue) {
+    
+    if (normalizedValue !== undefined && normalizedValue !== null) {
       formData.append(fieldMapping[key], normalizedValue);
     }
   });

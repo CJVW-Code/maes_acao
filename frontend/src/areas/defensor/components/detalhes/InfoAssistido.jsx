@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Eye } from "lucide-react";
 
-// Funções de formatação (Tiradas do DetalhesCaso.jsx)
+// Funções de formatação
 const formatValue = (value) => {
   if (value === null || value === undefined || value === "") {
     return "Não informado";
@@ -25,6 +25,7 @@ const formatValue = (value) => {
 
 const formatDateDisplay = (dateString) => {
   if (!dateString) return "Não informado";
+  if (dateString.includes("/")) return dateString;
   const [year, month, day] = dateString.split("-");
   if (!year || !month || !day) return dateString;
   return `${day}/${month}/${year}`;
@@ -45,6 +46,9 @@ export const InfoAssistido = ({ caso }) => {
   const isFixacaoAlimentos = (caso.tipo_acao || "")
     .toLowerCase()
     .includes("fixação de pensão alimentícia");
+  const isExecucao = (caso.tipo_acao || "")
+    .toLowerCase()
+    .includes("execução");
 
   let outrosFilhos = [];
   try {
@@ -66,7 +70,7 @@ export const InfoAssistido = ({ caso }) => {
         {renderDataField("CPF", caso.cpf_assistido)}
         {renderDataField("Nome representante legal", dados.representante_nome)}
         {renderDataField("CPF representante legal", dados.representante_cpf)}
-        {renderDataField("Whatsapp para contato", caso.whatsapp_contato)}
+        {renderDataField("Telefone Principal", caso.telefone_assistido || dados.telefone)}
         {renderDataField("Tipo de ação", caso.tipo_acao?.replace("_", " "))}
       </div>
 
@@ -95,26 +99,24 @@ export const InfoAssistido = ({ caso }) => {
                 {renderDataField("CPF", dados.cpf)}
                 {renderDataField(
                   "Data de Nascimento",
-                  formatDateDisplay(dados.assistido_data_nascimento),
+                  formatDateDisplay(dados.data_nascimento_assistido),
                 )}
-                {!isFixacaoAlimentos &&
-                  renderDataField(
-                    "Nacionalidade",
-                    dados.assistido_nacionalidade,
-                  )}
-                {renderDataField("Estado Civil", dados.assistido_estado_civil)}
-                {!isFixacaoAlimentos &&
-                  renderDataField(
-                    "Endereço Residencial",
-                    dados.endereco_assistido,
-                  )}
-                {!isFixacaoAlimentos &&
-                  renderDataField("Email", dados.email_assistido)}
-                {renderDataField("Telefone de Contato", dados.telefone)}
                 {renderDataField(
-                  "WhatsApp para Reunião",
-                  dados.whatsapp_contato,
+                  "Nacionalidade",
+                  dados.assistido_nacionalidade,
                 )}
+                {renderDataField("Estado Civil", dados.assistido_estado_civil)}
+                {renderDataField("Profissão", dados.assistido_ocupacao)}
+                {renderDataField(
+                  "Endereço Residencial",
+                  dados.endereco_assistido,
+                )}
+                {renderDataField(
+                  "Endereço Profissional",
+                  dados.assistido_endereco_profissional,
+                )}
+                {renderDataField("Email", dados.email_assistido)}
+                {renderDataField("Telefone", dados.telefone)}
                 {renderDataField(
                   "RG",
                   `${dados.assistido_rg_numero || ""} ${dados.assistido_rg_orgao || ""}`.trim(),
@@ -125,25 +127,16 @@ export const InfoAssistido = ({ caso }) => {
             {/* Seção de Filhos Adicionais */}
             {outrosFilhos.length > 0 &&
               outrosFilhos.map((filho, index) => (
-                <div
-                  key={index}
-                  className="space-y-4 pt-4 border-t border-soft"
-                >
+                <div key={index} className="space-y-4 pt-4 border-t border-soft">
                   <h3 className="heading-3 text-primary">
                     Dados do Assistido {index + 2} (Criança/Adolescente)
                   </h3>
                   <div className="grid gap-4 md:grid-cols-2">
                     {renderDataField("Nome Completo", filho.nome)}
                     {renderDataField("CPF", filho.cpf)}
-                    {renderDataField(
-                      "Data de Nascimento",
-                      filho.dataNascimento,
-                    )}
+                    {renderDataField("Data de Nascimento", formatDateDisplay(filho.dataNascimento))}
                     {renderDataField("Nacionalidade", filho.nacionalidade)}
-                    {renderDataField(
-                      "RG",
-                      `${filho.rgNumero || ""} ${filho.rgOrgao || ""}`.trim(),
-                    )}
+                    {renderDataField("RG", `${filho.rgNumero || ""} ${filho.rgOrgao || ""}`.trim())}
                   </div>
                 </div>
               ))}
@@ -157,6 +150,10 @@ export const InfoAssistido = ({ caso }) => {
                 <div className="grid gap-4 md:grid-cols-2">
                   {renderDataField("Nome Completo", dados.representante_nome)}
                   {renderDataField("CPF", dados.representante_cpf)}
+                  {renderDataField(
+                    "Data de Nascimento",
+                    formatDateDisplay(dados.representante_data_nascimento),
+                  )}
                   {renderDataField(
                     "Nacionalidade",
                     dados.representante_nacionalidade,
@@ -180,6 +177,8 @@ export const InfoAssistido = ({ caso }) => {
                     "RG",
                     `${dados.representante_rg_numero || ""} ${dados.representante_rg_orgao || ""}`.trim(),
                   )}
+                  {renderDataField("Nome da Mãe", dados.representante_nome_mae)}
+                  {renderDataField("Nome do Pai", dados.representante_nome_pai)}
                 </div>
               </div>
             )}
@@ -196,29 +195,57 @@ export const InfoAssistido = ({ caso }) => {
                   "Endereço conhecido",
                   dados.endereco_requerido,
                 )}
-                {renderDataField("Telefone", dados.requerido_telefone)}
-                {renderDataField("Email", dados.requerido_email)}
+                {renderDataField("Telefone", dados.telefone_requerido || dados.requerido_telefone)}
+                {renderDataField("Email", dados.email_requerido || dados.requerido_email)}
                 {renderDataField("Profissão", dados.requerido_ocupacao)}
                 {renderDataField(
                   "Endereço de Trabalho",
                   dados.requerido_endereco_profissional,
                 )}
                 {renderDataField(
+                  "RG",
+                  `${dados.requerido_rg_numero || ""} ${dados.requerido_rg_orgao || ""}`.trim(),
+                )}
+                {renderDataField("Mãe do Requerido", dados.requerido_nome_mae)}
+                {renderDataField("Pai do Requerido", dados.requerido_nome_pai)}
+                {renderDataField(
                   "Dados Adicionais",
-                  dados.dados_adicionais_requerido,
+                  dados.requerido_outros_detalhes || dados.dados_adicionais_requerido,
                 )}
               </div>
             </div>
 
-            {/* Seção de Detalhes do Caso */}
+            {/* SEÇÃO ESPECÍFICA DE EXECUÇÃO */}
+            {isExecucao && (
+              <div className="space-y-4 pt-4 border-t border-soft">
+                <h3 className="heading-3 text-primary">
+                  Dados da Execução e Título Judicial
+                </h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {renderDataField("Nº Processo Originário", dados.numero_processo_originario)}
+                  {renderDataField("Vara Processo Originário", dados.vara)}
+                  {renderDataField("Tipo de Decisão", dados.tipo_decisao)}
+                  {renderDataField("Valor da Pensão Atual", dados.valor_pensao_atual)}
+                  {renderDataField("Percentual Salário Mínimo (%)", dados.percentual_salario_minimo)}
+                  {renderDataField("Dia de Pagamento", dados.dia_pagamento_fixado || dados.dia_pagamento_requerido)}
+                  {renderDataField("Período do Débito", dados.periodo_debito || dados.periodo_debito_execucao)}
+                  {renderDataField("Valor Total da Dívida", dados.valor_divida || dados.valor_total_debito_execucao)}
+                  {renderDataField("Multa (10%)", dados.valor_multa)}
+                  {renderDataField("Juros", dados.valor_juros)}
+                  {renderDataField("Honorários", dados.valor_honorarios)}
+                </div>
+              </div>
+            )}
+
+            {/* Seção de Detalhes do Caso Generais */}
             <div className="space-y-4 pt-4 border-t border-soft">
               <h3 className="heading-3 text-primary">
-                Detalhes do Pedido e do Caso
+                {isExecucao ? "Outros Detalhes" : "Detalhes do Pedido e do Caso"}
               </h3>
               <div className="grid gap-4 md:grid-cols-2">
-                {renderDataField(
+                {!isExecucao && renderDataField(
                   "Valor da Pensão Solicitado",
-                  dados.valor_mensal_pensao,
+                  dados.valor_pensao || dados.valor_mensal_pensao,
                 )}
                 {renderDataField(
                   "Dados Bancários para Depósito",
@@ -233,29 +260,8 @@ export const InfoAssistido = ({ caso }) => {
                   "Requerido tem emprego formal?",
                   dados.requerido_tem_emprego_formal,
                 )}
-                {renderDataField(
-                  "Nome da Empresa",
-                  dados.empregador_requerido_nome,
-                )}
-                {renderDataField(
-                  "Endereço da Empresa",
-                  dados.empregador_requerido_endereco,
-                )}
-                {dados.numero_processo_originario &&
-                  renderDataField(
-                    "Processo Original",
-                    dados.numero_processo_originario,
-                  )}
-                {dados.periodo_debito_execucao &&
-                  renderDataField(
-                    "Período do Débito",
-                    dados.periodo_debito_execucao,
-                  )}
-                {dados.valor_total_debito_execucao &&
-                  renderDataField(
-                    "Valor Total do Débito",
-                    dados.valor_total_debito_execucao,
-                  )}
+                {renderDataField("Nome da Empresa", dados.empregador_requerido_nome)}
+                {renderDataField("Endereço da Empresa", dados.empregador_requerido_endereco)}
               </div>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { API_BASE } from "../../../utils/apiBase.js";
+import { formatCpf, formatPhone } from "../../../utils/formatters.js";
 
 export const useFormEffects = ({
   dispatch,
@@ -59,13 +60,32 @@ export const useFormEffects = ({
       hasLoadedData.current = true;
       const repData = location.state.payload;
 
+      // Função para converter snake_case para camelCase
+      const snakeToCamel = (str) =>
+        str.replace(/([-_][a-z])/g, (group) =>
+          group.toUpperCase().replace("-", "").replace("_", "")
+        );
+
       Object.entries(repData).forEach(([key, value]) => {
         if (value) {
-          dispatch({ type: "UPDATE_FIELD", field: key, value });
+          const camelKey = snakeToCamel(key);
+          let formattedValue = value;
+          
+          if (camelKey.toLowerCase().includes("cpf")) {
+             formattedValue = formatCpf(value);
+          } else if (camelKey.toLowerCase().includes("telefone")) {
+             formattedValue = formatPhone(value);
+          }
+          
+          dispatch({ type: "UPDATE_FIELD", field: camelKey, value: formattedValue });
         }
       });
 
-      dispatch({ type: "UPDATE_FIELD", field: "assistidoEhIncapaz", value: "sim" });
+      dispatch({
+        type: "UPDATE_FIELD",
+        field: "assistidoEhIncapaz",
+        value: "sim",
+      });
 
       toast.info("Dados da representante reaproveitados para novo caso.");
 

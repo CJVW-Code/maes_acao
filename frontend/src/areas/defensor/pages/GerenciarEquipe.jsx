@@ -18,6 +18,7 @@ import { API_BASE } from "../../../utils/apiBase";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../../../contexts/ToastContext";
 import { useConfirm } from "../../../contexts/ConfirmContext";
+import { cidadesBahia } from "../../../utils/formOptions";
 
 export const GerenciarEquipe = () => {
   const { token } = useAuth();
@@ -561,10 +562,16 @@ export const GerenciarEquipe = () => {
                   type="text"
                   required
                   placeholder="Ex: Teixeira de Freitas"
+                  list="cidades-list"
                   value={unidadeForm.comarca}
                   onChange={(e) => setUnidadeForm({ ...unidadeForm, comarca: e.target.value })}
                   className="input"
                 />
+                <datalist id="cidades-list">
+                  {cidadesBahia.map((cidade) => (
+                    <option key={cidade} value={cidade} />
+                  ))}
+                </datalist>
                 <p className="text-xs text-muted mt-1">
                   Os casos da mesma cidade serão vinculados automaticamente a esta unidade.
                 </p>

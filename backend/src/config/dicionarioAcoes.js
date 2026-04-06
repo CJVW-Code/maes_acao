@@ -25,12 +25,12 @@ Não use listas ou tópicos na resposta final. Escreva apenas parágrafos coesos
   },
 
   execucao_alimentos_prisao: {
-    templateDocx: "execucao_prisao.docx",
+    templateDocx: "executacao_alimentos_prisao.docx",
     promptIA: null, 
   },
 
   execucao_alimentos_penhora: {
-    templateDocx: "execucao_penhora.docx",
+    templateDocx: "executacao_alimentos_penhora.docx",
     promptIA: null, 
   },
 

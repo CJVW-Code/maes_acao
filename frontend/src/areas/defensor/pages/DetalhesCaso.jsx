@@ -48,57 +48,36 @@ const fetcher = async (url) => {
 };
 
 const manualStatusOptions = [
-  { value: "em_analise", label: "Em análise" },
-  { value: "aguardando_docs", label: "Pendentes de documentos" },
-  {
-    value: "reuniao_presencial_agendada",
-    label: "Reunião Presencial Agendada",
-  },
-  { value: "reuniao_online_agendada", label: "Reunião Online Agendada" },
+  { value: "aguardando_documentos", label: "Aguardando Documentos" },
+  { value: "documentacao_completa", label: "Documentação Completa" },
+  { value: "em_atendimento", label: "Em Atendimento" },
+  { value: "liberado_para_protocolo", label: "Liberado para Protocolo" },
+  { value: "em_protocolo", label: "Em Protocolo" },
+  { value: "protocolado", label: "Protocolado" },
 ];
 
 const statusBadges = {
-  recebido: "bg-slate-100 text-slate-700 border-slate-200",
-  em_analise: "bg-special/10 text-special border-special/20",
-  documentos_entregues: "bg-highlight/15 text-highlight border-highlight/30",
-  reuniao_agendada: "bg-purple-100 text-purple-800 border-purple-200",
-  reuniao_online_agendada: "bg-blue-100 text-blue-800 border-blue-200",
-  reuniao_presencial_agendada:
-    "bg-purple-100 text-purple-800 border-purple-200",
-  reagendamento_solicitado: "bg-error/10 text-error border-error/20",
-  aguardando_docs: "bg-orange-100 text-orange-800 border-orange-200",
-  processando: "bg-indigo-100 text-indigo-800 border-indigo-200",
-  processado: "bg-green-100 text-green-800 border-green-200",
-  encaminhado_solar: "bg-teal-100 text-teal-800 border-teal-200",
-  finalizado: "bg-gray-100 text-gray-800 border-gray-200",
-  erro: "bg-red-100 text-red-800 border-red-200",
+  aguardando_documentos: "bg-amber-100 text-amber-800 border-amber-200",
+  documentacao_completa: "bg-highlight/15 text-highlight border-highlight/30",
+  processando_ia: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  pronto_para_analise: "bg-green-100 text-green-800 border-green-200",
+  em_atendimento: "bg-blue-100 text-blue-800 border-blue-200",
+  liberado_para_protocolo: "bg-purple-100 text-purple-800 border-purple-200",
+  em_protocolo: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  protocolado: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  erro_processamento: "bg-red-100 text-red-800 border-red-200",
 };
 
 const statusDescriptions = {
-  recebido:
-    "O caso foi submetido e está na fila para processamento automático.",
-  processando:
-    "O sistema está extraindo informações dos documentos e gerando a minuta inicial.",
-  processado:
-    "O processamento automático foi concluído. A minuta está pronta para revisão.",
-  em_analise:
-    "O caso está sendo analisado manualmente por um defensor ou estagiário.",
-  aguardando_docs:
-    "O processo está pausado, aguardando o envio de documentos adicionais pelo cidadão.",
-  documentos_entregues:
-    "O cidadão enviou novos documentos. Verifique os anexos.",
-  reuniao_agendada:
-    "O atendimento com o defensor foi agendado. Aguarde a data prevista.",
-  reuniao_online_agendada:
-    "O atendimento online foi agendado. Configure o link e a data abaixo.",
-  reuniao_presencial_agendada:
-    "O atendimento presencial foi agendado. Informe o local e data abaixo.",
-  reagendamento_solicitado:
-    "O cidadão informou que não pode comparecer. Verifique o motivo em 'Anotações/Feedback'.",
-  encaminhado_solar:
-    "O caso foi finalizado e encaminhado para o sistema Solar da defensoria.",
-  finalizado: "O caso foi concluído.",
-  erro: "Ocorreu um erro crítico durante o processamento automático. Verifique os logs do sistema.",
+  aguardando_documentos: "O processo está pausado, aguardando o envio de documentos adicionais pelo cidadão.",
+  documentacao_completa: "O cidadão enviou todos os documentos necessários ou complementares.",
+  processando_ia: "O sistema está extraindo informações dos documentos e gerando a minuta inicial.",
+  pronto_para_analise: "O processamento automático foi concluído. A minuta está pronta para revisão.",
+  em_atendimento: "O caso está sendo analisado pessoalmente ou em reunião com o assistido.",
+  liberado_para_protocolo: "O caso foi conferido e está pronto para ser protocolado.",
+  em_protocolo: "O defensor está realizando o protocolo do processo no sistema do tribunal.",
+  protocolado: "O protocolo foi realizado com sucesso e o número do processo foi gerado.",
+  erro_processamento: "Ocorreu um erro crítico durante o processamento automático. Verifique os logs.",
 };
 
 
@@ -236,7 +215,7 @@ const handleSalvarPendencia = async () => {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        status: "aguardando_docs",
+        status: "aguardando_documentos",
         descricao_pendencia: pendenciaTexto,
       }),
     });
@@ -266,7 +245,7 @@ const handleStatusChange = async (novoStatus) => {
       body: JSON.stringify({
         status: novoStatus,
         descricao_pendencia:
-          novoStatus === "aguardando_docs"
+          novoStatus === "aguardando_documentos"
             ? pendenciaTexto
             : caso.descricao_pendencia,
       }),
@@ -757,7 +736,7 @@ const handleArquivarClick = async () => {
       )}
 
       {/* NOTIFICAÇÃO DE DOCUMENTOS ENTREGUES */}
-      {caso.status === "documentos_entregues" && (
+      {caso.status === "documentacao_completa" && (
         <div className="bg-highlight/10 border-l-4 border-highlight p-4 rounded-r shadow-sm flex items-start gap-3 animate-fade-in mb-6">
           <Bell className="text-highlight shrink-0 mt-1" size={24} />
           <div>
@@ -1054,8 +1033,8 @@ const handleArquivarClick = async () => {
                 isAgendando={isAgendando}
               />
 
-              {/* ÁREA DE PENDÊNCIA (Só aparece se selecionar aguardando_docs) */}
-              {statusKey === "aguardando_docs" && (
+              {/* ÁREA DE PENDÊNCIA (Só aparece se selecionar aguardando_documentos) */}
+              {statusKey === "aguardando_documentos" && (
                 <div className="p-4 bg-bg border border-border rounded-lg space-y-2 animate-fade-in">
                   <label className="text-sm font-bold text">
                     Descreva os documentos pendentes:{" "}
@@ -1087,19 +1066,19 @@ const handleArquivarClick = async () => {
                 onChange={(e) => handleStatusChange(e.target.value)}
                 value={statusKey}
                 // TRAVA: Desabilita se estiver atualizando OU se já estiver finalizado/encaminhado
-                disabled={isUpdating || statusKey === "encaminhado_solar"}
+                disabled={isUpdating || statusKey === "protocolado"}
               >
                 {/* LÓGICA DE EXIBIÇÃO INTELIGENTE: */}
 
                 {/* 1. Se o caso JÁ estiver finalizado, mostra essa opção extra apenas para leitura */}
-                {statusKey === "encaminhado_solar" && (
-                  <option value="encaminhado_solar">
-                    ✅ Concluído / Encaminhado
+                {statusKey === "protocolado" && (
+                  <option value="protocolado">
+                    ✅ Concluído / Protocolado
                   </option>
                 )}
 
                 {/* 2. Opção atual (se automática/não listada nas manuais) */}
-                {statusKey !== "encaminhado_solar" &&
+                {statusKey !== "protocolado" &&
                   !manualStatusOptions.find((o) => o.value === statusKey) && (
                     <option value={statusKey} disabled>
                       {statusKey.charAt(0).toUpperCase() +
@@ -1117,7 +1096,7 @@ const handleArquivarClick = async () => {
               </select>
 
               {/* Aviso visual extra */}
-              {statusKey === "encaminhado_solar" && (
+              {statusKey === "protocolado" && (
                 <p className="text-xs text-green-600 mt-1">
                   * Caso finalizado via integração Solar.
                 </p>
@@ -1134,7 +1113,7 @@ const handleArquivarClick = async () => {
                 Finalização e Encaminhamento (Solar)
               </h2>
 
-              {caso.status === "encaminhado_solar" ? (
+              {caso.status === "protocolado" ? (
                 // SE JÁ ESTIVER FINALIZADO, MOSTRA OS DADOS
                 <div className="bg-green-500/10 border border-green-500/30 p-6 rounded-xl space-y-6">
                   <div className="flex items-center justify-between gap-2 text-muted font-bold">

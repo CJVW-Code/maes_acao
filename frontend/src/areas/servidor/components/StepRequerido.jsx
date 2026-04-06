@@ -82,27 +82,27 @@ export const StepRequerido = ({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="requeridoTelefone" className="label">Telefone *</label>
+          <label htmlFor="telefoneRequerido" className="label">Telefone *</label>
           <input
-            id="requeridoTelefone"
+            id="telefoneRequerido"
             type="text"
             inputMode="tel"
             placeholder="Telefone (pelo menos um contato é obrigatório) *"
-            name="requeridoTelefone"
-            value={formState.requeridoTelefone}
-            onChange={handlePhoneChange("requeridoTelefone")}
+            name="telefoneRequerido"
+            value={formState.telefoneRequerido}
+            onChange={handlePhoneChange("telefoneRequerido")}
             className="input"
             aria-invalid={Boolean(formErrors.requeridoContato)}
           />
         </div>
         <div>
-          <label htmlFor="requeridoEmail" className="label">Email</label>
+          <label htmlFor="emailRequerido" className="label">Email</label>
           <input
-            id="requeridoEmail"
+            id="emailRequerido"
             type="email"
             placeholder="Email (pelo menos um contato é obrigatório) *"
-            name="requeridoEmail"
-            value={formState.requeridoEmail}
+            name="emailRequerido"
+            value={formState.emailRequerido}
             onChange={handleFieldChange}
             className="input"
           />

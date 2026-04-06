@@ -16,12 +16,15 @@ const fetcher = async (url) => {
   return response.json();
 };
 const statusStyles = {
-  recebido: "bg-amber-100 text-amber-800 border-amber-200",
-  em_analise: "bg-sky-100 text-sky-800 border-sky-200",
-  aguardando_docs: "bg-purple-100 text-purple-800 border-purple-200",
-  reuniao_agendada: "bg-purple-100 text-purple-800 border-purple-200",
-  reuniao_online_agendada: "bg-blue-100 text-blue-800 border-blue-200",
-  encaminhado_solar: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  aguardando_documentos: "bg-amber-100 text-amber-800 border-amber-200",
+  documentacao_completa: "bg-highlight/15 text-highlight border-highlight/30",
+  processando_ia: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  pronto_para_analise: "bg-green-100 text-green-800 border-green-200",
+  em_atendimento: "bg-blue-100 text-blue-800 border-blue-200",
+  liberado_para_protocolo: "bg-purple-100 text-purple-800 border-purple-200",
+  em_protocolo: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  protocolado: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  erro_processamento: "bg-red-100 text-red-800 border-red-200",
   default: "bg-slate-100 text-slate-700 border-slate-200",
 };
 
@@ -145,8 +148,13 @@ export const Casos = () => {
                             </div>
                           )}
                         </td>
-                        <td className="p-4 font-medium">
-                          {caso.nome_assistido}
+                        <td className="p-4">
+                          <div className="font-medium">{caso.nome_assistido}</div>
+                          {caso.nome_representante && (
+                            <div className="text-sm text-primary-600 mt-1 font-semibold">
+                              Representante: {caso.nome_representante}
+                            </div>
+                          )}
                         </td>
                         <td className="p-4 text-muted">
                           {new Date(caso.created_at).toLocaleDateString(
@@ -155,7 +163,7 @@ export const Casos = () => {
                         </td>
                         <td className="p-4">
                           <span className={`badge capitalize ${badgeStyle}`}>
-                            {statusKey.replace("_", " ")}
+                            {statusKey.replace(/_/g, " ")}
                           </span>
                         </td>
                         <td className="p-4 text-right">
@@ -188,9 +196,14 @@ export const Casos = () => {
                         <span className="font-mono text-xs text-muted block mb-1">
                           {caso.protocolo}
                         </span>
-                        <h3 className="font-medium text-base">
+                        <h3 className="font-medium text-base leading-tight">
                           {caso.nome_assistido}
                         </h3>
+                        {caso.nome_representante && (
+                          <p className="text-xs text-primary-600 font-bold mt-1">
+                            Representante: {caso.nome_representante}
+                          </p>
+                        )}
                         <p className="text-xs text-muted mt-1">
                           {new Date(caso.created_at).toLocaleDateString(
                             "pt-BR",

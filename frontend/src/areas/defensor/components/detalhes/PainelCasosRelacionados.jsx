@@ -4,12 +4,16 @@ import { Loader2, ArrowRight } from "lucide-react";
 import { API_BASE } from "../../../../utils/apiBase";
 
 const statusBadges = {
-  recebido: "bg-slate-100 text-slate-700 border-slate-200",
-  em_analise: "bg-special/10 text-special border-special/20",
-  documentos_entregues: "bg-highlight/15 text-highlight border-highlight/30",
-  aguardando_docs: "bg-orange-100 text-orange-800 border-orange-200",
-  encaminhado_solar: "bg-teal-100 text-teal-800 border-teal-200",
-  erro: "bg-red-100 text-red-800 border-red-200",
+  aguardando_documentos: "bg-amber-100 text-amber-800 border-amber-200",
+  documentacao_completa: "bg-highlight/15 text-highlight border-highlight/30",
+  processando_ia: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  pronto_para_analise: "bg-green-100 text-green-800 border-green-200",
+  em_atendimento: "bg-blue-100 text-blue-800 border-blue-200",
+  liberado_para_protocolo: "bg-purple-100 text-purple-800 border-purple-200",
+  em_protocolo: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  protocolado: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  erro_processamento: "bg-red-100 text-red-800 border-red-200",
+  default: "bg-slate-100 text-slate-700 border-slate-200",
 };
 
 export const PainelCasosRelacionados = ({ casoOriginal }) => {
@@ -75,13 +79,13 @@ export const PainelCasosRelacionados = ({ casoOriginal }) => {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
       {casos.map(c => {
         // Tenta usar o status retornado que é do cidadao, mas o status interno seria melhor. Vamos usar o badge generico.
-        const statusKey = (c.status === "enviado" ? "recebido" : c.status === "em triagem" ? "em_analise" : "recebido");
+        const statusKey = (c.status || "default").toLowerCase();
         
         return (
           <div key={c.id} className="bg-surface border border-soft rounded-xl p-4 shadow-sm hover:shadow transition-shadow">
              <div className="flex justify-between items-start mb-2">
-                <span className={`badge ${statusBadges[statusKey] || statusBadges.recebido}`}>
-                   {c.status}
+                <span className={`badge capitalize ${statusBadges[statusKey] || statusBadges.default}`}>
+                   {statusKey.replace(/_/g, " ")}
                 </span>
              </div>
              <p className="font-bold text-lg">{c.nome_assistido}</p>

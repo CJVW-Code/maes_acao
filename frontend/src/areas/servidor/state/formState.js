@@ -28,6 +28,13 @@ export const initialState = {
   representanteEstadoCivil: "solteiro(a)",
   representanteTelefone: "",
   representanteEmail: "",
+  representanteOcupacao: "",
+  representanteEnderecoResidencial: "",
+  representanteEnderecoProfissional: "",
+  representanteRgNumero: "",
+  representanteRgOrgao: "",
+  representanteNomeMae: "",
+  representanteNomePai: "",
 
   // Outros filhos (para casos de representação)
   outrosFilhos: [],
@@ -40,11 +47,21 @@ export const initialState = {
   cpfRequerido: "",
   requeridoRgNumero: "",
   requeridoRgOrgao: "",
+  requeridoNacionalidade: "",
+  requeridoEstadoCivil: "",
+  requeridoOcupacao: "",
+  requeridoEnderecoProfissional: "",
   requeridoDataNascimento: "",
   requeridoNomeMae: "",
   requeridoNomePai: "",
   requeridoOutrosDetalhes: "",
   requeridoOutrosSelecionados: [],
+
+  // Emprego do Requerido
+  requeridoTemEmpregoFormal: "",
+  empregadorRequeridoNome: "",
+  empregadorRequeridoEndereco: "",
+  empregadorEmail: "",
 
   // Dados bancários
   tipoContaDeposito: "",
@@ -78,7 +95,14 @@ export const initialState = {
   cidadeAssinatura: "",
 
   // Dados de Execução específicos
+  numeroProcessoOriginario: "",
+  cidadeOriginaria: "",
+  varaOriginaria: "",
+  tipoDecisao: "",
+  diaPagamentoFixado: "",
+  valorTotalDebitoExecucao: "",
   percentualSalarioMinimo: "",
+  valorMensalFixado: "",
   rgExequente: "",
   cpfExequente: "",
 };
@@ -127,7 +151,9 @@ export const formReducer = (state, action) => {
     case "REMOVE_FILHO":
       return {
         ...state,
-        outrosFilhos: state.outrosFilhos.filter((_, index) => index !== action.index),
+        outrosFilhos: state.outrosFilhos.filter(
+          (_, index) => index !== action.index,
+        ),
       };
 
     case "UPDATE_FILHO":
@@ -136,7 +162,7 @@ export const formReducer = (state, action) => {
         outrosFilhos: state.outrosFilhos.map((filho, index) =>
           index === action.index
             ? { ...filho, [action.field]: action.value }
-            : filho
+            : filho,
         ),
       };
 

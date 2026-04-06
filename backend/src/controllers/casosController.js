@@ -498,7 +498,13 @@ const processarDadosFilhosParaPeticao = (baseData = {}, normalizedData = {}) => 
   const filhoPrincipal = {
     nome: ensureText(baseData.nome || baseData.nome_assistido || normalizedData.requerente_nome),
     cpf: ensureText(baseData.cpf || baseData.cpf_assistido || normalizedData.requerente_cpf),
-    nascimento: ensureText(formatDateBr(baseData.assistido_data_nascimento || baseData.dataNascimentoAssistido || baseData.dados_formulario?.assistido_data_nascimento)),
+    nascimento: ensureText(
+      baseData.assistido_data_nascimento || 
+      formatDateBr(baseData.data_nascimento_assistido) || 
+      formatDateBr(baseData.dataNascimentoAssistido) || 
+      formatDateBr(baseData.dados_formulario?.assistido_data_nascimento) ||
+      formatDateBr(baseData.dados_formulario?.data_nascimento_assistido)
+    ),
     rg: ensureText(baseData.assistido_rg_numero ? `${baseData.assistido_rg_numero} ${baseData.assistido_rg_orgao}` : ""),
     nacionalidade: ensureText(normalizeGenderTerm(baseData.assistido_nacionalidade || "brasileiro(a)")),
   };
@@ -599,13 +605,29 @@ const buildDocxTemplatePayload = (
   );
   const valorCausaCalculado = formatCurrencyBr(valorCausaNumero);
   const valorCausaExtenso = numeroParaExtenso(valorCausaNumero);
+
+  const debitoCalculado = parseCurrencyToNumber(baseData.valor_total_debito_execucao || baseData.valor_debito || "0");
+  const debitoCalculadoExtenso = debitoCalculado > 0 ? numeroParaExtenso(debitoCalculado) : "";
   const percentualDefinitivoBase =
     baseData.percentual_salario_minimo ||
     baseData.percentual_definitivo_salario_min ||
     baseData.percentual_ou_valor_fixado ||
     "";
   const percentualExtras = baseData.percentual_definitivo_extras || "0";
-  const diaPagamentoBase = baseData.dia_pagamento_fixado || baseData.dia_pagamento_requerido;
+  // Extrair apenas o dia do mês do campo de pagamento
+  const extractDay = (dateStr) => {
+    if (!dateStr) return "";
+    // Se vier como DD/MM/YYYY (formatDateBr), pega o DD
+    const brMatch = dateStr.match(/^(\d{1,2})\//);
+    if (brMatch) return String(parseInt(brMatch[1], 10));
+    // Se vier como YYYY-MM-DD (ISO), pega o DD
+    const isoMatch = dateStr.match(/-(\d{2})$/);
+    if (isoMatch) return String(parseInt(isoMatch[1], 10));
+    // Se for só um número, retorna direto
+    if (/^\d{1,2}$/.test(dateStr.trim())) return dateStr.trim();
+    return dateStr;
+  };
+  const diaPagamentoBase = extractDay(baseData.dia_pagamento_fixado) || extractDay(baseData.dia_pagamento_requerido);
   const dadosBancarios = baseData.dados_bancarios_deposito;
   const executadoEndereco = baseData.endereco_requerido || requerido.endereco || "";
 
@@ -613,13 +635,24 @@ const buildDocxTemplatePayload = (
   const hoje = new Date();
   const dataAtualTexto = `${hoje.getDate()} de ${mesesExtenso[hoje.getMonth()]} de ${hoje.getFullYear()}`;
 
+  let varaFormatada = ensureText(varaPreferida);
+  if ((baseData.acaoEspecifica && baseData.acaoEspecifica.includes("execucao")) || 
+      (normalizedData.tipoAcao && normalizedData.tipoAcao.includes("execucao")) ||
+      (acaoKey && acaoKey.includes("execucao"))) {
+    const numMatch = varaFormatada.match(/\d+/);
+    if (numMatch) {
+      varaFormatada = `${numMatch[0]}ª`;
+    }
+  }
+
   const payload = {
     ...baseData,
     lista_filhos,
     rotulo_qualificacao,
     termo_representacao,
 
-    vara: ensureText(varaPreferida),
+    vara: varaFormatada,
+    cidadeOriginaria: ensureText(baseData.cidade_originaria),
     comarca: ensureText(normalizedData.comarca),
     triagemNumero: ensureText(normalizedData.triagemNumero),
     processoOrigemNumero: ensureText(baseData.numero_processo_originario),
@@ -699,8 +732,8 @@ const buildDocxTemplatePayload = (
     executado_endereco_profissional: ensureText(
       baseData.requerido_endereco_profissional,
     ),
-    executado_email: ensureText(baseData.requerido_email),
-    executado_telefone: ensureText(baseData.requerido_telefone),
+    executado_email: ensureText(baseData.email_requerido || baseData.requerido_email),
+    executado_telefone: ensureText(baseData.telefone_requerido || baseData.requerido_telefone),
     valor_pensao: ensureText(baseData.valor_pensao),
     valor_pensao_solicitado: ensureText(
       baseData.valor_pensao_solicitado || baseData.valor_pensao,
@@ -745,12 +778,12 @@ const buildDocxTemplatePayload = (
     // Campos da Execução
     tipo_decisao: ensureText(baseData.tipo_decisao || baseData.tipoDecisao),
     processoOrigemNumero: ensureText(baseData.numero_processo_originario || baseData.processoOrigemNumero),
-    percentual_salario_minimo: ensureText(baseData.percentual_salario_minimo || percentualDefinitivoBase),
+    percentual_salario_minimo: ensureText(baseData.percentual_salario_minimo || baseData.percentual_definitivo_salario_min || percentualDefinitivoBase),
     dia_pagamento: ensureText(diaPagamentoBase),
     periodo_meses_ano: ensureText(baseData.periodo_debito || baseData.periodo_debito_execucao),
     period_meses_ano: ensureText(baseData.periodo_debito || baseData.periodo_debito_execucao), // Alias Prisão
     valor_debito: ensureText(baseData.valor_total_debito_execucao || baseData.valor_debito),
-    valor_debito_extenso: ensureText(baseData.valor_total_extenso || baseData.valor_debito_extenso),
+    valor_debito_extenso: ensureText(baseData.valor_total_extenso || baseData.valor_debito_extenso || debitoCalculadoExtenso),
     dados_adicionais_requerente: ensureText(
       sanitizeInlineText(baseData.dados_adicionais_requerente),
     ),
@@ -770,6 +803,14 @@ const buildDocxTemplatePayload = (
     emissor_rg_exequente: ensureText(baseData.representante_rg_orgao || baseData.representanteRgOrgao),
     representante_cpf: ensureText(baseData.representante_cpf || baseData.representanteCpf || baseData.cpfExequente),
     cpf_exequente: ensureText(baseData.representante_cpf || baseData.representanteCpf || baseData.cpfExequente),
+    // Novos campos de memória de cálculo e vara originária
+    valor_multa: ensureText(baseData.valor_multa),
+    valor_juros: ensureText(baseData.valor_juros),
+    valor_honorarios: ensureText(baseData.valor_honorarios),
+    vara_originaria: ensureText(baseData.vara_originaria),
+    processo_titulo_numero: ensureText(baseData.processo_titulo_numero),
+    valor_mensal_fixado: ensureText(baseData.valor_mensal_fixado),
+
     dos_fatos:
       ensureText(dosFatosTexto, "[DESCREVER OS FATOS]") ||
       "[DESCREVER OS FATOS]",
@@ -875,11 +916,19 @@ export async function processarCasoEmBackground(
     });
     if (!caso) throw new Error("Caso não encontrado no Prisma");
 
+    // Obter configuração da ação
+    const { getConfigAcaoBackend } = await import("../config/dicionarioAcoes.js");
+    const configAcao = getConfigAcaoBackend(acaoKey);
+
     // OCR
     let textoCompleto = caso.relato_texto || "";
-    for (const docPath of urls_documentos) {
-      // Processa imagens e PDFs
-      if (docPath.match(/\.(jpg|jpeg|png|pdf)$/i)) {
+    let resumo_ia = null;
+    let dosFatosTexto = "";
+
+    if (configAcao.ignorarDosFatos !== true && configAcao.promptIA !== null) {
+      for (const docPath of urls_documentos) {
+        // Processa imagens e PDFs
+        if (docPath.match(/\.(jpg|jpeg|png|pdf)$/i)) {
         logger.info(`[OCR] Processando arquivo: ${docPath}`);
         try {
           // 1. Baixar o arquivo do Supabase Storage
@@ -949,18 +998,20 @@ export async function processarCasoEmBackground(
     }
 
     // IA: Resumo e Dos Fatos
-    let resumo_ia = null;
-    let dosFatosTexto = "";
     try {
       resumo_ia = await analyzeCase(textoCompleto);
     } catch (analyzeError) {
       logger.warn(`Falha ao gerar resumo IA: ${analyzeError.message}`);
     }
+    } else {
+      logger.info(`[Background] IA ignorada pela configuração da ação ${acaoKey}.`);
+    }
 
     // Formatação de Dados
     // Garante que a data de nascimento não seja formatada se estiver vazia ou inválida
-    const formattedAssistidoNascimento = dados_formulario.assistido_data_nascimento
-      ? formatDateBr(dados_formulario.assistido_data_nascimento)
+    const rawAssistidoNascimento = dados_formulario.assistido_data_nascimento || dados_formulario.data_nascimento_assistido;
+    const formattedAssistidoNascimento = rawAssistidoNascimento
+      ? formatDateBr(rawAssistidoNascimento)
       : "";
 
     const formattedDataInicioRelacao = formatDateBr(
@@ -1016,6 +1067,8 @@ export async function processarCasoEmBackground(
       assistido_data_nascimento: formattedAssistidoNascimento,
       assistido_rg_numero: dados_formulario.assistido_rg_numero,
       assistido_rg_orgao: dados_formulario.assistido_rg_orgao,
+      // Mapeamento do campo data_nascimento_assistido (frontend) → assistido_data_nascimento (backend)
+      data_nascimento_assistido: dados_formulario.data_nascimento_assistido || dados_formulario.assistido_data_nascimento,
       representante_nome: dados_formulario.representante_nome,
       representante_nacionalidade: dados_formulario.representante_nacionalidade,
       representante_estado_civil: dados_formulario.representante_estado_civil,
@@ -1029,17 +1082,25 @@ export async function processarCasoEmBackground(
       representante_telefone: dados_formulario.representante_telefone,
       representante_rg_numero: dados_formulario.representante_rg_numero,
       representante_rg_orgao: dados_formulario.representante_rg_orgao,
+      representante_nome_mae: dados_formulario.representante_nome_mae,
+      representante_nome_pai: dados_formulario.representante_nome_pai,
       nome_requerido: dados_formulario.nome_requerido,
       cpf_requerido: dados_formulario.cpf_requerido,
+      requerido_rg_numero: dados_formulario.requerido_rg_numero,
+      requerido_rg_orgao: dados_formulario.requerido_rg_orgao,
       endereco_requerido: dados_formulario.endereco_requerido,
       dados_adicionais_requerido: dados_formulario.dados_adicionais_requerido,
       requerido_nacionalidade: dados_formulario.requerido_nacionalidade,
       requerido_estado_civil: dados_formulario.requerido_estado_civil,
       requerido_ocupacao: dados_formulario.requerido_ocupacao,
+      requerido_nome_mae: dados_formulario.requerido_nome_mae,
+      requerido_nome_pai: dados_formulario.requerido_nome_pai,
       requerido_endereco_profissional:
         dados_formulario.requerido_endereco_profissional,
-      requerido_email: dados_formulario.requerido_email,
-      requerido_telefone: dados_formulario.requerido_telefone,
+      requerido_email: dados_formulario.email_requerido || dados_formulario.requerido_email,
+      requerido_telefone: dados_formulario.telefone_requerido || dados_formulario.requerido_telefone,
+      telefone_requerido: dados_formulario.telefone_requerido || dados_formulario.requerido_telefone,
+      email_requerido: dados_formulario.email_requerido || dados_formulario.requerido_email,
       filhos_info: dados_formulario.filhos_info,
       data_inicio_relacao: formattedDataInicioRelacao,
       data_separacao: formattedDataSeparacao,
@@ -1059,7 +1120,7 @@ export async function processarCasoEmBackground(
       valor_pensao: formattedValorPensao,
       valor_pensao_solicitado: formattedValorPensao,
       valor_mensal_pensao: dados_formulario.valor_mensal_pensao,
-      percentual_salario_minimo: percentualSalarioMinimoCalculado,
+      percentual_salario_minimo: dados_formulario.percentual_salario_minimo || percentualSalarioMinimoCalculado,
       salario_minimo_atual: salarioMinimoAtual,
       salario_minimo_formatado: formatCurrencyBr(salarioMinimoAtual),
       valor_salario_minimo: formatCurrencyBr(salarioMinimoAtual),
@@ -1073,9 +1134,15 @@ export async function processarCasoEmBackground(
       empregador_email: dados_formulario.empregador_email,
       numero_processo_originario: dados_formulario.numero_processo_originario,
       vara_originaria: dados_formulario.vara_originaria,
+      cidade_originaria: dados_formulario.cidade_originaria,
       percentual_ou_valor_fixado: dados_formulario.percentual_ou_valor_fixado,
       dia_pagamento_fixado: formattedDiaPagamentoFixado,
-      periodo_debito_execucao: dados_formulario.periodo_debito_execucao,
+      tipo_decisao: dados_formulario.tipo_decisao,
+      valor_multa: dados_formulario.valor_multa,
+      valor_juros: dados_formulario.valor_juros,
+      valor_honorarios: dados_formulario.valor_honorarios,
+      periodo_debito_execucao: dados_formulario.periodo_debito_execucao || dados_formulario.periodo_debito,
+      periodo_debito: dados_formulario.periodo_debito || dados_formulario.periodo_debito_execucao,
       valor_total_debito_execucao: formattedValorTotalDebitoExecucao,
       regime_bens: dados_formulario.regime_bens,
       retorno_nome_solteira: dados_formulario.retorno_nome_solteira,
@@ -1087,8 +1154,7 @@ export async function processarCasoEmBackground(
       caseDataForPetitionRaw,
     );
 
-    const { getConfigAcaoBackend } = await import("../config/dicionarioAcoes.js");
-    const configAcao = getConfigAcaoBackend(acaoKey);
+    // Usa a configAcao já carregada no topo
     
     try {
       if (configAcao.ignorarDosFatos) {
@@ -1126,7 +1192,9 @@ export async function processarCasoEmBackground(
       const configAcao = getConfigAcaoBackend(acaoKey);
       
       if (configAcao.gerarMultiplos) {
-          const docs = await generateMultiplosDocx(docxData, acaoKey, caseDataForPetition.periodo_debito_execucao);
+          const periodoParaCalculo = caseDataForPetition.periodo_debito_execucao || caseDataForPetition.periodo_debito || "";
+          logger.info(`[DOCX Multi] Período para cálculo: "${periodoParaCalculo}"`);
+          const docs = await generateMultiplosDocx(docxData, acaoKey, periodoParaCalculo);
           for (const doc of docs) {
              const docxPath = `${protocolo}/${doc.filename}`;
              if (isSupabaseConfigured) {
@@ -1214,11 +1282,17 @@ export async function processarCasoEmBackground(
     // Mas vamos buscar o id
     const casoNoBD = await prisma.casos.findUnique({ where: { protocolo } });
     if (casoNoBD) {
-      await prisma.casos_ia.updateMany({
+      await prisma.casos_ia.upsert({
           where: { caso_id: casoNoBD.id },
-          data: {
+          update: {
               url_peticao_penhora,
               url_peticao_prisao
+          },
+          create: {
+              caso_id: casoNoBD.id,
+              url_peticao_penhora,
+              url_peticao_prisao,
+              versao_peticao: 1
           }
       });
     }
@@ -1456,7 +1530,7 @@ export const criarNovoCaso = async (req, res) => {
     res.status(201).json({
       ...responsePayload,
       message: "Caso registrado! Processando...",
-      status: "recebido",
+      status: "documentacao_completa",
     });
 
     // Configurar cliente QStash
@@ -1565,6 +1639,11 @@ export const listarCasos = async (req, res) => {
         caso.dados_formulario.documentNames =
           caso.dados_formulario.document_names;
       }
+      
+      // Adiciona o nome do representante no topo para facilitar a listagem no front
+      caso.nome_representante = caso.dados_formulario?.representanteNome || 
+                               caso.dados_formulario?.representante_nome || null;
+
       return caso;
     });
 
@@ -1598,37 +1677,51 @@ export const resumoCasos = async (req, res) => {
 
     const contagens = {
       total: data.length,
-      processado: 0,
-      em_analise: 0,
-      aguardando_docs: 0,
-      documentos_entregues: 0,
-      reuniao_agendada: 0,
-      encaminhado_solar: 0,
+      aguardando_documentos: 0,
+      documentacao_completa: 0,
+      processando_ia: 0,
+      pronto_para_analise: 0,
+      em_atendimento: 0,
+      liberado_para_protocolo: 0,
+      em_protocolo: 0,
+      protocolado: 0,
+      erro_processamento: 0,
     };
 
     const topTiposMap = {};
-    // Nota: representacao e proprio foram removidos por falta de dados_formulario no schema
-    // Se necessário, esses dados devem ser recuperados de casos_partes ou outro modelo
     let representacao = 0;
     let proprio = 0;
 
     for (const caso of data) {
       const s = (caso.status || "recebido").toLowerCase().trim();
 
-      if (s === "processado") contagens.processado++;
-      else if (s === "em_analise") contagens.em_analise++;
-      else if (s === "aguardando_documentos" || s === "aguardando_docs") contagens.aguardando_docs++;
-      else if (s === "documentos_entregues") contagens.documentos_entregues++;
-      else if (["reuniao_agendada", "reuniao_online_agendada", "reuniao_presencial_agendada"].includes(s))
-        contagens.reuniao_agendada++;
-      else if (s === "encaminhado_solar") contagens.encaminhado_solar++;
+      // Mapeamento de legado/variantes para o material estratégico (Enum Prisma)
+      if (s === "aguardando_documentos" || s === "aguardando_docs") {
+        contagens.aguardando_documentos++;
+      } else if (s === "documentacao_completa" || s === "documentos_entregues") {
+        contagens.documentacao_completa++;
+      } else if (s === "processando_ia" || s === "processando") {
+        contagens.processando_ia++;
+      } else if (s === "pronto_para_analise" || s === "processado") {
+        contagens.pronto_para_analise++;
+      } else if (s === "em_atendimento" || s === "em_analise") {
+        contagens.em_atendimento++;
+      } else if (s === "liberado_para_protocolo") {
+        contagens.liberado_para_protocolo++;
+      } else if (s === "em_protocolo") {
+        contagens.em_protocolo++;
+      } else if (s === "protocolado" || s === "encaminhado_solar") {
+        contagens.protocolado++;
+      } else if (s === "erro_processamento" || s === "erro") {
+        contagens.erro_processamento++;
+      }
 
       // Estatísticas sem PII
       const tipo = caso.tipo_acao || "Outros";
       topTiposMap[tipo] = (topTiposMap[tipo] || 0) + 1;
     }
 
-    contagens.ativos = contagens.total - contagens.encaminhado_solar;
+    contagens.ativos = contagens.total - contagens.protocolado;
 
     const topTipos = Object.entries(topTiposMap)
       .sort(([, a], [, b]) => b - a)
@@ -1641,7 +1734,7 @@ export const resumoCasos = async (req, res) => {
       representacao: { representacao, proprio },
     });
   } catch (error) {
-    logger.error(`Erro ao gerar resumo de casos: ${error.message}`);
+    logger.error(`Erro ao gerar resumo de casos local: ${error.message}`);
     res.status(500).json({ error: "Erro ao gerar resumo." });
   }
 };
@@ -1741,8 +1834,11 @@ export const obterDetalhesCaso = async (req, res) => {
 
 export const atualizarStatusCaso = async (req, res) => {
   const { id } = req.params;
-  const { status, descricao_pendencia, numero_solar } = req.body;
+  let { status, descricao_pendencia, numero_solar } = req.body;
   try {
+    // Normalização de status para evitar erros de Enum no Prisma
+    if (status === "aguardando_docs") status = "aguardando_documentos";
+
     const updateData = {};
     if (status !== undefined) updateData.status = status;
     if (descricao_pendencia !== undefined) updateData.descricao_pendencia = descricao_pendencia;
@@ -1790,24 +1886,31 @@ export const salvarFeedback = async (req, res) => {
   const { id } = req.params;
   const { feedback } = req.body;
   try {
-    // Primeiro faz o update
-    const { error: updateError } = await supabase
-      .from("casos")
-      .update({ feedback })
-      .eq("id", id);
+    let casoEncontrado;
 
-    if (updateError) throw updateError;
+    if (isSupabaseConfigured) {
+      const { error: updateError } = await supabase
+        .from("casos")
+        .update({ feedback })
+        .eq("id", id);
+      if (updateError) throw updateError;
 
-    // Depois busca os dados atualizados para retornar
-    const { data, error: fetchError } = await supabase
-      .from("casos")
-      .select("*")
-      .eq("id", id)
-      .single();
+      const { data, error: fetchError } = await supabase
+        .from("casos")
+        .select("*")
+        .eq("id", id)
+        .single();
+      if (fetchError) throw fetchError;
+      casoEncontrado = data;
+    } else {
+      // Fallback Prisma
+      casoEncontrado = await prisma.casos.update({
+        where: { id: BigInt(id) },
+        data: { feedback },
+      });
+    }
 
-    if (fetchError) throw fetchError;
-
-    const casoComUrls = await attachSignedUrls(data);
+    const casoComUrls = await attachSignedUrls(casoEncontrado);
     res.status(200).json(casoComUrls);
   } catch (error) {
     logger.error(`Erro ao salvar feedback ${id}: ${error.message}`);
@@ -1826,26 +1929,43 @@ export const regenerarDosFatos = async (req, res) => {
       });
     }
 
-    const { data: caso, error } = await supabase
-      .from("casos")
-      .select("*")
-      .eq("id", id)
-      .single();
-    if (error || !caso) throw new Error("Caso não encontrado");
+    let caso;
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase
+        .from("casos")
+        .select("*")
+        .eq("id", id)
+        .single();
+      if (error || !data) throw new Error("Caso não encontrado");
+      caso = data;
+    } else {
+      caso = await prisma.casos.findUnique({
+        where: { id: BigInt(id) }
+      });
+      if (!caso) throw new Error("Caso não encontrado");
+    }
+
     const dados = caso.dados_formulario || caso;
     if (!dados.relato_texto && caso.relato_texto)
       dados.relato_texto = caso.relato_texto;
     const dosFatosTexto = await generateDosFatos(dados);
     
-    // CORREÇÃO: Retornar o objeto completo atualizado, não apenas o texto
-    const { data: casoAtualizado, error: updateError } = await supabase
-      .from("casos")
-      .update({ peticao_inicial_rascunho: `DOS FATOS\n\n${dosFatosTexto}` })
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (updateError) throw updateError;
+    let casoAtualizado;
+    if (isSupabaseConfigured) {
+      const { data, error: updateError } = await supabase
+        .from("casos")
+        .update({ peticao_inicial_rascunho: `DOS FATOS\n\n${dosFatosTexto}` })
+        .eq("id", id)
+        .select()
+        .single();
+      if (updateError) throw updateError;
+      casoAtualizado = data;
+    } else {
+      casoAtualizado = await prisma.casos.update({
+        where: { id: BigInt(id) },
+        data: { peticao_inicial_rascunho: `DOS FATOS\n\n${dosFatosTexto}` }
+      });
+    }
 
     // Reanexa URLs assinadas para que links de download/áudio não quebrem na tela
     const casoComUrls = await attachSignedUrls(casoAtualizado);
@@ -2030,37 +2150,81 @@ export const regerarMinuta = async (req, res) => {
       (caso.tipo_acao || "").trim() || 
       "";
 
-    const docxBuffer = await generateDocx(payload, acaoKey);
+    const { getConfigAcaoBackend } = await import("../config/dicionarioAcoes.js");
+    const configAcao = getConfigAcaoBackend(acaoKey);
 
-    // 4. Define o caminho e faz o upload (Supabase ou Local)
-    const docxPath = `${caso.protocolo}/peticao_inicial_${caso.protocolo}.docx`;
+    let docxPath; // URL da minuta primária ou única
 
-    if (isSupabaseConfigured) {
-      const { error: uploadError } = await supabase.storage
-        .from("peticoes")
-        .upload(docxPath, docxBuffer, {
-          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          upsert: true,
-        });
-      if (uploadError) throw new Error(`Erro upload Supabase: ${uploadError.message}`);
+    if (configAcao.gerarMultiplos) {
+      const periodoParaCalculo = dadosComPercentual.periodo_debito_execucao || dadosComPercentual.periodo_debito || "";
+      const docs = await generateMultiplosDocx(payload, acaoKey, periodoParaCalculo);
+
+      let url_peticao_penhora = null;
+      let url_peticao_prisao = null;
+
+      for (const doc of docs) {
+        const pathMultiplo = `${caso.protocolo}/${doc.filename}`;
+        
+        if (isSupabaseConfigured) {
+          const { error: uploadError } = await supabase.storage
+            .from("peticoes")
+            .upload(pathMultiplo, doc.buffer, {
+              contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              upsert: true,
+            });
+          if (uploadError) throw new Error(`Erro upload Supabase: ${uploadError.message}`);
+        } else {
+          const localDir = path.resolve("uploads", "peticoes", caso.protocolo);
+          await fs.mkdir(localDir, { recursive: true });
+          await fs.writeFile(path.join(localDir, doc.filename), doc.buffer);
+          logger.info(`[Local] Minuta (${doc.tipo}) regerada em ${localDir}`);
+        }
+
+        if (doc.tipo === "penhora") url_peticao_penhora = pathMultiplo;
+        if (doc.tipo === "prisao") url_peticao_prisao = pathMultiplo;
+      }
+
+      docxPath = url_peticao_penhora;
+
+      // 5. Atualiza o banco com as novas URLs múltiplas
+      let updateData = { 
+        url_documento_gerado: docxPath,
+        url_peticao_penhora: url_peticao_penhora || null,
+        url_peticao_prisao: url_peticao_prisao || null
+      };
+
+      if (isSupabaseConfigured) {
+        await supabase.from("casos").update(updateData).eq("id", id);
+      } else {
+        await prisma.casos.update({ where: { id: BigInt(id) }, data: updateData });
+      }
+
     } else {
-      const localDir = path.resolve("uploads", "peticoes", caso.protocolo);
-      await fs.mkdir(localDir, { recursive: true });
-      await fs.writeFile(path.join(localDir, `peticao_inicial_${caso.protocolo}.docx`), docxBuffer);
-      logger.info(`[Local] Minuta regerada salva em ${localDir}`);
-    }
+      // Lógica ÚNICA: Apenas 1 doc gerado
+      const docxBuffer = await generateDocx(payload, acaoKey);
+      docxPath = `${caso.protocolo}/peticao_inicial_${caso.protocolo}.docx`;
 
-    // 5. Garante que a URL no banco está correta
-    if (isSupabaseConfigured) {
-      await supabase
-        .from("casos")
-        .update({ url_documento_gerado: docxPath })
-        .eq("id", id);
-    } else {
-      await prisma.casos.update({
-        where: { id: BigInt(id) },
-        data: { url_documento_gerado: docxPath }
-      });
+      if (isSupabaseConfigured) {
+        const { error: uploadError } = await supabase.storage
+          .from("peticoes")
+          .upload(docxPath, docxBuffer, {
+            contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            upsert: true,
+          });
+        if (uploadError) throw new Error(`Erro upload Supabase: ${uploadError.message}`);
+      } else {
+        const localDir = path.resolve("uploads", "peticoes", caso.protocolo);
+        await fs.mkdir(localDir, { recursive: true });
+        await fs.writeFile(path.join(localDir, `peticao_inicial_${caso.protocolo}.docx`), docxBuffer);
+        logger.info(`[Local] Minuta regerada salva em ${localDir}`);
+      }
+
+      // 5. Atualiza URL única no banco
+      if (isSupabaseConfigured) {
+        await supabase.from("casos").update({ url_documento_gerado: docxPath }).eq("id", id);
+      } else {
+        await prisma.casos.update({ where: { id: BigInt(id) }, data: { url_documento_gerado: docxPath } });
+      }
     }
 
     // 6. Retorna o caso atualizado com as novas URLs assinadas
@@ -2078,16 +2242,46 @@ export const regerarMinuta = async (req, res) => {
 
 export const buscarPorCpf = async (req, res) => {
   const cpf = req.params.cpf || req.query.cpf;
+  if (!cpf) return res.status(400).json({ error: "CPF não fornecido." });
+
   try {
-    const { data, error } = await supabase
-      .from("casos")
-      .select("*")
-      .eq("cpf_assistido", cpf);
-    if (error) throw error;
+    let data;
+    if (isSupabaseConfigured) {
+      const { data: result, error } = await supabase
+        .from("casos")
+        .select("*")
+        .eq("cpf_assistido", cpf);
+      if (error) throw error;
+      data = result;
+    } else {
+      // Fallback Prisma: Busca onde CPF é assistido ou representante (via JSON)
+      data = await prisma.casos.findMany({
+        where: {
+          OR: [
+            { cpf_assistido: cpf },
+            {
+              dados_formulario: {
+                path: ["representanteCpf"],
+                equals: cpf,
+              },
+            },
+            {
+              dados_formulario: {
+                path: ["representante_cpf"],
+                equals: cpf,
+              },
+            },
+          ],
+        },
+        orderBy: { created_at: "desc" },
+      });
+    }
 
     // Garante compatibilidade com o frontend (documentNames vs document_names)
     const normalizedData = (data || []).map((caso) => {
-      if (!caso.dados_formulario) caso.dados_formulario = {};
+      if (!caso.dados_formulario || typeof caso.dados_formulario !== "object") {
+        caso.dados_formulario = {};
+      }
       if (!caso.dados_formulario.document_names)
         caso.dados_formulario.document_names = {};
       if (!caso.dados_formulario.documentNames) {
@@ -2099,6 +2293,7 @@ export const buscarPorCpf = async (req, res) => {
 
     res.status(200).json(normalizedData);
   } catch (error) {
+    logger.error(`Erro ao buscar por CPF ${cpf}: ${error.message}`);
     res.status(500).json({ error: "Erro ao buscar por CPF." });
   }
 };
@@ -2110,33 +2305,55 @@ export const finalizarCasoSolar = async (req, res) => {
   try {
     if (req.file) {
       const file = req.file;
-      // Sanitize filename to prevent path traversal and other issues
       const safeOriginalName = path.basename(file.originalname);
       const filePath = `capas/${id}_${Date.now()}_${safeOriginalName}`;
-      const fileStream = fsSync.createReadStream(file.path);
-      const { error: uploadError } = await supabase.storage
-        .from(storageBuckets.documentos)
-        .upload(filePath, fileStream, {
-          contentType: file.mimetype,
-          duplex: "half",
-        });
-      if (uploadError) throw uploadError;
-      url_capa_processual = filePath;
+
+      if (isSupabaseConfigured) {
+        const fileStream = fsSync.createReadStream(file.path);
+        const { error: uploadError } = await supabase.storage
+          .from(storageBuckets.documentos)
+          .upload(filePath, fileStream, {
+            contentType: file.mimetype,
+            duplex: "half",
+          });
+        if (uploadError) throw uploadError;
+        url_capa_processual = filePath;
+      } else {
+        // Fallback Local
+        const localDir = path.resolve("uploads", "capas");
+        await fs.mkdir(localDir, { recursive: true });
+        const localPath = path.join(localDir, `${id}_${Date.now()}_${safeOriginalName}`);
+        await fs.copyFile(file.path, localPath);
+        url_capa_processual = `capas/${path.basename(localPath)}`;
+        logger.info(`[Local] Capa processual salva em ${localPath}`);
+      }
       await fs.unlink(file.path);
     }
-    const { error } = await supabase
-      .from("casos")
-      .update({
-        status: "encaminhado_solar",
-        numero_solar,
-        numero_processo,
-        url_capa_processual,
-        finished_at: new Date(),
-      })
-      .eq("id", id);
-    if (error) throw error;
+
+    const updateData = {
+      status: "protocolado",
+      numero_solar,
+      numero_processo,
+      url_capa_processual,
+      finished_at: new Date(),
+    };
+
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from("casos")
+        .update(updateData)
+        .eq("id", id);
+      if (error) throw error;
+    } else {
+      await prisma.casos.update({
+        where: { id: BigInt(id) },
+        data: updateData
+      });
+    }
+
     res.status(200).json({ message: "Caso finalizado com sucesso." });
   } catch (error) {
+    logger.error(`Erro ao finalizar caso ${id}: ${error.message}`);
     res.status(500).json({ error: "Erro ao finalizar caso." });
   }
 };
@@ -2149,18 +2366,31 @@ export const agendarReuniao = async (req, res) => {
   const status = agendamento_data && agendamento_link ? "agendado" : "pendente";
 
   try {
-    const { data, error } = await supabase
-      .from("casos")
-      .update({
-        agendamento_data,
-        agendamento_link,
-        agendamento_status: status,
-      })
-      .eq("id", id)
-      .select()
-      .single();
+    let data;
+    if (isSupabaseConfigured) {
+      const result = await supabase
+        .from("casos")
+        .update({
+          agendamento_data,
+          agendamento_link,
+          agendamento_status: status,
+        })
+        .eq("id", id)
+        .select()
+        .single();
+      if (result.error) throw result.error;
+      data = result.data;
+    } else {
+      data = await prisma.casos.update({
+        where: { id: BigInt(id) },
+        data: {
+          agendamento_data,
+          agendamento_link,
+          agendamento_status: status,
+        }
+      });
+    }
 
-    if (error) throw error;
     res.status(200).json(data);
   } catch (error) {
     logger.error(`Erro ao agendar reunião para o caso ${id}: ${error.message}`);
@@ -2179,56 +2409,71 @@ export const reverterFinalizacao = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const { data: caso, error: fetchError } = await supabase
-      .from("casos")
-      .select("url_capa_processual, protocolo")
-      .eq("id", id)
-      .single();
-
-    if (fetchError || !caso) {
-      return res.status(404).json({ error: "Caso não encontrado." });
+    let caso;
+    if (isSupabaseConfigured) {
+      const { data, error: fetchError } = await supabase
+        .from("casos")
+        .select("url_capa_processual, protocolo")
+        .eq("id", id)
+        .single();
+      if (fetchError || !data) throw new Error("Caso não encontrado");
+      caso = data;
+    } else {
+      caso = await prisma.casos.findUnique({
+        where: { id: BigInt(id) },
+        select: { url_capa_processual: true, protocolo: true }
+      });
+      if (!caso) throw new Error("Caso não encontrado");
     }
 
-    if (caso.url_capa_processual) {
-      const filePath = extractObjectPath(caso.url_capa_processual);
-      if (filePath) {
-        logger.info(
-          `Revertendo finalização: Excluindo capa processual do caso ${id}`,
-        );
-        const { error: deleteError } = await supabase.storage
-          .from(storageBuckets.documentos)
-          .remove([filePath]);
+    const { url_capa_processual } = caso;
 
-        if (deleteError) {
-          logger.warn(
-            `Falha ao excluir capa do storage durante a reversão: ${deleteError.message}`,
-          );
+    if (url_capa_processual) {
+      if (isSupabaseConfigured) {
+        const filePath = extractObjectPath(url_capa_processual);
+        if (filePath) {
+          logger.info(`Revertendo finalização: Excluindo capa do Supabase para o caso ${id}`);
+          await supabase.storage.from(storageBuckets.documentos).remove([filePath]);
+        }
+      } else {
+        // Fallback Local
+        const localPath = path.resolve("uploads", url_capa_processual);
+        try {
+          await fs.unlink(localPath);
+          logger.info(`[Local] Capa processual removida: ${localPath}`);
+        } catch (e) {
+          logger.warn(`Falha ao remover capa local: ${localPath}`, e.message);
         }
       }
     }
 
-    const { error: updateError } = await supabase
-      .from("casos")
-      .update({
-        status: "processado",
-        numero_solar: null,
-        numero_processo: null,
-        url_capa_processual: null,
-        finished_at: null,
-      })
-      .eq("id", id);
+    const updateData = {
+      status: "pronto_para_analise",
+      numero_solar: null,
+      numero_processo: null,
+      url_capa_processual: null,
+      finished_at: null,
+    };
 
-    if (updateError) throw updateError;
+    if (isSupabaseConfigured) {
+      const { error: updateError } = await supabase
+        .from("casos")
+        .update(updateData)
+        .eq("id", id);
+      if (updateError) throw updateError;
+    } else {
+      await prisma.casos.update({
+        where: { id: BigInt(id) },
+        data: updateData
+      });
+    }
 
     logger.info(
       `Finalização do caso ${caso.protocolo} (ID: ${id}) revertida por ${req.user.email}.`,
     );
-    // Apenas retorna uma mensagem de sucesso, pois o frontend já recarrega os dados.
     res.status(200).json({ message: "Finalização revertida com sucesso." });
   } catch (error) {
-    logger.error(
-      `Erro ao reverter finalização do caso ${id}: ${error.message}`,
-    );
+    logger.error(`Erro ao reverter finalização do caso ${id}: ${error.message}`);
     res.status(500).json({ error: "Erro ao reverter finalização do caso." });
   }
 };
@@ -2236,21 +2481,42 @@ export const reverterFinalizacao = async (req, res) => {
 export const resetarChaveAcesso = async (req, res) => {
   const { id } = req.params;
   try {
-    const { data: caso } = await supabase
-      .from("casos")
-      .select("tipo_acao")
-      .eq("id", id)
-      .single();
+    let caso;
+    if (isSupabaseConfigured) {
+      const { data } = await supabase
+        .from("casos")
+        .select("tipo_acao")
+        .eq("id", id)
+        .single();
+      caso = data;
+    } else {
+      caso = await prisma.casos.findUnique({
+        where: { id: BigInt(id) },
+        select: { tipo_acao: true }
+      });
+    }
+
     if (!caso) throw new Error("Caso não encontrado");
+
     const { chaveAcesso } = generateCredentials(caso.tipo_acao);
     const chaveAcessoHash = hashKeyWithSalt(chaveAcesso);
-    const { error } = await supabase
-      .from("casos")
-      .update({ chave_acesso_hash: chaveAcessoHash })
-      .eq("id", id);
-    if (error) throw error;
+
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from("casos")
+        .update({ chave_acesso_hash: chaveAcessoHash })
+        .eq("id", id);
+      if (error) throw error;
+    } else {
+      await prisma.casos.update({
+        where: { id: BigInt(id) },
+        data: { chave_acesso_hash: chaveAcessoHash }
+      });
+    }
+
     res.status(200).json({ novaChave: chaveAcesso });
   } catch (error) {
+    logger.error(`Erro ao resetar chave do caso ${id}: ${error.message}`);
     res.status(500).json({ error: "Erro ao resetar chave." });
   }
 };
@@ -2276,30 +2542,44 @@ export const receberDocumentosComplementares = async (req, res) => {
       );
     const isInt = /^\d+$/.test(id) && id !== "0";
 
-    if (isUUID || isInt) {
-      const { data } = await supabase
-        .from("casos")
-        .select("*")
-        .eq("id", id)
-        .single();
-      caso = data;
-    } else if (id !== "0") {
-      const { data } = await supabase
-        .from("casos")
-        .select("*")
-        .eq("protocolo", id)
-        .single();
-      caso = data;
+    if (isSupabaseConfigured) {
+      if (isUUID || isInt) {
+        const { data } = await supabase
+          .from("casos")
+          .select("*")
+          .eq("id", id)
+          .single();
+        caso = data;
+      } else if (id !== "0") {
+        const { data } = await supabase
+          .from("casos")
+          .select("*")
+          .eq("protocolo", id)
+          .single();
+        caso = data;
+      }
+    } else {
+      // Fallback Prisma
+      if (isInt) {
+        caso = await prisma.casos.findUnique({ where: { id: BigInt(id) } });
+      } else if (id !== "0") {
+        caso = await prisma.casos.findUnique({ where: { protocolo: id } });
+      }
     }
 
     // 2. Fallback: Se não achou pelo ID (ex: frontend enviou 0), tenta por CPF + Chave
     if (!caso) {
       if (cpf && chave) {
-        // Busca todos os casos do CPF e verifica a chave em memória (pois o hash pode ser aleatório/bcrypt)
-        const { data: casosCpf } = await supabase
-          .from("casos")
-          .select("*")
-          .eq("cpf_assistido", cpf);
+        let casosCpf;
+        if (isSupabaseConfigured) {
+          const { data } = await supabase
+            .from("casos")
+            .select("*")
+            .eq("cpf_assistido", cpf);
+          casosCpf = data;
+        } else {
+          casosCpf = await prisma.casos.findMany({ where: { cpf_assistido: cpf } });
+        }
 
         if (casosCpf && casosCpf.length > 0) {
           caso = casosCpf.find((c) => verifyKey(chave, c.chave_acesso_hash));
@@ -2326,18 +2606,25 @@ export const receberDocumentosComplementares = async (req, res) => {
           .normalize("NFD")
           .replace(/[\u0300-\u036f]/g, "");
         const filePath = `${caso.protocolo}/complementar_${Date.now()}_${safeName}`;
-        const docStream = fsSync.createReadStream(docFile.path);
-        const { error: uploadError } = await supabase.storage
-          .from(storageBuckets.documentos)
-          .upload(filePath, docStream, {
-            contentType: docFile.mimetype,
-            duplex: "half",
-          });
-
-        if (uploadError) {
-          logger.error(`Erro upload complementar: ${uploadError.message}`);
+        
+        if (isSupabaseConfigured) {
+          const docStream = fsSync.createReadStream(docFile.path);
+          const { error: uploadError } = await supabase.storage
+            .from(storageBuckets.documentos)
+            .upload(filePath, docStream, {
+              contentType: docFile.mimetype,
+              duplex: "half",
+            });
+          if (uploadError) logger.error(`Erro upload complementar Supabase: ${uploadError.message}`);
+          else novosUrls.push(filePath);
         } else {
-          novosUrls.push(filePath);
+          // Fallback Local
+          const localDir = path.resolve("uploads", "documentos", caso.protocolo);
+          await fs.mkdir(localDir, { recursive: true });
+          const localPath = path.join(localDir, `complementar_${Date.now()}_${safeName}`);
+          await fs.copyFile(docFile.path, localPath);
+          novosUrls.push(`documentos/${caso.protocolo}/${path.basename(localPath)}`);
+          logger.info(`[Local] Documento complementar salvo em ${localPath}`);
         }
 
         // Limpa arquivo temporário
@@ -2356,12 +2643,12 @@ export const receberDocumentosComplementares = async (req, res) => {
     // 3. Atualiza metadados de nomes (dados_formulario.document_names)
     const nomesMap = safeJsonParse(nomes_arquivos, {});
 
-    const currentDadosFormulario = caso.dados_formulario || {}; // Garante que dados_formulario é um objeto
-    const currentNames = currentDadosFormulario.document_names || {}; // Usa o objeto garantido
+    const currentDadosFormulario = caso.dados_formulario || {}; 
+    const currentNames = currentDadosFormulario.document_names || {}; 
 
     const updatedNames = { ...currentNames, ...nomesMap };
     const updatedDadosFormulario = {
-      ...currentDadosFormulario, // Espalha o objeto garantido
+      ...currentDadosFormulario, 
       document_names: updatedNames,
     };
 
@@ -2369,45 +2656,61 @@ export const receberDocumentosComplementares = async (req, res) => {
     const updatePayload = {
       urls_documentos: [...(caso.urls_documentos || []), ...novosUrls],
       dados_formulario: updatedDadosFormulario,
-      status: "documentos_entregues", // Define o status correto para notificar o defensor
+      status: "documentacao_completa", 
       updated_at: new Date(),
     };
 
-    logger.info(
-      `[Upload Complementar] Atualizando caso ${caso.id}. Novo status: ${updatePayload.status}`,
-    );
-
-    const { error: updateError } = await supabase
-      .from("casos")
-      .update(updatePayload)
-      .eq("id", caso.id);
-
-    if (updateError) throw updateError;
-
-    // [NOTIFICAÇÃO] Alerta o defensor sobre novos documentos
-    const { error: notifError } = await supabase.from("notificacoes").insert({
-      caso_id: caso.id,
-      mensagem: `Novos documentos entregues por ${caso.nome_assistido || "Assistido"}.`,
-      tipo: 'upload',
-      lida: false,
-      created_at: new Date().toISOString()
-    });
-
-    if (notifError) {
-      logger.error(`Falha ao criar notificação de upload: ${notifError.message}`, { error: notifError });
+    if (isSupabaseConfigured) {
+      const { error: updateError } = await supabase
+        .from("casos")
+        .update(updatePayload)
+        .eq("id", caso.id);
+      if (updateError) throw updateError;
+    } else {
+      await prisma.casos.update({
+        where: { id: caso.id },
+        data: updatePayload
+      });
     }
 
-    res.status(200).json({ message: "Documentos enviados com sucesso!" });
+    // [NOTIFICAÇÃO] Alerta o defensor sobre novos documentos
+    const notifData = {
+      caso_id: caso.id,
+      mensagem: `Novos documentos entregues por ${caso.nome_assistido || "Assistido"}.`,
+      tipo: "upload",
+      lida: false,
+      created_at: new Date(),
+    };
+
+    if (isSupabaseConfigured) {
+      await supabase.from("notificacoes").insert(notifData);
+    } else {
+      // Opcional: Se houver model de notificações no Prisma
+      // await prisma.notificacoes.create({ data: notifData });
+    }
+
+    // [PROCESSAMENTO EM BACKGROUND]
+    // Agora que temos novos documentos, o caso não precisa esperar intervenção manual
+    setImmediate(() => {
+      processarCasoEmBackground(
+        caso.protocolo,
+        updatePayload.dados_formulario,
+        updatePayload.urls_documentos,
+        caso.url_audio,
+        caso.url_peticao
+      );
+    });
+
+    res.status(200).json({ message: "Documentos enviados com sucesso e caso na fila de processamento!" });
   } catch (error) {
-    logger.error(`Erro upload complementar: ${error.message}`);
-    res
-      .status(500)
-      .json({ error: error.message || "Falha ao enviar documentos." });
+    logger.error(`Erro upload complementar para caso ${id}: ${error.message}`);
+    res.status(500).json({ error: error.message || "Falha ao enviar documentos." });
   }
 };
 
 // --- DELETAR CASO (Apenas Admin) ---
 export const deletarCaso = async (req, res) => {
+  const { id } = req.params;
   try {
     // Verificação de permissão de admin
     if (!req.user || req.user.cargo !== "admin") {
@@ -2416,67 +2719,84 @@ export const deletarCaso = async (req, res) => {
       });
     }
 
-    const { id } = req.params;
-
-    // Primeiro, obtenha os dados do caso para verificar se existe
-    const { data: caso, error: fetchError } = await supabase
-      .from("casos")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (fetchError || !caso) {
-      return res.status(404).json({ error: "Caso não encontrado." });
+    let caso;
+    if (isSupabaseConfigured) {
+      const { data, error: fetchError } = await supabase
+        .from("casos")
+        .select("*")
+        .eq("id", id)
+        .single();
+      
+      if (fetchError || !data) {
+        return res.status(404).json({ error: "Caso não encontrado." });
+      }
+      caso = data;
+    } else {
+      const data = await prisma.casos.findUnique({
+        where: { id: BigInt(id) }
+      });
+      if (!data) {
+        return res.status(404).json({ error: "Caso não encontrado." });
+      }
+      caso = data;
     }
 
-    // --- REMOVER ARQUIVOS DO STORAGE ---
-    const filesToDelete = {
-      [storageBuckets.audios]: [],
-      [storageBuckets.peticoes]: [],
-      [storageBuckets.documentos]: [],
-    };
+    // --- REMOVER ARQUIVOS DO STORAGE (Apenas se Supabase configurado) ---
+    if (isSupabaseConfigured) {
+      const filesToDelete = {
+        [storageBuckets.audios]: [],
+        [storageBuckets.peticoes]: [],
+        [storageBuckets.documentos]: [],
+      };
 
-    const addFile = (bucket, path) => {
-      const cleanPath = extractObjectPath(path);
-      if (cleanPath) filesToDelete[bucket].push(cleanPath);
-    };
+      const addFile = (bucket, path) => {
+        const cleanPath = extractObjectPath(path);
+        if (cleanPath) filesToDelete[bucket].push(cleanPath);
+      };
 
-    addFile(storageBuckets.audios, caso.url_audio);
-    addFile(storageBuckets.peticoes, caso.url_peticao);
-    addFile(storageBuckets.peticoes, caso.url_documento_gerado);
-    addFile(storageBuckets.peticoes, caso.url_termo_declaracao);
-    addFile(storageBuckets.documentos, caso.url_capa_processual);
+      addFile(storageBuckets.audios, caso.url_audio);
+      addFile(storageBuckets.peticoes, caso.url_peticao);
+      addFile(storageBuckets.peticoes, caso.url_documento_gerado);
+      addFile(storageBuckets.peticoes, caso.url_termo_declaracao);
+      addFile(storageBuckets.documentos, caso.url_capa_processual);
 
-    if (Array.isArray(caso.urls_documentos)) {
-      caso.urls_documentos.forEach((doc) =>
-        addFile(storageBuckets.documentos, doc),
+      if (Array.isArray(caso.urls_documentos)) {
+        caso.urls_documentos.forEach((doc) =>
+          addFile(storageBuckets.documentos, doc),
+        );
+      }
+
+      await Promise.all(
+        Object.entries(filesToDelete).map(async ([bucket, files]) => {
+          if (files.length > 0) {
+            logger.info(
+              `🗑️ Excluindo ${files.length} arquivos do bucket '${bucket}' vinculados ao caso ${id}`,
+            );
+            await supabase.storage.from(bucket).remove(files);
+          }
+        }),
       );
+    } else {
+      // Se local, poderíamos remover os arquivos da pasta uploads no futuro
+      logger.info(`[Local] Ignorando limpeza de storage para o caso ${id}`);
     }
-
-    await Promise.all(
-      Object.entries(filesToDelete).map(async ([bucket, files]) => {
-        if (files.length > 0) {
-          logger.info(
-            `🗑️ Excluindo ${files.length} arquivos do bucket '${bucket}' vinculados ao caso ${id}`,
-          );
-          await supabase.storage.from(bucket).remove(files);
-        }
-      }),
-    );
 
     // Excluir o caso do banco de dados
-    const { error: deleteError } = await supabase
-      .from("casos")
-      .delete()
-      .eq("id", id);
-
-    if (deleteError) {
-      throw deleteError;
+    if (isSupabaseConfigured) {
+      const { error: deleteError } = await supabase
+        .from("casos")
+        .delete()
+        .eq("id", id);
+      if (deleteError) throw deleteError;
+    } else {
+      await prisma.casos.delete({
+        where: { id: BigInt(id) }
+      });
     }
 
     res.json({ message: "Caso excluído com sucesso." });
   } catch (err) {
-    logger.error(`Erro ao deletar caso ${req.params.id}: ${err.message}`);
+    logger.error(`Erro ao deletar caso ${id}: ${err.message}`);
     res.status(500).json({ error: "Erro ao excluir caso." });
   }
 };

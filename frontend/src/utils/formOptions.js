@@ -135,11 +135,6 @@ export const outrosDadosRequeridoFieldMap = {
   requeridoFiliacao: ["requeridoNomeMae", "requeridoNomePai"],
 };
 
-export const currencyFields = new Set([
-  "valorMensalPensao",
-  "valorTotalDebitoExecucao",
-]);
-
 export const acoesFallbackFamilia = [
   "Fixação de Pensão Alimentícia",
   "Divórcio",

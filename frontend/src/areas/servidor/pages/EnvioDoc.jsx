@@ -66,7 +66,9 @@ export const ConsultaStatus = () => {
         throw new Error("Erro na consulta");
       }
       const data = await response.json();
-      setCaso(data);
+      // Garantir que pegamos o objeto do caso, mesmo se a API retornar um array (multi-casos)
+      const casoData = Array.isArray(data) ? data[0] : data;
+      setCaso(casoData);
     } catch (err) {
       setError(err.message || "Erro ao consultar CPF.");
     } finally {
@@ -353,7 +355,8 @@ export const ConsultaStatus = () => {
             </div>
           )}
 
-          {caso.status === "encaminhamento solar" ||
+          {caso.status === "finalizado" || 
+          caso.status === "protocolado" || 
           caso.status === "encaminhado_solar" ? (
             // --- TELA DE CASO CONCLUÍDO ---
             <div className="bg-border/10 border border-border/30 rounded-xl p-6 mt-6 animate-fade-in">
@@ -420,9 +423,8 @@ export const ConsultaStatus = () => {
                 )}
               </div>
             </div>
-          ) : caso.status === "aguardando_documentos" ||
-            caso.status === "aguardando_docs" ||
-            caso.status === "documentos pendente" ? (
+          ) : caso.status === "documentos pendentes" ||
+            caso.status === "aguardando_documentos" ? (
             // --- TELA DE PENDÊNCIA DE DOCUMENTOS ---
             <div className="space-y-6 mt-6">
               <div className="bg-bg border border-border rounded-xl p-6">

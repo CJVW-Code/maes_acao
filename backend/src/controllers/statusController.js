@@ -64,28 +64,29 @@ export const consultarStatus = async (req, res) => {
       `Status consultado com sucesso para CPF ${cpfLimpo}. Status: ${casoEncontrado.status}`,
     );
 
-    // Mapeamento de status internos para os 4 status públicos solicitados
+    // Mapeamento de status internos para os status públicos solicitados
     const statusPublicoMap = {
-      recebido: "enviado",
-      processando: "em triagem",
-      processado: "em triagem",
-      em_analise: "em triagem",
-      aguardando_docs: "documentos pendente",
-      documentos_entregues: "documentos entregues",
-      finalizado: "encaminhamento solar",
-      erro: "enviado",
+      aguardando_documentos: "documentos pendentes",
+      documentacao_completa: "documentos entregues",
+      processando_ia: "em triagem",
+      pronto_para_analise: "em triagem",
+      em_atendimento: "em triagem",
+      liberado_para_protocolo: "em protocolo",
+      em_protocolo: "em protocolo",
+      protocolado: "finalizado",
+      erro_processamento: "enviado",
     };
 
     const statusDescricaoMap = {
-      recebido: "O caso foi submetido e está na fila para processamento.",
-      processando: "Estamos processando seus documentos.",
-      processado: "Processamento concluído. Aguardando análise.",
-      em_analise: "Estamos analisando suas informações. Por favor, aguarde.",
-      aguardando_docs:
-        "Precisamos de documentos complementares. Verifique abaixo.",
-      documentos_entregues: "Documentos recebidos. Aguarde nova análise.",
-      finalizado: "Caso concluído.",
-      erro: "Ocorreu um erro no processamento.",
+      aguardando_documentos: "Precisamos de documentos complementares. Verifique abaixo.",
+      documentacao_completa: "Documentos recebidos. Aguarde nova análise.",
+      processando_ia: "Estamos processando seus documentos.",
+      pronto_para_analise: "Processamento concluído. Aguardando análise.",
+      em_atendimento: "Estamos analisando suas informações. Por favor, aguarde.",
+      liberado_para_protocolo: "Seu caso foi liberado para protocolo.",
+      em_protocolo: "O defensor está realizando o protocolo do seu caso.",
+      protocolado: "Caso finalizado no sistema Solar.",
+      erro_processamento: "O caso foi submetido e está na fila para processamento.",
     };
 
 
@@ -183,25 +184,27 @@ export const consultarPorCpf = async (req, res) => {
 
     // Mapeamento de status
     const statusPublicoMap = {
-      recebido: "enviado",
-      processando: "em triagem",
-      processado: "em triagem",
-      em_analise: "em triagem",
-      aguardando_docs: "documentos pendentes",
-      documentos_entregues: "documentos entregues",
-      finalizado: "encaminhado solar",
-      erro: "erro",
+      aguardando_documentos: "documentos pendentes",
+      documentacao_completa: "documentos entregues",
+      processando_ia: "em triagem",
+      pronto_para_analise: "em triagem",
+      em_atendimento: "em triagem",
+      liberado_para_protocolo: "em protocolo",
+      em_protocolo: "em protocolo",
+      protocolado: "finalizado",
+      erro_processamento: "erro",
     };
 
     const statusDescricaoMap = {
-      recebido: "O caso foi submetido e está na fila para processamento.",
-      processando: "Estamos processando seus documentos.",
-      processado: "Processamento concluído. Aguardando análise.",
-      em_analise: "Estamos analisando suas informações. Por favor, aguarde.",
-      aguardando_docs: "Precisamos de documentos complementares.",
-      documentos_entregues: "Documentos recebidos. Aguarde nova análise.",
-      finalizado: "Caso concluído.",
-      erro: "Ocorreu um erro no processamento.",
+      aguardando_documentos: "Precisamos de documentos complementares.",
+      documentacao_completa: "Documentos recebidos. Aguarde nova análise.",
+      processando_ia: "Estamos processando seus documentos.",
+      pronto_para_analise: "Processamento concluído. Aguardando análise.",
+      em_atendimento: "Estamos analisando suas informações. Por favor, aguarde.",
+      liberado_para_protocolo: "Seu caso foi liberado para protocolo.",
+      em_protocolo: "O defensor está realizando o protocolo do seu caso.",
+      protocolado: "Caso finalizado no sistema Solar.",
+      erro_processamento: "Ocorreu um erro no processamento.",
     };
 
     const respostaCasos = casosFinal.map(caso => {
@@ -220,16 +223,20 @@ export const consultarPorCpf = async (req, res) => {
         agendamento_data: caso.agendamento_data,
         descricao_pendencia: caso.descricao_pendencia,
         dados_representante: {
-          representante_nome: form.representante_nome,
-          representante_cpf: form.representante_cpf,
-          representante_telefone: form.representante_telefone,
-          representante_email: form.representante_email,
-          representante_endereco_residencial: form.representante_endereco_residencial,
-          representante_estado_civil: form.representante_estado_civil,
-          representante_nacionalidade: form.representante_nacionalidade,
-          representante_ocupacao: form.representante_ocupacao,
-          representante_rg_numero: form.representante_rg_numero,
-          representante_rg_orgao: form.representante_rg_orgao
+          representanteNome: form.representanteNome || form.representante_nome || partes.nome_representante,
+          representanteCpf: form.representanteCpf || form.representante_cpf || partes.cpf_representante,
+          representanteDataNascimento: form.representanteDataNascimento || form.representante_data_nascimento || form.dataNascimentoRepresentante,
+          representanteTelefone: form.representanteTelefone || form.representante_telefone || form.telefone_representante,
+          representanteEmail: form.representanteEmail || form.representante_email || form.email_representante,
+          representanteEnderecoResidencial: form.representanteEnderecoResidencial || form.representante_endereco_residencial || form.endereco_representante,
+          representanteEnderecoProfissional: form.representanteEnderecoProfissional || form.representante_endereco_profissional,
+          representanteEstadoCivil: form.representanteEstadoCivil || form.representante_estado_civil,
+          representanteNacionalidade: form.representanteNacionalidade || form.representante_nacionalidade,
+          representanteOcupacao: form.representanteOcupacao || form.representante_ocupacao || form.representante_profissao,
+          representanteRgNumero: form.representanteRgNumero || form.representante_rg_numero || form.representante_rg,
+          representanteRgOrgao: form.representanteRgOrgao || form.representante_rg_orgao,
+          representanteNomeMae: form.representanteNomeMae || form.representante_nome_mae || form.nome_mae_representante || partes.nome_mae_representante,
+          representanteNomePai: form.representanteNomePai || form.representante_nome_pai || form.nome_pai_representante || partes.nome_pai_representante,
         }
       };
     });

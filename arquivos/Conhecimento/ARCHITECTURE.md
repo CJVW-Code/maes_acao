@@ -1,6 +1,6 @@
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 1.0 · **Atualizado em:** 2026-03-26  
+> **Versão:** 1.1 · **Atualizado em:** 2026-04-06  
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
@@ -50,6 +50,7 @@ O **Mães em Ação** é um sistema Full Stack desenvolvido para apoiar o mutir�
 - **JWT** gerado no próprio backend Express (não Supabase Auth)
 - **Secret:** 64 chars aleatórios
 - **Expiração:** 12h (cobre um dia de mutirão)
+- **Payload:** `{ id, nome, email, cargo, unidade_id }` — permite filtro regional automático
 
 ---
 
@@ -198,6 +199,15 @@ stateDiagram-v2
 | `logs_pipeline` | Logs do pipeline IA | N:1 com casos |
 
 > **Nota - Estratégia v2.0 (Multi-Casos):** O modelo `casos` suporta múltiplas instâncias (filhos) originadas por um único representante legal (mãe) mantendo a estrutura 1:1 de `casos_partes` isolada por caso, mas reaproveitando e agrupando via `representante_cpf`.
+
+### Modelo `unidades` — Pivot Regional
+
+A tabela `unidades` é o eixo central da regionalização:
+
+- **Casos** são vinculados automaticamente à unidade cuja `comarca` corresponde à `cidade_assinatura` do formulário.
+- **Defensores** são alocados a unidades pelo administrador (campo obrigatório no cadastro).
+- **Filtro automático:** `listarCasos` e `resumoCasos` filtram por `unidade_id` do JWT (exceto admins).
+- **CRUD administrativo:** Rota `/api/unidades` permite gestão completa (com validação de integridade na exclusão).
 
 ### Índices Estratégicos
 
@@ -433,10 +443,16 @@ frontend/src/areas/servidor/
 
 ### Principais Páginas
 
-- **BuscaCentral.jsx** → Consulta instantânea por CPF
+- **BuscaCentral.jsx** → Consulta instantânea por CPF com detecção de status `aguardando_documentos`
 - **TriagemCaso.jsx** → Formulário de criação de casos (modularizado)
-- **EnvioDoc.jsx** → Upload de documentos
-- **Dashboard.jsx** → Visão geral por status e unidade
+- **EnvioDoc.jsx** → Upload avançado de documentos (integrado com `DocumentUpload.jsx`)
+- **Dashboard.jsx** → Visão geral por status e unidade (filtrada automaticamente)
+
+### Páginas Administrativas (Defensor)
+
+- **GerenciarEquipe.jsx** → Sistema de abas: **Membros** (com filtro por unidade) + **Unidades** (CRUD de sedes)
+- **Cadastro.jsx** → Criação de novos membros com seletor de unidade obrigatório
+- **DetalhesCaso.jsx** → Detalhes do caso com ações do defensor
 
 ---
 

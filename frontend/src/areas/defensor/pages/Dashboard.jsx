@@ -33,28 +33,27 @@ const fetcherCasos = async (url) => {
 };
 
 const statusStyles = {
-  recebido: "bg-slate-100 text-slate-700 border-slate-200",
-  processado: "bg-indigo-100 text-indigo-800 border-indigo-200",
-  em_analise: "bg-blue-100 text-blue-800 border-blue-200",
-  aguardando_docs: "bg-amber-100 text-amber-800 border-amber-200",
-  documentos_entregues: "bg-highlight/15 text-highlight border-highlight/30",
-  reuniao_agendada: "bg-purple-100 text-purple-800 border-purple-200",
-  reuniao_online_agendada: "bg-blue-100 text-blue-800 border-blue-200",
-  reuniao_presencial_agendada:
-    "bg-purple-100 text-purple-800 border-purple-200",
-  encaminhado_solar: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  aguardando_documentos: "bg-amber-100 text-amber-800 border-amber-200",
+  documentacao_completa: "bg-highlight/15 text-highlight border-highlight/30",
+  processando_ia: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  pronto_para_analise: "bg-green-100 text-green-800 border-green-200",
+  em_atendimento: "bg-blue-100 text-blue-800 border-blue-200",
+  liberado_para_protocolo: "bg-purple-100 text-purple-800 border-purple-200",
+  em_protocolo: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  protocolado: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  erro_processamento: "bg-red-100 text-red-800 border-red-200",
   default: "bg-slate-100 text-slate-700 border-slate-200",
 };
 
 const normalizeStatus = (status) => (status || "recebido").toLowerCase().trim();
 
 const summaryFilterLabels = {
-  processado: "casos processados",
-  em_analise: "casos em análise",
-  aguardando_docs: "casos aguardando documentos",
-  documentos_entregues: "casos com documentos entregues",
-  reuniao_agendada: "reuniões agendadas",
-  encaminhado_solar: "casos encaminhados ao Solar",
+  aguardando_documentos: "casos aguardando documentos",
+  documentacao_completa: "casos com documentação completa",
+  pronto_para_analise: "casos prontos para análise",
+  em_atendimento: "casos em atendimento",
+  liberado_para_protocolo: "casos liberados para protocolo",
+  protocolado: "casos protocolados",
 };
 
 export const Dashboard = () => {
@@ -70,8 +69,7 @@ export const Dashboard = () => {
     error: resumoError,
     isLoading: resumoLoading,
   } = useSWR(token ? "/casos/resumo" : null, fetcherResumo, {
-    revalidateOnFocus: false,
-    dedupingInterval: 300000, // 5 min
+    revalidateOnFocus: true,
   });
 
   // Lista recente: apenas os últimos casos (id, nome, protocolo, status, data)
@@ -80,8 +78,7 @@ export const Dashboard = () => {
     data: casosRecentes = [],
     error: casosError,
   } = useSWR(token ? "/casos?limite=10" : null, fetcherCasos, {
-    revalidateOnFocus: false,
-    dedupingInterval: 300000,
+    revalidateOnFocus: true,
   });
 
   useEffect(() => {
@@ -107,17 +104,19 @@ export const Dashboard = () => {
   const [casosFiltered, totalPages] = useMemo(() => {
     if (!statusFilter) return [casosRecentes.slice(0, 6), 0];
 
-    const statuses = {
-      reuniao_agendada: [
-        "reuniao_agendada",
-        "reuniao_online_agendada",
-        "reuniao_presencial_agendada",
-      ],
+    // Mapeamento de filtros para suportar legados se necessário, 
+    // mas priorizando o enum estratégico
+    const filterMapping = {
+      aguardando_documentos: ["aguardando_documentos", "aguardando_docs", "recebido"],
+      documentacao_completa: ["documentacao_completa", "documentos_entregues"],
+      pronto_para_analise: ["pronto_para_analise", "processado"],
+      em_atendimento: ["em_atendimento", "em_analise", "reuniao_agendada", "reuniao_online_agendada", "reuniao_presencial_agendada"],
+      protocolado: ["protocolado", "encaminhado_solar"],
     };
 
     const filtered = casosRecentes.filter((c) => {
       const s = normalizeStatus(c.status);
-      const targets = statuses[statusFilter] || [statusFilter];
+      const targets = filterMapping[statusFilter] || [statusFilter];
       return targets.includes(s);
     });
 
@@ -174,50 +173,50 @@ export const Dashboard = () => {
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {[
           {
-            key: "processado",
-            label: "Novos (Processados)",
-            value: contagens.processado ?? "—",
-            helper: "Prontos para análise.",
-            icon: Inbox,
-            accent: "text-primary",
-          },
-          {
-            key: "em_analise",
-            label: "Em análise",
-            value: contagens.em_analise ?? "—",
-            helper: "Casos aguardando movimentação.",
-            icon: Clock,
-            accent: "text-blue-500",
-          },
-          {
-            key: "aguardando_docs",
-            label: "Aguardando docs",
-            value: contagens.aguardando_docs ?? "—",
-            helper: "Solicite complemento ao cidadão.",
+            key: "aguardando_documentos",
+            label: "Aguardando Docs",
+            value: contagens.aguardando_documentos || 0,
+            helper: "Faltam documentos do cidadão.",
             icon: AlertTriangle,
             accent: "text-amber-500",
           },
           {
-            key: "documentos_entregues",
-            label: "Docs. Entregues",
-            value: contagens.documentos_entregues ?? "—",
-            helper: "Novos documentos para análise.",
+            key: "documentacao_completa",
+            label: "Docs. Completos",
+            value: contagens.documentacao_completa || 0,
+            helper: "Tudo pronto para triagem.",
             icon: Bell,
             accent: "text-highlight",
           },
           {
-            key: "reuniao_agendada",
-            label: "Reuniões",
-            value: contagens.reuniao_agendada ?? "—",
-            helper: "Agendamentos futuros.",
-            icon: Calendar,
+            key: "pronto_para_analise",
+            label: "Prontos (IA)",
+            value: contagens.pronto_para_analise || 0,
+            helper: "Aguardando revisão humana.",
+            icon: Inbox,
+            accent: "text-primary",
+          },
+          {
+            key: "em_atendimento",
+            label: "Em Atendimento",
+            value: contagens.em_atendimento || 0,
+            helper: "Sendo trabalhados pela equipe.",
+            icon: Clock,
+            accent: "text-blue-500",
+          },
+          {
+            key: "liberado_para_protocolo",
+            label: "Lib. Protocolo",
+            value: contagens.liberado_para_protocolo || 0,
+            helper: "Prontos para envio final.",
+            icon: CheckCircle2,
             accent: "text-purple-500",
           },
           {
-            key: "encaminhado_solar",
-            label: "Encaminhados Solar",
-            value: contagens.encaminhado_solar ?? "—",
-            helper: "Casos concluídos e enviados.",
+            key: "protocolado",
+            label: "Protocolados",
+            value: contagens.protocolado || 0,
+            helper: "Finalizados no Solar/TJ.",
             icon: CheckCircle2,
             accent: "text-emerald-500",
           },
@@ -378,7 +377,12 @@ export const Dashboard = () => {
                           <FileText size={20} />
                         </div>
                         <div>
-                          <p className="heading-3 ">{caso.nome_assistido}</p>
+                          <p className="heading-3 leading-tight">{caso.nome_assistido}</p>
+                          {caso.nome_representante && (
+                            <p className="text-sm font-bold text-primary-600 mt-1 mb-1">
+                              Representante: {caso.nome_representante}
+                            </p>
+                          )}
                           <p className="text-sm text-muted">
                             Protocolo: {caso.protocolo}
                             {caso.numero_solar && (

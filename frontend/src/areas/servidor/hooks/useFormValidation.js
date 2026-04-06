@@ -8,7 +8,6 @@ import {
   parseBrDateToIso,
   normalizeDecimalForSubmit,
 } from "../../../utils/formatters.js";
-import { currencyFields } from "../../../utils/formOptions.js";
 
 export const useFormValidation = ({
   formState,
@@ -42,7 +41,6 @@ export const useFormValidation = ({
       formatDateToBr,
       parseBrDateToIso,
       normalizeDecimalForSubmit,
-      currencyFields,
       API_BASE,
     });
   };

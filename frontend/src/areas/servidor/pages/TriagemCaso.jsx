@@ -109,10 +109,10 @@ export const FormularioSubmissao = () => {
         <div className="bg-surface border border-soft p-4 rounded-xl mb-4 text-left space-y-3">
           <div>
             <p className="text-xs text-muted uppercase font-bold">
-              CPF (Identificação)
+              {isRepresentacao ? "CPF do Responsável (Identificação)" : "CPF (Identificação)"}
             </p>
             <p className="text-xl font-mono text-primary-600">
-              {formState.cpf}
+              {isRepresentacao ? formState.representanteCpf : formState.cpf}
             </p>
           </div>
           <div className="pt-2 border-t border-soft/50">
@@ -127,7 +127,7 @@ export const FormularioSubmissao = () => {
         <div className="bg-border/10 p-3 rounded border border-border/30 text-error text-sm text-left flex gap-2">
           <AlertTriangle className="w-5 h-5 shrink-0" />
           <p>
-            Tire um print da tela! Você precisará do seu CPF para consultar o andamento deste protocolo (status atual).
+            Tire um print da tela! Você precisará {isRepresentacao ? "deste CPF (do responsável)" : "do seu CPF"} para consultar o andamento deste protocolo (status atual).
           </p>
         </div>
         <div className="flex flex-col gap-3 mt-6">
@@ -146,34 +146,37 @@ export const FormularioSubmissao = () => {
             <button
               onClick={() => {
                 const repFields = [
-                  "representante_nome",
-                  "representante_cpf",
-                  "representante_telefone",
-                  "representante_email",
-                  "representante_endereco_residencial",
-                  "representante_estado_civil",
-                  "representante_nacionalidade",
-                  "representante_ocupacao",
-                  "representante_rg_numero",
-                  "representante_rg_orgao",
+                  "representanteNome",
+                  "representanteCpf",
+                  "representanteTelefone",
+                  "representanteEmail",
+                  "representanteEnderecoResidencial",
+                  "representanteEstadoCivil",
+                  "representanteNacionalidade",
+                  "representanteOcupacao",
+                  "representanteRgNumero",
+                  "representanteRgOrgao",
+                  "representanteDataNascimento",
+                  "representanteNomeMae",
+                  "representanteNomePai",
                 ];
 
+                // Preparamos o objeto com os dados que queremos MANTER
                 const repData = {};
                 repFields.forEach((f) => {
-                  repData[f] = formState[f];
-                });
-
-                dispatch({ type: "RESET_FORM" });
-
-                Object.entries(repData).forEach(([key, value]) => {
-                  if (value) {
-                    dispatch({ type: "UPDATE_FIELD", field: key, value });
+                  if (formState[f]) {
+                    repData[f] = formState[f];
                   }
                 });
-                dispatch({
-                  type: "UPDATE_FIELD",
-                  field: "assistidoEhIncapaz",
-                  value: "sim",
+                
+                // Realizamos uma atualização ATÔMICA: Reinicia o form MAS já injeta os dados da representante
+                dispatch({ 
+                  type: "LOAD_RASCUNHO", 
+                  payload: { 
+                    ...initialState, 
+                    ...repData, 
+                    assistidoEhIncapaz: "sim" // Garante que a seção de representante continue aberta
+                  } 
                 });
 
                 setGeneratedCredentials(null);

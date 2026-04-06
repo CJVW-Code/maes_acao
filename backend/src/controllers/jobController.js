@@ -55,7 +55,7 @@ export const processJob = async (req, res) => {
     }
 
     // Verificar status atual do caso
-    if (caso.status === "processado") {
+    if (caso.status === "pronto_para_analise") {
       logger.info(`✅ Caso já processado: ${protocolo}`);
       return res.status(200).json({
         message: "Caso já processado",
@@ -65,7 +65,7 @@ export const processJob = async (req, res) => {
       });
     }
 
-    if (caso.status === "processando") {
+    if (caso.status === "processando_ia") {
       logger.info(`⏳ Caso já em processamento: ${protocolo}`);
       return res.status(200).json({
         message: "Caso já em processamento",
@@ -75,11 +75,11 @@ export const processJob = async (req, res) => {
       });
     }
 
-    // Atualizar status para processando
+    // Atualizar status para processando_ia
     await supabase
       .from("casos")
       .update({
-        status: "processando",
+        status: "processando_ia",
         processing_started_at: new Date(),
       })
       .eq("protocolo", protocolo);
@@ -132,7 +132,7 @@ export const processJob = async (req, res) => {
         await supabase
           .from("casos")
           .update({
-            status: "erro",
+            status: "erro_processamento",
             erro_processamento: error.message,
           })
           .eq("protocolo", req.body.protocolo);

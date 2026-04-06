@@ -15,12 +15,15 @@ const fetcher = async (url) => {
 };
 
 const statusStyles = {
-  recebido: "bg-slate-100 text-slate-700 border-slate-200",
-  em_analise: "bg-sky-100 text-sky-800 border-sky-200",
-  aguardando_docs: "bg-purple-100 text-purple-800 border-purple-200",
-  reuniao_agendada: "bg-purple-100 text-purple-800 border-purple-200",
-  reuniao_online_agendada: "bg-blue-100 text-blue-800 border-blue-200",
-  encaminhado_solar: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  aguardando_documentos: "bg-amber-100 text-amber-800 border-amber-200",
+  documentacao_completa: "bg-highlight/15 text-highlight border-highlight/30",
+  processando_ia: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  pronto_para_analise: "bg-green-100 text-green-800 border-green-200",
+  em_atendimento: "bg-blue-100 text-blue-800 border-blue-200",
+  liberado_para_protocolo: "bg-purple-100 text-purple-800 border-purple-200",
+  em_protocolo: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  protocolado: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  erro_processamento: "bg-red-100 text-red-800 border-red-200",
   default: "bg-slate-100 text-slate-700 border-slate-200",
 };
 
@@ -176,7 +179,7 @@ export const CasosArquivados = () => {
                         </td>
                         <td className="p-4">
                           <span className={`badge capitalize ${badgeStyle}`}>
-                            {statusKey.replace("_", " ")}
+                            {statusKey.replace(/_/g, " ")}
                           </span>
                         </td>
                         <td className="p-4 text-sm text-muted max-w-[200px]">

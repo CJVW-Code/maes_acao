@@ -9,14 +9,17 @@ export const SecaoProcessoOriginal = ({
   validar = () => ({}),
   formErrors = {},
 }) => {
+  const isCustomDecision = !['', 'Sentença', 'Interlocutória', 'Acordo homologado'].includes(formState.tipoDecisao);
+  const selectedDecision = isCustomDecision && formState.tipoDecisao ? 'Outros' : formState.tipoDecisao;
+
   return (
     <div className="space-y-4 pt-4 border-t border-soft">
       <h4 className="font-semibold text-primary">
         Dados do Processo de Alimentos Original
       </h4>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="vara" className="label font-bold text-primary">
+          <label htmlFor="vara" className="label font-bold ">
             Vara da Petição Atual (ex: 1ª Vara de Família) *
           </label>
           <input
@@ -31,8 +34,11 @@ export const SecaoProcessoOriginal = ({
           />
         </div>
         <div>
-          <label htmlFor="percentualSalarioMinimo" className="label font-bold text-primary">
-            Percentual do Salário Mínimo (%) *
+          <label
+            htmlFor="percentualSalarioMinimo"
+            className="label font-bold text-"
+          >
+            Percentual do Salário Mínimo (%)
           </label>
           <div className="relative">
             <input
@@ -43,11 +49,30 @@ export const SecaoProcessoOriginal = ({
               value={formState.percentualSalarioMinimo}
               onChange={handleFieldChange}
               className="input border-primary/50 pr-10"
-              {...validar("Informe o percentual fixado.")}
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted font-bold">
               %
             </span>
+          </div>
+        </div>
+        <div>
+          <label htmlFor="valorMensalFixado" className="label font-bold ">
+            Ou Valor Mensal Fixo (R$)
+          </label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-semibold">
+              R$
+            </span>
+            <input
+              id="valorMensalFixado"
+              type="text"
+              inputMode="numeric"
+              placeholder="0,00"
+              name="valorMensalFixado"
+              value={formState.valorMensalFixado}
+              onChange={handleCurrencyChange("valorMensalFixado")}
+              className="input pl-12 border-primary/50"
+            />
           </div>
         </div>
       </div>
@@ -68,15 +93,15 @@ export const SecaoProcessoOriginal = ({
           />
         </div>
         <div>
-          <label htmlFor="processoTituloNumero" className="label">
-            Nº do Título (se houver)
+          <label htmlFor="cidadeOriginaria" className="label">
+            Cidade onde tramitou (Cidade Originária)
           </label>
           <input
-            id="processoTituloNumero"
+            id="cidadeOriginaria"
             type="text"
-            placeholder="Nº do Título (se houver)"
-            name="processoTituloNumero"
-            value={formState.processoTituloNumero}
+            placeholder="Ex: Salvador"
+            name="cidadeOriginaria"
+            value={formState.cidadeOriginaria || ""}
             onChange={handleFieldChange}
             className="input"
           />
@@ -102,15 +127,40 @@ export const SecaoProcessoOriginal = ({
           <label htmlFor="tipoDecisao" className="label">
             Tipo da Decisão
           </label>
-          <input
+          <select
             id="tipoDecisao"
-            type="text"
-            placeholder="Ex: Acordo, Sentença, Decisão..."
             name="tipoDecisao"
-            value={formState.tipoDecisao}
-            onChange={handleFieldChange}
-            className="input"
-          />
+            value={selectedDecision}
+            onChange={(e) => {
+              // Quando o usuário seleciona algo
+              if (e.target.value === 'Outros') {
+                // Ao escolher outros, limpamos para que ele veja o input
+                handleFieldChange({ target: { name: 'tipoDecisao', value: '' } });
+              } else {
+                handleFieldChange(e);
+              }
+            }}
+            className="input mb-2"
+          >
+            <option value="">Selecione...</option>
+            <option value="Sentença">Sentença</option>
+            <option value="Interlocutória">Interlocutória</option>
+            <option value="Acordo homologado">Acordo homologado</option>
+            <option value="Outros">Outros</option>
+          </select>
+          
+          {selectedDecision === 'Outros' && (
+             <input
+               id="tipoDecisaoCustom"
+               type="text"
+               placeholder="Escreva o tipo da decisão..."
+               name="tipoDecisao"
+               value={formState.tipoDecisao}
+               onChange={handleFieldChange}
+               className="input mt-2 border-primary/50 animate-fade-in"
+               autoFocus
+             />
+          )}
         </div>
 
         <div>
@@ -192,10 +242,7 @@ export const SecaoProcessoOriginal = ({
             />
           </div>
         </div>
-
       </div>
     </div>
   );
 };
-
-

@@ -174,21 +174,22 @@ Gerenciamento de acesso e contas dos Defensores Públicos.
 #### `POST /login`
 *Pública*
 * **Request:** JSON: `email`, `senha`.
-* **Response (200 OK):** Retorna `{ "token": "...", "defensor": { ... } }`.
+* **Response (200 OK):** Retorna `{ "token": "...", "defensor": { id, nome, email, cargo, unidade_id, unidade_nome } }`.
 * **Erro:** `401 Unauthorized` (Credenciais falhas).
+* **Observação:** O JWT agora inclui `unidade_id`, permitindo filtro automático de casos por unidade sem consultas extras ao banco.
 
 #### `POST /register`
 *Protegida (Exclusiva para `admin`)*
-* **Request:** JSON: `nome`, `email` (único na view constraint DB), `senha` (>= 6 chr), `cargo` (válidos, bloqueado para 'operador', que inexiste dinamicamente).
+* **Request:** JSON: `nome`, `email` (único na view constraint DB), `senha` (>= 6 chr), `cargo` (válidos, bloqueado para 'operador', que inexiste dinamicamente), `unidade_id` (obrigatório — selecionar unidade de lotação).
 
 #### `GET /`
 *Protegida (Exclusiva para `admin`)*
-* **Response (200 OK):** Lista de perfis do time, dados da senha restritos.
+* **Response (200 OK):** Lista de perfis do time com `unidade_nome` e `unidade_id`, dados de senha restritos.
 
 #### `PUT /:id`
 *Protegida*
-* **Request:** JSON parameters to update (ex: `nome`, `cargo`).
-* **Observação:** Modifica o perfil e gerencia acesso do operador.
+* **Request:** JSON parameters to update (ex: `nome`, `cargo`, `unidade_id`).
+* **Observação:** Modifica o perfil e gerencia acesso do operador. Inclui troca de unidade.
 
 #### `DELETE /:id`
 *Protegida (Exclusiva para `admin`)*
@@ -201,7 +202,40 @@ Gerenciamento de acesso e contas dos Defensores Públicos.
 
 ---
 
-## 3. Background Jobs (`/api/jobs`)
+## 3. Unidades (`/api/unidades`)
+
+Gerenciamento das sedes regionais da Defensoria Pública.
+
+| Método   | Rota   | Segurança    | Descrição                                                           |
+| :------- | :----- | :----------- | :------------------------------------------------------------------ |
+| `GET`    | `/`    | 🔒 Protegida | Lista todas as unidades com contagem de membros e casos.            |
+| `POST`   | `/`    | 🔒 Admin     | Cria uma nova unidade (nome, comarca, sistema judicial).            |
+| `PUT`    | `/:id` | 🔒 Admin     | Atualiza dados da unidade.                                          |
+| `DELETE` | `/:id` | 🔒 Admin     | Remove unidade (bloqueado se houver membros ou casos vinculados).   |
+
+### Detalhamento das Rotas de Unidades
+
+#### `GET /`
+*Protegida* — Acessível a qualquer usuário logado (popula selects no frontend).
+* **Response (200 OK):** Array de objetos: `{ id, nome, comarca, sistema, ativo, total_membros, total_casos }`.
+
+#### `POST /`
+*Protegida (Exclusiva para `admin`)*
+* **Request:** JSON: `nome` (obrig), `comarca` (obrig), `sistema` (opcional, default: "solar").
+* **Response (201 Created):** Objeto da unidade criada.
+* **Observação:** A `comarca` é o campo-chave para vincular automaticamente os casos (comparação case-insensitive com `cidade_assinatura` do formulário).
+
+#### `PUT /:id`
+*Protegida (Exclusiva para `admin`)*
+* **Request:** JSON com campos a atualizar: `nome`, `comarca`, `sistema`, `ativo`.
+
+#### `DELETE /:id`
+*Protegida (Exclusiva para `admin`)*
+* **Validação de Integridade:** Retorna `400 Bad Request` se houver defensores ou casos vinculados à unidade, informando a contagem exata.
+
+---
+
+## 4. Background Jobs (`/api/jobs`)
 
 Webhook para processamento assíncrono gerenciado pelo [Upstash QStash].
 
@@ -218,7 +252,7 @@ Webhook para processamento assíncrono gerenciado pelo [Upstash QStash].
 
 ---
 
-## 4. Sistema e Debug
+## 5. Sistema e Debug
 
 | Método | Rota          | Segurança  | Descrição                                                      |
 | :----- | :------------ | :--------- | :------------------------------------------------------------- |
@@ -238,8 +272,20 @@ Webhook para processamento assíncrono gerenciado pelo [Upstash QStash].
 
 ---
 
-## 5. Valores Extraídos (`ARCHITECTURE.md` / `BUSINESS_RULES.md`)
+## 6. Valores Extraídos (`ARCHITECTURE.md` / `BUSINESS_RULES.md`)
 
-* **status (`casos`):** `recebido`, `processando`, `processado`, `erro`, `em_analise`, `aguardando_docs`, `documentos_entregues`, `reuniao_agendada`, `reuniao_online_agendada`, `reuniao_presencial_agendada`, `aguardando_protocolo`, `reagendamento_solicitado`, `encaminhado_solar`.
+* **status (`casos`):** `recebido`, `processando`, `processado`, `erro`, `em_analise`, `aguardando_documentos`, `aguardando_docs` (legado), `documentos_entregues`, `documentacao_completa`, `reuniao_agendada`, `reuniao_online_agendada`, `reuniao_presencial_agendada`, `aguardando_protocolo`, `reagendamento_solicitado`, `encaminhado_solar`.
 * **cargo (`defensores`):** `admin`, `defensor`, `estagiario`, `recepcao`, `visualizador`. *(Registro bloqueia a entrada de "operador")*
 * **tipo_acao (`dicionarioAcoes`):** `fixacao_alimentos`, `execucao_alimentos`, `execucao_alimentos_prisao`, `execucao_alimentos_penhora`, `divorcio`, `guarda`, `alvara`, `termo_declaracao`.
+
+---
+
+## 7. Filtro por Unidade (Segurança Regional)
+
+As seguintes rotas aplicam filtro automático por `unidade_id` extraído do JWT:
+
+| Rota | Comportamento |
+|:-----|:-------------|
+| `GET /api/casos` | Admin vê tudo; demais veem apenas casos da sua unidade |
+| `GET /api/casos/resumo` | Estatísticas filtradas pela unidade do usuário logado |
+| `POST /api/casos/novo` | Vincula o caso à unidade correspondente à `cidade_assinatura` |

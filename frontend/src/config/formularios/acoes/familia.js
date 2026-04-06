@@ -29,7 +29,7 @@ export const ACOES_FAMILIA = {
     titulo: "Execução de Alimentos Rito Penhora/Prisão",
     status: "ativo",
 
-    secoes: ["SecaoValoresPensao", "SecaoEmpregoRequerido", "SecaoProcessoOriginal"],
+    secoes: ["SecaoEmpregoRequerido", "SecaoProcessoOriginal"],
     camposGerais: { mostrarBensPartilha: false, ocultarDetalhesGerais: true },
     forcaRepresentacao: true,
     ocultarRelato: true,
