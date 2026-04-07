@@ -1,6 +1,5 @@
 // SecaoValoresPensao.jsx
-// Extraído de StepDetalhesCaso linhas 24-132
-// Renderiza: valor mensal da pensão + dados bancários para depósito
+// Renderiza: valor mensal da pensao + dados bancarios para deposito
 
 import React from "react";
 
@@ -10,38 +9,44 @@ export const SecaoValoresPensao = ({
   handleCurrencyChange,
   validar,
 }) => {
+  const isExecucaoAlimentos = formState?.acaoEspecifica === "execucao_alimentos";
+
   return (
     <div className="space-y-4">
       <h4 className="font-semibold text-primary">
-        Valores e Pagamento (Pedido Principal)
+        {isExecucaoAlimentos
+          ? "Dados para Deposito (Execucao)"
+          : "Valores e Pagamento (Pedido Principal)"}
       </h4>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="valorMensalPensao" className="label">
-            Valor Mensal da Pensão e Despesas Extras
-          </label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-semibold">
-              R$
-            </span>
-            <input
-              id="valorMensalPensao"
-              type="text"
-              inputMode="numeric"
-              name="valorMensalPensao"
-              value={formState.valorMensalPensao}
-              onChange={handleCurrencyChange("valorMensalPensao")}
-              placeholder="0,00"
-              className="input pl-12"
-              {...validar("Informe o valor da pensão.")}
-            />
+
+      {!isExecucaoAlimentos && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="valorMensalPensao" className="label">
+              Valor Mensal da Pensao e Despesas Extras
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-semibold">
+                R$
+              </span>
+              <input
+                id="valorMensalPensao"
+                type="text"
+                inputMode="numeric"
+                name="valorMensalPensao"
+                value={formState.valorMensalPensao}
+                onChange={handleCurrencyChange("valorMensalPensao")}
+                placeholder="0,00"
+                className="input pl-12"
+                {...validar("Informe o valor da pensao.")}
+              />
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
       <div className="space-y-4 rounded-lg border border-soft p-4 bg-surface">
-        <h4 className="font-semibold text-text">
-          Dados para Depósito da Pensão
-        </h4>
+        <h4 className="font-semibold text-text">Dados para Deposito da Pensao</h4>
         <div>
           <label htmlFor="tipoContaDeposito" className="label">Tipo de Conta</label>
           <select
@@ -52,11 +57,9 @@ export const SecaoValoresPensao = ({
             className="input"
           >
             <option value="">Tipo de Conta</option>
-            <option value="corrente_poupanca">
-              Conta Corrente / Poupança
-            </option>
+            <option value="corrente_poupanca">Conta Corrente / Poupanca</option>
             <option value="pix">PIX</option>
-            <option value="outro">Outro / Não sei</option>
+            <option value="outro">Outro / Nao sei</option>
           </select>
         </div>
 
@@ -75,7 +78,7 @@ export const SecaoValoresPensao = ({
               name="agenciaDeposito"
               value={formState.agenciaDeposito}
               onChange={handleFieldChange}
-              placeholder="Agência"
+              placeholder="Agencia"
               className="input"
             />
             <input
@@ -83,7 +86,7 @@ export const SecaoValoresPensao = ({
               name="contaDeposito"
               value={formState.contaDeposito}
               onChange={handleFieldChange}
-              placeholder="Conta com dígito"
+              placeholder="Conta com digito"
               className="input"
             />
           </div>
@@ -107,7 +110,7 @@ export const SecaoValoresPensao = ({
         {formState.tipoContaDeposito === "outro" && (
           <div>
             <label htmlFor="outrosDadosDeposito" className="label">
-              Descreva os dados que você possui
+              Descreva os dados que voce possui
             </label>
             <textarea
               id="outrosDadosDeposito"
@@ -116,7 +119,7 @@ export const SecaoValoresPensao = ({
               onChange={handleFieldChange}
               rows="2"
               className="input"
-              placeholder="Informe todos os dados para depósito que você tiver"
+              placeholder="Informe todos os dados para deposito que voce tiver"
             ></textarea>
           </div>
         )}

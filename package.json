@@ -7,11 +7,13 @@
     "@logtail/node": "^0.5.6",
     "@logtail/winston": "^0.5.6",
     "dotenv": "^17.2.3",
+    "pizzip": "^3.2.0",
     "react-markdown": "^10.1.0",
     "tesseract.js": "^7.0.0",
     "winston": "^3.19.0"
   },
   "devDependencies": {
-    "jest": "^29.7.0"
+    "jest": "^29.7.0",
+    "supertest": "^7.1.4"
   }
 }

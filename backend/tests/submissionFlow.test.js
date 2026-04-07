@@ -11,6 +11,7 @@ jest.unstable_mockModule("@upstash/qstash", () => {
 });
 
 jest.unstable_mockModule("../src/config/supabase.js", () => ({
+  isSupabaseConfigured: false,
   supabase: {
     from: jest.fn().mockReturnThis(),
     insert: jest.fn().mockResolvedValue({ error: null }),
@@ -20,6 +21,29 @@ jest.unstable_mockModule("../src/config/supabase.js", () => ({
     select: jest.fn().mockReturnThis(),
     storage: { from: jest.fn().mockReturnThis(), upload: jest.fn().mockResolvedValue({ error: null }) }
   }
+}));
+
+jest.unstable_mockModule("../src/config/prisma.js", () => ({
+  prisma: {
+    unidades: {
+      findMany: jest.fn().mockResolvedValue([]),
+      findFirst: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue({ id: 1, comarca: "Teixeira de Freitas" }),
+    },
+    casos: {
+      create: jest.fn().mockResolvedValue({ id: 1, protocolo: "T1" }),
+      update: jest.fn().mockResolvedValue({ id: 1, protocolo: "T1" }),
+      findUnique: jest.fn().mockResolvedValue({
+        id: 1,
+        protocolo: "T1",
+        relato_texto: "Relato de teste",
+        dados_formulario: {},
+      }),
+    },
+    casos_ia: {
+      upsert: jest.fn().mockResolvedValue({}),
+    },
+  },
 }));
 
 const { default: app } = await import("../server.js");

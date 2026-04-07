@@ -70,7 +70,7 @@ describe("getConfigAcaoBackend", () => {
 
   it("deve retornar config para execução penhora", () => {
     const config = getConfigAcaoBackend("execucao_alimentos_penhora");
-    expect(config.templateDocx).toBe("execucao_penhora.docx");
+    expect(config.templateDocx).toBe("executacao_alimentos_penhora.docx");
   });
 
   it("deve retornar default para chave inexistente", () => {

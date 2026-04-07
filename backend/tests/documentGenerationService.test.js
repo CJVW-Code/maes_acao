@@ -29,8 +29,8 @@ describe("documentGenerationService", () => {
   describe("Templates existem no disco", () => {
     const templatesEsperados = [
       "fixacao_alimentos1.docx",
-      "execucao_prisao.docx",
-      "execucao_penhora.docx",
+      "executacao_alimentos_prisao.docx",
+      "executacao_alimentos_penhora.docx",
       "termo_declaracao.docx",
     ];
 
@@ -61,7 +61,7 @@ describe("documentGenerationService", () => {
         await generateDocx({}, "execucao_alimentos_prisao");
       } catch (e) { /* template error esperado */ }
       expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining('template="execucao_prisao.docx"')
+        expect.stringContaining('template="executacao_alimentos_prisao.docx"')
       );
     });
 

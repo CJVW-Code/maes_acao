@@ -570,6 +570,7 @@ const buildDocxTemplatePayload = (
   normalizedData,
   dosFatosTexto,
   baseData = {},
+  acaoKey = "",
 ) => {
   const normalizeGenderTerm = (val) => {
     if (!val || typeof val !== "string") return val;
@@ -760,6 +761,8 @@ const buildDocxTemplatePayload = (
     empregador_email: ensureText(baseData.empregador_email),
     cidadeDataAssinatura: ensureText(cidadeAssinatura),
     cidade_data_assinatura: ensureText(cidadeAssinatura),
+    CIDADEASSINATURA: ensureText(cidadeAssinatura).toUpperCase(),
+    cidadeAssinatura: ensureText(cidadeAssinatura),
     defensoraNome: ensureText(normalizedData.defensoraNome),
     valor_causa: ensureText(valorCausaCalculado),
     valor_causa_extenso: ensureText(valorCausaExtenso),
@@ -808,6 +811,7 @@ const buildDocxTemplatePayload = (
     valor_juros: ensureText(baseData.valor_juros),
     valor_honorarios: ensureText(baseData.valor_honorarios),
     vara_originaria: ensureText(baseData.vara_originaria),
+    varaOriginaria: ensureText(baseData.vara_originaria || baseData.varaOriginaria),
     processo_titulo_numero: ensureText(baseData.processo_titulo_numero),
     valor_mensal_fixado: ensureText(baseData.valor_mensal_fixado),
 
@@ -1186,6 +1190,7 @@ export async function processarCasoEmBackground(
         normalizedData,
         dosFatosTexto,
         caseDataForPetition,
+        acaoKey,
       );
       
       const { getConfigAcaoBackend } = await import("../config/dicionarioAcoes.js");
@@ -1260,6 +1265,7 @@ export async function processarCasoEmBackground(
         normalizedData,
         dosFatosTexto,
         caseDataForPetition,
+        acaoKey,
       ),
     );
 
@@ -1533,27 +1539,57 @@ export const criarNovoCaso = async (req, res) => {
       status: "documentacao_completa",
     });
 
-    // Configurar cliente QStash
-    const qstashClient = new Client({
-      token: process.env.QSTASH_TOKEN,
-    });
+    const qstashToken = process.env.QSTASH_TOKEN;
+    const apiBaseUrl = process.env.API_BASE_URL;
+    let apiBaseUrlValida = false;
+    if (apiBaseUrl) {
+      try {
+        new URL(apiBaseUrl);
+        apiBaseUrlValida = true;
+      } catch {
+        apiBaseUrlValida = false;
+      }
+    }
 
     // Enviar para QStash em vez de setImmediate
-    try {
-      await qstashClient.publishJSON({
-        url: `${process.env.API_BASE_URL}/api/jobs/process`,
-        body: {
-          protocolo,
-          dados_formulario: dadosFormularioFinal, // Passa os dados do formulário já finalizados
-          urls_documentos,
-          url_audio,
-          url_peticao,
-        },
-      });
-      logger.info(`📤 Job enviado para QStash: ${protocolo}`);
-    } catch (qstashError) {
-      logger.error(`❌ Falha ao enviar para QStash: ${qstashError.message}`);
-      // Fallback para processamento local se QStash falhar
+    if (qstashToken && apiBaseUrlValida) {
+      // Configurar cliente QStash
+      const qstashClient = new Client({ token: qstashToken });
+      try {
+        await qstashClient.publishJSON({
+          url: `${apiBaseUrl.replace(/\/$/, '')}/api/jobs/process`,
+          body: {
+            protocolo,
+            dados_formulario: dadosFormularioFinal, // Passa os dados do formulario ja finalizados
+            urls_documentos,
+            url_audio,
+            url_peticao,
+          },
+        });
+        logger.info(`[QStash] Job enviado: ${protocolo}`);
+      } catch (qstashError) {
+        logger.error(`[QStash] Falha ao enviar: ${qstashError.message}`);
+        // Fallback para processamento local se QStash falhar
+        setImmediate(async () => {
+          try {
+            await processarCasoEmBackground(
+              protocolo,
+              dados_formulario,
+              urls_documentos,
+              url_audio,
+              url_peticao,
+            );
+          } catch (error) {
+            logger.error(`Erro fatal no worker fallback: ${error.message}`);
+          }
+        });
+      }
+    } else {
+      if (!qstashToken) {
+        logger.warn('[QStash] QSTASH_TOKEN ausente; processamento local acionado.');
+      } else if (!apiBaseUrlValida) {
+        logger.warn('[QStash] API_BASE_URL invalida; processamento local acionado.');
+      }
       setImmediate(async () => {
         try {
           await processarCasoEmBackground(
@@ -1568,6 +1604,7 @@ export const criarNovoCaso = async (req, res) => {
         }
       });
     }
+
   } catch (error) {
     logger.error(`Erro na criação do caso: ${error.message}`, {
       stack: error.stack,
@@ -2137,18 +2174,19 @@ export const regerarMinuta = async (req, res) => {
       valor_pensao_solicitado: valorPensaoFormatado,
     };
 
-    // 3. Gera o novo payload e o buffer do Word
-    const payload = buildDocxTemplatePayload(
-      normalizedData,
-      dosFatosTexto,
-      dadosComPercentual,
-    );
-
     const acaoKey = 
       caso.dados_formulario?.acaoEspecifica || 
       (caso.tipo_acao || "").split(" - ")[1]?.trim() ||
       (caso.tipo_acao || "").trim() || 
       "";
+
+    // 3. Gera o novo payload e o buffer do Word
+    const payload = buildDocxTemplatePayload(
+      normalizedData,
+      dosFatosTexto,
+      dadosComPercentual,
+      acaoKey,
+    );
 
     const { getConfigAcaoBackend } = await import("../config/dicionarioAcoes.js");
     const configAcao = getConfigAcaoBackend(acaoKey);
