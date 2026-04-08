@@ -122,36 +122,40 @@ CREATE TABLE casos (
   unidade_id            uuid NOT NULL REFERENCES unidades(id),
   tipo_acao             tipo_acao NOT NULL,
   status                status_caso NOT NULL DEFAULT 'aguardando_documentos',
+
+  -- Vara — informada pelo servidor na triagem (varia por caso)
   numero_vara           text,
+  -- ex: '1ª', '2ª', '7ª' — usado no template como {NUMERO_VARA}
+
+  -- Locking nível 1: servidor jurídico (atendimento)
   servidor_id           uuid REFERENCES defensores(id),
   servidor_at           timestamptz,
+
+  -- Locking nível 2: defensor (protocolo)
   defensor_id           uuid REFERENCES defensores(id),
   defensor_at           timestamptz,
+
+  -- Resultado do protocolo
   numero_processo       text,
   url_capa              text,
+  -- path no Storage — nunca URL pública
   protocolado_at        timestamptz,
+
+  -- Pipeline de IA
   status_job            status_job DEFAULT 'pendente',
   erro_processamento    text,
   retry_count           integer NOT NULL DEFAULT 0,
   last_retry_at         timestamptz,
   processed_at          timestamptz,
+
+  -- Controle
   arquivado             boolean NOT NULL DEFAULT false,
   motivo_arquivamento   text,
+
+  -- Rastreabilidade de criação
   criado_por            uuid REFERENCES defensores(id),
-  nome_assistido        text,
-  cpf_assistido         text,
-  telefone_assistido    text,
-  whatsapp_contato      text,
-  relato_texto          text,
-  url_audio             text,
-  url_peticao           text,
-  url_documento_gerado  text,
-  urls_documentos       jsonb,
-  documentos_informados jsonb,
-  dados_formulario      jsonb,
-  peticao_inicial_rascunho text,
-  peticao_completa_texto   text,
-  resumo_ia             text,
+  -- quem fez o cadastro na triagem
+
   created_at            timestamptz NOT NULL DEFAULT now(),
   updated_at            timestamptz NOT NULL DEFAULT now()
 );
@@ -222,6 +226,8 @@ CREATE TABLE casos_ia (
   relato_texto            text,
   dados_extraidos         jsonb,
   dos_fatos_gerado        text,
+  resumo_ia               text,
+  peticao_inicial_rascunho text,
   peticao_completa_texto  text,
   url_peticao             text,
   url_peticao_penhora     text,

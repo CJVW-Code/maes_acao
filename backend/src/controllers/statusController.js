@@ -24,9 +24,9 @@ export const consultarStatus = async (req, res) => {
     const { data: casos, error } = await supabase
       .from("casos")
       .select(
-        "id, status, nome_assistido, numero_processo, numero_solar, url_capa_processual, url_documento_gerado, agendamento_data, agendamento_link, agendamento_status, descricao_pendencia",
+        "id, status, numero_processo, url_capa, protocolado_at, casos_partes(nome_assistido)"
       )
-      .eq("cpf_assistido", cpfLimpo);
+      .eq("partes(cpf_assistido)", cpfLimpo);
 
     // Se der erro ou array vazio (nenhum caso encontrado)
     if (error || !casos || casos.length === 0) {
@@ -91,22 +91,17 @@ export const consultarStatus = async (req, res) => {
 
 
     // 4. Se tudo estiver correto, retorna o status do caso ENCONTRADO
+    const partes = Array.isArray(casoEncontrado.casos_partes) ? casoEncontrado.casos_partes[0] : casoEncontrado.partes || {};
+
     res.status(200).json({
       id: casoEncontrado.id,
       status: statusPublicoMap[casoEncontrado.status] || "enviado",
       descricao:
         statusDescricaoMap[casoEncontrado.status] ||
         "Estamos analisando suas informações. Por favor, aguarde.",
-      nome_assistido: casoEncontrado.nome_assistido,
+      nome_assistido: partes.nome_assistido,
       numero_processo: casoEncontrado.numero_processo,
-      numero_solar: casoEncontrado.numero_solar,
-      url_capa_processual: casoEncontrado.url_capa_processual,
-      url_documento_gerado: casoEncontrado.url_documento_gerado,
-      agendamento_data: casoEncontrado.agendamento_data,
-      agendamento_data_formatada: agendamentoFormatado,
-      agendamento_link: casoEncontrado.agendamento_link,
-      agendamento_status: casoEncontrado.agendamento_status,
-      descricao_pendencia: casoEncontrado.descricao_pendencia,
+      url_capa: casoEncontrado.url_capa,
     });
   } catch (err) {
     logger.error(`Erro crítico ao consultar status: ${err.message}`, {
@@ -141,10 +136,10 @@ export const consultarPorCpf = async (req, res) => {
       const { data: casos, error } = await supabase
         .from("casos")
         .select(`
-          id, status, nome_assistido, numero_processo, numero_solar, agendamento_data, descricao_pendencia, dados_formulario,
-          casos_partes(nome_representante, inteiro_teor_representante)
+          id, status, numero_processo, url_capa, protocolado_at,
+          casos_partes!inner(nome_assistido, nome_representante, cpf_assistido)
         `)
-        .or(`cpf_assistido.eq.${cpfLimpo},dados_formulario->>representante_cpf.eq.${cpfLimpo}`)
+        .eq("casos_partes.cpf_assistido", cpfLimpo)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -161,10 +156,7 @@ export const consultarPorCpf = async (req, res) => {
     } else {
       const casosPrisma = await prisma.casos.findMany({
         where: {
-          OR: [
-            { partes: { cpf_assistido: cpfLimpo } },
-            { dados_formulario: { path: ['representante_cpf'], equals: cpfLimpo } }
-          ]
+          partes: { cpf_assistido: cpfLimpo }
         },
         orderBy: {
           created_at: "desc",
@@ -216,11 +208,9 @@ export const consultarPorCpf = async (req, res) => {
         id: caso.id,
         status: statusPublicoMap[caso.status] || "enviado",
         descricao: statusDescricaoMap[caso.status] || "Estamos analisando suas informações.",
-        nome_assistido: caso.nome_assistido || partes.nome_assistido,
-        nome_representante: form.representante_nome || partes.nome_representante || null,
-        inteiro_teor_representante: partes.inteiro_teor_representante || null,
+        nome_assistido: partes.nome_assistido,
+        nome_representante: partes.nome_representante || null,
         numero_processo: caso.numero_processo,
-        agendamento_data: caso.agendamento_data,
         descricao_pendencia: caso.descricao_pendencia,
         dados_representante: {
           representanteNome: form.representanteNome || form.representante_nome || partes.nome_representante,

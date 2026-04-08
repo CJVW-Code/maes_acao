@@ -85,22 +85,6 @@ model casos {
   arquivado           Boolean          @default(false)
   motivo_arquivamento String?
   criado_por          String?          @db.Uuid
-  
-  // Campos dinâmicos do formulário
-  nome_assistido      String?
-  cpf_assistido       String?
-  telefone_assistido  String?
-  whatsapp_contato    String?
-  relato_texto        String?
-  url_audio           String?
-  url_peticao         String?
-  url_documento_gerado String?
-  urls_documentos     Json?
-  documentos_informados Json?
-  dados_formulario    Json?
-  peticao_inicial_rascunho String?
-  peticao_completa_texto   String?
-  resumo_ia           String?
 
   created_at          DateTime         @default(now()) @db.Timestamptz(6)
   updated_at          DateTime         @default(now()) @updatedAt @db.Timestamptz(6)
@@ -195,6 +179,8 @@ model casos_ia {
   relato_texto           String?
   dados_extraidos        Json?
   dos_fatos_gerado       String?
+  resumo_ia              String?
+  peticao_inicial_rascunho String?
   peticao_completa_texto String?
   url_peticao            String?
   url_peticao_penhora    String?

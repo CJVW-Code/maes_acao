@@ -20,6 +20,65 @@ import { getVaraByTipoAcao } from "../config/varasMapping.js";
 import logger from "../utils/logger.js";
 import { Client } from "@upstash/qstash";
 
+// --- UTILS DE NORMALIZAÇÃO ---
+const mapCasoRelations = (caso) => {
+  if (!caso) return caso;
+  
+  // Trata array de relações (Supabase style)
+  const partes = Array.isArray(caso.casos_partes) ? caso.casos_partes[0] : caso.partes;
+  const ia = Array.isArray(caso.casos_ia) ? caso.casos_ia[0] : caso.ia;
+  const juridico = Array.isArray(caso.casos_juridico) ? caso.casos_juridico[0] : caso.juridico;
+
+  const enriched = { ...caso };
+  
+  if (partes) {
+    enriched.nome_assistido = partes.nome_assistido;
+    enriched.cpf_assistido = partes.cpf_assistido;
+    enriched.telefone_assistido = partes.telefone_assistido;
+    enriched.email_assistido = partes.email_assistido;
+    enriched.endereco_assistido = partes.endereco_assistido;
+    enriched.assistido_data_nascimento = partes.data_nascimento_assistido;
+    enriched.assistido_rg_numero = partes.rg_assistido;
+    enriched.assistido_rg_orgao = partes.emissor_rg_assistido;
+    enriched.assistido_nacionalidade = partes.nacionalidade;
+    enriched.assistido_estado_civil = partes.estado_civil;
+    enriched.assistido_ocupacao = partes.profissao;
+    
+    enriched.nome_requerido = partes.nome_requerido;
+    enriched.cpf_requerido = partes.cpf_requerido;
+    enriched.endereco_requerido = partes.endereco_requerido;
+  }
+  
+  if (ia) {
+    enriched.relato_texto = ia.relato_texto;
+    enriched.dos_fatos_gerado = ia.dos_fatos_gerado;
+    enriched.resumo_ia = ia.resumo_ia;
+    enriched.url_peticao = ia.url_peticao;
+    enriched.url_documento_gerado = ia.url_peticao;
+    enriched.peticao_inicial_rascunho = ia.peticao_inicial_rascunho;
+    enriched.peticao_completa_texto = ia.peticao_completa_texto;
+    enriched.url_peticao_penhora = ia.url_peticao_penhora;
+    enriched.url_peticao_prisao = ia.url_peticao_prisao;
+    
+    // Alias para attachSignedUrls
+    enriched.casos_ia = ia;
+  }
+  
+  if (partes) {
+    // ... campos já mapeados acima ...
+    // Alias para consultas Supabase style
+    enriched.casos_partes = [partes];
+  }
+  
+  if (juridico) {
+    enriched.numero_processo_originario = juridico.numero_processo_titulo;
+    enriched.percentual_salario_minimo = juridico.percentual_salario;
+    enriched.dia_pagamento_fixado = juridico.vencimento_dia;
+  }
+
+  return enriched;
+};
+
 // Tempo de expiração (em segundos) para URLs assinadas do Supabase
 const signedExpires = Number.parseInt(
   process.env.SIGNED_URL_EXPIRES || "3600",
@@ -714,9 +773,8 @@ const buildDocxTemplatePayload = (
     exequente_cpf: ensureText(assistidoCpf),
     exequente_representante: ensureText(requerente.representante),
     executado_nome: ensureText(
-      baseData.nome_requerido || requerido.nome,
+      baseData.nome_requerido || requerido.nome || baseData.requerente_nome,
     ).toUpperCase(),
-    executado_cpf: ensureText(baseData.cpf_requerido || requerido.cpf),
     requerido_nome: ensureText(
       baseData.nome_requerido || requerido.nome,
     ).toUpperCase(),
@@ -767,17 +825,17 @@ const buildDocxTemplatePayload = (
     valor_causa: ensureText(valorCausaCalculado),
     valor_causa_extenso: ensureText(valorCausaExtenso),
     // Etiquetas compatíveis com o modelo do usuário (Maiúsculas e com espaços)
-    VARA: varaPreferida,
-    vara: varaPreferida,
+    VARA: varaFormatada,
+    vara: varaFormatada,
     CIDADE: ensureText(normalizedData.comarca ? normalizedData.comarca.split("/")[0] : ""),
     cidade: ensureText(normalizedData.comarca ? normalizedData.comarca.split("/")[0] : ""),
     REPRESENTANTE_NOME: ensureText(baseData.representante_nome || baseData.representanteNome).toUpperCase(),
     NOME_REPRESENTACAO: ensureText(baseData.representante_nome || baseData.representanteNome).toUpperCase(),
     REQUERIDO_NOME: ensureText(baseData.nome_requerido || requerido.nome || baseData.requerente_nome).toUpperCase(),
-    cpf_executado: ensureText(baseData.cpf_requerido || requerido.cpf || baseData.requerente_cpf),
+    cpf_executado: ensureText(baseData.cpf_requerido || requerido.cpf),
     data_atual: dataAtualTexto,
-    // Caso de uso específico: RG do executado no campo executado_cpf do modelo de Penhora
-    executado_cpf: ensureText(baseData.requeridoRgNumero || baseData.requerido_rg_numero),
+    // ALERTA: executado_cpf volta a ser o CPF real. O template de Penhora precisará trocar RG: {executado_cpf} para RG: {rg_executado}.
+    executado_cpf: ensureText(baseData.cpf_requerido || requerido.cpf),
     // Campos da Execução
     tipo_decisao: ensureText(baseData.tipo_decisao || baseData.tipoDecisao),
     processoOrigemNumero: ensureText(baseData.numero_processo_originario || baseData.processoOrigemNumero),
@@ -823,7 +881,6 @@ const buildDocxTemplatePayload = (
     DIA_ATUAL: String(hoje.getDate()),
     MES_ATUAL: mesesExtenso[hoje.getMonth()],
     ANO_ATUAL: String(hoje.getFullYear()),
-    CIDADE: ensureText(cidadeAssinatura) || ensureText(normalizedData.comarca),
   };
   payload.REQUERENTE_NOME = payload.requerente_nome;
   payload.REPRESENTANTE_NOME = payload.representante_nome;
@@ -915,9 +972,11 @@ export async function processarCasoEmBackground(
       data: { status: "processando_ia", updated_at: new Date() }
     });
 
-    const caso = await prisma.casos.findUnique({
-      where: { protocolo }
+    const casoRaw = await prisma.casos.findUnique({
+      where: { protocolo },
+      include: { partes: true, ia: true }
     });
+    const caso = mapCasoRelations(casoRaw);
     if (!caso) throw new Error("Caso não encontrado no Prisma");
 
     // Obter configuração da ação
@@ -1269,39 +1328,39 @@ export async function processarCasoEmBackground(
       ),
     );
 
-    // Finalizar processamento
+    // Finalizar processamento - Atualiza Status no Caso e Dados na IA
     await prisma.casos.update({
       where: { protocolo },
       data: {
         status: "pronto_para_analise",
-        resumo_ia,
-        url_documento_gerado,
-        peticao_inicial_rascunho: `DOS FATOS\n\n${dosFatosTexto || ""}`,
-        peticao_completa_texto,
         processed_at: new Date(),
-      }
-    });
-      
-    // Atualizar URLs separadas no casos_ia
-    // O caso_id precisa ser descoberto a partir do caso (que não pegamos)
-    // Uma abordagem segura é apenas atualizar usando query raw ou skip para evitar bug,
-    // Mas vamos buscar o id
-    const casoNoBD = await prisma.casos.findUnique({ where: { protocolo } });
-    if (casoNoBD) {
-      await prisma.casos_ia.upsert({
-          where: { caso_id: casoNoBD.id },
-          update: {
-              url_peticao_penhora,
-              url_peticao_prisao
-          },
-          create: {
-              caso_id: casoNoBD.id,
+        ia: {
+          upsert: {
+            create: {
+              relato_texto: textoCompleto,
+              dos_fatos_gerado: dosFatosTexto,
+              resumo_ia,
+              peticao_inicial_rascunho: `DOS FATOS\n\n${dosFatosTexto || ""}`,
+              peticao_completa_texto,
+              url_peticao: url_documento_gerado,
               url_peticao_penhora,
               url_peticao_prisao,
               versao_peticao: 1
+            },
+            update: {
+              relato_texto: textoCompleto,
+              dos_fatos_gerado: dosFatosTexto,
+              resumo_ia,
+              peticao_inicial_rascunho: `DOS FATOS\n\n${dosFatosTexto || ""}`,
+              peticao_completa_texto,
+              url_peticao: url_documento_gerado,
+              url_peticao_penhora,
+              url_peticao_prisao
+            }
           }
-      });
-    }
+        }
+      }
+    });
 
     logger.info(`✅ Caso ${protocolo} processado com sucesso em background.`);
   } catch (error) {
@@ -1496,24 +1555,38 @@ export const criarNovoCaso = async (req, res) => {
     const enviarDocDepois = dados_formulario.enviar_documentos_depois === "true" || dados_formulario.enviar_documentos_depois === true;
     const statusInicial = enviarDocDepois ? "aguardando_documentos" : "documentacao_completa";
 
-    // Tenta salvar via Prisma de preferência
+    // Tenta salvar via Prisma de preferência (Normalizado v1.0)
     await prisma.casos.create({
       data: {
         protocolo,
         unidade_id: unidadeDb.id,
-        nome_assistido: nome,
-        cpf_assistido: cpf,
-        telefone_assistido: telefone,
-        whatsapp_contato: dados_formulario.whatsapp_contato,
         tipo_acao: tipoAcaoPrisma,
-        relato_texto: relato,
-        url_audio,
-        url_peticao,
-        urls_documentos,
-        documentos_informados: documentosInformadosArray,
-        dados_formulario: dadosFormularioFinal,
         status: statusInicial,
         created_at: new Date(),
+        partes: {
+          create: {
+            nome_assistido: nome,
+            cpf_assistido: cpf,
+            telefone_assistido: telefone,
+            email_assistido: dados_formulario.email_assistido,
+            endereco_assistido: dados_formulario.endereco_assistido,
+            nome_requerido: dados_formulario.nome_requerido,
+            cpf_requerido: dados_formulario.cpf_requerido,
+            // exequentes: outros_filhos_detalhes ? safeJsonParse(outros_filhos_detalhes, []) : []
+          }
+        },
+        ia: {
+          create: {
+            relato_texto: relato,
+            dados_extraidos: dadosFormularioFinal // Guardamos o form completo aqui para histórico
+          }
+        },
+        documentos: {
+          create: urls_documentos.map(path => ({
+            storage_path: path,
+            tipo: path.toLowerCase().includes("peticao") ? "peticao" : "outro"
+          }))
+        }
       }
     });
 
@@ -1656,6 +1729,7 @@ export const listarCasos = async (req, res) => {
     const queryOptions = {
       where,
       orderBy: { created_at: 'desc' },
+      include: { partes: true }
     };
 
     if (limite) {
@@ -1665,8 +1739,9 @@ export const listarCasos = async (req, res) => {
 
     const data = await prisma.casos.findMany(queryOptions);
 
-    // Garante compatibilidade com o frontend (documentNames vs document_names)
-    const normalizedData = data.map((caso) => {
+    // Hidrata e garante compatibilidade com o frontend
+    const normalizedData = data.map((casoRaw) => {
+      const caso = mapCasoRelations(casoRaw);
       if (!caso.dados_formulario || typeof caso.dados_formulario !== 'object') {
         caso.dados_formulario = {};
       }
@@ -1807,26 +1882,19 @@ export const obterDetalhesCaso = async (req, res) => {
       data = result.data;
     } else {
       // Fallback Prisma
-      data = await prisma.casos.findUnique({
+      const dataRaw = await prisma.casos.findUnique({
         where: { id: BigInt(id) },
         include: {
-          ia: {
-            select: { url_peticao_penhora: true, url_peticao_prisao: true },
-          },
           partes: true,
+          ia: true,
           juridico: true,
         },
       });
 
-      if (!data) {
+      if (!dataRaw) {
         return res.status(404).json({ error: "Caso não encontrado." });
       }
-
-      // Normaliza formato Prisma para compatibilidade com formato Supabase
-      if (data.ia) {
-        data.casos_ia = data.ia;
-        delete data.ia;
-      }
+      data = mapCasoRelations(dataRaw);
     }
 
     // Garante que dados_formulario e sua propriedade document_names sejam sempre objetos
@@ -2023,12 +2091,12 @@ export const gerarTermoDeclaracao = async (req, res) => {
       });
     }
 
-    const { data: caso, error } = await supabase
-      .from("casos")
-      .select("*")
-      .eq("id", id)
-      .single();
-    if (error || !caso) throw new Error("Caso não encontrado");
+    const casoRaw = await prisma.casos.findUnique({
+      where: { id: BigInt(id) },
+      include: { partes: true, ia: true }
+    });
+    if (!casoRaw) throw new Error("Caso não encontrado");
+    const caso = mapCasoRelations(casoRaw);
 
     const dados = caso.dados_formulario || caso;
 
@@ -2082,24 +2150,16 @@ export const gerarTermoDeclaracao = async (req, res) => {
       logger.info(`[Local] Termo de declaração salvo em ${localDir}`);
     }
 
-    // Update case record with term URL
-    if (isSupabaseConfigured) {
-      await supabase
-        .from("casos")
-        .update({ url_termo_declaracao: termoPath })
-        .eq("id", id);
-    } else {
-      await prisma.casos.update({
-        where: { id: BigInt(id) },
-        data: { url_termo_declaracao: termoPath }
-      });
-    }
-
-    // Return the updated case with signed URL
-    const casoAtualizado = await attachSignedUrls({
-      ...caso,
-      url_termo_declaracao: termoPath,
+    const casoAtualizadoRaw = await prisma.casos.update({
+      where: { id: BigInt(id) },
+      data: {
+        ia: {
+          update: { url_termo_declaracao: termoPath }
+        }
+      },
+      include: { partes: true, ia: true }
     });
+    const casoAtualizado = await attachSignedUrls(mapCasoRelations(casoAtualizadoRaw));
     res.status(200).json(casoAtualizado);
   } catch (error) {
     logger.error(`Erro ao gerar termo de declaração: ${error.message}`);
@@ -2117,28 +2177,12 @@ export const regerarMinuta = async (req, res) => {
       });
     }
 
-    let caso;
-    if (isSupabaseConfigured) {
-      const { data, error } = await supabase
-        .from("casos")
-        .select("*")
-        .eq("id", id)
-        .single();
-      if (error || !data) throw new Error("Caso não encontrado");
-      caso = data;
-    } else {
-      const data = await prisma.casos.findUnique({ 
-          where: { id: BigInt(id) },
-          include: { ia: true }
-      });
-      if (!data) throw new Error("Caso não encontrado");
-      
-      // Normaliza 'ia' para 'casos_ia'
-      if (data.ia) {
-          data.casos_ia = data.ia;
-      }
-      caso = data;
-    }
+    const dataRaw = await prisma.casos.findUnique({ 
+        where: { id: BigInt(id) },
+        include: { partes: true, ia: true, juridico: true }
+    });
+    if (!dataRaw) throw new Error("Caso não encontrado");
+    const caso = mapCasoRelations(dataRaw);
 
     // 1. Prepara os dados baseados no estado atual do caso no banco
     const dosFatosTexto = (caso.peticao_inicial_rascunho || "").replace(
@@ -2292,11 +2336,11 @@ export const buscarPorCpf = async (req, res) => {
       if (error) throw error;
       data = result;
     } else {
-      // Fallback Prisma: Busca onde CPF é assistido ou representante (via JSON)
+      // Fallback Prisma: Busca onde CPF é assistido ou representante (via partes ou JSON)
       data = await prisma.casos.findMany({
         where: {
           OR: [
-            { cpf_assistido: cpf },
+            { partes: { cpf_assistido: cpf } },
             {
               dados_formulario: {
                 path: ["representanteCpf"],
@@ -2311,12 +2355,14 @@ export const buscarPorCpf = async (req, res) => {
             },
           ],
         },
+        include: { partes: true },
         orderBy: { created_at: "desc" },
       });
     }
 
-    // Garante compatibilidade com o frontend (documentNames vs document_names)
-    const normalizedData = (data || []).map((caso) => {
+    // Hidrata e garante compatibilidade
+    const normalizedData = (data || []).map((casoRaw) => {
+      const caso = mapCasoRelations(casoRaw);
       if (!caso.dados_formulario || typeof caso.dados_formulario !== "object") {
         caso.dados_formulario = {};
       }
