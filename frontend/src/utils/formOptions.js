@@ -119,11 +119,6 @@ export const outrosDadosRequeridoConfig = [
     field: "requeridoOutrosDetalhes",
     placeholder: "Ex: Nome do advogado, redes sociais, etc.",
   },
-  {
-    key: "requeridoFiliacao",
-    label: "Nomes dos pais (Filiação)",
-    renderType: "filiacao",
-  },
 ];
 
 export const outrosDadosRequeridoFieldMap = {

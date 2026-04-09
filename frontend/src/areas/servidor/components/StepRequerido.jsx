@@ -1,5 +1,6 @@
 import { Users, Search } from "lucide-react";
 import { SearchableSelect } from "../../../components/ui/SearchableSelect";
+import { EnderecoInput } from "./EnderecoInput";
 import {
   nacionalidadeOptions,
   estadoCivilOptions,
@@ -39,8 +40,8 @@ export const StepRequerido = ({
             id="nomeRequerido"
             type="text"
             placeholder="Nome Completo da outra parte *"
-            name="nomeRequerido"
-            value={formState.nomeRequerido}
+            name="REQUERIDO_NOME"
+            value={formState.REQUERIDO_NOME}
             onChange={handleFieldChange}
             className="input"
             aria-invalid={Boolean(formErrors.nomeRequerido)}
@@ -58,25 +59,48 @@ export const StepRequerido = ({
             type="text"
             inputMode="numeric"
             placeholder="CPF (se souber)"
-            name="cpfRequerido"
-            value={formState.cpfRequerido}
-            onChange={handleCpfChangeAndValidate("cpfRequerido")}
+            name="executado_cpf"
+            value={formState.executado_cpf}
+            onChange={handleCpfChangeAndValidate("executado_cpf")}
+            className="input"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="requeridoNomeMae" className="label">Nome da mãe do requerido</label>
+          <input
+            id="requeridoNomeMae"
+            type="text"
+            placeholder="Mãe (se souber)"
+            name="nome_mae_executado"
+            value={formState.nome_mae_executado}
+            onChange={handleFieldChange}
+            className="input"
+          />
+        </div>
+        <div>
+          <label htmlFor="requeridoNomePai" className="label">Nome do pai do requerido</label>
+          <input
+            id="requeridoNomePai"
+            type="text"
+            placeholder="Pai (se souber)"
+            name="nome_pai_executado"
+            value={formState.nome_pai_executado}
+            onChange={handleFieldChange}
             className="input"
           />
         </div>
       </div>
 
       <div>
-        <label htmlFor="enderecoRequerido" className="label">Endereço Residencial *</label>
-        <input
-          id="enderecoRequerido"
-          type="text"
-          placeholder="Endereço Residencial (pelo menos um contato é obrigatório) *"
-          name="enderecoRequerido"
-          value={formState.enderecoRequerido}
+        <EnderecoInput
+          label="Endereço Residencial do Requerido (Pelo menos um contato é obrigatório) *"
+          name="executado_endereco_residencial"
+          value={formState.executado_endereco_residencial}
           onChange={handleFieldChange}
-          className="input"
-          aria-invalid={Boolean(formErrors.requeridoContato)}
+          className="w-full"
         />
       </div>
 
@@ -88,9 +112,9 @@ export const StepRequerido = ({
             type="text"
             inputMode="tel"
             placeholder="Telefone (pelo menos um contato é obrigatório) *"
-            name="telefoneRequerido"
-            value={formState.telefoneRequerido}
-            onChange={handlePhoneChange("telefoneRequerido")}
+            name="executado_telefone"
+            value={formState.executado_telefone}
+            onChange={handlePhoneChange("executado_telefone")}
             className="input"
             aria-invalid={Boolean(formErrors.requeridoContato)}
           />
@@ -101,8 +125,8 @@ export const StepRequerido = ({
             id="emailRequerido"
             type="email"
             placeholder="Email (pelo menos um contato é obrigatório) *"
-            name="emailRequerido"
-            value={formState.emailRequerido}
+            name="executado_email"
+            value={formState.executado_email}
             onChange={handleFieldChange}
             className="input"
           />
@@ -116,14 +140,14 @@ export const StepRequerido = ({
         <input
           type="text"
           placeholder="Profissão (se souber)"
-          name="requeridoOcupacao"
-          value={formState.requeridoOcupacao}
+          name="executado_ocupacao"
+          value={formState.executado_ocupacao}
           onChange={handleFieldChange}
           className="input"
         />
         <select
-          name="requeridoNacionalidade"
-          value={formState.requeridoNacionalidade}
+          name="executado_nacionalidade"
+          value={formState.executado_nacionalidade}
           onChange={handleFieldChange}
           className="input"
         >
@@ -134,8 +158,8 @@ export const StepRequerido = ({
           ))}
         </select>
         <select
-          name="requeridoEstadoCivil"
-          value={formState.requeridoEstadoCivil}
+          name="executado_estado_civil"
+          value={formState.executado_estado_civil}
           onChange={handleFieldChange}
           className="input"
         >
@@ -148,15 +172,12 @@ export const StepRequerido = ({
       </div>
 
       <div>
-        <label htmlFor="requeridoEnderecoProfissional" className="label">Endereço de Trabalho (se souber)</label>
-        <input
-          id="requeridoEnderecoProfissional"
-          type="text"
-          placeholder="Endereço de Trabalho (se souber)"
-          name="requeridoEnderecoProfissional"
-          value={formState.requeridoEnderecoProfissional}
+        <EnderecoInput
+          label="Endereço de Trabalho (se souber)"
+          name="executado_endereco_profissional"
+          value={formState.executado_endereco_profissional}
           onChange={handleFieldChange}
-          className="input"
+          className="w-full"
         />
       </div>
 
@@ -191,40 +212,21 @@ export const StepRequerido = ({
                           type="text"
                           inputMode="numeric"
                           placeholder="RG"
-                          name="requeridoRgNumero"
-                          value={formState.requeridoRgNumero}
-                          onChange={handleRgChange("requeridoRgNumero")}
+                          name="rg_executado"
+                          value={formState.rg_executado}
+                          onChange={handleRgChange("rg_executado")}
                           className="input"
                         />
                         <SearchableSelect
-                          name="requeridoRgOrgao"
+                          name="emissor_rg_executado"
                           placeholder="Órgão Emissor"
                           options={orgaoEmissorOptions}
-                          value={formState.requeridoRgOrgao}
+                          value={formState.emissor_rg_executado}
                           onChange={handleFieldChange}
                         />
                       </div>
                     )}
-                    {item.renderType === "filiacao" && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <input
-                          type="text"
-                          name="requeridoNomeMae"
-                          value={formState.requeridoNomeMae}
-                          onChange={handleFieldChange}
-                          className="input"
-                          placeholder="Nome da mãe do requerido"
-                        />
-                        <input
-                          type="text"
-                          name="requeridoNomePai"
-                          value={formState.requeridoNomePai}
-                          onChange={handleFieldChange}
-                          className="input"
-                          placeholder="Nome do pai do requerido"
-                        />
-                      </div>
-                    )}
+                    {item.renderType === "filiacao" && null}
                     {item.renderType === "date" && (
                       <input
                         type="text"

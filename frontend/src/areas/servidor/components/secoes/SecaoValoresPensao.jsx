@@ -30,12 +30,12 @@ export const SecaoValoresPensao = ({
                 R$
               </span>
               <input
-                id="valorMensalPensao"
+                id="valor_pensao"
                 type="text"
                 inputMode="numeric"
-                name="valorMensalPensao"
-                value={formState.valorMensalPensao}
-                onChange={handleCurrencyChange("valorMensalPensao")}
+                name="valor_pensao"
+                value={formState.valor_pensao}
+                onChange={handleCurrencyChange("valor_pensao")}
                 placeholder="0,00"
                 className="input pl-12"
                 {...validar("Informe o valor da pensao.")}
@@ -51,8 +51,8 @@ export const SecaoValoresPensao = ({
           <label htmlFor="tipoContaDeposito" className="label">Tipo de Conta</label>
           <select
             id="tipoContaDeposito"
-            name="tipoContaDeposito"
-            value={formState.tipoContaDeposito}
+            name="tipo_conta_deposito"
+            value={formState.tipo_conta_deposito}
             onChange={handleFieldChange}
             className="input"
           >
@@ -63,28 +63,28 @@ export const SecaoValoresPensao = ({
           </select>
         </div>
 
-        {formState.tipoContaDeposito === "corrente_poupanca" && (
+        {formState.tipo_conta_deposito === "corrente_poupanca" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <input
               type="text"
-              name="bancoDeposito"
-              value={formState.bancoDeposito}
+              name="banco_deposito"
+              value={formState.banco_deposito}
               onChange={handleFieldChange}
               placeholder="Nome do Banco"
               className="input"
             />
             <input
               type="text"
-              name="agenciaDeposito"
-              value={formState.agenciaDeposito}
+              name="agencia_deposito"
+              value={formState.agencia_deposito}
               onChange={handleFieldChange}
               placeholder="Agencia"
               className="input"
             />
             <input
               type="text"
-              name="contaDeposito"
-              value={formState.contaDeposito}
+              name="conta_deposito"
+              value={formState.conta_deposito}
               onChange={handleFieldChange}
               placeholder="Conta com digito"
               className="input"
@@ -92,14 +92,14 @@ export const SecaoValoresPensao = ({
           </div>
         )}
 
-        {formState.tipoContaDeposito === "pix" && (
+        {formState.tipo_conta_deposito === "pix" && (
           <div>
             <label htmlFor="chavePixDeposito" className="label">Chave PIX</label>
             <input
               id="chavePixDeposito"
               type="text"
-              name="chavePixDeposito"
-              value={formState.chavePixDeposito}
+              name="chave_pix_deposito"
+              value={formState.chave_pix_deposito}
               onChange={handleFieldChange}
               placeholder="CPF, e-mail, telefone, etc."
               className="input"
@@ -107,15 +107,15 @@ export const SecaoValoresPensao = ({
           </div>
         )}
 
-        {formState.tipoContaDeposito === "outro" && (
+        {formState.tipo_conta_deposito === "outro" && (
           <div>
             <label htmlFor="outrosDadosDeposito" className="label">
               Descreva os dados que voce possui
             </label>
             <textarea
               id="outrosDadosDeposito"
-              name="outrosDadosDeposito"
-              value={formState.outrosDadosDeposito}
+              name="outros_dados_deposito"
+              value={formState.outros_dados_deposito}
               onChange={handleFieldChange}
               rows="2"
               className="input"

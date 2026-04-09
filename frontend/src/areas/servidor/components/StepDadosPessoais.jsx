@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "motion/react";
 import { User, X, Plus, Phone, Search } from "lucide-react";
 import { SearchableSelect } from "../../../components/ui/SearchableSelect";
+import { EnderecoInput } from "./EnderecoInput";
 import {
   formatCpf,
   stripNonDigits,
@@ -77,8 +78,8 @@ export const StepDadosPessoais = ({
           <input
             type="text"
             placeholder="Nome Completo *"
-            name="nome"
-            value={formState.nome}
+            name={isRepresentacao ? "NOME" : "REPRESENTANTE_NOME"}
+            value={isRepresentacao ? formState.NOME : formState.REPRESENTANTE_NOME}
             onChange={handleFieldChange}
             {...validar("Informe o nome completo.")}
             className="input"
@@ -88,15 +89,15 @@ export const StepDadosPessoais = ({
               type="text"
               inputMode="numeric"
               placeholder="CPF *"
-              name="cpf"
-              value={formState.cpf}
-              onChange={handleCpfChangeAndValidate("cpf")}
+              name="representante_cpf"
+              value={formState.representante_cpf}
+              onChange={handleCpfChangeAndValidate("representante_cpf")}
               {...(!isRepresentacao ? validar("Informe o CPF.") : {})}
-              className={`input ${formErrors.cpf ? "border-error ring-1 ring-error" : ""}`}
+              className={`input ${formErrors.representante_cpf ? "border-error ring-1 ring-error" : ""}`}
             />
-            {formErrors.cpf && (
+            {formErrors.representante_cpf && (
               <span className="text-xs text-error mt-1 ml-1">
-                {formErrors.cpf}
+                {formErrors.representante_cpf}
               </span>
             )}
           </div>
@@ -110,26 +111,26 @@ export const StepDadosPessoais = ({
               Data de Nascimento *
             </label>
             <input
-              id="dataNascimentoAssistido"
+              id={isRepresentacao ? "nascimento" : "representante_data_nascimento"}
               type="text"
               inputMode="numeric"
               placeholder="DD/MM/AAAA"
-              name="dataNascimentoAssistido"
-              value={formState.dataNascimentoAssistido}
-              onChange={handleDateChange("dataNascimentoAssistido")}
-              className={`input ${formErrors.dataNascimentoAssistido ? "border-error ring-1 ring-error" : ""}`}
+              name={isRepresentacao ? "nascimento" : "representante_data_nascimento"}
+              value={isRepresentacao ? formState.nascimento : formState.representante_data_nascimento}
+              onChange={handleDateChange(isRepresentacao ? "nascimento" : "representante_data_nascimento")}
+              className={`input ${formErrors[isRepresentacao ? "nascimento" : "representante_data_nascimento"] ? "border-error ring-1 ring-error" : ""}`}
               {...validar("Informe a data de nascimento.")}
             />
-            {formErrors.dataNascimentoAssistido && (
+            {formErrors.representante_data_nascimento && (
               <span className="text-xs text-error mt-1 ml-1">
-                {formErrors.dataNascimentoAssistido}
+                {formErrors.representante_data_nascimento}
               </span>
             )}
           </div>
           {!isRepresentacao && (
             <select
-              name="assistidoNacionalidade"
-              value={formState.assistidoNacionalidade}
+              name="representante_nacionalidade"
+              value={formState.representante_nacionalidade}
               onChange={handleFieldChange}
               className="input"
             >
@@ -142,8 +143,8 @@ export const StepDadosPessoais = ({
           )}
           {!isRepresentacao && (
             <select
-              name="assistidoEstadoCivil"
-              value={formState.assistidoEstadoCivil}
+              name="representante_estado_civil"
+              value={formState.representante_estado_civil}
               onChange={handleFieldChange}
               className="input"
             >
@@ -158,8 +159,8 @@ export const StepDadosPessoais = ({
             <input
               type="text"
               placeholder="Sua Profissão"
-              name="assistidoOcupacao"
-              value={formState.assistidoOcupacao}
+              name="representante_ocupacao"
+              value={formState.representante_ocupacao}
               onChange={handleFieldChange}
               className="input"
             />
@@ -171,8 +172,8 @@ export const StepDadosPessoais = ({
             <input
               type="text"
               placeholder="Seu Endereço Profissional (se houver)"
-              name="assistidoEnderecoProfissional"
-              value={formState.assistidoEnderecoProfissional}
+              name="representante_endereco_profissional"
+              value={formState.representante_endereco_profissional}
               onChange={handleFieldChange}
               className="input"
             />
@@ -183,41 +184,39 @@ export const StepDadosPessoais = ({
                 type="text"
                 inputMode="numeric"
                 placeholder="RG (Opcional)"
-                name="assistidoRgNumero"
-                value={formState.assistidoRgNumero}
-                onChange={handleRgChange("assistidoRgNumero")}
+                name="representante_rg"
+                value={formState.representante_rg}
+                onChange={handleRgChange("representante_rg")}
                 className="input"
               />
               <SearchableSelect
-                name="assistidoRgOrgao"
+                name="emissor_rg_exequente"
                 placeholder="Órgão Emissor (ex: SSP, DETRAN)"
                 options={orgaoEmissorOptions}
-                value={formState.assistidoRgOrgao}
+                value={formState.emissor_rg_exequente}
                 onChange={handleFieldChange}
                 className="md:col-span-2"
               />
-            </div>
-          )}
-          {!isRepresentacao && (
-            <input
-              type="text"
-              placeholder="Endereço Residencial Completo *"
-              name="enderecoAssistido"
-              value={formState.enderecoAssistido}
-              onChange={handleFieldChange}
-              {...validar("Informe o endereço completo.")}
-              className="input w-full"
-            />
           )}
         </div>
+
+        {!isRepresentacao && (
+          <EnderecoInput
+            label="Endereço Residencial Completo *"
+            name="requerente_endereco_residencial"
+            value={formState.requerente_endereco_residencial}
+            onChange={handleFieldChange}
+            className="w-full mt-4"
+          />
+        )}
 
         {!isRepresentacao && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input
               type="email"
               placeholder="Email (opcional)"
-              name="emailAssistido"
-              value={formState.emailAssistido}
+              name="requerente_email"
+              value={formState.requerente_email}
               onChange={handleFieldChange}
               className="input"
             />
@@ -230,9 +229,9 @@ export const StepDadosPessoais = ({
                 type="text"
                 inputMode="tel"
                 placeholder="Telefone/WhatsApp para contato *"
-                name="telefone"
-                value={formState.telefone}
-                onChange={handlePhoneChange("telefone")}
+                name="requerente_telefone"
+                value={formState.requerente_telefone}
+                onChange={handlePhoneChange("requerente_telefone")}
                 {...validar("Informe um telefone para contato.")}
                 className="input pl-10"
               />
@@ -385,8 +384,8 @@ export const StepDadosPessoais = ({
             <input
               type="text"
               placeholder="Seu Nome Completo *"
-              name="representanteNome"
-              value={formState.representanteNome}
+              name="REPRESENTANTE_NOME"
+              value={formState.REPRESENTANTE_NOME}
               onChange={handleFieldChange}
               className="input"
               {...validar("Informe o nome do representante.")}
@@ -396,15 +395,15 @@ export const StepDadosPessoais = ({
                 type="text"
                 inputMode="numeric"
                 placeholder="Seu CPF *"
-                name="representanteCpf"
-                value={formState.representanteCpf}
-                onChange={handleCpfChangeAndValidate("representanteCpf")}
-                className={`input ${formErrors.representanteCpf ? "border-error ring-1 ring-error" : ""}`}
+                name="representante_cpf"
+                value={formState.representante_cpf}
+                onChange={handleCpfChangeAndValidate("representante_cpf")}
+                className={`input ${formErrors.representante_cpf ? "border-error ring-1 ring-error" : ""}`}
                 {...validar("Informe o CPF do representante.")}
               />
-              {formErrors.representanteCpf && (
+              {formErrors.representante_cpf && (
                 <span className="text-xs text-error mt-1 ml-1">
-                  {formErrors.representanteCpf}
+                  {formErrors.representante_cpf}
                 </span>
               )}
             </div>
@@ -419,15 +418,15 @@ export const StepDadosPessoais = ({
               type="text"
               inputMode="numeric"
               placeholder="DD/MM/AAAA"
-              name="representanteDataNascimento"
-              value={formState.representanteDataNascimento}
-              onChange={handleDateChange("representanteDataNascimento")}
+              name="representante_data_nascimento"
+              value={formState.representante_data_nascimento}
+              onChange={handleDateChange("representante_data_nascimento")}
               className={`input ${formErrors.representanteDataNascimento ? "border-error ring-1 ring-error" : ""}`}
               {...validar("Informe sua data de nascimento.")}
             />
             <select
-              name="representanteNacionalidade"
-              value={formState.representanteNacionalidade}
+              name="representante_nacionalidade"
+              value={formState.representante_nacionalidade}
               onChange={handleFieldChange}
               className="input"
             >
@@ -438,8 +437,8 @@ export const StepDadosPessoais = ({
               ))}
             </select>
             <select
-              name="representanteEstadoCivil"
-              value={formState.representanteEstadoCivil}
+              name="representante_estado_civil"
+              value={formState.representante_estado_civil}
               onChange={handleFieldChange}
               className="input"
             >
@@ -452,27 +451,26 @@ export const StepDadosPessoais = ({
             <input
               type="text"
               placeholder="Sua Profissão"
-              name="representanteOcupacao"
-              value={formState.representanteOcupacao}
+              name="representante_ocupacao"
+              value={formState.representante_ocupacao}
               onChange={handleFieldChange}
               className="input"
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Seu Endereço Residencial *"
-              name="representanteEnderecoResidencial"
-              value={formState.representanteEnderecoResidencial}
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+            <EnderecoInput
+              label="Seu Endereço Residencial *"
+              name="requerente_endereco_residencial"
+              value={formState.requerente_endereco_residencial}
               onChange={handleFieldChange}
-              className="input"
+              className="w-full"
             />
             <input
               type="text"
               placeholder="Seu Endereço Profissional (se houver)"
-              name="representanteEnderecoProfissional"
-              value={formState.representanteEnderecoProfissional}
+              name="representante_endereco_profissional"
+              value={formState.representante_endereco_profissional}
               onChange={handleFieldChange}
               className="input"
             />
@@ -482,8 +480,8 @@ export const StepDadosPessoais = ({
             <input
               type="email"
               placeholder="Seu Email"
-              name="representanteEmail"
-              value={formState.representanteEmail}
+              name="requerente_email"
+              value={formState.requerente_email}
               onChange={handleFieldChange}
               className="input"
             />
@@ -491,9 +489,9 @@ export const StepDadosPessoais = ({
               type="text"
               inputMode="tel"
               placeholder="Seu Telefone"
-              name="representanteTelefone"
-              value={formState.representanteTelefone}
-              onChange={handlePhoneChange("representanteTelefone")}
+              name="requerente_telefone"
+              value={formState.requerente_telefone}
+              onChange={handlePhoneChange("requerente_telefone")}
               className="input"
             />
           </div>
@@ -503,16 +501,16 @@ export const StepDadosPessoais = ({
               type="text"
               inputMode="numeric"
               placeholder="Seu RG (Opcional)"
-              name="representanteRgNumero"
-              value={formState.representanteRgNumero}
-              onChange={handleRgChange("representanteRgNumero")}
+              name="representante_rg"
+              value={formState.representante_rg}
+              onChange={handleRgChange("representante_rg")}
               className="input"
             />
             <SearchableSelect
-              name="representanteRgOrgao"
+              name="emissor_rg_exequente"
               placeholder="Sua Órgão Emissor"
               options={orgaoEmissorOptions}
-              value={formState.representanteRgOrgao}
+              value={formState.emissor_rg_exequente}
               onChange={handleFieldChange}
               className="md:col-span-2"
             />
@@ -522,16 +520,16 @@ export const StepDadosPessoais = ({
             <input
               type="text"
               placeholder="Nome de sua Mãe"
-              name="representanteNomeMae"
-              value={formState.representanteNomeMae}
+              name="nome_mae_representante"
+              value={formState.nome_mae_representante}
               onChange={handleFieldChange}
               className="input"
             />
             <input
               type="text"
               placeholder="Nome de seu Pai"
-              name="representanteNomePai"
-              value={formState.representanteNomePai}
+              name="nome_pai_representante"
+              value={formState.nome_pai_representante}
               onChange={handleFieldChange}
               className="input"
             />

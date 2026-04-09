@@ -20,8 +20,8 @@ const StepDadosProcessuais = ({
           <label className="label">Cidade para assinatura</label>
           <input
             type="text"
-            name="cidadeAssinatura"
-            value={formState.cidadeAssinatura}
+            name="CIDADEASSINATURA"
+            value={formState.CIDADEASSINATURA}
             onChange={handleCidadeChange}
             onBlur={() =>
               setTimeout(() => setMostrarSugestoes(false), 150)

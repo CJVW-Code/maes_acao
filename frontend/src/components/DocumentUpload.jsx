@@ -271,7 +271,7 @@ export const DocumentUpload = ({
         // Redução mais agressiva no mobile para evitar OOM
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const maxSizeMB = isMobile ? 0.7 : 1;
-        
+
         // Se já foi convertido de HEIC e o tamanho já está razoável (< máximo estimável), não reprime pra poupar memória
         if (!(wasHeicConverted && finalFile.size < maxSizeMB * 1024 * 1024)) {
           const options = {
@@ -292,7 +292,7 @@ export const DocumentUpload = ({
             console.warn("Falha na compressão, usando original:", err);
             // Fallback de compressão: evitar crash se o original for gigantesco
             if (finalFile.size > 5 * 1024 * 1024) {
-               throw new Error("A imagem é muito pesada e ocorreu um erro ao otimizar. Tente enviar uma foto com tamanho menor.");
+              throw new Error("A imagem é muito pesada e ocorreu um erro ao otimizar. Tente enviar uma foto com tamanho menor.");
             }
           }
         }
@@ -424,17 +424,8 @@ export const DocumentUpload = ({
   };
   const handleCliqueResidencia = async (e, slotId) => {
     e.preventDefault();
-    e.stopPropagation(); // Evita cliques duplos
+    e.stopPropagation();
 
-    const msg =
-      "O comprovante de residência deve estar no SEU NOME.\n\n" +
-      "Se você mora em casa de terceiros (aluguel sem contrato, com os pais, etc), " +
-      "baixe o modelo de Declaração de Residência abaixo, peça para o dono da casa assinar e anexe a foto aqui.";
-
-    const ok = await confirm(msg, "Atenção ao Comprovante");
-    if (!ok) return;
-
-    // Usa a referência correta do React para abrir a câmera/arquivos
     if (fileInputRefs.current[slotId]) {
       fileInputRefs.current[slotId].click();
     }
@@ -469,11 +460,7 @@ export const DocumentUpload = ({
             <button
               type="button"
               onClick={(e) => {
-                if (slot.id === "comprovante_residencia") {
-                  handleCliqueResidencia(e, slot.id);
-                } else {
-                  fileInputRefs.current[slot.id].click();
-                }
+                fileInputRefs.current[slot.id].click();
               }}
               className={`w-full h-32 p-4 rounded-xl border-2 border-dashed transition-all flex flex-col items-center justify-center text-center cursor-pointer appearance-none bg-app/30 outline-none
               ${slot.required ? "border-soft hover:border-primary hover:bg-primary/5" : "border-soft hover:border-primary/50"}
@@ -495,34 +482,7 @@ export const DocumentUpload = ({
                 </span>
               )}
             </button>
-            {/* CAIXA DE AJUDA EXCLUSIVA PARA O COMPROVANTE DE RESIDÊNCIA */}
-            {slot.id === "comprovante_residencia" && (
-              <div className="mt-3 p-3 bg-blue-50/50 border border-blue-100 rounded-lg animate-in fade-in slide-in-from-top-2">
-                <p className="text-xs text-blue-800 font-semibold mb-2 flex items-center gap-1">
-                  <AlertCircle size={14} /> Mora de favor ou aluguel s/
-                  contrato?
-                </p>
-                <div className="flex flex-col gap-2">
-                  <a
-                    href="/templates/declaracao_residencia.docx"
-                    download="Declaracao_de_Residencia_Em_Branco.docx"
-                    className="text-xs text-primary font-bold hover:underline flex items-center gap-1"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <FileText size={14} /> 1. Baixar Modelo (Em Branco)
-                  </a>
-                  <a
-                    href="/templates/exemplo_declaracao_residencia.pdf"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-muted hover:text-primary transition-colors flex items-center gap-1"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Eye size={14} /> 2. Ver Exemplo Preenchido
-                  </a>
-                </div>
-              </div>
-            )}
+
           </>
         ) : (
           // ESTADO PREENCHIDO
@@ -581,14 +541,13 @@ export const DocumentUpload = ({
 
   return (
     <div className="space-y-8">
-      {/* 1. GUIA VISUAL (EDUCATIVO) */}
+      {/* 1. GUIA VISUAL (EDUCATIVO) REMOVIDO 
       <div className="bg-app border border-soft rounded-xl p-4">
         <h3 className="text-sm font-bold text-main mb-3 flex items-center gap-2">
           <Camera size={18} />
           Como tirar uma boa foto?
         </h3>
         <div className="grid grid-cols-2 gap-4">
-          {/* Lado Certo */}
           <div className="bg-surface border-l-4 border-success p-3 rounded shadow-sm">
             <div className="flex items-center gap-2 text-success font-bold text-xs mb-2">
               <CheckCircle2 size={16} />
@@ -607,7 +566,6 @@ export const DocumentUpload = ({
             </p>
           </div>
 
-          {/* Lado Errado */}
           <div className="bg-surface border-l-4 border-error p-3 rounded shadow-sm">
             <div className="flex items-center gap-2 text-error font-bold text-xs mb-2">
               <X size={16} />
@@ -626,6 +584,7 @@ export const DocumentUpload = ({
           </div>
         </div>
       </div>
+      */}
 
       {/* MENSAGEM DE PROCESSAMENTO */}
       {processing && (

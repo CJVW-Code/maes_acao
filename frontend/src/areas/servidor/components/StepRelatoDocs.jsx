@@ -119,9 +119,9 @@ export const StepRelatoDocs = ({
             isRepresentacao={isRepresentacao}
             outrosFilhos={formState.outrosFilhos}
             nomes={{
-              assistido: formState.nome,
-              responsavel: formState.representanteNome,
-              crianca: isRepresentacao ? formState.nome : null,
+              assistido: formState.REPRESENTANTE_NOME,
+              responsavel: formState.REPRESENTANTE_NOME,
+              crianca: isRepresentacao ? formState.REPRESENTANTE_NOME : null,
             }}
             onFilesChange={handleFilesChange}
           />

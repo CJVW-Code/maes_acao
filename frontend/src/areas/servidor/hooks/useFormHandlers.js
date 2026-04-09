@@ -27,9 +27,9 @@ export const useFormHandlers = ({ formState, dispatch, setFormErrors, toast }) =
     setFormErrors((prev) => {
       const hasFieldError = Boolean(prev[field]);
       const shouldClearContato =
-        (field === "enderecoRequerido" ||
-          field === "requeridoTelefone" ||
-          field === "requeridoEmail") &&
+        (field === "executado_endereco_residencial" ||
+          field === "executado_telefone" ||
+          field === "executado_email") &&
         prev.requeridoContato;
       if (!hasFieldError && !shouldClearContato) {
         return prev;
@@ -53,7 +53,7 @@ export const useFormHandlers = ({ formState, dispatch, setFormErrors, toast }) =
 
   const handleCidadeChange = useCallback((e) => {
     const { value } = e.target;
-    dispatch({ type: "UPDATE_FIELD", field: "cidadeAssinatura", value });
+    dispatch({ type: "UPDATE_FIELD", field: "CIDADEASSINATURA", value });
 
     if (value.length > 0) {
       const filtered = cidadesBahia.filter((cidade) =>
@@ -69,7 +69,7 @@ export const useFormHandlers = ({ formState, dispatch, setFormErrors, toast }) =
   const handleSelecionaCidade = useCallback((cidade) => {
     dispatch({
       type: "UPDATE_FIELD",
-      field: "cidadeAssinatura",
+      field: "CIDADEASSINATURA",
       value: cidade,
     });
     setMostrarSugestoes(false);

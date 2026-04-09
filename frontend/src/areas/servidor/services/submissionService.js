@@ -19,16 +19,16 @@ export const processSubmission = async ({
   API_BASE
 }) => {
   const validationErrors = {};
-  const nomeRequeridoTrim = (formState.nomeRequerido || "").trim();
-  const enderecoRequeridoTrim = (formState.enderecoRequerido || "").trim();
+  const nomeRequeridoTrim = (formState.REQUERIDO_NOME || "").trim();
+  const enderecoRequeridoTrim = (formState.executado_endereco_residencial || "").trim();
   const telefoneRequeridoDigits = stripNonDigits(
-    formState.telefoneRequerido || ""
+    formState.executado_telefone || ""
   );
-  const requeridoEmailTrim = (formState.emailRequerido || "").trim();
+  const requeridoEmailTrim = (formState.executado_email || "").trim();
 
   if (!isAlvaraContext) {
     if (!nomeRequeridoTrim) {
-      validationErrors.nomeRequerido =
+      validationErrors.REQUERIDO_NOME =
         "Informe o nome completo da outra parte.";
     }
     if (
@@ -41,60 +41,52 @@ export const processSubmission = async ({
     }
   }
 
-  // --- VALIDAÇÃO DE CAMPOS OBRIGATÓRIOS (Restaurando validação manual) ---
-  if (!formState.nome) validationErrors.nome = "O nome completo é obrigatório.";
+  // --- VALIDAÇÃO DE CAMPOS OBRIGATÓRIOS ---
+  // Se for incapaz, validamos NOME (criança). Se for adulto, REPRESETANTE_NOME (autor).
+  if (formState.assistidoEhIncapaz === "sim") {
+    if (!formState.NOME) validationErrors.NOME = "O nome da criança é obrigatório.";
+    if (!formState.REPRESENTANTE_NOME) validationErrors.REPRESENTANTE_NOME = "O nome da genitora/representante é obrigatório.";
+  } else {
+    if (!formState.REPRESENTANTE_NOME) validationErrors.REPRESENTANTE_NOME = "O nome completo é obrigatório.";
+  }
   
-  // CPF obrigatório apenas para o Assistido Adulto ou Representante
-  if (formState.assistidoEhIncapaz === "nao" && !formState.cpf) {
-    validationErrors.cpf = "O CPF é obrigatório.";
+  if (!formState.representante_cpf) {
+    validationErrors.representante_cpf = "O CPF é obrigatório.";
   }
 
   if (formState.assistidoEhIncapaz === "nao") {
-    if (!formState.enderecoAssistido) validationErrors.enderecoAssistido = "O endereço residencial é obrigatório.";
-    if (!formState.telefone) validationErrors.telefone = "O telefone de contato é obrigatório.";
-  } else {
-    // Caso de Representação
-    if (!formState.representanteNome) validationErrors.representanteNome = "O nome do representante é obrigatório.";
-    if (!formState.representanteCpf) validationErrors.representanteCpf = "O CPF do representante é obrigatório.";
-    // Telefone e Email do representante são copiados para o assistido no submit, mas validamos aqui se necessário
+    if (!formState.requerente_endereco_residencial) validationErrors.requerente_endereco_residencial = "O endereço residencial é obrigatório.";
+    if (!formState.requerente_telefone) validationErrors.requerente_telefone = "O telefone de contato é obrigatório.";
   }
 
-  // --- NOVAS VALIDAÇÕES OBRIGATÓRIAS ---
+  // ... (rest of mandatory validations) ...
   if (configAcao?.secoes?.includes("processo_original")) {
     const isExecution = formState.acaoEspecifica?.toLowerCase().includes("execução") || configAcao?.titulo?.toLowerCase().includes("execução");
     if (isExecution) {
-      if (!formState.dataInicioDebito) validationErrors.dataInicioDebito = "O mês inicial do débito é obrigatório.";
-      if (!formState.dataFimDebito) validationErrors.dataFimDebito = "O mês final do débito é obrigatório.";
+      if (!formState.data_inicio_debito) validationErrors.data_inicio_debito = "O mês inicial do débito é obrigatório.";
+      if (!formState.data_fim_debito) validationErrors.data_fim_debito = "O mês final do débito é obrigatório.";
     }
   }
 
-  // 1. WhatsApp Removido (Solicitado pelo usuário)
-
-  // Validação Data de Nascimento (Não pode ser futura)
-  const dataIso = parseBrDateToIso(formState.dataNascimentoAssistido);
-  if (!formState.dataNascimentoAssistido) {
-    validationErrors.dataNascimentoAssistido = "A data de nascimento é obrigatória.";
+  // Validação Data de Nascimento Principal (Incapaz ou Adulto)
+  const campoDataNasc = formState.assistidoEhIncapaz === "sim" ? "nascimento" : "representante_data_nascimento";
+  const dataIso = parseBrDateToIso(formState[campoDataNasc]);
+  if (!formState[campoDataNasc]) {
+    validationErrors[campoDataNasc] = "A data de nascimento é obrigatória.";
   } else if (!dataIso) {
-    validationErrors.dataNascimentoAssistido = "Informe uma data válida (DD/MM/AAAA).";
+    validationErrors[campoDataNasc] = "Informe uma data válida (DD/MM/AAAA).";
   } else if (dataIso > today) {
-    validationErrors.dataNascimentoAssistido = "A data de nascimento não pode ser futura.";
+    validationErrors[campoDataNasc] = "A data de nascimento não pode ser futura.";
   }
 
   // Validação CPF Matemático
-  if (formState.cpf && !validateCpfAlgorithm(formState.cpf)) {
-    validationErrors.cpf = "CPF inválido.";
-  }
-  if (
-    formState.assistidoEhIncapaz === "sim" &&
-    formState.representanteCpf &&
-    !validateCpfAlgorithm(formState.representanteCpf)
-  ) {
-    validationErrors.representanteCpf = "CPF inválido.";
+  if (formState.representante_cpf && !validateCpfAlgorithm(formState.representante_cpf)) {
+    validationErrors.representante_cpf = "CPF inválido.";
   }
 
   // Validação CPF Requerido (Se preenchido, deve ser válido)
-  if (formState.cpfRequerido && !validateCpfAlgorithm(formState.cpfRequerido)) {
-    validationErrors.cpfRequerido = "O CPF da outra parte é inválido.";
+  if (formState.executado_cpf && !validateCpfAlgorithm(formState.executado_cpf)) {
+    validationErrors.executado_cpf = "O CPF da outra parte é inválido.";
   }
 
   // Validação CPF Outros Filhos
@@ -123,8 +115,6 @@ export const processSubmission = async ({
   // 3. Validação de Quantidade Mínima de Documentos
   if (!formState.enviarDocumentosDepois) {
     let minDocs = formState.assistidoEhIncapaz === "nao" ? 4 : 7;
-
-    // Aumenta a exigência para cada filho extra (3 documentos por filho: RG F/V + Certidão)
     if (formState.assistidoEhIncapaz === "sim" && formState.outrosFilhos.length > 0) {
       minDocs += formState.outrosFilhos.length * 3;
     }
@@ -138,29 +128,8 @@ export const processSubmission = async ({
   }
 
   if (Object.keys(validationErrors).length > 0) {
-    console.error("[Validation Errors]", validationErrors);
     setFormErrors(validationErrors);
-    toast.error("Existem campos obrigatórios não preenchidos ou inválidos. Verifique o formulário.");
-
-    const firstErrorKey = Object.keys(validationErrors)[0];
-    let targetElement = document.getElementsByName(firstErrorKey)[0];
-
-    if (!targetElement) {
-      if (firstErrorKey === "requeridoContato") {
-        targetElement = document.getElementsByName("enderecoRequerido")[0];
-      } else if (firstErrorKey === "audio") {
-        targetElement = document.getElementById("audio-recording-section");
-      } else if (firstErrorKey === "documentos") {
-        targetElement = document.getElementById("documents-upload-section");
-      }
-    }
-
-    if (targetElement) {
-      targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
-      if (["INPUT", "TEXTAREA", "SELECT"].includes(targetElement.tagName)) {
-        targetElement.focus();
-      }
-    }
+    toast.error("Existem campos obrigatórios não preenchidos ou inválidos.");
     return;
   }
 
@@ -168,53 +137,28 @@ export const processSubmission = async ({
   setLoading(true);
   setGeneratedCredentials(null);
 
-  // Simulando etapas visuais
+  // Simulando etapas visuais (mantido)
   const timers = [
     setTimeout(() => setStatusMessage("Validando dados..."), 1000),
-    setTimeout(
-      () => setStatusMessage("Processando áudio e documentos..."),
-      3000
-    ),
-    setTimeout(
-      () => setStatusMessage("Gerando minuta com Inteligência Artificial..."),
-      6000
-    ),
+    setTimeout(() => setStatusMessage("Processando áudio e documentos..."), 3000),
+    setTimeout(() => setStatusMessage("Gerando minuta com IA..."), 6000),
     setTimeout(() => setStatusMessage("Gerando protocolo..."), 9000),
   ];
 
   const formData = new FormData();
 
+  // Dados Bancários formatados para IA
   let dadosBancariosFormatado = "";
-  switch (formState.tipoContaDeposito) {
-    case "corrente_poupanca":
-      if (
-        formState.bancoDeposito ||
-        formState.agenciaDeposito ||
-        formState.contaDeposito
-      ) {
-        dadosBancariosFormatado = `Tipo: Conta Corrente/Poupança, Banco: ${
-          formState.bancoDeposito || "N/A"
-        }, Agência: ${formState.agenciaDeposito || "N/A"}, Conta: ${
-          formState.contaDeposito || "N/A"
-        }`;
-      }
-      break;
-    case "pix":
-      if (formState.chavePixDeposito) {
-        dadosBancariosFormatado = `Tipo: PIX, Chave: ${formState.chavePixDeposito}`;
-      }
-      break;
-    case "outro":
-      if (formState.outrosDadosDeposito) {
-        dadosBancariosFormatado = `Tipo: Outro, Detalhes: ${formState.outrosDadosDeposito}`;
-      }
-      break;
-    default:
-      // No account type selected
-      break;
+  if (formState.tipo_conta_deposito === "corrente_poupanca") {
+    dadosBancariosFormatado = `Tipo: Corrente/Poupança, Banco: ${formState.banco_deposito}, Agência: ${formState.agencia_deposito}, Conta: ${formState.conta_deposito}`;
+  } else if (formState.tipo_conta_deposito === "pix") {
+    dadosBancariosFormatado = `Tipo: PIX, Chave: ${formState.chave_pix_deposito}`;
+  } else if (formState.tipo_conta_deposito === "outro") {
+    dadosBancariosFormatado = `Tipo: Outro, Detalhes: ${formState.outros_dados_deposito}`;
   }
+
   if (dadosBancariosFormatado) {
-    formData.append("dados_bancarios_deposito", dadosBancariosFormatado);
+    formData.append("dados_bancarios_exequente", dadosBancariosFormatado);
   }
 
   // 1.5 Lógica de Período de Débito (Concatenado)
@@ -230,50 +174,44 @@ export const processSubmission = async ({
     return `${months[monthIndex]}/${year}`;
   };
 
-  if (formState.dataInicioDebito && formState.dataFimDebito) {
-    const inicio = formatMonthYear(formState.dataInicioDebito);
-    const fim = formatMonthYear(formState.dataFimDebito);
-    formData.append("periodo_debito", `${inicio} a ${fim}`);
-  } else if (formState.dataInicioDebito) {
-    formData.append("periodo_debito", `Desde ${formatMonthYear(formState.dataInicioDebito)}`);
+  if (formState.data_inicio_debito && formState.data_fim_debito) {
+    const inicio = formatMonthYear(formState.data_inicio_debito);
+    const fim = formatMonthYear(formState.data_fim_debito);
+    formData.append("periodo_meses_ano", `${inicio} a ${fim}`);
+  } else if (formState.data_inicio_debito) {
+    formData.append("periodo_meses_ano", `Desde ${formatMonthYear(formState.data_inicio_debito)}`);
   }
 
-  // 1. Mapeamento de campos do Estado (camelCase) para o Backend (snake_case)
-  // Isso garante que o Controller do Node.js receba os dados como espera
-  // fieldMapping and digitsOnlyFields are now imported from formConstants.js
-
-  // Ajuste para representação (criança): usa contatos do representante
+  // 1. Preenche o FormData
+  // O estado (formState) já usa as TAGS OFICIAIS, portanto iteramos diretamente.
+  // Não precisamos mais do fieldMapping legado.
+  const fieldsToIgnore = new Set(["outrosFilhos", "documentFiles", "documentNames", "documentosMarcados", "audioBlob", "tipoAcao", "acaoEspecifica"]);
+  
   const valuesToSubmit = { ...formState };
-  if (valuesToSubmit.assistidoEhIncapaz === "sim") {
-    valuesToSubmit.telefone = valuesToSubmit.representanteTelefone;
-    valuesToSubmit.emailAssistido = valuesToSubmit.representanteEmail;
-    valuesToSubmit.enderecoAssistido = valuesToSubmit.representanteEnderecoResidencial;
-    valuesToSubmit.assistidoEstadoCivil = "solteiro(a)";
-  }
-
-  // Preenche o FormData usando o mapeamento
-  Object.keys(fieldMapping).forEach((key) => {
+  
+  Object.keys(valuesToSubmit).forEach((key) => {
+    if (fieldsToIgnore.has(key)) return;
+    
     const rawValue = valuesToSubmit[key];
     if (rawValue === undefined || rawValue === null || rawValue === "") {
       return;
     }
+    
     let normalizedValue = rawValue;
     
-    if (digitsOnlyFields.has(key)) {
+    // Tratamentos de formatação para subsets
+    if (digitsOnlyFields?.has(key)) {
       normalizedValue = stripNonDigits(rawValue);
-    } else if (currencyFields.has(key)) {
+    } else if (currencyFields?.has(key)) {
       normalizedValue = normalizeDecimalForSubmit(rawValue);
-    } else if (dateFields.has(key)) {
-      const iso = parseBrDateToIso(rawValue);
-      if (iso) normalizedValue = iso;
-    } else if (key.toLowerCase().includes("data") || key.toLowerCase().includes("nascimento")) {
-       // Fallback para outros campos de data não listados no set explicitamente
+    } else if (dateFields?.has(key) || key.includes("data_nascimento")) {
       const iso = parseBrDateToIso(rawValue);
       if (iso) normalizedValue = iso;
     }
     
-    if (normalizedValue !== undefined && normalizedValue !== null) {
-      formData.append(fieldMapping[key], normalizedValue);
+    if (normalizedValue !== undefined && normalizedValue !== null && normalizedValue !== "") {
+      // Como o formState já está alinhado com dicionarioTags, passamos o key direto
+      formData.append(key, normalizedValue);
     }
   });
 
@@ -290,7 +228,7 @@ export const processSubmission = async ({
   // Lógica para múltiplos filhos
   if (formState.assistidoEhIncapaz === "sim") {
     // Filho 1 (Principal)
-    let infoFilhos = formState.nome;
+    let infoFilhos = formState.REPRESENTANTE_NOME;
 
     // Filhos Extras
     if (formState.outrosFilhos.length > 0) {
@@ -317,16 +255,16 @@ export const processSubmission = async ({
   // A IA usa 'dados_adicionais_requerente' para criar o resumo, então montamos uma string rica
   const dadosAdicionaisRequerente = [
     `RG: ${
-      formState.assistidoRgNumero
-        ? `${formState.assistidoRgNumero}${
-            formState.assistidoRgOrgao ? ` ${formState.assistidoRgOrgao}` : ""
+      formState.representante_rg
+        ? `${formState.representante_rg}${
+            formState.emissor_rg_exequente ? ` ${formState.emissor_rg_exequente}` : ""
           }`
         : "Não informado"
     },`,
-    `Nacionalidade: ${formState.assistidoNacionalidade || "Não informado"},`,
-    !forcaRepresentacao ? `Estado Civil: ${formState.assistidoEstadoCivil || "Não informado"},` : "",
+    `Nacionalidade: ${formState.representante_nacionalidade || "Não informado"},`,
+    !forcaRepresentacao ? `Estado Civil: ${formState.representante_estado_civil || "Não informado"},` : "",
     `Data Nascimento: ${
-      formatDateToBr(formState.dataNascimentoAssistido) || "Não informado"
+      formatDateToBr(formState.representante_data_nascimento) || "Não informado"
     },`,
   ].filter(Boolean).join(" ");
   formData.append(
@@ -337,11 +275,11 @@ export const processSubmission = async ({
   const detalhesRequerido = [];
   if (
     formState.requeridoOutrosSelecionados?.includes("requeridoRg") &&
-    formState.requeridoRgNumero
+    formState.rg_executado
   ) {
     detalhesRequerido.push(
-      `RG: ${formState.requeridoRgNumero}${
-        formState.requeridoRgOrgao ? ` ${formState.requeridoRgOrgao}` : ""
+      `RG: ${formState.rg_executado}${
+        formState.emissor_rg_executado ? ` ${formState.emissor_rg_executado}` : ""
       }`
     );
   }
@@ -349,39 +287,39 @@ export const processSubmission = async ({
     formState.requeridoOutrosSelecionados?.includes(
       "requeridoDataNascimento"
     ) &&
-    formState.requeridoDataNascimento
+    formState.executado_data_nascimento
   ) {
     detalhesRequerido.push(
       `Data de nascimento: ${formatDateToBr(
-        formState.requeridoDataNascimento
+        formState.executado_data_nascimento
       )}`
     );
   }
   if (
     formState.requeridoOutrosSelecionados?.includes("requeridoNomeMae") &&
-    formState.requeridoNomeMae
+    formState.nome_mae_executado
   ) {
-    detalhesRequerido.push(`Nome da mãe: ${formState.requeridoNomeMae}`);
+    detalhesRequerido.push(`Nome da mãe: ${formState.nome_mae_executado}`);
   }
   if (
     formState.requeridoOutrosSelecionados?.includes("requeridoNomePai") &&
-    formState.requeridoNomePai
+    formState.nome_pai_executado
   ) {
-    detalhesRequerido.push(`Nome do pai: ${formState.requeridoNomePai}`);
+    detalhesRequerido.push(`Nome do pai: ${formState.nome_pai_executado}`);
   }
   if (
     formState.requeridoOutrosSelecionados?.includes(
       "requeridoOutrosDetalhes"
     ) &&
-    formState.requeridoOutrosDetalhes
+    formState.dados_adicionais_requerido
   ) {
     detalhesRequerido.push(
-      `Observações: ${formState.requeridoOutrosDetalhes}`
+      `Observações: ${formState.dados_adicionais_requerido}`
     );
   }
   if (detalhesRequerido.length > 0) {
     formData.append(
-      "dados_adicionais_requerido",
+      "dados_adicionais_requerido_array",
       detalhesRequerido.join(" | ")
     );
   }

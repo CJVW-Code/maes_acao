@@ -9,8 +9,8 @@ export const SecaoProcessoOriginal = ({
   validar = () => ({}),
   formErrors = {},
 }) => {
-  const isCustomDecision = !['', 'Sentença', 'Interlocutória', 'Acordo homologado'].includes(formState.tipoDecisao);
-  const selectedDecision = isCustomDecision && formState.tipoDecisao ? 'Outros' : formState.tipoDecisao;
+  const isCustomDecision = !['', 'Sentença', 'Interlocutória', 'Acordo homologado'].includes(formState.tipo_decisao);
+  const selectedDecision = isCustomDecision && formState.tipo_decisao ? 'Outros' : formState.tipo_decisao;
 
   return (
     <div className="space-y-4 pt-4 border-t border-soft">
@@ -26,8 +26,8 @@ export const SecaoProcessoOriginal = ({
             id="vara"
             type="text"
             placeholder="Ex: 1ª Vara de Família"
-            name="vara"
-            value={formState.vara}
+            name="VARA"
+            value={formState.VARA}
             onChange={handleFieldChange}
             className="input border-primary/50"
             {...validar("Informe a vara para esta petição.")}
@@ -45,8 +45,8 @@ export const SecaoProcessoOriginal = ({
               id="percentualSalarioMinimo"
               type="text"
               placeholder="Ex: 30"
-              name="percentualSalarioMinimo"
-              value={formState.percentualSalarioMinimo}
+              name="percentual_salario_minimo"
+              value={formState.percentual_salario_minimo}
               onChange={handleFieldChange}
               className="input border-primary/50 pr-10"
             />
@@ -55,26 +55,7 @@ export const SecaoProcessoOriginal = ({
             </span>
           </div>
         </div>
-        <div>
-          <label htmlFor="valorMensalFixado" className="label font-bold ">
-            Ou Valor Mensal Fixo (R$)
-          </label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-semibold">
-              R$
-            </span>
-            <input
-              id="valorMensalFixado"
-              type="text"
-              inputMode="numeric"
-              placeholder="0,00"
-              name="valorMensalFixado"
-              value={formState.valorMensalFixado}
-              onChange={handleCurrencyChange("valorMensalFixado")}
-              className="input pl-12 border-primary/50"
-            />
-          </div>
-        </div>
+        {/* Campo "Valor Mensal Fixo" removido conforme solicitação */}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -86,8 +67,8 @@ export const SecaoProcessoOriginal = ({
             id="numeroProcessoOriginario"
             type="text"
             placeholder="Número do Processo Original"
-            name="numeroProcessoOriginario"
-            value={formState.numeroProcessoOriginario}
+            name="processoOrigemNumero"
+            value={formState.processoOrigemNumero}
             onChange={handleFieldChange}
             className="input"
           />
@@ -129,13 +110,11 @@ export const SecaoProcessoOriginal = ({
           </label>
           <select
             id="tipoDecisao"
-            name="tipoDecisao"
-            value={selectedDecision}
+            name="tipo_decisao"
+            value={['', 'Sentença', 'Interlocutória', 'Acordo homologado'].includes(formState.tipo_decisao) ? formState.tipo_decisao : 'Outros'}
             onChange={(e) => {
-              // Quando o usuário seleciona algo
               if (e.target.value === 'Outros') {
-                // Ao escolher outros, limpamos para que ele veja o input
-                handleFieldChange({ target: { name: 'tipoDecisao', value: '' } });
+                handleFieldChange({ target: { name: 'tipo_decisao', value: 'Outra decisão...' } });
               } else {
                 handleFieldChange(e);
               }
@@ -149,13 +128,13 @@ export const SecaoProcessoOriginal = ({
             <option value="Outros">Outros</option>
           </select>
           
-          {selectedDecision === 'Outros' && (
+          {!['', 'Sentença', 'Interlocutória', 'Acordo homologado'].includes(formState.tipo_decisao) && (
              <input
-               id="tipoDecisaoCustom"
+               id="tipo_decisao_custom"
                type="text"
                placeholder="Escreva o tipo da decisão..."
-               name="tipoDecisao"
-               value={formState.tipoDecisao}
+               name="tipo_decisao"
+               value={formState.tipo_decisao === 'Outra decisão...' ? '' : formState.tipo_decisao}
                onChange={handleFieldChange}
                className="input mt-2 border-primary/50 animate-fade-in"
                autoFocus
@@ -168,14 +147,14 @@ export const SecaoProcessoOriginal = ({
             Dia do Pagamento fixado (1-31)
           </label>
           <input
-            id="diaPagamentoFixado"
+            id="dia_pagamento"
             type="number"
             min="1"
             max="31"
             placeholder="Dia (1-31)"
-            name="diaPagamentoFixado"
-            value={formState.diaPagamentoFixado}
-            onChange={handleDayInputChange("diaPagamentoFixado")}
+            name="dia_pagamento"
+            value={formState.dia_pagamento}
+            onChange={handleDayInputChange("dia_pagamento")}
             className="input"
           />
         </div>
@@ -185,19 +164,19 @@ export const SecaoProcessoOriginal = ({
             Início do Débito (Mês/Ano) *
           </label>
           <input
-            id="dataInicioDebito"
+            id="data_inicio_debito"
             type="text"
             inputMode="numeric"
             placeholder="MM/AAAA"
-            name="dataInicioDebito"
-            value={formState.dataInicioDebito || ""}
-            onChange={handleMonthYearChange("dataInicioDebito")}
+            name="data_inicio_debito"
+            value={formState.data_inicio_debito || ""}
+            onChange={handleMonthYearChange("data_inicio_debito")}
             className="input"
             {...validar("Informe o mês e ano inicial do débito (MM/AAAA).")}
           />
-          {formErrors.dataInicioDebito && (
+          {formErrors.data_inicio_debito && (
             <p className="text-xs text-error font-medium mt-1">
-              {formErrors.dataInicioDebito}
+              {formErrors.data_inicio_debito}
             </p>
           )}
         </div>
@@ -206,19 +185,19 @@ export const SecaoProcessoOriginal = ({
             Fim do Débito (Mês/Ano) *
           </label>
           <input
-            id="dataFimDebito"
+            id="data_fim_debito"
             type="text"
             inputMode="numeric"
             placeholder="MM/AAAA"
-            name="dataFimDebito"
-            value={formState.dataFimDebito || ""}
-            onChange={handleMonthYearChange("dataFimDebito")}
+            name="data_fim_debito"
+            value={formState.data_fim_debito || ""}
+            onChange={handleMonthYearChange("data_fim_debito")}
             className="input"
             {...validar("Informe o mês e ano final do débito (MM/AAAA).")}
           />
-          {formErrors.dataFimDebito && (
+          {formErrors.data_fim_debito && (
             <p className="text-xs text-error font-medium mt-1">
-              {formErrors.dataFimDebito}
+              {formErrors.data_fim_debito}
             </p>
           )}
         </div>
@@ -231,13 +210,13 @@ export const SecaoProcessoOriginal = ({
               R$
             </span>
             <input
-              id="valorTotalDebitoExecucao"
+              id="valor_debito"
               type="text"
               inputMode="numeric"
               placeholder="0,00"
-              name="valorTotalDebitoExecucao"
-              value={formState.valorTotalDebitoExecucao}
-              onChange={handleCurrencyChange("valorTotalDebitoExecucao")}
+              name="valor_debito"
+              value={formState.valor_debito}
+              onChange={handleCurrencyChange("valor_debito")}
               className="input pl-12"
             />
           </div>

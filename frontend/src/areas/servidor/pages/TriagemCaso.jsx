@@ -112,7 +112,7 @@ export const FormularioSubmissao = () => {
               {isRepresentacao ? "CPF do Responsável (Identificação)" : "CPF (Identificação)"}
             </p>
             <p className="text-xl font-mono text-primary-600">
-              {isRepresentacao ? formState.representanteCpf : formState.cpf}
+              {isRepresentacao ? formState.representante_cpf : formState.representante_cpf}
             </p>
           </div>
           <div className="pt-2 border-t border-soft/50">
@@ -146,19 +146,20 @@ export const FormularioSubmissao = () => {
             <button
               onClick={() => {
                 const repFields = [
-                  "representanteNome",
-                  "representanteCpf",
-                  "representanteTelefone",
-                  "representanteEmail",
-                  "representanteEnderecoResidencial",
-                  "representanteEstadoCivil",
-                  "representanteNacionalidade",
-                  "representanteOcupacao",
-                  "representanteRgNumero",
-                  "representanteRgOrgao",
-                  "representanteDataNascimento",
-                  "representanteNomeMae",
-                  "representanteNomePai",
+                  "REPRESENTANTE_NOME",
+                  "representante_cpf",
+                  "requerente_telefone",
+                  "requerente_email",
+                  "requerente_endereco_residencial",
+                  "representante_estado_civil",
+                  "representante_nacionalidade",
+                  "representante_ocupacao",
+                  "representante_rg",
+                  "emissor_rg_exequente",
+                  "representante_data_nascimento",
+                  "nome_mae_representante",
+                  "nome_pai_representante",
+                  "representante_endereco_profissional"
                 ];
 
                 // Preparamos o objeto com os dados que queremos MANTER

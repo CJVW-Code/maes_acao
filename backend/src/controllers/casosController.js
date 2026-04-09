@@ -62,6 +62,10 @@ const mapCasoRelations = (caso) => {
     
     // Alias para attachSignedUrls
     enriched.casos_ia = ia;
+    // Mapeia dados_extraidos para dados_formulario para facilitar o front
+    enriched.dados_formulario = ia.dados_extraidos || {};
+  } else {
+    enriched.dados_formulario = {};
   }
   
   if (partes) {
@@ -74,6 +78,13 @@ const mapCasoRelations = (caso) => {
     enriched.numero_processo_originario = juridico.numero_processo_titulo;
     enriched.percentual_salario_minimo = juridico.percentual_salario;
     enriched.dia_pagamento_fixado = juridico.vencimento_dia;
+  }
+
+  // Populate urls_documentos for attachSignedUrls
+  if (caso.documentos && Array.isArray(caso.documentos)) {
+    enriched.urls_documentos = caso.documentos.map(doc => doc.storage_path);
+  } else if (!enriched.urls_documentos) {
+    enriched.urls_documentos = [];
   }
 
   return enriched;
@@ -626,265 +637,37 @@ const processarDadosFilhosParaPeticao = (baseData = {}, normalizedData = {}) => 
 };
 
 const buildDocxTemplatePayload = (
-  normalizedData,
+  normalizedData, // No longer using mapping, but keep parameter for backwards compatibility
   dosFatosTexto,
   baseData = {},
   acaoKey = "",
 ) => {
-  const normalizeGenderTerm = (val) => {
-    if (!val || typeof val !== "string") return val;
-    const lower = val.toLowerCase().trim();
-    if (lower.includes("brasileir")) return "brasileiro(a)";
-    if (lower.includes("solteir")) return "solteiro(a)";
-    if (lower.includes("casad")) return "casado(a)";
-    if (lower.includes("divorciad")) return "divorciado(a)";
-    if (lower.includes("viúv") || lower.includes("viuv")) return "viúvo(a)";
-    if (lower.includes("união estável") || lower.includes("uniao estavel"))
-      return "união estável";
-    return val;
-  };
+  // A lógica do '#lista_filhos' ainda precisa processar idades e formatação de datas
+  const { lista_filhos, rotulo_qualificacao, termo_representacao } = processarDadosFilhosParaPeticao(baseData, normalizedData);
 
-  const {
-    lista_filhos,
-    rotulo_qualificacao,
-    termo_representacao,
-    assistidoNome,
-    assistidoCpf,
-    dataNascimentoAssistidoBr,
-  } = processarDadosFilhosParaPeticao(baseData, normalizedData);
-
-  const requerente = normalizedData.requerente || {};
-  const requerido = normalizedData.requerido || {};
-  const varaForm = baseData.vara || normalizedData.vara || baseData.vara_competente || baseData.vara_originaria;
-  const varaPreferida = ensureText(varaForm);
-
-  const cidadeAssinatura =
-    baseData.cidade_assinatura || normalizedData.cidadeDataAssinatura;
-  const valorCausaNumero = calcularValorCausa(
-    baseData.valor_mensal_pensao || baseData.valor_pensao || 0,
-  );
-  const valorCausaCalculado = formatCurrencyBr(valorCausaNumero);
-  const valorCausaExtenso = numeroParaExtenso(valorCausaNumero);
-
-  const debitoCalculado = parseCurrencyToNumber(baseData.valor_total_debito_execucao || baseData.valor_debito || "0");
-  const debitoCalculadoExtenso = debitoCalculado > 0 ? numeroParaExtenso(debitoCalculado) : "";
-  const percentualDefinitivoBase =
-    baseData.percentual_salario_minimo ||
-    baseData.percentual_definitivo_salario_min ||
-    baseData.percentual_ou_valor_fixado ||
-    "";
-  const percentualExtras = baseData.percentual_definitivo_extras || "0";
-  // Extrair apenas o dia do mês do campo de pagamento
-  const extractDay = (dateStr) => {
-    if (!dateStr) return "";
-    // Se vier como DD/MM/YYYY (formatDateBr), pega o DD
-    const brMatch = dateStr.match(/^(\d{1,2})\//);
-    if (brMatch) return String(parseInt(brMatch[1], 10));
-    // Se vier como YYYY-MM-DD (ISO), pega o DD
-    const isoMatch = dateStr.match(/-(\d{2})$/);
-    if (isoMatch) return String(parseInt(isoMatch[1], 10));
-    // Se for só um número, retorna direto
-    if (/^\d{1,2}$/.test(dateStr.trim())) return dateStr.trim();
-    return dateStr;
-  };
-  const diaPagamentoBase = extractDay(baseData.dia_pagamento_fixado) || extractDay(baseData.dia_pagamento_requerido);
-  const dadosBancarios = baseData.dados_bancarios_deposito;
-  const executadoEndereco = baseData.endereco_requerido || requerido.endereco || "";
-
-  const mesesExtenso = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
   const hoje = new Date();
+  const mesesExtenso = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
   const dataAtualTexto = `${hoje.getDate()} de ${mesesExtenso[hoje.getMonth()]} de ${hoje.getFullYear()}`;
 
-  let varaFormatada = ensureText(varaPreferida);
-  if ((baseData.acaoEspecifica && baseData.acaoEspecifica.includes("execucao")) || 
-      (normalizedData.tipoAcao && normalizedData.tipoAcao.includes("execucao")) ||
-      (acaoKey && acaoKey.includes("execucao"))) {
-    const numMatch = varaFormatada.match(/\d+/);
-    if (numMatch) {
-      varaFormatada = `${numMatch[0]}ª`;
-    }
-  }
+  const debitoCalculado = parseCurrencyToNumber(baseData.valor_debito || "0");
+  const debitoCalculadoExtenso = debitoCalculado > 0 ? numeroParaExtenso(debitoCalculado) : "";
 
+  // Assumimos que baseData (req.body.dados_formulario) já contém todas as tags oficiais espelhadas
+  // como REPRESENTANTE_NOME, percentual_salario_minimo, executado_cpf, etc.
   const payload = {
-    ...baseData,
+    ...baseData, // 1:1 Injeção Direta
     lista_filhos,
     rotulo_qualificacao,
     termo_representacao,
 
-    vara: varaFormatada,
-    cidadeOriginaria: ensureText(baseData.cidade_originaria),
-    comarca: ensureText(normalizedData.comarca),
-    triagemNumero: ensureText(normalizedData.triagemNumero),
-    processoOrigemNumero: ensureText(baseData.numero_processo_originario),
-    processoTituloNumero: ensureText(baseData.processo_titulo_numero),
-    requerente_nome: ensureText(assistidoNome).toUpperCase(),
-    requerente_incapaz_sim_nao: ensureText(
-      baseData.assistido_eh_incapaz || "nao",
-    ),
-    requerente_dataNascimento: ensureText(dataNascimentoAssistidoBr),
-    requerente_data_nascimento: ensureText(dataNascimentoAssistidoBr),
-    requerente_cpf: ensureText(assistidoCpf),
-    requerente_rg: ensureText(
-      baseData.assistido_rg_numero
-        ? `${baseData.assistido_rg_numero} ${baseData.assistido_rg_orgao}`
-        : "",
-    ),
-    requerente_nacionalidade: ensureText(
-      normalizeGenderTerm(baseData.assistido_nacionalidade || "brasileiro(a)"),
-    ),
-    requerente_estado_civil: ensureText(
-      normalizeGenderTerm(baseData.assistido_estado_civil),
-    ),
-    requerente_ocupacao: ensureText(baseData.assistido_ocupacao),
-    requerente_email: ensureText(baseData.email_assistido),
-    requerente_telefone: ensureText(baseData.telefone_assistido),
-    requerente_endereco_residencial: ensureText(
-      baseData.endereco_assistido ||
-        baseData.representante_endereco_residencial,
-    ),
-    requerente_representante: ensureText(requerente.representante),
-    representante_nome: ensureText(baseData.representante_nome).toUpperCase(),
-    representante_nacionalidade: ensureInlineValue(
-      normalizeGenderTerm(baseData.representante_nacionalidade),
-    ),
-    representante_estado_civil: ensureInlineValue(
-      normalizeGenderTerm(baseData.representante_estado_civil),
-    ),
-    representante_ocupacao: ensureText(baseData.representante_ocupacao),
-    representante_cpf: ensureText(baseData.representante_cpf),
-    representante_rg: ensureText(
-      baseData.representante_rg_numero
-        ? `${baseData.representante_rg_numero} ${baseData.representante_rg_orgao}`
-        : "",
-    ),
-    representante_endereco_residencial: ensureText(
-      baseData.representante_endereco_residencial,
-    ),
-    representante_endereco_profissional: ensureText(
-      baseData.representante_endereco_profissional,
-    ),
-    representante_email: ensureText(baseData.representante_email),
-    representante_telefone: ensureText(baseData.representante_telefone),
-    exequente_nome: ensureText(assistidoNome),
-    exequente_incapaz_sim_nao: ensureText(
-      baseData.assistido_eh_incapaz || "nao",
-    ),
-    exequente_data_nascimento: ensureText(dataNascimentoAssistidoBr),
-    exequente_cpf: ensureText(assistidoCpf),
-    exequente_representante: ensureText(requerente.representante),
-    executado_nome: ensureText(
-      baseData.nome_requerido || requerido.nome || baseData.requerente_nome,
-    ).toUpperCase(),
-    requerido_nome: ensureText(
-      baseData.nome_requerido || requerido.nome,
-    ).toUpperCase(),
-    requerido_cpf: ensureText(baseData.cpf_requerido || requerido.cpf),
-    executado_nacionalidade: ensureText(
-      normalizeGenderTerm(baseData.requerido_nacionalidade),
-    ),
-    executado_estado_civil: ensureText(
-      normalizeGenderTerm(baseData.requerido_estado_civil),
-    ),
-    executado_ocupacao: ensureText(baseData.requerido_ocupacao),
-    executado_endereco_residencial: ensureText(executadoEndereco),
-    requerido_endereco_residencial: ensureText(executadoEndereco),
-    executado_endereco_profissional: ensureText(
-      baseData.requerido_endereco_profissional,
-    ),
-    executado_email: ensureText(baseData.email_requerido || baseData.requerido_email),
-    executado_telefone: ensureText(baseData.telefone_requerido || baseData.requerido_telefone),
-    valor_pensao: ensureText(baseData.valor_pensao),
-    valor_pensao_solicitado: ensureText(
-      baseData.valor_pensao_solicitado || baseData.valor_pensao,
-    ),
-    valor_salario_minimo: ensureText(
-      baseData.valor_salario_minimo || baseData.salario_minimo_formatado,
-    ),
-    percentual_definitivo_salario_min: ensureText(percentualDefinitivoBase),
-    percentual_definitivo_extras: ensureText(
-      baseData.percentual_definitivo_extras,
-    ),
-    dia_pagamento: ensureText(diaPagamentoBase),
-    periodo_meses_ano: ensureText(baseData.periodo_debito_execucao),
-    valor_total_execucao: ensureText(baseData.valor_total_debito_execucao),
-    valor_total_extenso: ensureText(baseData.valor_total_extenso),
-    valor_debito: ensureText(baseData.valor_total_debito_execucao),
-    valor_debito_extenso: ensureText(baseData.valor_debito_extenso),
-    dados_bancarios_exequente: ensureText(dadosBancarios),
-    dados_bancarios_requerente: ensureText(dadosBancarios),
-    empregador_nome: ensureText(baseData.empregador_requerido_nome),
-    empregador_endereco_profissional: ensureText(
-      baseData.empregador_requerido_endereco,
-    ),
-    empregador_email: ensureText(baseData.empregador_email),
-    cidadeDataAssinatura: ensureText(cidadeAssinatura),
-    cidade_data_assinatura: ensureText(cidadeAssinatura),
-    CIDADEASSINATURA: ensureText(cidadeAssinatura).toUpperCase(),
-    cidadeAssinatura: ensureText(cidadeAssinatura),
-    defensoraNome: ensureText(normalizedData.defensoraNome),
-    valor_causa: ensureText(valorCausaCalculado),
-    valor_causa_extenso: ensureText(valorCausaExtenso),
-    // Etiquetas compatíveis com o modelo do usuário (Maiúsculas e com espaços)
-    VARA: varaFormatada,
-    vara: varaFormatada,
-    CIDADE: ensureText(normalizedData.comarca ? normalizedData.comarca.split("/")[0] : ""),
-    cidade: ensureText(normalizedData.comarca ? normalizedData.comarca.split("/")[0] : ""),
-    REPRESENTANTE_NOME: ensureText(baseData.representante_nome || baseData.representanteNome).toUpperCase(),
-    NOME_REPRESENTACAO: ensureText(baseData.representante_nome || baseData.representanteNome).toUpperCase(),
-    REQUERIDO_NOME: ensureText(baseData.nome_requerido || requerido.nome || baseData.requerente_nome).toUpperCase(),
-    cpf_executado: ensureText(baseData.cpf_requerido || requerido.cpf),
-    data_atual: dataAtualTexto,
-    // ALERTA: executado_cpf volta a ser o CPF real. O template de Penhora precisará trocar RG: {executado_cpf} para RG: {rg_executado}.
-    executado_cpf: ensureText(baseData.cpf_requerido || requerido.cpf),
-    // Campos da Execução
-    tipo_decisao: ensureText(baseData.tipo_decisao || baseData.tipoDecisao),
-    processoOrigemNumero: ensureText(baseData.numero_processo_originario || baseData.processoOrigemNumero),
-    percentual_salario_minimo: ensureText(baseData.percentual_salario_minimo || baseData.percentual_definitivo_salario_min || percentualDefinitivoBase),
-    dia_pagamento: ensureText(diaPagamentoBase),
-    periodo_meses_ano: ensureText(baseData.periodo_debito || baseData.periodo_debito_execucao),
-    period_meses_ano: ensureText(baseData.periodo_debito || baseData.periodo_debito_execucao), // Alias Prisão
-    valor_debito: ensureText(baseData.valor_total_debito_execucao || baseData.valor_debito),
-    valor_debito_extenso: ensureText(baseData.valor_total_extenso || baseData.valor_debito_extenso || debitoCalculadoExtenso),
-    dados_adicionais_requerente: ensureText(
-      sanitizeInlineText(baseData.dados_adicionais_requerente),
-    ),
-    percentual_despesas_extras: ensureText(
-      baseData.percentual_despesas_extras ||
-        baseData.percentual_definitivo_extras ||
-        percentualExtras,
-    ),
-    nome_mae_representante: ensureText(baseData.representante_nome_mae || baseData.representanteNomeMae),
-    nome_pai_representante: ensureText(baseData.representante_nome_pai || baseData.representanteNomePai),
-    nome_mae_executado: ensureText(baseData.requerido_nome_mae || baseData.requeridoNomeMae),
-    nome_pai_executado: ensureText(baseData.requerido_nome_pai || baseData.requeridoNomePai),
-    rg_executado: ensureText(baseData.requerido_rg_numero || baseData.requeridoRgNumero),
-    emissor_rg_executado: ensureText(baseData.requerido_rg_orgao || baseData.requeridoRgOrgao),
-    rg_exequente: ensureText(baseData.representante_rg_numero || baseData.representanteRgNumero || baseData.rgExequente),
-    representante_rg: ensureText(baseData.representante_rg_numero || baseData.representanteRgNumero || baseData.rgExequente),
-    emissor_rg_exequente: ensureText(baseData.representante_rg_orgao || baseData.representanteRgOrgao),
-    representante_cpf: ensureText(baseData.representante_cpf || baseData.representanteCpf || baseData.cpfExequente),
-    cpf_exequente: ensureText(baseData.representante_cpf || baseData.representanteCpf || baseData.cpfExequente),
-    // Novos campos de memória de cálculo e vara originária
-    valor_multa: ensureText(baseData.valor_multa),
-    valor_juros: ensureText(baseData.valor_juros),
-    valor_honorarios: ensureText(baseData.valor_honorarios),
-    vara_originaria: ensureText(baseData.vara_originaria),
-    varaOriginaria: ensureText(baseData.vara_originaria || baseData.varaOriginaria),
-    processo_titulo_numero: ensureText(baseData.processo_titulo_numero),
-    valor_mensal_fixado: ensureText(baseData.valor_mensal_fixado),
-
-    dos_fatos:
-      ensureText(dosFatosTexto, "[DESCREVER OS FATOS]") ||
-      "[DESCREVER OS FATOS]",
-    data_atual: dataAtualTexto,
-    DATA_ATUAL: dataAtualTexto,
-    DIA_ATUAL: String(hoje.getDate()),
-    MES_ATUAL: mesesExtenso[hoje.getMonth()],
-    ANO_ATUAL: String(hoje.getFullYear()),
+    // Variáveis que o backend DEVE calcular pois dependem de processamento na hora
+    data_atual: baseData.data_atual || dataAtualTexto,
+    valor_debito_extenso: baseData.valor_debito_extenso || debitoCalculadoExtenso,
+    
+    // Injetando IA extraída ou default
+    dos_fatos: ensureText(dosFatosTexto, "[DESCREVER OS FATOS]") || "[DESCREVER OS FATOS]"
   };
-  payload.REQUERENTE_NOME = payload.requerente_nome;
-  payload.REPRESENTANTE_NOME = payload.representante_nome;
-  payload.REQUERIDO_NOME = payload.requerido_nome;
+
   return payload;
 };
 
@@ -1381,16 +1164,18 @@ export const criarNovoCaso = async (req, res) => {
     const avisos = [];
     // Desestruturação segura (mantida do seu código)
     const {
-      nome,
-      cpf,
-      telefone,
-      cpf_requerido,
-      outros_filhos_detalhes,
       tipoAcao,
       relato,
       documentos_informados,
       documentos_nomes,
     } = dados_formulario;
+
+    // Extração mapeada forçadamente para o dicionário padrão (Sem Aliases)
+    const nome = dados_formulario.REPRESENTANTE_NOME || "";
+    const cpf = dados_formulario.representante_cpf || "";
+    const telefone = dados_formulario.requerente_telefone || "";
+    const cpf_requerido = dados_formulario.executado_cpf || "";
+    const detalhes_filhos = dados_formulario.lista_filhos || "";
 
     const documentosInformadosArray = safeJsonParse(documentos_informados, []);
 
@@ -1402,12 +1187,12 @@ export const criarNovoCaso = async (req, res) => {
     if (cpf_requerido && !validarCPF(cpf_requerido)) {
       avisos.push("Alerta: O CPF informado para a parte contrária (Requerido) parece inválido.");
     }
-    // Validação de filhos
-    if (outros_filhos_detalhes) {
-      const filhos = safeJsonParse(outros_filhos_detalhes, []);
+    // Validação de filhos (lista_filhos)
+    if (detalhes_filhos) {
+      const filhos = safeJsonParse(detalhes_filhos, []);
       if (Array.isArray(filhos)) {
         filhos.forEach((f, i) => {
-          if (f.cpf && !validarCPF(f.cpf)) avisos.push(`Alerta: O CPF do filho(a) ${f.nome || i+1} parece inválido.`);
+          if (f.cpf && !validarCPF(f.cpf)) avisos.push(`Alerta: O CPF do filho(a) ${f.NOME || i+1} parece inválido.`);
         });
       }
     }
@@ -1568,11 +1353,11 @@ export const criarNovoCaso = async (req, res) => {
             nome_assistido: nome,
             cpf_assistido: cpf,
             telefone_assistido: telefone,
-            email_assistido: dados_formulario.email_assistido,
-            endereco_assistido: dados_formulario.endereco_assistido,
-            nome_requerido: dados_formulario.nome_requerido,
-            cpf_requerido: dados_formulario.cpf_requerido,
-            // exequentes: outros_filhos_detalhes ? safeJsonParse(outros_filhos_detalhes, []) : []
+            email_assistido: dados_formulario.requerente_email,
+            endereco_assistido: dados_formulario.requerente_endereco_residencial,
+            nome_requerido: dados_formulario.REQUERIDO_NOME,
+            cpf_requerido: cpf_requerido,
+            // exequentes: detalhes_filhos ? safeJsonParse(detalhes_filhos, []) : []
           }
         },
         ia: {
@@ -1715,12 +1500,25 @@ export const listarCasos = async (req, res) => {
     }
 
     if (cpf) {
+      const cpfLimpo = cpf.replace(/\D/g, "");
       where.OR = [
-        { cpf_assistido: cpf },
+        { protocolo: cpf },
+        { partes: { cpf_assistido: cpf } },
+        { partes: { cpf_assistido: cpfLimpo } },
         {
-          dados_formulario: {
-            path: ['representante_cpf'],
-            equals: cpf
+          ia: {
+            dados_extraidos: {
+              path: ['representante_cpf'],
+              equals: cpf
+            }
+          }
+        },
+        {
+          ia: {
+            dados_extraidos: {
+              path: ['representante_cpf'],
+              equals: cpfLimpo
+            }
           }
         }
       ];
@@ -1729,7 +1527,11 @@ export const listarCasos = async (req, res) => {
     const queryOptions = {
       where,
       orderBy: { created_at: 'desc' },
-      include: { partes: true }
+      include: { 
+        partes: true,
+        ia: true,
+        documentos: true
+      }
     };
 
     if (limite) {
@@ -1753,8 +1555,9 @@ export const listarCasos = async (req, res) => {
       }
       
       // Adiciona o nome do representante no topo para facilitar a listagem no front
-      caso.nome_representante = caso.dados_formulario?.representanteNome || 
-                               caso.dados_formulario?.representante_nome || null;
+      caso.nome_representante = caso.dados_formulario?.REPRESENTANTE_NOME || 
+                               caso.dados_formulario?.representante_nome || 
+                               caso.dados_formulario?.representanteNome || null;
 
       return caso;
     });
@@ -1888,6 +1691,7 @@ export const obterDetalhesCaso = async (req, res) => {
           partes: true,
           ia: true,
           juridico: true,
+          documentos: true,
         },
       });
 
@@ -2327,45 +2131,70 @@ export const buscarPorCpf = async (req, res) => {
   if (!cpf) return res.status(400).json({ error: "CPF não fornecido." });
 
   try {
-    let data;
-    if (isSupabaseConfigured) {
-      const { data: result, error } = await supabase
-        .from("casos")
-        .select("*")
-        .eq("cpf_assistido", cpf);
-      if (error) throw error;
-      data = result;
-    } else {
-      // Fallback Prisma: Busca onde CPF é assistido ou representante (via partes ou JSON)
-      data = await prisma.casos.findMany({
-        where: {
-          OR: [
-            { partes: { cpf_assistido: cpf } },
-            {
-              dados_formulario: {
-                path: ["representanteCpf"],
-                equals: cpf,
-              },
-            },
-            {
-              dados_formulario: {
+    const cpfLimpo = cpf.replace(/\D/g, "");
+
+    // Usamos Prisma diretamente para poder buscar em JSONs e relações profundamente
+    let data = await prisma.casos.findMany({
+      where: {
+        OR: [
+          { protocolo: cpf },
+          { partes: { cpf_assistido: cpf } },
+          { partes: { cpf_assistido: cpfLimpo } },
+          { partes: { cpf_requerido: cpf } },
+          { partes: { cpf_requerido: cpfLimpo } },
+          {
+            ia: {
+              dados_extraidos: {
                 path: ["representante_cpf"],
                 equals: cpf,
               },
             },
-          ],
-        },
-        include: { partes: true },
-        orderBy: { created_at: "desc" },
-      });
-    }
+          },
+          {
+            ia: {
+              dados_extraidos: {
+                path: ["representante_cpf"],
+                equals: cpfLimpo,
+              },
+            },
+          },
+          {
+            ia: {
+              dados_extraidos: {
+                path: ["cpf"],
+                equals: cpf,
+              },
+            },
+          },
+          {
+            ia: {
+              dados_extraidos: {
+                path: ["cpf"],
+                equals: cpfLimpo,
+              },
+            },
+          }
+        ],
+      },
+      include: {
+        partes: true,
+        ia: true,
+        juridico: true,
+        documentos: true
+      },
+      orderBy: { created_at: "desc" },
+    });
 
-    // Hidrata e garante compatibilidade
+    // Hidrata e garante compatibilidade para mapCasoRelations processar as relations prontas
     const normalizedData = (data || []).map((casoRaw) => {
+      // Como o include já traz partes, ia, etc, a mapCasoRelations lida com eles
       const caso = mapCasoRelations(casoRaw);
+      
       if (!caso.dados_formulario || typeof caso.dados_formulario !== "object") {
-        caso.dados_formulario = {};
+         // Tenta remapear de ia.dados_extraidos se existir
+         caso.dados_formulario = caso.casos_ia?.dados_extraidos || caso.ia?.dados_extraidos || {};
       }
+      
       if (!caso.dados_formulario.document_names)
         caso.dados_formulario.document_names = {};
       if (!caso.dados_formulario.documentNames) {

@@ -3,33 +3,34 @@ import { Eye } from "lucide-react";
 
 const formatValue = (value) => {
   if (value === null || value === undefined || value === "") {
-    return "Nao informado";
+    return "Não informado";
   }
   if (typeof value === "boolean") {
-    return value ? "Sim" : "Nao";
+    return value ? "Sim" : "Não";
   }
   if (Array.isArray(value)) {
-    if (value.length === 0) return "Nao informado";
+    if (value.length === 0) return "Não informado";
     return value.join(", ");
   }
   if (typeof value === "object") {
     const entries = Object.entries(value);
-    if (entries.length === 0) return "Nao informado";
+    if (entries.length === 0) return "Não informado";
     return entries
       .map(([k, v]) => `${k.replace(/_/g, " ")}: ${formatValue(v)}`)
-      .join(" � ");
+      .join(" | ");
   }
   return String(value);
 };
 
 const formatDateDisplay = (dateString) => {
-  if (!dateString) return "Nao informado";
+  if (!dateString) return "Não informado";
   if (dateString.includes("/")) return dateString;
   const [year, month, day] = dateString.split("-");
   if (!year || !month || !day) return dateString;
   return `${day}/${month}/${year}`;
 };
 
+// Busca o primeiro valor não vazio dentre os argumentos
 const pickFirst = (...values) => values.find((v) => v !== undefined && v !== null && String(v).trim() !== "");
 
 export const InfoAssistido = ({ caso }) => {
@@ -43,7 +44,7 @@ export const InfoAssistido = ({ caso }) => {
   );
 
   const dados = caso.dados_formulario || {};
-  const isRepresentacao = dados.assistido_eh_incapaz === "sim";
+  const isRepresentacao = dados.assistidoEhIncapaz === "sim";
   const isExecucao =
     (caso.tipo_acao || "").toLowerCase().includes("execu") ||
     (dados.acaoEspecifica || "").toLowerCase().includes("execucao");
@@ -60,16 +61,30 @@ export const InfoAssistido = ({ caso }) => {
     console.error("Erro ao processar dados de outros filhos:", e);
   }
 
+  // Campos do assistido principal usando as novas tags
+  // Se for representação, o assistido é a criança (NOME). Se não, é o adulto (REPRESENTANTE_NOME).
+  const nomePrincipal = isRepresentacao 
+    ? pickFirst(dados.NOME, caso.nome_assistido)
+    : pickFirst(dados.REPRESENTANTE_NOME, caso.nome_assistido);
+    
+  const cpfPrincipal = pickFirst(dados.representante_cpf, caso.cpf_assistido);
+  const telefonePrincipal = pickFirst(dados.requerente_telefone, caso.telefone_assistido);
+
   return (
     <div className="card space-y-4">
-      <h2 className="heading-2">Dados do assistido</h2>
+      <div className="flex justify-between items-start">
+        <h2 className="heading-2">Dados do assistido</h2>
+        <div className="px-2 py-1 rounded bg-surface border border-soft text-[10px] font-bold uppercase tracking-wider text-muted">
+          {isRepresentacao ? "Caso de Representação" : "Ação Direta"}
+        </div>
+      </div>
       <div className="grid gap-4 md:grid-cols-2">
-        {renderDataField("Nome completo", caso.nome_assistido)}
-        {renderDataField("CPF", caso.cpf_assistido)}
-        {renderDataField("Nome representante legal", dados.representante_nome)}
-        {renderDataField("CPF representante legal", dados.representante_cpf)}
-        {renderDataField("Telefone principal", caso.telefone_assistido || dados.telefone)}
-        {renderDataField("Tipo de acao", caso.tipo_acao?.replace("_", " "))}
+        {renderDataField("Nome completo", nomePrincipal)}
+        {renderDataField("CPF", cpfPrincipal)}
+        {isRepresentacao && renderDataField("Genitora/Representante", dados.REPRESENTANTE_NOME)}
+        {renderDataField("Telefone principal", telefonePrincipal)}
+        {renderDataField("Tipo de ação", caso.tipo_acao?.replace(/_/g, " "))}
+        {renderDataField("Protocolo", caso.protocolo)}
       </div>
 
       <div className="pt-4">
@@ -83,104 +98,120 @@ export const InfoAssistido = ({ caso }) => {
 
         {showReview && (
           <div className="mt-4 space-y-6 border-t border-soft pt-6 animate-fade-in">
+            {/* === DADOS DO ASSISTIDO (criança) OU DO AUTOR ADULTO === */}
             <div className="space-y-4">
               <h3 className="heading-3 text-primary">
                 {isRepresentacao
-                  ? "Dados do Assistido (Crianca/Adolescente)"
-                  : "Dados do Autor da Acao"}
+                  ? "Dados do Assistido (Criança/Adolescente)"
+                  : "Dados do Autor da Ação"}
               </h3>
               <div className="grid gap-4 md:grid-cols-2">
-                {renderDataField("Nome completo", pickFirst(dados.nome, caso.nome_assistido))}
-                {renderDataField("CPF", pickFirst(dados.cpf, caso.cpf_assistido))}
-                {renderDataField("Data de nascimento", formatDateDisplay(pickFirst(dados.data_nascimento_assistido, dados.assistido_data_nascimento)))}
-                {renderDataField("Nacionalidade", dados.assistido_nacionalidade)}
-                {renderDataField("Estado civil", dados.assistido_estado_civil)}
-                {renderDataField("Profissao", dados.assistido_ocupacao)}
-                {renderDataField("Endereco residencial", dados.endereco_assistido)}
-                {renderDataField("Endereco profissional", dados.assistido_endereco_profissional)}
-                {renderDataField("Email", dados.email_assistido)}
-                {renderDataField("Telefone", dados.telefone)}
-                {renderDataField("RG", `${dados.assistido_rg_numero || ""} ${dados.assistido_rg_orgao || ""}`.trim())}
+                {renderDataField("Nome completo", isRepresentacao ? dados.NOME : dados.REPRESENTANTE_NOME)}
+                {renderDataField("CPF", isRepresentacao ? (dados.cpf_assistido || "Não informado") : dados.representante_cpf)}
+                {renderDataField("Data de nascimento", formatDateDisplay(isRepresentacao ? dados.nascimento : dados.representante_data_nascimento))}
+                {renderDataField("Nacionalidade", isRepresentacao ? "Brasileira" : dados.representante_nacionalidade)}
+                {!isRepresentacao && renderDataField("Estado civil", dados.representante_estado_civil)}
+                {!isRepresentacao && renderDataField("Profissão", dados.representante_ocupacao)}
+                {renderDataField("Endereço residencial", dados.requerente_endereco_residencial)}
+                {!isRepresentacao && renderDataField("Endereço profissional", dados.representante_endereco_profissional)}
+                {renderDataField("E-mail", dados.requerente_email)}
+                {renderDataField("Telefone", dados.requerente_telefone)}
+                {renderDataField("RG", isRepresentacao ? "Não coletado" : `${dados.representante_rg || ""} ${dados.emissor_rg_exequente || ""}`.trim())}
               </div>
             </div>
 
+            {/* === FILHOS EXTRAS (quando há mais de 1) === */}
             {outrosFilhos.length > 0 &&
               outrosFilhos.map((filho, index) => (
                 <div key={index} className="space-y-4 pt-4 border-t border-soft">
                   <h3 className="heading-3 text-primary">
-                    Dados do Assistido {index + 2} (Crianca/Adolescente)
+                    Dados do Assistido {index + 2} (Criança/Adolescente)
                   </h3>
                   <div className="grid gap-4 md:grid-cols-2">
                     {renderDataField("Nome completo", filho.nome)}
                     {renderDataField("CPF", filho.cpf)}
                     {renderDataField("Data de nascimento", formatDateDisplay(filho.dataNascimento))}
-                    {renderDataField("Nacionalidade", filho.nacionalidade)}
+                    {renderDataField("Nacionalidade", filho.nacionalidade || "Brasileira")}
                     {renderDataField("RG", `${filho.rgNumero || ""} ${filho.rgOrgao || ""}`.trim())}
                   </div>
                 </div>
               ))}
 
+            {/* === REPRESENTANTE LEGAL (só em casos de representação) === */}
             {isRepresentacao && (
               <div className="space-y-4 pt-4 border-t border-soft">
-                <h3 className="heading-3 text-primary">Dados do Representante Legal</h3>
+                <h3 className="heading-3 text-primary">Dados do Representante Legal (Genitora)</h3>
                 <div className="grid gap-4 md:grid-cols-2">
-                  {renderDataField("Nome completo", dados.representante_nome)}
+                  {renderDataField("Nome completo", dados.REPRESENTANTE_NOME)}
                   {renderDataField("CPF", dados.representante_cpf)}
                   {renderDataField("Data de nascimento", formatDateDisplay(dados.representante_data_nascimento))}
                   {renderDataField("Nacionalidade", dados.representante_nacionalidade)}
                   {renderDataField("Estado civil", dados.representante_estado_civil)}
-                  {renderDataField("Profissao", dados.representante_ocupacao)}
-                  {renderDataField("Endereco residencial", dados.representante_endereco_residencial)}
-                  {renderDataField("Endereco profissional", dados.representante_endereco_profissional)}
-                  {renderDataField("Email", dados.representante_email)}
-                  {renderDataField("Telefone", dados.representante_telefone)}
-                  {renderDataField("RG", `${dados.representante_rg_numero || ""} ${dados.representante_rg_orgao || ""}`.trim())}
-                  {renderDataField("Nome da mae", dados.representante_nome_mae)}
-                  {renderDataField("Nome do pai", dados.representante_nome_pai)}
+                  {renderDataField("Profissão", dados.representante_ocupacao)}
+                  {renderDataField("Endereço residencial", dados.requerente_endereco_residencial)}
+                  {renderDataField("Endereço profissional", dados.representante_endereco_profissional)}
+                  {renderDataField("E-mail", dados.requerente_email)}
+                  {renderDataField("Telefone", dados.requerente_telefone)}
+                  {renderDataField("RG", `${dados.representante_rg || ""} ${dados.emissor_rg_exequente || ""}`.trim())}
+                  {renderDataField("Nome da mãe (avó materna)", dados.nome_mae_representante)}
+                  {renderDataField("Nome do pai (avô materno)", dados.nome_pai_representante)}
                 </div>
               </div>
             )}
 
+            {/* === PARTE CONTRÁRIA (REQUERIDO) === */}
             <div className="space-y-4 pt-4 border-t border-soft">
-              <h3 className="heading-3 text-primary">Dados da Parte Contraria (Requerido)</h3>
+              <h3 className="heading-3 text-primary">Dados da Parte Contrária (Requerido)</h3>
               <div className="grid gap-4 md:grid-cols-2">
-                {renderDataField("Nome completo", dados.nome_requerido)}
-                {renderDataField("CPF", dados.cpf_requerido)}
-                {renderDataField("Endereco conhecido", dados.endereco_requerido)}
-                {renderDataField("Telefone", pickFirst(dados.telefone_requerido, dados.requerido_telefone))}
-                {renderDataField("Email", pickFirst(dados.email_requerido, dados.requerido_email))}
-                {renderDataField("Profissao", dados.requerido_ocupacao)}
-                {renderDataField("Endereco de trabalho", dados.requerido_endereco_profissional)}
-                {renderDataField("RG", `${dados.requerido_rg_numero || ""} ${dados.requerido_rg_orgao || ""}`.trim())}
-                {renderDataField("Mae do requerido", dados.requerido_nome_mae)}
-                {renderDataField("Pai do requerido", dados.requerido_nome_pai)}
-                {renderDataField("Dados adicionais", pickFirst(dados.requerido_outros_detalhes, dados.dados_adicionais_requerido))}
+                {renderDataField("Nome completo", dados.REQUERIDO_NOME)}
+                {renderDataField("CPF", dados.executado_cpf)}
+                {renderDataField("Endereço conhecido", dados.executado_endereco_residencial)}
+                {renderDataField("Telefone", dados.executado_telefone)}
+                {renderDataField("E-mail", dados.executado_email)}
+                {renderDataField("Profissão", dados.executado_ocupacao)}
+                {renderDataField("Endereço de trabalho", dados.executado_endereco_profissional)}
+                {renderDataField("RG", `${dados.rg_executado || ""} ${dados.emissor_rg_executado || ""}`.trim())}
+                {renderDataField("Mãe do requerido", dados.nome_mae_executado)}
+                {renderDataField("Pai do requerido", dados.nome_pai_executado)}
+                {renderDataField("Dados adicionais", dados.dados_adicionais_requerido)}
               </div>
             </div>
 
-            {isExecucao && (
+            {/* === EMPREGO DO REQUERIDO === */}
+            {dados.requerido_tem_emprego_formal === "sim" && (
               <div className="space-y-4 pt-4 border-t border-soft">
-                <h3 className="heading-3 text-primary">Dados da Execucao e Titulo Judicial</h3>
+                <h3 className="heading-3 text-primary">Dados de Emprego (Requerido)</h3>
                 <div className="grid gap-4 md:grid-cols-2">
-                  {renderDataField("Vara da Peticao Atual", dados.vara)}
-                  {renderDataField("Percentual do salario minimo (%)", pickFirst(dados.percentual_salario_minimo, dados.percentualSalarioMinimo))}
-                  {renderDataField("Ou Valor Mensal Fixo (R$)", pickFirst(dados.valor_mensal_fixado, dados.valorMensalFixado))}
-                  {renderDataField("Numero do Processo Originario", pickFirst(dados.numero_processo_originario, dados.numeroProcessoOriginario))}
-                  {renderDataField("Cidade onde tramitou", pickFirst(dados.cidade_originaria, dados.cidadeOriginaria))}
-                  {renderDataField("Vara onde tramitou", pickFirst(dados.vara_originaria, dados.varaOriginaria))}
-                  {renderDataField("Tipo de Decisao", pickFirst(dados.tipo_decisao, dados.tipoDecisao))}
-                  {renderDataField("Dia de Pagamento fixado", pickFirst(dados.dia_pagamento_fixado, dados.diaPagamentoFixado))}
-                  {renderDataField("Inicio do Debito (Mes/Ano)", pickFirst(dados.data_inicio_debito, dados.dataInicioDebito))}
-                  {renderDataField("Fim do Debito (Mes/Ano)", pickFirst(dados.data_fim_debito, dados.dataFimDebito))}
-                  {renderDataField("Periodo do Debito", pickFirst(dados.periodo_debito, dados.periodo_debito_execucao))}
-                  {renderDataField("Valor Total do Debito", pickFirst(dados.valor_total_debito_execucao, dados.valorTotalDebitoExecucao, dados.valor_divida))}
-                  {renderDataField("Multa (10%)", dados.valor_multa)}
-                  {renderDataField("Juros", dados.valor_juros)}
-                  {renderDataField("Honorarios", dados.valor_honorarios)}
+                  {renderDataField("Tem emprego formal?", dados.requerido_tem_emprego_formal)}
+                  {renderDataField("Nome da Empresa", dados.empregador_nome)}
+                  {renderDataField("Endereço da Empresa", dados.empregador_endereco)}
+                  {renderDataField("E-mail da Empresa", dados.empregador_email)}
                 </div>
               </div>
             )}
 
+            {/* === EXECUÇÃO / TÍTULO JUDICIAL === */}
+            {isExecucao && (
+              <div className="space-y-4 pt-4 border-t border-soft">
+                <h3 className="heading-3 text-primary">Dados da Execução e Título Judicial</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {renderDataField("Vara da Petição Atual", dados.VARA)}
+                  {renderDataField("Percentual do salário mínimo (%)", dados.percentual_salario_minimo)}
+                  {renderDataField("Número do Processo Originário", dados.processoOrigemNumero)}
+                  {renderDataField("Cidade onde tramitou", dados.cidadeOriginaria)}
+                  {renderDataField("Vara onde tramitou", dados.varaOriginaria)}
+                  {renderDataField("Tipo de Decisão", dados.tipo_decisao)}
+                  {renderDataField("Dia de Pagamento fixado", dados.dia_pagamento)}
+                  {renderDataField("Período do Débito", dados.periodo_meses_ano)}
+                  {renderDataField("Valor Total do Débito", pickFirst(dados.valor_debito, dados.valorTotalDebitoExecucao))}
+                  {renderDataField("Multa (10%)", dados.valor_multa)}
+                  {renderDataField("Juros", dados.valor_juros)}
+                  {renderDataField("Honorários", dados.valor_honorarios)}
+                </div>
+              </div>
+            )}
+
+            {/* === OUTROS DETALHES / PENSÃO === */}
             <div className="space-y-4 pt-4 border-t border-soft">
               <h3 className="heading-3 text-primary">
                 {isExecucao ? "Outros Detalhes" : "Detalhes do Pedido e do Caso"}
@@ -188,16 +219,11 @@ export const InfoAssistido = ({ caso }) => {
               <div className="grid gap-4 md:grid-cols-2">
                 {!isExecucao &&
                   renderDataField(
-                    "Valor da Pensao Solicitado",
-                    pickFirst(dados.valor_pensao, dados.valor_mensal_pensao),
+                    "Valor da Pensão Solicitado",
+                    pickFirst(dados.valor_pensao, dados.valor_pensao_atual),
                   )}
-                {renderDataField("Dados Bancarios para Deposito", dados.dados_bancarios_deposito)}
-                {renderDataField("Cidade para assinatura", pickFirst(dados.cidade_assinatura, dados.cidadeAssinatura))}
-                {renderDataField("Descricao da Guarda", dados.descricao_guarda)}
-                {renderDataField("Situacao Financeira de quem cuida", dados.situacao_financeira_genitora)}
-                {renderDataField("Requerido tem emprego formal?", dados.requerido_tem_emprego_formal)}
-                {renderDataField("Nome da Empresa", dados.empregador_requerido_nome)}
-                {renderDataField("Endereco da Empresa", dados.empregador_requerido_endereco)}
+                {renderDataField("Dados Bancários para Depósito", pickFirst(dados.dados_bancarios_exequente, dados.dados_bancarios_deposito))}
+                {renderDataField("Cidade para assinatura", dados.CIDADEASSINATURA)}
               </div>
             </div>
           </div>

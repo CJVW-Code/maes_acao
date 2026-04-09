@@ -8,7 +8,7 @@ export const SecaoEmpregoRequerido = ({
   formState,
   handleFieldChange,
 }) => {
-  const mostrarEmpregador = formState.requeridoTemEmpregoFormal === "sim";
+  const mostrarEmpregador = formState.requerido_tem_emprego_formal === "sim";
 
   return (
     <div className="space-y-4 pt-4 border-t border-soft">
@@ -22,8 +22,8 @@ export const SecaoEmpregoRequerido = ({
           </label>
           <select
             id="requeridoTemEmpregoFormal"
-            name="requeridoTemEmpregoFormal"
-            value={formState.requeridoTemEmpregoFormal}
+            name="requerido_tem_emprego_formal"
+            value={formState.requerido_tem_emprego_formal}
             onChange={handleFieldChange}
             className="input"
           >
@@ -41,8 +41,8 @@ export const SecaoEmpregoRequerido = ({
                 id="empregadorRequeridoNome"
                 type="text"
                 placeholder="Nome da Empresa"
-                name="empregadorRequeridoNome"
-                value={formState.empregadorRequeridoNome}
+                name="empregador_nome"
+                value={formState.empregador_nome}
                 onChange={handleFieldChange}
                 className="input"
               />
@@ -53,8 +53,8 @@ export const SecaoEmpregoRequerido = ({
                 id="empregadorRequeridoEndereco"
                 type="text"
                 placeholder="Endereço da Empresa"
-                name="empregadorRequeridoEndereco"
-                value={formState.empregadorRequeridoEndereco}
+                name="empregador_endereco"
+                value={formState.empregador_endereco}
                 onChange={handleFieldChange}
                 className="input"
               />
@@ -65,8 +65,8 @@ export const SecaoEmpregoRequerido = ({
                 id="empregadorEmail"
                 type="email"
                 placeholder="Email da Empresa (para ofício)"
-                name="empregadorEmail"
-                value={formState.empregadorEmail}
+                name="empregador_email"
+                value={formState.empregador_email}
                 onChange={handleFieldChange}
                 className="input"
               />

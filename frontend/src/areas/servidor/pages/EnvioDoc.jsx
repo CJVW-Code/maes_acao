@@ -43,7 +43,7 @@ export const ConsultaStatus = () => {
 
   // Auto-consulta se CPF na URL
   useEffect(() => {
-    const cpfFromUrl = searchParams.get("cpf");
+    const cpfFromUrl = searchParams.get("representante_cpf");
     if (cpfFromUrl) {
       setCpf(cpfFromUrl);
       consultarPorCpf(cpfFromUrl);
@@ -112,7 +112,7 @@ export const ConsultaStatus = () => {
     const namesMap = {};
 
     // IMPORTANTE: Enviar campos de texto PRIMEIRO para garantir leitura correta no backend
-    formData.append("cpf", cpf.replace(/\D/g, ""));
+    formData.append("representante_cpf", cpf.replace(/\D/g, ""));
 
     files.forEach((item) => {
       namesMap[item.file.name] = item.customName;
