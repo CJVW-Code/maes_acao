@@ -22,7 +22,7 @@ export const lockCaso = async (req, res) => {
     const isLockedByOther = (caso.defensor_id && caso.defensor_id !== userId) || 
                             (caso.servidor_id && caso.servidor_id !== userId);
     
-    if (isLockedByOther && req.user.cargo !== 'admin') {
+    if (isLockedByOther && req.user.cargo.toLowerCase() !== 'admin') {
       const holder = caso.defensor?.nome || caso.servidor?.nome || "outro usuário";
       return res.status(423).json({ 
         error: "Caso bloqueado", 
@@ -59,7 +59,7 @@ export const lockCaso = async (req, res) => {
 export const unlockCaso = async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
-  const isAdmin = req.user.cargo === 'admin';
+  const isAdmin = req.user.cargo.toLowerCase() === 'admin';
 
   try {
     const caso = await prisma.casos.findUnique({

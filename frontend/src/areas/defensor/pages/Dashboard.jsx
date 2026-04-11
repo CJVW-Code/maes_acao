@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Lock,
   User,
+  Users,
 } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
 import { authFetch } from "../../../utils/apiBase";
@@ -22,16 +23,23 @@ import useSWR from "swr";
 
 // Fetcher leve: usa /casos/resumo — retorna apenas contagens (sem PII)
 const fetcherResumo = async (url) => {
-  const response = await authFetch(url);
-  if (!response.ok) throw new Error("Erro ao buscar dados.");
-  return response.json();
+  try {
+    const response = await authFetch(url);
+    if (!response.ok) throw new Error("Erro ao buscar dados do resumo.");
+    return await response.json();
+  } catch (err) {
+    throw new Error(err.message || String(err));
+  }
 };
 
-// Fetcher completo: só é chamado na página de listagem (/painel/casos)
 const fetcherCasos = async (url) => {
-  const response = await authFetch(url);
-  if (!response.ok) throw new Error("Erro ao buscar casos.");
-  return response.json();
+  try {
+    const response = await authFetch(url);
+    if (!response.ok) throw new Error("Erro ao buscar lista de casos.");
+    return await response.json();
+  } catch (err) {
+    throw new Error(err.message || String(err));
+  }
 };
 
 const statusStyles = {
@@ -75,14 +83,15 @@ export const Dashboard = () => {
 
   // Lista recente: apenas os últimos casos (id, nome, protocolo, status, data)
   // Esses campos não expõem CPF nem dados sensíveis do formulário
-  const {
-    data: casosRecentes = [],
-    error: casosError,
-  } = useSWR(token ? "/casos?limite=10" : null, fetcherCasos, {
-    revalidateOnFocus: true,
-  });
+  const { data: casosRecentes = [], error: casosError } = useSWR(
+    token ? "/casos?limite=10" : null,
+    fetcherCasos,
+    {
+      revalidateOnFocus: true,
+    },
+  );
 
-    // useEffect removido: o usuário já vem do AuthContext
+  // useEffect removido: o usuário já vem do AuthContext
 
   useEffect(() => {
     setCurrentPage(1);
@@ -100,13 +109,23 @@ export const Dashboard = () => {
   const [casosFiltered, totalPages] = useMemo(() => {
     if (!statusFilter) return [casosRecentes.slice(0, 6), 0];
 
-    // Mapeamento de filtros para suportar legados se necessário, 
+    // Mapeamento de filtros para suportar legados se necessário,
     // mas priorizando o enum estratégico
     const filterMapping = {
-      aguardando_documentos: ["aguardando_documentos", "aguardando_docs", "recebido"],
+      aguardando_documentos: [
+        "aguardando_documentos",
+        "aguardando_docs",
+        "recebido",
+      ],
       documentacao_completa: ["documentacao_completa", "documentos_entregues"],
       pronto_para_analise: ["pronto_para_analise", "processado"],
-      em_atendimento: ["em_atendimento", "em_analise", "reuniao_agendada", "reuniao_online_agendada", "reuniao_presencial_agendada"],
+      em_atendimento: [
+        "em_atendimento",
+        "em_analise",
+        "reuniao_agendada",
+        "reuniao_online_agendada",
+        "reuniao_presencial_agendada",
+      ],
       protocolado: ["protocolado", "encaminhado_solar"],
     };
 
@@ -144,17 +163,12 @@ export const Dashboard = () => {
       >
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-white/70">
-              Painel atualizado
-            </p>
             <h1 className="heading-hero mt-2">
               Olá, {user?.cargo === "defensor" ? "Dr(a). " : ""}
               {user?.nome || "Usuário"}
             </h1>
             <p className="text-white/80 max-w-2xl mt-2">
-              Acompanhe os casos recebidos pelo Assistente Def Sul, identifique
-              pendências de documentos e avance nos atendimentos com conforto
-              visual inspirado pelo nosso novo design system.
+              Acompanhe os casos recebidos pelo Def Sul.
             </p>
           </div>
           <Link
@@ -292,6 +306,25 @@ export const Dashboard = () => {
             </div>
           </div>
 
+          <div className="card space-y-4 hover:scale-[1.02] transition-transform duration-300 cursor-default border-l-4 border-l-purple-400 bg-surface/50">
+            <div className="flex items-center gap-2 text-purple-400">
+              <Users size={20} />
+              <h3 className="font-bold uppercase tracking-wider text-xs">
+                Em Colaboração
+              </h3>
+            </div>
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <p className="text-3xl font-bold text-white">
+                  {contagens.colaboracao || 0}
+                </p>
+                <p className="text-xs text-muted uppercase mt-1">
+                  Casos Compartilhados
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="card space-y-4 hover:scale-[1.02] transition-transform duration-300 cursor-default border-l-4 border-l-purple-500">
             <div className="flex items-center gap-2 text-purple-400">
               <PieChart size={20} />
@@ -369,11 +402,18 @@ export const Dashboard = () => {
                   >
                     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                       <div className="flex items-start gap-4">
-                        <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+                        <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center relative">
                           <FileText size={20} />
+                          {caso.compartilhado && (
+                            <div className="absolute -top-1 -right-1 bg-purple-500 text-white p-1 rounded-full border-2 border-white dark:border-slate-800 animate-pulse">
+                              <Users size={10} />
+                            </div>
+                          )}
                         </div>
                         <div>
-                          <p className="heading-3 leading-tight">{caso.nome_assistido}</p>
+                          <p className="heading-3 leading-tight">
+                            {caso.nome_assistido}
+                          </p>
                           {caso.nome_representante && (
                             <p className="text-sm font-bold text-primary-600 mt-1 mb-1">
                               Representante: {caso.nome_representante}
@@ -389,35 +429,49 @@ export const Dashboard = () => {
                           </p>
                         </div>
                       </div>
-                       <div className="flex flex-wrap gap-2 md:items-center">
-                         {/* Indicador de Responsável / Lock */}
-                         {caso.defensor || caso.servidor ? (
-                           <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                             (caso.defensor_id === user.id || caso.servidor_id === user.id) 
-                               ? "bg-green-100 text-green-700 border border-green-200" 
-                               : "bg-amber-100 text-amber-700 border border-amber-200"
-                           }`}>
-                             { (caso.defensor_id === user.id || caso.servidor_id === user.id) ? <User size={10} /> : <Lock size={10} /> }
-                             { (caso.defensor_id === user.id || caso.servidor_id === user.id) ? "Meu Atendimento" : (caso.defensor?.nome || caso.servidor?.nome) }
-                           </div>
-                         ) : (
-                           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 border border-slate-200 italic">
-                             Disponível
-                           </div>
-                         )}
+                      <div className="flex flex-wrap gap-2 md:items-center">
+                        {/* Indicador de Responsável / Lock */}
+                        {caso.defensor || caso.servidor ? (
+                          <div
+                            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                              caso.defensor_id === user.id ||
+                              caso.servidor_id === user.id
+                                ? "bg-green-100 text-green-700 border border-green-200"
+                                : "bg-amber-100 text-amber-700 border border-amber-200"
+                            }`}
+                          >
+                            {caso.defensor_id === user.id ||
+                            caso.servidor_id === user.id ? (
+                              <User size={10} />
+                            ) : (
+                              <Lock size={10} />
+                            )}
+                            {caso.defensor_id === user.id ||
+                            caso.servidor_id === user.id
+                              ? "Meu Atendimento"
+                              : caso.defensor?.nome || caso.servidor?.nome}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 border border-slate-200 italic">
+                            Disponível
+                          </div>
+                        )}
 
-                         <span className={`badge ${badgeStyle}`}>
-                           {statusKey.replace("_", " ")}
-                         </span>
-                         <div className="flex items-center gap-2 text-sm text-muted">
+                        <span className={`badge ${badgeStyle}`}>
+                          {statusKey.replace("_", " ")}
+                        </span>
+                        <div className="flex items-center gap-2 text-sm text-muted">
                           <Clock size={16} />
-                          {new Date(caso.created_at).toLocaleDateString(
-                            "pt-BR",
-                            {
-                              day: "2-digit",
-                              month: "short",
-                            },
-                          )}
+                          {caso.created_at &&
+                          !isNaN(new Date(caso.created_at).getTime())
+                            ? new Date(caso.created_at).toLocaleDateString(
+                                "pt-BR",
+                                {
+                                  day: "2-digit",
+                                  month: "short",
+                                },
+                              )
+                            : "Data indisponível"}
                         </div>
                       </div>
                     </div>

@@ -11,13 +11,18 @@ import { authFetch } from "../../../utils/apiBase";
 
 // 2. Criamos o fetcher do SWR usando a sua função oficial
 const fetcher = async (url) => {
-  const response = await authFetch(url);
-  if (!response.ok) {
-    const error = new Error("Falha ao buscar os casos.");
-    error.status = response.status;
-    throw error;
+  try {
+    const response = await authFetch(url);
+    if (!response.ok) {
+      const error = new Error("Falha ao buscar os casos.");
+      error.status = response.status;
+      throw error;
+    }
+    return await response.json();
+  } catch (err) {
+    if (err instanceof Error) throw err;
+    throw new Error(String(err));
   }
-  return response.json();
 };
 const statusStyles = {
   aguardando_documentos: "bg-amber-100 text-amber-800 border-amber-200",
@@ -36,7 +41,7 @@ const normalizeStatus = (value) => (value || "recebido").toLowerCase();
 
 export const Casos = () => {
   const [busca, setBusca] = useState("");
-  const { token } = useAuth();
+  const { token, user } = useAuth();
 
   // 3. A mágica do SWR corrigida:
   // Passamos apenas a rota '/casos', pois o authFetch já completa a URL base internamente
@@ -168,14 +173,14 @@ export const Casos = () => {
                           {caso.defensor || caso.servidor ? (
                             <div className="flex items-center gap-2 text-xs">
                               <div className={`p-1 rounded-full ${
-                                (caso.defensor_id === user.id || caso.servidor_id === user.id) 
+                                (user && (caso.defensor_id === user.id || caso.servidor_id === user.id)) 
                                   ? "bg-green-100 text-green-700" 
                                   : "bg-amber-100 text-amber-700"
                               }`}>
-                                { (caso.defensor_id === user.id || caso.servidor_id === user.id) ? <User size={12} /> : <Lock size={12} /> }
+                                { (user && (caso.defensor_id === user.id || caso.servidor_id === user.id)) ? <User size={12} /> : <Lock size={12} /> }
                               </div>
                               <span className="font-medium whitespace-nowrap">
-                                { (caso.defensor_id === user.id || caso.servidor_id === user.id) 
+                                { (user && (caso.defensor_id === user.id || caso.servidor_id === user.id)) 
                                   ? "Meu Atendimento" 
                                   : (caso.defensor?.nome || caso.servidor?.nome) }
                               </span>

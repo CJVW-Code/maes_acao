@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (token) {
       fetchNotificacoes(token);
-      intervalRef.current = setInterval(() => fetchNotificacoes(token), 30000);
+      intervalRef.current = setInterval(() => fetchNotificacoes(token), 300000); // Pausado (5 min) para debug
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);

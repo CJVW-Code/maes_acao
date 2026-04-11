@@ -10,6 +10,26 @@ import fs from "fs/promises";
 import fsSync from "fs";
 import { extractTextFromImage } from "../services/documentService.js";
 import { visionOCR } from "../services/aiService.js";
+import { registrarLog } from "../services/loggerService.js";
+
+/**
+ * Função utilitária para converter recursivamente todos os BigInts em Strings.
+ * Essencial para evitar o erro "Illegal constructor" no React 19/SWR ao lidar com dados complexos.
+ */
+const stringifyBigInts = (obj) => {
+  if (obj === null || obj === undefined) return obj;
+  if (obj instanceof Date) return obj; // Preserva datas para o JSON.stringify padrão
+  if (typeof obj === "bigint") return obj.toString();
+  if (Array.isArray(obj)) return obj.map(stringifyBigInts);
+  if (typeof obj === "object") {
+    const fresh = {};
+    for (const key in obj) {
+      fresh[key] = stringifyBigInts(obj[key]);
+    }
+    return fresh;
+  }
+  return obj;
+};
 import {
   generateDocx,
   generateTermoDeclaracao,
@@ -23,6 +43,11 @@ import { Client } from "@upstash/qstash";
 // --- UTILS DE NORMALIZAÇÃO ---
 const mapCasoRelations = (caso) => {
   if (!caso) return caso;
+
+  // Força ID como string para evitar problemas de BigInt no SWR/React 19
+  if (caso.id && typeof caso.id !== "string") {
+    caso.id = String(caso.id);
+  }
 
   const resolveRel = (rel) => (Array.isArray(rel) ? rel[0] : rel);
 
@@ -1374,7 +1399,7 @@ export async function processarCasoEmBackground(
     // Agrupa dados virtuais (links multi-rito, rascunhos, resumos) que NÃO constam
     // na tipagem bruta do DB dentro do JSONB flexível para respeitar o Schema 1.0
     const iaDadosExtraidos = {
-      ...dadosFormularioFinal,
+      ...caseDataForPetition,
       resumo_ia,
       peticao_inicial_rascunho: `DOS FATOS\n\n${dosFatosTexto || ""}`,
       url_peticao_penhora,
@@ -1448,7 +1473,7 @@ export const criarNovoCaso = async (req, res) => {
     let cpf = dados_formulario.representante_cpf || dados_formulario.cpf || "";
     cpf = cpf.replace(/\D/g, ""); // Remove pontuações para não bugar a busca depois
     const cpf_requerido_limpo = (
-      dados_formulario.executado_cpf || cpf_requerido
+      dados_formulario.executado_cpf || dados_formulario.cpf_requerido || ""
     ).replace(/\D/g, "");
     const telefone = dados_formulario.requerente_telefone || "";
     const cpf_requerido = dados_formulario.executado_cpf || "";
@@ -1991,7 +2016,7 @@ export const listarCasos = async (req, res) => {
       return caso;
     });
 
-    res.status(200).json(normalizedData);
+    res.status(200).json(stringifyBigInts(normalizedData));
   } catch (error) {
     logger.error(`Erro ao listar casos: ${error.message}`);
     res.status(500).json({ error: "Erro ao listar casos." });
@@ -2016,6 +2041,7 @@ export const resumoCasos = async (req, res) => {
       select: {
         status: true,
         tipo_acao: true,
+        compartilhado: true,
       },
     });
 
@@ -2030,6 +2056,7 @@ export const resumoCasos = async (req, res) => {
       em_protocolo: 0,
       protocolado: 0,
       erro_processamento: 0,
+      colaboracao: 0,
     };
 
     const topTiposMap = {};
@@ -2037,6 +2064,7 @@ export const resumoCasos = async (req, res) => {
     let proprio = 0;
 
     for (const caso of data) {
+      if (caso.compartilhado) contagens.colaboracao++;
       const s = (caso.status || "recebido").toLowerCase().trim();
 
       // Mapeamento de legado/variantes para o material estratégico (Enum Prisma)
@@ -2075,11 +2103,11 @@ export const resumoCasos = async (req, res) => {
       .slice(0, 3)
       .map(([tipo, qtd]) => ({ tipo, qtd }));
 
-    res.status(200).json({
+    res.status(200).json(stringifyBigInts({
       contagens,
       topTipos,
       representacao: { representacao, proprio },
-    });
+    }));
   } catch (error) {
     logger.error(`Erro ao gerar resumo de casos local: ${error.message}`);
     res.status(500).json({ error: "Erro ao gerar resumo." });
@@ -2111,7 +2139,17 @@ export const obterDetalhesCaso = async (req, res) => {
           ia:casos_ia(*),
           partes:casos_partes(*),
           juridico:casos_juridico(*),
-          documentos(*)
+          documentos(*),
+          defensor:defensores!casos_defensor_id_fkey(nome),
+          servidor:defensores!casos_servidor_id_fkey(nome),
+          unidade:unidades(sistema),
+          assistencia_casos:assistencia_casos(
+            status, 
+            destinatario_id,
+            remetente:defensores!remetente_id(nome),
+            destinatario:defensores!destinatario_id(nome)
+          )
+                
         `,
         )
         .eq("id", id)
@@ -2139,11 +2177,19 @@ export const obterDetalhesCaso = async (req, res) => {
           documentos: true,
           defensor: { select: { nome: true } },
           servidor: { select: { nome: true } },
+          unidade: { select: { sistema: true } },
           assistencia_casos: {
             where: {
-              destinatario_id: req.user.id,
+              OR: [
+                { destinatario_id: req.user.id },
+                { remetente_id: req.user.id }
+              ],
               status: "aceito",
             },
+            include: {
+              destinatario: { select: { nome: true } },
+              remetente: { select: { nome: true } }
+            }
           },
         },
       });
@@ -2159,7 +2205,7 @@ export const obterDetalhesCaso = async (req, res) => {
     data = mapCasoRelations(data);
 
     // --- Lógica de Travamento (Locking) e Vínculo Automático ---
-    const isAdmin = req.user.cargo === "admin";
+    const isAdmin = req.user.cargo.toLowerCase() === "admin";
     const isOwner =
       data.defensor_id === req.user.id || data.servidor_id === req.user.id;
     const isShared = (data.assistencia_casos || []).length > 0;
@@ -2230,7 +2276,7 @@ export const obterDetalhesCaso = async (req, res) => {
     // attachSignedUrls agora lida tanto com Supabase quanto com Local storage
     const casoFinal = await attachSignedUrls(data);
 
-    res.status(200).json(casoFinal);
+    res.status(200).json(stringifyBigInts(casoFinal));
   } catch (error) {
     logger.error(`Erro ao obter detalhes do caso ${id}: ${error.message}`);
     res.status(500).json({ error: "Erro ao obter detalhes." });
@@ -2275,7 +2321,7 @@ export const atualizarStatusCaso = async (req, res) => {
     }
 
     const casoAtualizadoComUrls = await attachSignedUrls(data);
-    res.status(200).json(casoAtualizadoComUrls);
+    res.status(200).json(stringifyBigInts(casoAtualizadoComUrls));
   } catch (error) {
     logger.error(`Erro ao atualizar caso ${id}: ${error.message}`);
 
@@ -2353,7 +2399,7 @@ export const salvarFeedback = async (req, res) => {
     }
 
     const casoComUrls = await attachSignedUrls(casoEncontrado);
-    res.status(200).json(casoComUrls);
+    res.status(200).json(stringifyBigInts(casoComUrls));
   } catch (error) {
     logger.error(`Erro ao salvar feedback ${id}: ${error.message}`);
     res.status(500).json({ error: "Erro ao salvar feedback." });
@@ -2435,7 +2481,7 @@ export const regenerarDosFatos = async (req, res) => {
 
     // Reanexa URLs assinadas para que links de download/áudio não quebrem na tela
     const casoComUrls = await attachSignedUrls(casoAtualizado);
-    res.status(200).json(casoComUrls);
+    res.status(200).json(stringifyBigInts(casoComUrls));
   } catch (error) {
     res.status(500).json({ error: "Falha ao regenerar texto." });
   }
@@ -2535,7 +2581,7 @@ export const gerarTermoDeclaracao = async (req, res) => {
     const casoAtualizado = await attachSignedUrls(
       mapCasoRelations(casoAtualizadoRaw),
     );
-    res.status(200).json(casoAtualizado);
+    res.status(200).json(stringifyBigInts(casoAtualizado));
   } catch (error) {
     logger.error(`Erro ao gerar termo de declaração: ${error.message}`);
     res.status(500).json({ error: "Falha ao gerar termo de declaração." });
@@ -2737,7 +2783,7 @@ export const regerarMinuta = async (req, res) => {
       url_documento_gerado: docxPath,
     });
 
-    res.status(200).json(casoAtualizado);
+    res.status(200).json(stringifyBigInts(casoAtualizado));
   } catch (error) {
     logger.error(`Erro ao regerar minuta: ${error.message}`);
     res.status(500).json({ error: "Falha ao regerar a minuta em Word." });
@@ -2829,7 +2875,7 @@ export const buscarPorCpf = async (req, res) => {
       return caso;
     });
 
-    res.status(200).json(normalizedData);
+    res.status(200).json(stringifyBigInts(normalizedData));
   } catch (error) {
     logger.error(`Erro ao buscar por CPF ${cpf}: ${error.message}`);
     res.status(500).json({ error: "Erro ao buscar por CPF." });
@@ -2932,9 +2978,9 @@ export const agendarReuniao = async (req, res) => {
       });
     }
 
-    res.status(200).json(data);
-  } catch (error) {
-    logger.error(`Erro ao agendar reunião para o caso ${id}: ${error.message}`);
+    res.status(200).json(stringifyBigInts(data));
+  } catch (err) {
+    logger.error(`Erro ao agendar reunião para o caso ${id}: ${err.message}`);
     res.status(500).json({ error: "Erro ao agendar reunião." });
   }
 };
@@ -3578,7 +3624,7 @@ export const listarNotificacoes = async (req, res) => {
       orderBy: { created_at: "desc" },
       take: 20,
     });
-    res.status(200).json(notificacoes);
+    res.status(200).json(stringifyBigInts(notificacoes));
   } catch (error) {
     logger.error(`Erro ao listar notificações: ${error.message}`);
     res.status(500).json({ error: "Erro ao buscar notificações." });
@@ -3646,7 +3692,12 @@ export const responderAssistencia = async (req, res) => {
   try {
     const assistencia = await prisma.assistencia_casos.findUnique({
       where: { id: assistencia_id },
-      include: { caso: true },
+      include: { 
+        caso: { 
+          include: { unidade: true } 
+        },
+        remetente: true 
+      },
     });
 
     if (!assistencia || assistencia.destinatario_id !== userId) {
@@ -3657,18 +3708,43 @@ export const responderAssistencia = async (req, res) => {
 
     const novoStatus = aceito ? "aceito" : "recusado";
 
+    // 1. Atualiza o status da solicitação
     await prisma.assistencia_casos.update({
       where: { id: assistencia_id },
       data: { status: novoStatus },
     });
 
-    // Notifica o remetente sobre a resposta
+    if (aceito) {
+      // 2. Marca o caso como compartilhado
+      await prisma.casos.update({
+        where: { id: assistencia.caso_id },
+        data: { compartilhado: true },
+      });
+
+      // 3. Log Detalhado (Quem, Para Quem, Unidade, Tipo)
+      await registrarLog(
+        userId,
+        "assistencia_aceita",
+        "casos",
+        assistencia.caso_id,
+        {
+          remetente_nome: assistencia.remetente.nome,
+          destinatario_nome: req.user.nome,
+          unidade: assistencia.caso.unidade?.nome,
+          tipo_acao: assistencia.caso.tipo_acao,
+          mensagem: `Colaboração aceita: ${req.user.nome} agora ajuda no caso #${assistencia.caso_id} (${assistencia.caso.tipo_acao}) da unidade ${assistencia.caso.unidade?.nome}`
+        }
+      );
+    }
+
+    // 4. Notifica o remetente sobre a resposta
     await prisma.notificacoes.create({
       data: {
         usuario_id: assistencia.remetente_id,
         titulo: aceito ? "Colaboração Aceita" : "Colaboração Recusada",
         mensagem: `${req.user.nome} ${aceito ? "aceitou" : "recusou"} o pedido de ajuda no caso #${assistencia.caso_id}.`,
         tipo: "assistencia_resposta",
+        referencia_id: assistencia_id
       },
     });
 

@@ -5,7 +5,7 @@ import {
   ChevronLeft,
   Download,
   Mic,
-  Eye,
+  Lock,
   Upload,
   CheckCircle,
   FileText,
@@ -16,12 +16,7 @@ import {
   RefreshCw,
   MessageSquare,
   Save,
-  Video,
-  Calendar,
   Bell,
-  Pencil,
-  X,
-  Check,
   AlertTriangle,
   History,
   Copy,
@@ -41,19 +36,32 @@ import { InfoAssistido } from "../components/detalhes/InfoAssistido";
 import { PainelDocumentos } from "../components/detalhes/PainelDocumentos";
 import { PainelCasosRelacionados } from "../components/detalhes/PainelCasosRelacionados";
 const fetcher = async (url) => {
-  const response = await authFetch(url);
-  if (!response.ok) {
-    const error = new Error("Erro ao buscar dados.");
-    error.status = response.status;
-    try {
-      const info = await response.json();
-      error.info = info;
-    } catch (e) {
-      // JSON body missing
+  try {
+    const response = await authFetch(url);
+
+    if (!response.ok) {
+      let errorInfo = "Erro ao buscar dados.";
+      let extraData = {};
+      try {
+        const body = await response.json();
+        errorInfo = body.error || body.message || errorInfo;
+        extraData = body;
+      } catch (e) {
+        /* corpo vazio */
+      }
+
+      const error = new Error(errorInfo);
+      error.status = response.status;
+      error.info = extraData;
+      throw error;
     }
-    throw error;
+
+    const data = await response.json();
+    return data;
+  } catch (err) {
+    if (err instanceof Error) throw err;
+    throw new Error(String(err));
   }
-  return response.json();
 };
 
 const manualStatusOptions = [
@@ -78,17 +86,25 @@ const statusBadges = {
 };
 
 const statusDescriptions = {
-  aguardando_documentos: "O processo está pausado, aguardando o envio de documentos adicionais pelo cidadão.",
-  documentacao_completa: "O cidadão enviou todos os documentos necessários ou complementares.",
-  processando_ia: "O sistema está extraindo informações dos documentos e gerando a minuta inicial.",
-  pronto_para_analise: "O processamento automático foi concluído. A minuta está pronta para revisão.",
-  em_atendimento: "O caso está sendo analisado pessoalmente ou em reunião com o assistido.",
-  liberado_para_protocolo: "O caso foi conferido e está pronto para ser protocolado.",
-  em_protocolo: "O defensor está realizando o protocolo do processo no sistema do tribunal.",
-  protocolado: "O protocolo foi realizado com sucesso e o número do processo foi gerado.",
-  erro_processamento: "Ocorreu um erro crítico durante o processamento automático. Verifique os logs.",
+  aguardando_documentos:
+    "O processo está pausado, aguardando o envio de documentos adicionais pelo cidadão.",
+  documentacao_completa:
+    "O cidadão enviou todos os documentos necessários ou complementares.",
+  processando_ia:
+    "O sistema está extraindo informações dos documentos e gerando a minuta inicial.",
+  pronto_para_analise:
+    "O processamento automático foi concluído. A minuta está pronta para revisão.",
+  em_atendimento:
+    "O caso está sendo analisado pessoalmente ou em reunião com o assistido.",
+  liberado_para_protocolo:
+    "O caso foi conferido e está pronto para ser protocolado.",
+  em_protocolo:
+    "O defensor está realizando o protocolo do processo no sistema do tribunal.",
+  protocolado:
+    "O protocolo foi realizado com sucesso e o número do processo foi gerado.",
+  erro_processamento:
+    "Ocorreu um erro crítico durante o processamento automático. Verifique os logs.",
 };
-
 
 const CollapsibleText = ({
   text,
@@ -208,491 +224,505 @@ export const DetalhesCaso = () => {
   }, [caso, feedbackInitialized]);
 
   // 3. Ajuste sutil no seu salvarPendencia
-const handleSalvarPendencia = async () => {
-  if (!pendenciaTexto || !pendenciaTexto.trim()) return toast.warning("...");
+  const handleSalvarPendencia = async () => {
+    if (!pendenciaTexto || !pendenciaTexto.trim()) return toast.warning("...");
 
-  setIsUpdating(true);
-  try {
-    const response = await fetch(`${API_BASE}/casos/${id}/status`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        status: "aguardando_documentos",
-        descricao_pendencia: pendenciaTexto,
-      }),
-    });
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`${API_BASE}/casos/${id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          status: "aguardando_documentos",
+          descricao_pendencia: pendenciaTexto,
+        }),
+      });
 
-    if (!response.ok) throw new Error("Falha ao atualizar.");
+      if (!response.ok) throw new Error("Falha ao atualizar.");
 
-    mutate(); // CORRIGIDO
-    toast.success("Descrição salva!");
-  } catch (error) {
-    toast.error(error.message);
-  } finally {
-    setIsUpdating(false);
-  }
-};
-
-const handleStatusChange = async (novoStatus) => {
-  if (!caso || !novoStatus || novoStatus === caso.status) return;
-
-  setIsUpdating(true);
-  try {
-    const response = await fetch(`${API_BASE}/casos/${id}/status`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        status: novoStatus,
-        descricao_pendencia:
-          novoStatus === "aguardando_documentos"
-            ? pendenciaTexto
-            : caso.descricao_pendencia,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Falha ao atualizar o status.");
+      mutate(); // CORRIGIDO
+      toast.success("Descrição salva!");
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsUpdating(false);
     }
+  };
 
-    await response.json();
-        toast.success("Status atualizado com sucesso!");
-    mutate(); // CORRIGIDO
-  } catch (error) {
-    console.error(error);
-    toast.error(error.message);
-  } finally {
-    setIsUpdating(false);
-  }
-};
+  const handleStatusChange = async (novoStatus) => {
+    if (!caso || !novoStatus || novoStatus === caso.status) return;
 
-const handleSalvarSolar = async () => {
-  const solarLimpo = numSolar.replace(/\D/g, "");
-  const valorParaSalvar = solarLimpo === "" ? null : solarLimpo;
-  const valorAtual = caso.numero_solar || null;
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`${API_BASE}/casos/${id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          status: novoStatus,
+          descricao_pendencia:
+            novoStatus === "aguardando_documentos"
+              ? pendenciaTexto
+              : caso.descricao_pendencia,
+        }),
+      });
 
-  if (valorParaSalvar === valorAtual) return;
+      if (!response.ok) {
+        throw new Error("Falha ao atualizar o status.");
+      }
 
-  try {
-    const response = await fetch(`${API_BASE}/casos/${id}/status`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        numero_solar: valorParaSalvar,
-      }),
-    });
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.error || "Erro ao salvar dados.");
+      await response.json();
+      toast.success("Status atualizado com sucesso!");
+      mutate(); // CORRIGIDO
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message);
+    } finally {
+      setIsUpdating(false);
     }
+  };
 
-    mutate(); // CORRIGIDO
-    toast.success("Número Solar salvo!");
-  } catch (error) {
-    console.error(error);
-    toast.error(error.message);
-  }
-};
+  const handleSalvarSolar = async () => {
+    const solarLimpo = numSolar.replace(/\D/g, "");
+    const valorParaSalvar = solarLimpo === "" ? null : solarLimpo;
+    const valorAtual = caso.numero_solar || null;
 
-const handleCopySolar = () => {
-  if (!numSolar) return;
-  navigator.clipboard.writeText(numSolar);
-  toast.success("Número Solar copiado!");
-};
+    if (valorParaSalvar === valorAtual) return;
 
-if (isLoading) {
-  return (
-    <div className="card text-center text-muted">Carregando detalhes...</div>
-  );
-}
+    try {
+      const response = await fetch(`${API_BASE}/casos/${id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          numero_solar: valorParaSalvar,
+        }),
+      });
 
-if (!caso) {
-  // Lógica específica para 423 Locked
-  if (error?.status === 423) {
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Erro ao salvar dados.");
+      }
+
+      mutate(); // CORRIGIDO
+      toast.success("Número Solar salvo!");
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message);
+    }
+  };
+
+  const handleCopySolar = () => {
+    if (!numSolar) return;
+    navigator.clipboard.writeText(numSolar);
+    toast.success("Número Solar copiado!");
+  };
+
+  if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 animate-fade-in">
-        <div className="bg-amber-100 p-6 rounded-full">
-          <AlertTriangle size={64} className="text-amber-600" />
-        </div>
-        <div className="text-center space-y-2 max-w-md">
-          <h2 className="heading-1 text-amber-900">Caso em Atendimento</h2>
-          <p className="text-amber-800">
-            {error.info?.message || "Este caso já está vinculado a outro defensor(a) no momento."}
-          </p>
-          <div className="mt-4 p-4 bg-white border border-amber-200 rounded-lg shadow-sm">
-             <span className="text-xs uppercase font-bold text-amber-600 tracking-widest">Responsável Atual</span>
-             <p className="text-lg font-medium text-amber-900">{error.info?.holder || "Não identificado"}</p>
+      <div className="card text-center text-muted">Carregando detalhes...</div>
+    );
+  }
+
+  if (!caso) {
+    // Lógica específica para 423 Locked
+    if (error?.status === 423) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 animate-fade-in">
+          <div className="bg-amber-100 p-6 rounded-full">
+            <AlertTriangle size={64} className="text-amber-600" />
           </div>
+          <div className="text-center space-y-2 max-w-md">
+            <h2 className="heading-1 text-amber-900">Caso em Atendimento</h2>
+            <p className="text-amber-800">
+              {error.info?.message ||
+                "Este caso já está vinculado a outro defensor(a) no momento."}
+            </p>
+            <div className="mt-4 p-4 bg-white border border-amber-200 rounded-lg shadow-sm">
+              <span className="text-xs uppercase font-bold text-amber-600 tracking-widest">
+                Responsável Atual
+              </span>
+              <p className="text-lg font-medium text-amber-900">
+                {error.info?.holder || "Não identificado"}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate("/painel")}
+            className="btn btn-primary"
+          >
+            Voltar para Lista de Casos
+          </button>
         </div>
-        <button onClick={() => navigate("/painel")} className="btn btn-primary">
-          Voltar para Lista de Casos
-        </button>
+      );
+    }
+
+    return (
+      <div className="card border-l-4 border-l-red-500 text-red-600">
+        {error?.info?.error || "Caso não encontrado ou erro de permissão."}
       </div>
     );
   }
 
-  return (
-    <div className="card border-l-4 border-l-red-500 text-red-600">
-      {error?.info?.error || "Caso não encontrado ou erro de permissão."}
-    </div>
-  );
-}
+  const statusKey = (caso.status || "recebido").toLowerCase();
+  const badgeClass = statusBadges[statusKey] || "";
 
-const statusKey = (caso.status || "recebido").toLowerCase();
-const badgeClass = statusBadges[statusKey] || "";
+  // A função renderDataField que estava aqui pode ser apagada se você já levou para o InfoAssistido!
+  // Se ainda estiver usando aqui fora, pode deixar.
 
-// A função renderDataField que estava aqui pode ser apagada se você já levou para o InfoAssistido!
-// Se ainda estiver usando aqui fora, pode deixar.
-
-const handleGenerateFatos = async () => {
-  setIsGenerating(true);
-  try {
-    const response = await fetch(`${API_BASE}/casos/${id}/gerar-fatos`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error("Falha ao gerar a sessão dos fatos.");
-    }
-
-    await response.json();
-    mutate(); // CORRIGIDO
-    toast.success("Solicitação enviada. O sistema está processando...");
-  } catch (error) {
-    console.error(error);
-    toast.error(error.message);
-  } finally {
-    setIsGenerating(false);
-  }
-};
-
-const handleGenerateTermo = async () => {
-  setIsGeneratingTermo(true);
-  try {
-    const response = await fetch(`${API_BASE}/casos/${id}/gerar-termo`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error("Falha ao gerar o termo de declaração.");
-    }
-
-    await response.json();
-    mutate(); // CORRIGIDO
-    toast.success("Termo de declaração gerado com sucesso!");
-  } catch (error) {
-    console.error(error);
-    toast.error(error.message);
-  } finally {
-    setIsGeneratingTermo(false);
-  }
-};
-
-const handleRegenerateMinuta = async () => {
-  if (
-    !(await confirm(
-      "Isso irá gerar um novo arquivo Word com os dados atuais. O arquivo anterior será substituído. Continuar?",
-      "Regerar Minuta",
-    ))
-  )
-    return;
-
-  setIsRegeneratingMinuta(true);
-  try {
-    const response = await fetch(`${API_BASE}/casos/${id}/regerar-minuta`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) throw new Error("Falha ao regerar minuta.");
-
-    await response.json();
-    mutate(); // CORRIGIDO
-    toast.success("Minuta regerada com sucesso!");
-  } catch (error) {
-    toast.error(error.message);
-  } finally {
-    setIsRegeneratingMinuta(false);
-  }
-};
-
-const handleSaveFeedback = async () => {
-  setSavingFeedback(true);
-  try {
-    const response = await fetch(`${API_BASE}/casos/${id}/feedback`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ feedback }),
-    });
-
-    if (!response.ok) throw new Error("Falha ao salvar anotações.");
-
-    mutate(); // Garantindo que o feedback atualizado vá pro cache
-    toast.success("Anotações salvas com sucesso.");
-  } catch (error) {
-    console.error(error);
-    toast.error(error.message);
-  } finally {
-    setSavingFeedback(false);
-  }
-};
-
-const handleFinalizarCaso = async (e) => {
-  e.preventDefault();
-  if (!arquivoCapa || !numSolar || !numProcesso) {
-    toast.warning("Por favor, preencha todos os campos e anexe a capa.");
-    return;
-  }
-
-  setEnviandoFinalizacao(true);
-  const formData = new FormData();
-  formData.append("numero_solar", numSolar);
-  formData.append("numero_processo", numProcesso);
-  formData.append("capa", arquivoCapa);
-
-  try {
-    const response = await fetch(`${API_BASE}/casos/${id}/finalizar`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) throw new Error("Erro ao finalizar caso.");
-
-    toast.success("Caso finalizado e capa enviada com sucesso!");
-    mutate(); // Em vez do reload agressivo da página, o SWR atualiza suavemente
-  } catch (error) {
-    console.error(error);
-    toast.error("Erro ao finalizar: " + error.message);
-  } finally {
-    setEnviandoFinalizacao(false);
-  }
-};
-
-const handleDeleteCaso = async () => {
-  if (
-    await confirm(
-      `Tem certeza que deseja excluir permanentemente o caso ${caso.protocolo}?`,
-      "Excluir Caso",
-    )
-  ) {
-    setIsDeleting(true);
+  const handleGenerateFatos = async () => {
+    setIsGenerating(true);
     try {
-      const response = await fetch(`${API_BASE}/casos/${id}`, {
-        method: "DELETE",
+      const response = await fetch(`${API_BASE}/casos/${id}/gerar-fatos`, {
+        method: "POST",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
       });
 
       if (!response.ok) {
-        let errorMessage = "Falha ao excluir o caso.";
-        try {
-          const errorData = await response.json();
-          errorMessage =
-            errorData.message || errorData.error || response.statusText;
-        } catch (e) {
-          errorMessage = response.statusText || errorMessage;
-        }
-        throw new Error(errorMessage);
+        throw new Error("Falha ao gerar a sessão dos fatos.");
       }
 
-      toast.success("Caso excluído com sucesso.");
-      window.location.href = "/painel";
+      await response.json();
+      mutate(); // CORRIGIDO
+      toast.success("Solicitação enviada. O sistema está processando...");
     } catch (error) {
-      console.error("Erro ao excluir caso:", error);
-      toast.error(error.message || "Não foi possível processar a exclusão.");
+      console.error(error);
+      toast.error(error.message);
     } finally {
-      setIsDeleting(false);
+      setIsGenerating(false);
     }
-  }
-};
+  };
 
-const handleUnlock = async () => {
-  if (!(await confirm("Deseja liberar este caso para outros usuários?", "Liberar Caso?"))) return;
-  setIsUpdating(true);
-  try {
-    const res = await fetch(`${API_BASE}/casos/${id}/unlock`, {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (res.ok) {
-      toast.success("Caso liberado!");
-      navigate("/painel");
-    } else {
-      throw new Error("Falha ao liberar.");
-    }
-  } catch (err) {
-    toast.error(err.message);
-  } finally {
-    setIsUpdating(false);
-  }
-};
-
-const handleOpenShare = async () => {
-  setIsShareModalOpen(true);
-  setIsLoadingColegas(true);
-  try {
-    const res = await fetch(`${API_BASE}/defensores/colegas`, {
-       headers: { Authorization: `Bearer ${token}` }
-    });
-    if (res.ok) setColegas(await res.json());
-  } catch (err) {
-    toast.error("Erro ao carregar colegas.");
-  } finally {
-    setIsLoadingColegas(false);
-  }
-};
-
-const handleConfirmShare = async () => {
-  if (!selectedColegaId) return toast.warning("Selecione um colega.");
-  setIsSharing(true);
-  try {
-     const res = await fetch(`${API_BASE}/casos/${id}/solicitar-assistencia`, {
+  const handleGenerateTermo = async () => {
+    setIsGeneratingTermo(true);
+    try {
+      const response = await fetch(`${API_BASE}/casos/${id}/gerar-termo`, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}` 
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ destinatario_id: selectedColegaId })
-     });
-     if (res.ok) {
-       toast.success("Solicitação de ajuda enviada!");
-       setIsShareModalOpen(false);
-     } else {
-       throw new Error("Falha ao enviar.");
-     }
-  } catch (err) {
-     toast.error(err.message);
-  } finally {
-     setIsSharing(false);
-  }
-};
+      });
 
-const handleSaveJuridico = async () => {
-  setIsSavingJuridico(true);
-  try {
-    const res = await fetch(`${API_BASE}/casos/${id}/juridico`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ memoria_calculo: memoriaCalculo })
-    });
-    if (res.ok) {
-      toast.success("Dados jurídicos salvos!");
-      mutate();
+      if (!response.ok) {
+        throw new Error("Falha ao gerar o termo de declaração.");
+      }
+
+      await response.json();
+      mutate(); // CORRIGIDO
+      toast.success("Termo de declaração gerado com sucesso!");
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message);
+    } finally {
+      setIsGeneratingTermo(false);
     }
-  } catch (err) {
-    toast.error("Erro ao salvar dados jurídicos.");
-  }
-};
+  };
 
-const handleReverterFinalizacao = async () => {
-  if (
-    !(await confirm(
-      "Esta ação irá reabrir o caso, remover os números de Solar/Processo e excluir a capa processual anexada. Deseja continuar?",
-      "Reverter Finalização?",
-    ))
-  ) {
-    return;
-  }
+  const handleRegenerateMinuta = async () => {
+    if (
+      !(await confirm(
+        "Isso irá gerar um novo arquivo Word com os dados atuais. O arquivo anterior será substituído. Continuar?",
+        "Regerar Minuta",
+      ))
+    )
+      return;
 
-  setIsReverting(true);
-  try {
-    const response = await fetch(
-      `${API_BASE}/casos/${id}/reverter-finalizacao`,
-      {
+    setIsRegeneratingMinuta(true);
+    try {
+      const response = await fetch(`${API_BASE}/casos/${id}/regerar-minuta`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Falha ao regerar minuta.");
+
+      await response.json();
+      mutate(); // CORRIGIDO
+      toast.success("Minuta regerada com sucesso!");
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsRegeneratingMinuta(false);
+    }
+  };
+
+  const handleSaveFeedback = async () => {
+    setSavingFeedback(true);
+    try {
+      const response = await fetch(`${API_BASE}/casos/${id}/feedback`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ feedback }),
+      });
+
+      if (!response.ok) throw new Error("Falha ao salvar anotações.");
+
+      mutate(); // Garantindo que o feedback atualizado vá pro cache
+      toast.success("Anotações salvas com sucesso.");
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message);
+    } finally {
+      setSavingFeedback(false);
+    }
+  };
+
+  const handleFinalizarCaso = async (e) => {
+    e.preventDefault();
+    if (!arquivoCapa || !numSolar || !numProcesso) {
+      toast.warning("Por favor, preencha todos os campos e anexe a capa.");
+      return;
+    }
+
+    setEnviandoFinalizacao(true);
+    const formData = new FormData();
+    formData.append("numero_solar", numSolar);
+    formData.append("numero_processo", numProcesso);
+    formData.append("capa", arquivoCapa);
+
+    try {
+      const response = await fetch(`${API_BASE}/casos/${id}/finalizar`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      },
-    );
+        body: formData,
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || "Falha ao reverter a finalização.");
+      if (!response.ok) throw new Error("Erro ao finalizar caso.");
+
+      toast.success("Caso finalizado e capa enviada com sucesso!");
+      mutate(); // Em vez do reload agressivo da página, o SWR atualiza suavemente
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao finalizar: " + error.message);
+    } finally {
+      setEnviandoFinalizacao(false);
     }
+  };
 
-    toast.success("Finalização revertida! O caso foi reaberto para edição.");
-    mutate(); // CORRIGIDO (Era fetchDetalhes)
-  } catch (error) {
-    console.error("Erro ao reverter finalização:", error);
-    toast.error(error.message);
-  } finally {
-    setIsReverting(false);
-  }
-};
-
-const handleReprocessar = async () => {
-  if (
-    !(await confirm(
-      "Isso irá reiniciar todo o processo de leitura de documentos (OCR) e geração de texto pela IA. Deseja continuar?",
-      "Reprocessar Caso",
-    ))
-  ) {
-    return;
-  }
-
-  setIsReprocessing(true);
-  try {
-    const response = await fetch(`${API_BASE}/casos/${id}/reprocessar`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!response.ok) throw new Error("Erro ao solicitar reprocessamento.");
-
-    toast.success("Processamento reiniciado! Aguarde alguns instantes.");
-    mutate(); // CORRIGIDO (Era fetchDetalhes)
-  } catch (error) {
-    toast.error(error.message);
-  } finally {
-    setIsReprocessing(false);
-  }
-};
-
-const handleArquivarClick = async () => {
-  if (caso.arquivado) {
+  const handleDeleteCaso = async () => {
     if (
       await confirm(
-        "Deseja mover este caso de volta para os Ativos?",
-        "Restaurar Caso",
+        `Tem certeza que deseja excluir permanentemente o caso ${caso.protocolo}?`,
+        "Excluir Caso",
       )
     ) {
-      await processarArquivamento(false, null);
+      setIsDeleting(true);
+      try {
+        const response = await fetch(`${API_BASE}/casos/${id}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          let errorMessage = "Falha ao excluir o caso.";
+          try {
+            const errorData = await response.json();
+            errorMessage =
+              errorData.message || errorData.error || response.statusText;
+          } catch (e) {
+            errorMessage = response.statusText || errorMessage;
+          }
+          throw new Error(errorMessage);
+        }
+
+        toast.success("Caso excluído com sucesso.");
+        window.location.href = "/painel";
+      } catch (error) {
+        console.error("Erro ao excluir caso:", error);
+        toast.error(error.message || "Não foi possível processar a exclusão.");
+      } finally {
+        setIsDeleting(false);
+      }
     }
-  } else {
-    setArchiveReason("");
-    setArchiveModalOpen(true);
-  }
-};
+  };
+
+  const handleUnlock = async () => {
+    if (
+      !(await confirm(
+        "Deseja liberar este caso para outros usuários?",
+        "Liberar Caso?",
+      ))
+    )
+      return;
+    setIsUpdating(true);
+    try {
+      const res = await fetch(`${API_BASE}/casos/${id}/unlock`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        toast.success("Caso liberado!");
+        navigate("/painel");
+      } else {
+        throw new Error("Falha ao liberar.");
+      }
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleOpenShare = async () => {
+    setIsShareModalOpen(true);
+    setIsLoadingColegas(true);
+    try {
+      const res = await fetch(`${API_BASE}/defensores/colegas`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setColegas(await res.json());
+    } catch (err) {
+      toast.error("Erro ao carregar colegas.");
+    } finally {
+      setIsLoadingColegas(false);
+    }
+  };
+
+  const handleConfirmShare = async () => {
+    if (!selectedColegaId) return toast.warning("Selecione um colega.");
+    setIsSharing(true);
+    try {
+      const res = await fetch(`${API_BASE}/casos/${id}/solicitar-assistencia`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ destinatario_id: selectedColegaId }),
+      });
+      if (res.ok) {
+        toast.success("Solicitação de ajuda enviada!");
+        setIsShareModalOpen(false);
+      } else {
+        throw new Error("Falha ao enviar.");
+      }
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleSaveJuridico = async () => {
+    setIsSavingJuridico(true);
+    try {
+      const res = await fetch(`${API_BASE}/casos/${id}/juridico`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ memoria_calculo: memoriaCalculo }),
+      });
+      if (res.ok) {
+        toast.success("Dados jurídicos salvos!");
+        mutate();
+      }
+    } catch (err) {
+      toast.error("Erro ao salvar dados jurídicos.");
+    }
+  };
+
+  const handleReverterFinalizacao = async () => {
+    if (
+      !(await confirm(
+        "Esta ação irá reabrir o caso, remover os números de Solar/Processo e excluir a capa processual anexada. Deseja continuar?",
+        "Reverter Finalização?",
+      ))
+    ) {
+      return;
+    }
+
+    setIsReverting(true);
+    try {
+      const response = await fetch(
+        `${API_BASE}/casos/${id}/reverter-finalizacao`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Falha ao reverter a finalização.");
+      }
+
+      toast.success("Finalização revertida! O caso foi reaberto para edição.");
+      mutate(); // CORRIGIDO (Era fetchDetalhes)
+    } catch (error) {
+      console.error("Erro ao reverter finalização:", error);
+      toast.error(error.message);
+    } finally {
+      setIsReverting(false);
+    }
+  };
+
+  const handleReprocessar = async () => {
+    if (
+      !(await confirm(
+        "Isso irá reiniciar todo o processo de leitura de documentos (OCR) e geração de texto pela IA. Deseja continuar?",
+        "Reprocessar Caso",
+      ))
+    ) {
+      return;
+    }
+
+    setIsReprocessing(true);
+    try {
+      const response = await fetch(`${API_BASE}/casos/${id}/reprocessar`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Erro ao solicitar reprocessamento.");
+
+      toast.success("Processamento reiniciado! Aguarde alguns instantes.");
+      mutate(); // CORRIGIDO (Era fetchDetalhes)
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsReprocessing(false);
+    }
+  };
+
+  const handleArquivarClick = async () => {
+    if (caso.arquivado) {
+      if (
+        await confirm(
+          "Deseja mover este caso de volta para os Ativos?",
+          "Restaurar Caso",
+        )
+      ) {
+        await processarArquivamento(false, null);
+      }
+    } else {
+      setArchiveReason("");
+      setArchiveModalOpen(true);
+    }
+  };
 
   const confirmArchive = async () => {
     if (archiveReason.trim().length < 5) {
@@ -776,7 +806,10 @@ const handleArquivarClick = async () => {
                 htmlFor="numeroSolar"
                 className="text-xs font-bold text-muted uppercase tracking-wider"
               >
-                Solar:
+                {caso.unidade?.sistema
+                  ? caso.unidade.sistema.toUpperCase()
+                  : "SOLAR"}
+                :
               </label>
               <input
                 type="text"
@@ -801,14 +834,14 @@ const handleArquivarClick = async () => {
           </div>
         </div>
         <div className="flex flex-col md:items-end gap-2">
-           <button 
-             onClick={handleOpenShare}
-             className="btn btn-ghost border border-soft flex items-center gap-2 text-sm shadow-sm"
-             title="Dar acesso a outro defensor/servidor para ajudar"
-           >
-             <User size={18} className="text-primary" />
-             Compartilhar Caso
-           </button>
+          <button
+            onClick={handleOpenShare}
+            className="btn btn-ghost border border-soft flex items-center gap-2 text-sm shadow-sm"
+            title="Dar acesso a outro defensor/servidor para ajudar"
+          >
+            <User size={18} className="text-primary" />
+            Compartilhar Caso
+          </button>
         </div>
       </div>
 
@@ -892,19 +925,20 @@ const handleArquivarClick = async () => {
 
       {/* --- CONTEÚDO DAS ABAS --- */}
       <div className="min-h-[500px]">
-        
         {/* ABA: CASOS RELACIONADOS */}
         {activeTab === "relacionados" && (
           <div className="space-y-6 animate-fade-in">
-             <div className="card space-y-4">
-               <h2 className="heading-2 border-soft pb-2 border-b">
-                 Casos Relacionados
-               </h2>
-               <p className="text-sm text-muted">
-                 Abaixo estão outros protocolos vinculados ao mesmo CPF (geralmente representantes legais gerenciando múltiplos assistidos).
-               </p>
-               <PainelCasosRelacionados casoOriginal={caso} />
-             </div>
+            <div className="card space-y-4">
+              <h2 className="heading-2 border-soft pb-2 border-b">
+                Casos Relacionados
+              </h2>
+              <p className="text-sm text-muted">
+                Abaixo estão outros protocolos vinculados ao mesmo CPF
+                (geralmente representantes legais gerenciando múltiplos
+                assistidos).
+              </p>
+              <PainelCasosRelacionados casoOriginal={caso} />
+            </div>
           </div>
         )}
 
@@ -912,7 +946,7 @@ const handleArquivarClick = async () => {
         {activeTab === "visao_geral" && (
           <div className="space-y-6 animate-fade-in">
             <InfoAssistido caso={caso} />
-          {/* SEÇÃO DE FEEDBACK / ANOTAÇÕES */}
+            {/* SEÇÃO DE FEEDBACK / ANOTAÇÕES */}
             <section className="card space-y-4">
               <div className="flex items-center gap-3">
                 <MessageSquare className="text-primary" />
@@ -992,70 +1026,83 @@ const handleArquivarClick = async () => {
                 )}
               </div>
 
-               {/* SELETOR DE MINUTAS MULTIPLAS E DOWNLOADS */}
-               <div className="flex flex-wrap items-center justify-between gap-4 bg-surface p-3 rounded-lg border border-soft">
-                 <div className="flex flex-wrap gap-2">
-                   {/* Penhora / Principal */}
-                   {(caso.url_peticao_penhora || caso.url_documento_gerado) && (
-                     <button 
-                       onClick={() => setMinutaPreview("penhora")}
-                       className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${
-                         minutaPreview === "penhora" 
-                           ? "bg-primary text-white shadow-sm" 
-                           : "text-muted hover:bg-black/5"
-                       }`}
-                     >
-                       {caso.url_peticao_prisao ? "Rito da Penhora" : "Petição Inicial"}
-                     </button>
-                   )}
+              {/* SELETOR DE MINUTAS MULTIPLAS E DOWNLOADS */}
+              <div className="flex flex-wrap items-center justify-between gap-4 bg-surface p-3 rounded-lg border border-soft">
+                <div className="flex flex-wrap gap-2">
+                  {/* Penhora / Principal */}
+                  {(caso.url_peticao_penhora || caso.url_documento_gerado) && (
+                    <button
+                      onClick={() => setMinutaPreview("penhora")}
+                      className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${
+                        minutaPreview === "penhora"
+                          ? "bg-primary text-white shadow-sm"
+                          : "text-muted hover:bg-black/5"
+                      }`}
+                    >
+                      {caso.url_peticao_prisao
+                        ? "Rito da Penhora"
+                        : "Petição Inicial"}
+                    </button>
+                  )}
 
-                   {/* Prisão */}
-                   {caso.url_peticao_prisao && (
-                     <button 
-                       onClick={() => setMinutaPreview("prisao")}
-                       className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${
-                         minutaPreview === "prisao" 
-                           ? "bg-error text-white shadow-sm" 
-                           : "text-muted hover:bg-black/5"
-                       }`}
-                     >
-                       Rito da Prisão (3+ meses)
-                     </button>
-                   )}
+                  {/* Prisão */}
+                  {caso.url_peticao_prisao && (
+                    <button
+                      onClick={() => setMinutaPreview("prisao")}
+                      className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${
+                        minutaPreview === "prisao"
+                          ? "bg-error text-white shadow-sm"
+                          : "text-muted hover:bg-black/5"
+                      }`}
+                    >
+                      Rito da Prisão (3+ meses)
+                    </button>
+                  )}
 
-                   {/* Termo de Declaração */}
-                   {caso.url_termo_declaracao && (
-                     <button 
-                       onClick={() => setMinutaPreview("termo")}
-                       className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${
-                         minutaPreview === "termo" 
-                           ? "bg-purple-600 text-white shadow-sm" 
-                           : "text-muted hover:bg-black/5"
-                       }`}
-                     >
-                       Termo de Declaração
-                     </button>
-                   )}
-                 </div>
+                  {/* Termo de Declaração */}
+                  {caso.url_termo_declaracao && (
+                    <button
+                      onClick={() => setMinutaPreview("termo")}
+                      className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${
+                        minutaPreview === "termo"
+                          ? "bg-purple-600 text-white shadow-sm"
+                          : "text-muted hover:bg-black/5"
+                      }`}
+                    >
+                      Termo de Declaração
+                    </button>
+                  )}
+                </div>
 
-                 {!caso.url_peticao_penhora && !caso.url_peticao_prisao && !caso.url_documento_gerado && !caso.url_termo_declaracao && (
-                   <div className="text-sm font-bold text-muted px-2 italic">Nenhum documento gerado ainda.</div>
-                 )}
+                {!caso.url_peticao_penhora &&
+                  !caso.url_peticao_prisao &&
+                  !caso.url_documento_gerado &&
+                  !caso.url_termo_declaracao && (
+                    <div className="text-sm font-bold text-muted px-2 italic">
+                      Nenhum documento gerado ainda.
+                    </div>
+                  )}
 
                 {/* BOTÕES DE DOWNLOAD DIRETO */}
                 <div className="flex gap-2">
-                  {(minutaPreview === "penhora" || !caso.url_peticao_prisao) && (caso.url_peticao_penhora || caso.url_documento_gerado) && (
-                    <a
-                      href={caso.url_peticao_penhora || caso.url_documento_gerado}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-secondary btn-sm flex items-center gap-2"
-                      download
-                    >
-                      <Download size={16} />
-                      Baixar {caso.url_peticao_prisao ? "Penhora" : "Minuta"} (.docx)
-                    </a>
-                  )}
+                  {(minutaPreview === "penhora" || !caso.url_peticao_prisao) &&
+                    (caso.url_peticao_penhora || caso.url_documento_gerado) && (
+                      <a
+                        href={
+                          caso.url_peticao_penhora || caso.url_documento_gerado
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-secondary btn-sm flex items-center gap-2"
+                        download
+                      >
+                        <Download size={16} />
+                        Baixar {caso.url_peticao_prisao
+                          ? "Penhora"
+                          : "Minuta"}{" "}
+                        (.docx)
+                      </a>
+                    )}
                   {minutaPreview === "prisao" && caso.url_peticao_prisao && (
                     <a
                       href={caso.url_peticao_prisao}
@@ -1076,9 +1123,12 @@ const handleArquivarClick = async () => {
                 <div className="w-full h-[800px] rounded-xl border border-soft overflow-hidden bg-white">
                   <iframe
                     src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
-                      minutaPreview === "prisao" && caso.url_peticao_prisao ? caso.url_peticao_prisao :
-                    minutaPreview === "termo" && caso.url_termo_declaracao ? caso.url_termo_declaracao :
-                    (caso.url_peticao_penhora || caso.url_documento_gerado)
+                      minutaPreview === "prisao" && caso.url_peticao_prisao
+                        ? caso.url_peticao_prisao
+                        : minutaPreview === "termo" && caso.url_termo_declaracao
+                          ? caso.url_termo_declaracao
+                          : caso.url_peticao_penhora ||
+                            caso.url_documento_gerado,
                     )}`}
                     className="w-full h-full"
                     frameBorder="0"
@@ -1236,10 +1286,13 @@ const handleArquivarClick = async () => {
             <div className="card space-y-4 border-l-4 border-l-primary">
               <div className="flex items-center gap-3">
                 <Mic className="text-primary" />
-                <h2 className="heading-2">Memória de Cálculo / Dados Jurídicos</h2>
+                <h2 className="heading-2">
+                  Memória de Cálculo / Dados Jurídicos
+                </h2>
               </div>
               <p className="text-sm text-muted">
-                Campo exclusivo para o defensor/servidor registrar como chegou ao valor do débito ou outras anotações técnicas. 
+                Campo exclusivo para o defensor/servidor registrar como chegou
+                ao valor do débito ou outras anotações técnicas.
                 <span className="font-bold text-primary"> (Uso interno)</span>
               </p>
               <textarea
@@ -1463,29 +1516,34 @@ const handleArquivarClick = async () => {
                 Cancelar
               </button>
               <div className="flex gap-4 mt-8">
-            <button
-              onClick={() => navigate("/painel")}
-              className="px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-lg hover:bg-primary-dark transition-all transform hover:-translate-y-1"
-            >
-              Voltar ao Início
-            </button>
-            {user?.cargo === "admin" && (
-              <button
-                onClick={async () => {
-                   if (await confirm("Como administrador, deseja forçar a liberação deste caso?", "Forçar Liberação?")) {
-                      await fetch(`${API_BASE}/casos/${id}/unlock`, {
-                        method: "PATCH",
-                        headers: { Authorization: `Bearer ${token}` }
-                      });
-                      mutate();
-                   }
-                }}
-                className="px-8 py-3 bg-red-100 text-red-700 font-bold rounded-xl border border-red-200 hover:bg-red-200 transition-all"
-              >
-                Forçar Liberação (Admin)
-              </button>
-            )}
-          </div>
+                <button
+                  onClick={() => navigate("/painel")}
+                  className="px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-lg hover:bg-primary-dark transition-all transform hover:-translate-y-1"
+                >
+                  Voltar ao Início
+                </button>
+                {user?.cargo === "admin" && (
+                  <button
+                    onClick={async () => {
+                      if (
+                        await confirm(
+                          "Como administrador, deseja forçar a liberação deste caso?",
+                          "Forçar Liberação?",
+                        )
+                      ) {
+                        await fetch(`${API_BASE}/casos/${id}/unlock`, {
+                          method: "PATCH",
+                          headers: { Authorization: `Bearer ${token}` },
+                        });
+                        mutate();
+                      }
+                    }}
+                    className="px-8 py-3 bg-red-100 text-red-700 font-bold rounded-xl border border-red-200 hover:bg-red-200 transition-all"
+                  >
+                    Forçar Liberação (Admin)
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1496,12 +1554,14 @@ const handleArquivarClick = async () => {
           <div className="bg-surface border border-soft p-6 rounded-2xl shadow-xl max-w-md w-full space-y-4">
             <div className="flex items-center gap-3 text-primary">
               <User size={24} />
-              <h3 className="text-xl font-bold text-main">Compartilhar Acesso</h3>
+              <h3 className="text-xl font-bold text-main">
+                Compartilhar Acesso
+              </h3>
             </div>
 
             <p className="text-muted text-sm">
-              Selecione um colega para dar acesso e permissão de edição neste caso. 
-              Ele receberá uma notificação para aceitar.
+              Selecione um colega para dar acesso e permissão de edição neste
+              caso. Ele receberá uma notificação para aceitar.
             </p>
 
             {isLoadingColegas ? (
@@ -1509,14 +1569,16 @@ const handleArquivarClick = async () => {
                 <Loader2 className="animate-spin text-primary" />
               </div>
             ) : (
-              <select 
+              <select
                 className="input"
                 value={selectedColegaId}
                 onChange={(e) => setSelectedColegaId(e.target.value)}
               >
                 <option value="">Selecione um colega...</option>
-                {colegas.map(c => (
-                  <option key={c.id} value={c.id}>{c.nome}</option>
+                {colegas.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
+                  </option>
                 ))}
               </select>
             )}

@@ -46,76 +46,75 @@ model unidades {
 }
 
 model defensores {
-  id                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  supabase_uid        String?          @unique
-  nome                String
-  email               String           @unique
-  senha_hash          String?
-  cargo_id            String           @db.Uuid
-  unidade_id          String?          @db.Uuid
-  ativo               Boolean          @default(true)
-  created_at          DateTime         @default(now()) @db.Timestamptz(6)
-  updated_at          DateTime         @default(now()) @updatedAt @db.Timestamptz(6)
-  casos_criado_por    casos[]          @relation("CasoCriadoPor")
-  casos_defensor      casos[]          @relation("CasoDefensor")
-  casos_servidor      casos[]          @relation("CasoServidor")
-  assistencia_enviada assistencia_casos[] @relation("AssistenciaRemetente")
+  id                   String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  supabase_uid         String?             @unique
+  nome                 String
+  email                String              @unique
+  senha_hash           String?
+  cargo_id             String              @db.Uuid
+  unidade_id           String?             @db.Uuid
+  ativo                Boolean             @default(true)
+  created_at           DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
   assistencia_recebida assistencia_casos[] @relation("AssistenciaDestinatario")
-  casos_ia_regenerado casos_ia[]       @relation("IaRegeneradoPor")
-  cargo               cargos           @relation(fields: [cargo_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  unidade             unidades?        @relation(fields: [unidade_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  logs_auditoria      logs_auditoria[]
-  notificacoes        notificacoes[]
+  assistencia_enviada  assistencia_casos[] @relation("AssistenciaRemetente")
+  casos_criado_por     casos[]             @relation("CasoCriadoPor")
+  casos_defensor       casos[]             @relation("CasoDefensor")
+  casos_servidor       casos[]             @relation("CasoServidor")
+  casos_ia_regenerado  casos_ia[]          @relation("IaRegeneradoPor")
+  cargo                cargos              @relation(fields: [cargo_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  unidade              unidades?           @relation(fields: [unidade_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  logs_auditoria       logs_auditoria[]
+  notificacoes         notificacoes[]
 }
 
 model casos {
-  id                  BigInt           @id @default(autoincrement())
-  protocolo           String           @unique
-  unidade_id          String           @db.Uuid
-  tipo_acao           tipo_acao
-  status              status_caso      @default(aguardando_documentos)
-  numero_vara         String?
-  servidor_id         String?          @db.Uuid
-  servidor_at         DateTime?        @db.Timestamptz(6)
-  defensor_id         String?          @db.Uuid
-  defensor_at         DateTime?        @db.Timestamptz(6)
-  numero_processo     String?
-  url_capa            String?
-  protocolado_at      DateTime?        @db.Timestamptz(6)
-  status_job          status_job?      @default(pendente)
-  erro_processamento  String?
-  retry_count         Int              @default(0)
-  last_retry_at       DateTime?        @db.Timestamptz(6)
-  processed_at        DateTime?        @db.Timestamptz(6)
-  arquivado           Boolean          @default(false)
-  motivo_arquivamento String?
-  criado_por          String?          @db.Uuid
-
-  chave_acesso_hash           String?
-  url_capa_processual         String?
-  agendamento_data            DateTime?        @db.Timestamptz(6)
+  id                          BigInt              @id @default(autoincrement())
+  protocolo                   String              @unique
+  unidade_id                  String              @db.Uuid
+  tipo_acao                   tipo_acao
+  status                      status_caso         @default(aguardando_documentos)
+  numero_vara                 String?
+  servidor_id                 String?             @db.Uuid
+  servidor_at                 DateTime?           @db.Timestamptz(6)
+  defensor_id                 String?             @db.Uuid
+  defensor_at                 DateTime?           @db.Timestamptz(6)
+  numero_processo             String?
+  url_capa                    String?
+  protocolado_at              DateTime?           @db.Timestamptz(6)
+  status_job                  status_job?         @default(pendente)
+  erro_processamento          String?
+  retry_count                 Int                 @default(0)
+  last_retry_at               DateTime?           @db.Timestamptz(6)
+  processed_at                DateTime?           @db.Timestamptz(6)
+  arquivado                   Boolean             @default(false)
+  motivo_arquivamento         String?
+  criado_por                  String?             @db.Uuid
+  created_at                  DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at                  DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  agendamento_data            DateTime?           @db.Timestamptz(6)
   agendamento_link            String?
   agendamento_status          String?
-  motivo_reagendamento        String?
+  chave_acesso_hash           String?
   data_sugerida_reagendamento String?
-  feedback                    String?          @db.Text
-  descricao_pendencia         String?          @db.Text
-  processing_started_at       DateTime?        @db.Timestamptz(6)
-  finished_at                 DateTime?        @db.Timestamptz(6)
-
-  created_at          DateTime         @default(now()) @db.Timestamptz(6)
-  updated_at          DateTime         @default(now()) @updatedAt @db.Timestamptz(6)
-  criador             defensores?      @relation("CasoCriadoPor", fields: [criado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  defensor            defensores?      @relation("CasoDefensor", fields: [defensor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  servidor            defensores?      @relation("CasoServidor", fields: [servidor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  unidade             unidades         @relation(fields: [unidade_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  ia                  casos_ia?
-  juridico            casos_juridico?
-  partes              casos_partes?
-  documentos          documentos[]
-  logs_auditoria      logs_auditoria[]
-  logs_pipeline       logs_pipeline[]
-  assistencia_casos   assistencia_casos[]
+  descricao_pendencia         String?
+  feedback                    String?
+  finished_at                 DateTime?           @db.Timestamptz(6)
+  motivo_reagendamento        String?
+  processing_started_at       DateTime?           @db.Timestamptz(6)
+  url_capa_processual         String?
+  compartilhado               Boolean             @default(false)
+  assistencia_casos           assistencia_casos[]
+  criador                     defensores?         @relation("CasoCriadoPor", fields: [criado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  defensor                    defensores?         @relation("CasoDefensor", fields: [defensor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  servidor                    defensores?         @relation("CasoServidor", fields: [servidor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  unidade                     unidades            @relation(fields: [unidade_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ia                          casos_ia?
+  juridico                    casos_juridico?
+  partes                      casos_partes?
+  documentos                  documentos[]
+  logs_auditoria              logs_auditoria[]
+  logs_pipeline               logs_pipeline[]
 
   @@index([protocolo], map: "idx_casos_protocolo")
   @@index([status], map: "idx_casos_status")
@@ -186,31 +185,31 @@ model casos_juridico {
   empregador_nome        String?
   empregador_cnpj        String?
   empregador_endereco    String?
-  memoria_calculo        String?  @db.Text
+  memoria_calculo        String?
   created_at             DateTime @default(now()) @db.Timestamptz(6)
   updated_at             DateTime @default(now()) @updatedAt @db.Timestamptz(6)
   caso                   casos    @relation(fields: [caso_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model casos_ia {
-  id                     String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  caso_id                BigInt      @unique
-  relato_texto           String?
-  dados_extraidos        Json?
-  dos_fatos_gerado       String?
-  resumo_ia              String?
+  id                       String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caso_id                  BigInt      @unique
+  relato_texto             String?
+  dados_extraidos          Json?
+  dos_fatos_gerado         String?
+  resumo_ia                String?
   peticao_inicial_rascunho String?
-  peticao_completa_texto String?
-  url_peticao            String?
-  url_peticao_penhora    String?
-  url_peticao_prisao     String?
-  versao_peticao         Int         @default(1)
-  regenerado_at          DateTime?   @db.Timestamptz(6)
-  regenerado_por         String?     @db.Uuid
-  created_at             DateTime    @default(now()) @db.Timestamptz(6)
-  updated_at             DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
-  caso                   casos       @relation(fields: [caso_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  regenerou              defensores? @relation("IaRegeneradoPor", fields: [regenerado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  peticao_completa_texto   String?
+  url_peticao              String?
+  url_peticao_penhora      String?
+  url_peticao_prisao       String?
+  versao_peticao           Int         @default(1)
+  regenerado_at            DateTime?   @db.Timestamptz(6)
+  regenerado_por           String?     @db.Uuid
+  created_at               DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
+  caso                     casos       @relation(fields: [caso_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  regenerou                defensores? @relation("IaRegeneradoPor", fields: [regenerado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([caso_id], map: "idx_casos_ia_caso")
 }
@@ -230,14 +229,16 @@ model documentos {
 }
 
 model logs_auditoria {
-  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  usuario_id String?     @db.Uuid
-  caso_id    BigInt?
-  acao       String
-  detalhes   Json?
-  criado_em  DateTime    @default(dbgenerated("timezone('America/Sao_Paulo'::text, now())")) @db.Timestamptz(6)
-  caso       casos?      @relation(fields: [caso_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  usuario    defensores? @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id  String?     @db.Uuid
+  caso_id     BigInt?
+  acao        String
+  detalhes    Json?
+  criado_em   DateTime    @default(dbgenerated("timezone('America/Sao_Paulo'::text, now())")) @db.Timestamptz(6)
+  entidade    String?
+  registro_id String?
+  caso        casos?      @relation(fields: [caso_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario     defensores? @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([caso_id], map: "idx_logs_auditoria_caso")
   @@index([usuario_id], map: "idx_logs_auditoria_user")
@@ -262,32 +263,31 @@ model logs_pipeline {
 }
 
 model assistencia_casos {
-  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   caso_id         BigInt
-  remetente_id    String           @db.Uuid
-  destinatario_id String           @db.Uuid
+  remetente_id    String             @db.Uuid
+  destinatario_id String             @db.Uuid
   status          status_assistencia @default(pendente)
-  created_at      DateTime         @default(now()) @db.Timestamptz(6)
-  
-  caso            casos            @relation(fields: [caso_id], references: [id], onDelete: Cascade)
-  remetente       defensores       @relation("AssistenciaRemetente", fields: [remetente_id], references: [id])
-  destinatario    defensores       @relation("AssistenciaDestinatario", fields: [destinatario_id], references: [id])
+  created_at      DateTime           @default(now()) @db.Timestamptz(6)
+  caso            casos              @relation(fields: [caso_id], references: [id], onDelete: Cascade)
+  destinatario    defensores         @relation("AssistenciaDestinatario", fields: [destinatario_id], references: [id])
+  remetente       defensores         @relation("AssistenciaRemetente", fields: [remetente_id], references: [id])
 
   @@index([caso_id])
   @@index([destinatario_id])
 }
 
 model notificacoes {
-  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  usuario_id  String      @db.Uuid
-  titulo      String?
-  mensagem    String
-  lida        Boolean     @default(false)
-  tipo        String?     // 'upload', 'reagendamento', 'assistencia'
-  link        String?
-  created_at  DateTime    @default(now()) @db.Timestamptz(6)
-  
-  usuario     defensores  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id    String     @db.Uuid
+  titulo        String?
+  mensagem      String
+  lida          Boolean    @default(false)
+  tipo          String?
+  link          String?
+  created_at    DateTime   @default(now()) @db.Timestamptz(6)
+  referencia_id String?    @db.Uuid
+  usuario       defensores @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
 
   @@index([usuario_id])
 }

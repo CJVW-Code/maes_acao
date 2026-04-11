@@ -7,7 +7,7 @@ O sistema utiliza uma abordagem escalável para persistência, combinando a faci
 | Componente | Ferramenta | Tabelas | Justificativa |
 |:-----------|:-----------|:--------|:--------------|
 | **Core & IA** | Supabase JS Client | `casos`, `casos_partes`, `casos_ia`, `casos_juridico`, `documentos` | Suporte a alto volume, JSONB, RLS e Storage integrado em tempo real. |
-| **Equipe & RBAC** | Prisma ORM | `defensores`, `unidades`, `cargos`, `permissoes`, `notificacoes` | Gestão robusta de chaves estrangeiras e tipagem segura para usuários. |
+| **Equipe & RBAC** | Prisma ORM | `defensores`, `unidades`, `cargos`, `permissoes`, `notificacoes`, `logs_auditoria` | Gestão robusta de chaves estrangeiras e tipagem segura para usuários. |
 
 ---
 
@@ -33,6 +33,7 @@ erDiagram
 O nó central. Cada registro representa um filho (ou assistido direto).
 - **protocolo (UNIQUE):** ID público gerado no formato `AAAAMMDD + Categoria + Sequencial`.
 - **status:** Enum que controla o fluxo da triagem ao protocolo.
+- **compartilhado:** Boolean que indica se o caso possui assistência ativa.
 - **Locking:** Campos `servidor_id` e `defensor_id` armazenam quem está com a "posse" da edição no momento.
 
 ### 3.2 Tabela `casos_partes` (1:1)
