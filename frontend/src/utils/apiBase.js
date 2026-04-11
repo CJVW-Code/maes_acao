@@ -1,4 +1,4 @@
-﻿export function getApiBase() {
+export function getApiBase() {
   try {
     const envUrl =
       (typeof import.meta !== "undefined" &&
@@ -20,12 +20,12 @@
   ) {
     const origin = window.location.origin;
     if (/localhost|127\.0\.0\.1/.test(origin)) {
-      return "http://localhost:8001/api";
+      return "http://localhost:8000/api";
     }
     return origin.replace(/\/$/, "");
   }
 
-  return "http://localhost:8001/api";
+  return "http://localhost:8000/api";
 }
 
 export const API_BASE = getApiBase();

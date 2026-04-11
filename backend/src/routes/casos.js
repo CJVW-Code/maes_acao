@@ -5,7 +5,7 @@ import {
   resumoCasos,
   obterDetalhesCaso,
   finalizarCasoSolar,
-  reverterFinalizacao, // Adicionado
+  reverterFinalizacao,
   regenerarDosFatos,
   buscarPorCpf,
   resetarChaveAcesso,
@@ -20,14 +20,19 @@ import {
   solicitarReagendamento,
   alternarArquivamento,
   salvarFeedback,
+  salvarDadosJuridicos,
   listarNotificacoes,
   marcarNotificacaoLida,
+  solicitarAssistencia,
+  responderAssistencia,
 } from "../controllers/casosController.js";
+import { lockCaso, unlockCaso } from "../controllers/lockController.js";
 import { obterHistoricoCaso } from "../controllers/consultaAuditoria.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { auditMiddleware } from "../middleware/auditMiddleware.js";
 import { upload } from "../middleware/upload.js"; 
 import { requireWriteAccess } from "../middleware/requireWriteAcess.js";
+
 const router = express.Router();
 
 // Configuração para upload de múltiplos arquivos (Criação)
@@ -47,13 +52,12 @@ router.post(
 router.post("/:id/reagendar", solicitarReagendamento);
 
 // FILTRO DE SEGURANÇA E AUDITORIA 
-
 router.use(authMiddleware);
 router.use(auditMiddleware);
 
 // Rotas Protegidas
 router.get("/", listarCasos);
-router.get("/resumo", resumoCasos); // Retorna só contagens (sem PII) — usado no Dashboard
+router.get("/resumo", resumoCasos);
 router.get("/notificacoes", listarNotificacoes);
 router.patch("/notificacoes/:id/lida", marcarNotificacaoLida);
 
@@ -72,5 +76,13 @@ router.post("/:id/regerar-minuta", regerarMinuta);
 router.post("/:id/reprocessar", reprocessarCaso);
 router.patch("/:id/documento/renomear", renomearDocumento);
 router.patch("/:id/arquivar", alternarArquivamento);
+router.patch("/:id/juridico", salvarDadosJuridicos);
+router.post("/:id/solicitar-assistencia", solicitarAssistencia);
+router.post("/assistencia/:assistencia_id/responder", responderAssistencia);
 router.get("/:id/historico", obterHistoricoCaso);
+
+// Rotas de Locking
+router.patch("/:id/lock", lockCaso);
+router.patch("/:id/unlock", unlockCaso);
+
 export default router;

@@ -38,12 +38,21 @@ import useSWR from "swr";
 import { authFetch } from "../../../utils/apiBase"; // Ajuste o caminho conforme o arquivo
 //compenetes detalhes
 import { InfoAssistido } from "../components/detalhes/InfoAssistido";
-import { PainelAgendamento } from "../components/detalhes/PainelAgendamento";
 import { PainelDocumentos } from "../components/detalhes/PainelDocumentos";
 import { PainelCasosRelacionados } from "../components/detalhes/PainelCasosRelacionados";
 const fetcher = async (url) => {
   const response = await authFetch(url);
-  if (!response.ok) throw new Error("Erro ao buscar dados.");
+  if (!response.ok) {
+    const error = new Error("Erro ao buscar dados.");
+    error.status = response.status;
+    try {
+      const info = await response.json();
+      error.info = info;
+    } catch (e) {
+      // JSON body missing
+    }
+    throw error;
+  }
   return response.json();
 };
 
@@ -143,9 +152,6 @@ export const DetalhesCaso = () => {
   const [isGeneratingTermo, setIsGeneratingTermo] = useState(false);
   const [isRegeneratingMinuta, setIsRegeneratingMinuta] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
-  const [dataAgendamento, setDataAgendamento] = useState("");
-  const [linkAgendamento, setLinkAgendamento] = useState("");
-  const [isAgendando, setIsAgendando] = useState(false);
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [pendenciaTexto, setPendenciaTexto] = useState("");
   const [editingFile, setEditingFile] = useState({ url: null, name: "" });
@@ -154,6 +160,14 @@ export const DetalhesCaso = () => {
   const [archiveModalOpen, setArchiveModalOpen] = useState(false);
   const [archiveReason, setArchiveReason] = useState("");
   const [activeTab, setActiveTab] = useState("visao_geral");
+  const [memoriaCalculo, setMemoriaCalculo] = useState("");
+  const [isSavingJuridico, setIsSavingJuridico] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [colegas, setColegas] = useState([]);
+  const [isLoadingColegas, setIsLoadingColegas] = useState(false);
+  const [selectedColegaId, setSelectedColegaId] = useState("");
+  const [isSharing, setIsSharing] = useState(false);
+  const [minutaPreview, setMinutaPreview] = useState("penhora");
 
   // 1. O SWR substitui o estado do caso, o fetchDetalhes, e o polling!
   const {
@@ -183,20 +197,11 @@ export const DetalhesCaso = () => {
   // 2. Preenchimento de datas e formulários após o caso carregar
   useEffect(() => {
     if (caso) {
-      if (caso.agendamento_data) {
-        const date = new Date(caso.agendamento_data);
-        const offset = date.getTimezoneOffset() * 60000;
-        const localISOTime = new Date(date.getTime() - offset)
-          .toISOString()
-          .slice(0, 16);
-        setDataAgendamento(localISOTime);
-      }
-      setLinkAgendamento(caso.agendamento_link || "");
-
       if (!feedbackInitialized) {
         setFeedback(caso.feedback || "");
         setPendenciaTexto(caso.descricao_pendencia || "");
         setNumSolar(caso.numero_solar || "");
+        setMemoriaCalculo(caso.juridico?.memoria_calculo || "");
         setFeedbackInitialized(true);
       }
     }
@@ -256,6 +261,7 @@ const handleStatusChange = async (novoStatus) => {
     }
 
     await response.json();
+        toast.success("Status atualizado com sucesso!");
     mutate(); // CORRIGIDO
   } catch (error) {
     console.error(error);
@@ -310,9 +316,33 @@ if (isLoading) {
 }
 
 if (!caso) {
+  // Lógica específica para 423 Locked
+  if (error?.status === 423) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 animate-fade-in">
+        <div className="bg-amber-100 p-6 rounded-full">
+          <AlertTriangle size={64} className="text-amber-600" />
+        </div>
+        <div className="text-center space-y-2 max-w-md">
+          <h2 className="heading-1 text-amber-900">Caso em Atendimento</h2>
+          <p className="text-amber-800">
+            {error.info?.message || "Este caso já está vinculado a outro defensor(a) no momento."}
+          </p>
+          <div className="mt-4 p-4 bg-white border border-amber-200 rounded-lg shadow-sm">
+             <span className="text-xs uppercase font-bold text-amber-600 tracking-widest">Responsável Atual</span>
+             <p className="text-lg font-medium text-amber-900">{error.info?.holder || "Não identificado"}</p>
+          </div>
+        </div>
+        <button onClick={() => navigate("/painel")} className="btn btn-primary">
+          Voltar para Lista de Casos
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="card border-l-4 border-l-red-500 text-red-600">
-      Caso não encontrado.
+      {error?.info?.error || "Caso não encontrado ou erro de permissão."}
     </div>
   );
 }
@@ -503,32 +533,84 @@ const handleDeleteCaso = async () => {
   }
 };
 
-const handleAgendarReuniao = async () => {
-  if (!dataAgendamento || !linkAgendamento) {
-    toast.warning("Preencha a data e o link da reunião.");
-    return;
-  }
-
-  setIsAgendando(true);
+const handleUnlock = async () => {
+  if (!(await confirm("Deseja liberar este caso para outros usuários?", "Liberar Caso?"))) return;
+  setIsUpdating(true);
   try {
-    const response = await fetch(`${API_BASE}/casos/${id}/agendar`, {
+    const res = await fetch(`${API_BASE}/casos/${id}/unlock`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.ok) {
+      toast.success("Caso liberado!");
+      navigate("/painel");
+    } else {
+      throw new Error("Falha ao liberar.");
+    }
+  } catch (err) {
+    toast.error(err.message);
+  } finally {
+    setIsUpdating(false);
+  }
+};
+
+const handleOpenShare = async () => {
+  setIsShareModalOpen(true);
+  setIsLoadingColegas(true);
+  try {
+    const res = await fetch(`${API_BASE}/defensores/colegas`, {
+       headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.ok) setColegas(await res.json());
+  } catch (err) {
+    toast.error("Erro ao carregar colegas.");
+  } finally {
+    setIsLoadingColegas(false);
+  }
+};
+
+const handleConfirmShare = async () => {
+  if (!selectedColegaId) return toast.warning("Selecione um colega.");
+  setIsSharing(true);
+  try {
+     const res = await fetch(`${API_BASE}/casos/${id}/solicitar-assistencia`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ destinatario_id: selectedColegaId })
+     });
+     if (res.ok) {
+       toast.success("Solicitação de ajuda enviada!");
+       setIsShareModalOpen(false);
+     } else {
+       throw new Error("Falha ao enviar.");
+     }
+  } catch (err) {
+     toast.error(err.message);
+  } finally {
+     setIsSharing(false);
+  }
+};
+
+const handleSaveJuridico = async () => {
+  setIsSavingJuridico(true);
+  try {
+    const res = await fetch(`${API_BASE}/casos/${id}/juridico`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({
-        agendamento_data: new Date(dataAgendamento).toISOString(),
-        agendamento_link: linkAgendamento,
-      }),
+      body: JSON.stringify({ memoria_calculo: memoriaCalculo })
     });
-    if (!response.ok) throw new Error("Erro ao salvar agendamento.");
-    toast.success("Atendimento agendado com sucesso!");
-    mutate(); // CORRIGIDO (Era fetchDetalhes)
-  } catch (error) {
-    toast.error(error.message);
-  } finally {
-    setIsAgendando(false);
+    if (res.ok) {
+      toast.success("Dados jurídicos salvos!");
+      mutate();
+    }
+  } catch (err) {
+    toast.error("Erro ao salvar dados jurídicos.");
   }
 };
 
@@ -701,7 +783,6 @@ const handleArquivarClick = async () => {
                 id="numeroSolar"
                 value={numSolar}
                 onChange={(e) => {
-                  // Permite apenas números enquanto digita
                   setNumSolar(e.target.value.replace(/\D/g, ""));
                 }}
                 onBlur={handleSalvarSolar}
@@ -718,6 +799,16 @@ const handleArquivarClick = async () => {
               </button>
             </div>
           </div>
+        </div>
+        <div className="flex flex-col md:items-end gap-2">
+           <button 
+             onClick={handleOpenShare}
+             className="btn btn-ghost border border-soft flex items-center gap-2 text-sm shadow-sm"
+             title="Dar acesso a outro defensor/servidor para ajudar"
+           >
+             <User size={18} className="text-primary" />
+             Compartilhar Caso
+           </button>
         </div>
       </div>
 
@@ -901,11 +992,94 @@ const handleArquivarClick = async () => {
                 )}
               </div>
 
+               {/* SELETOR DE MINUTAS MULTIPLAS E DOWNLOADS */}
+               <div className="flex flex-wrap items-center justify-between gap-4 bg-surface p-3 rounded-lg border border-soft">
+                 <div className="flex flex-wrap gap-2">
+                   {/* Penhora / Principal */}
+                   {(caso.url_peticao_penhora || caso.url_documento_gerado) && (
+                     <button 
+                       onClick={() => setMinutaPreview("penhora")}
+                       className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${
+                         minutaPreview === "penhora" 
+                           ? "bg-primary text-white shadow-sm" 
+                           : "text-muted hover:bg-black/5"
+                       }`}
+                     >
+                       {caso.url_peticao_prisao ? "Rito da Penhora" : "Petição Inicial"}
+                     </button>
+                   )}
+
+                   {/* Prisão */}
+                   {caso.url_peticao_prisao && (
+                     <button 
+                       onClick={() => setMinutaPreview("prisao")}
+                       className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${
+                         minutaPreview === "prisao" 
+                           ? "bg-error text-white shadow-sm" 
+                           : "text-muted hover:bg-black/5"
+                       }`}
+                     >
+                       Rito da Prisão (3+ meses)
+                     </button>
+                   )}
+
+                   {/* Termo de Declaração */}
+                   {caso.url_termo_declaracao && (
+                     <button 
+                       onClick={() => setMinutaPreview("termo")}
+                       className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${
+                         minutaPreview === "termo" 
+                           ? "bg-purple-600 text-white shadow-sm" 
+                           : "text-muted hover:bg-black/5"
+                       }`}
+                     >
+                       Termo de Declaração
+                     </button>
+                   )}
+                 </div>
+
+                 {!caso.url_peticao_penhora && !caso.url_peticao_prisao && !caso.url_documento_gerado && !caso.url_termo_declaracao && (
+                   <div className="text-sm font-bold text-muted px-2 italic">Nenhum documento gerado ainda.</div>
+                 )}
+
+                {/* BOTÕES DE DOWNLOAD DIRETO */}
+                <div className="flex gap-2">
+                  {(minutaPreview === "penhora" || !caso.url_peticao_prisao) && (caso.url_peticao_penhora || caso.url_documento_gerado) && (
+                    <a
+                      href={caso.url_peticao_penhora || caso.url_documento_gerado}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-secondary btn-sm flex items-center gap-2"
+                      download
+                    >
+                      <Download size={16} />
+                      Baixar {caso.url_peticao_prisao ? "Penhora" : "Minuta"} (.docx)
+                    </a>
+                  )}
+                  {minutaPreview === "prisao" && caso.url_peticao_prisao && (
+                    <a
+                      href={caso.url_peticao_prisao}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-ghost border border-error/30 text-error hover:bg-error/10 btn-sm flex items-center gap-2"
+                      download
+                    >
+                      <Download size={16} />
+                      Baixar Prisão (.docx)
+                    </a>
+                  )}
+                </div>
+              </div>
+
               {/* Visualização DOCX via Microsoft Viewer */}
               {caso.url_documento_gerado ? (
                 <div className="w-full h-[800px] rounded-xl border border-soft overflow-hidden bg-white">
                   <iframe
-                    src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(caso.url_documento_gerado)}`}
+                    src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
+                      minutaPreview === "prisao" && caso.url_peticao_prisao ? caso.url_peticao_prisao :
+                    minutaPreview === "termo" && caso.url_termo_declaracao ? caso.url_termo_declaracao :
+                    (caso.url_peticao_penhora || caso.url_documento_gerado)
+                    )}`}
                     className="w-full h-full"
                     frameBorder="0"
                     title="Visualização da Minuta"
@@ -984,55 +1158,6 @@ const handleArquivarClick = async () => {
                 </button>
               )}
 
-              {/* ALERTA DE REAGENDAMENTO */}
-              {statusKey === "reagendamento_solicitado" && (
-                <div className="alert alert-error space-y-3 animate-fade-in mt-4">
-                  <div className="flex items-center gap-2 text-error font-bold">
-                    <AlertTriangle size={20} />
-                    <h3>Solicitação de Reagendamento</h3>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-xs text-error/80 uppercase font-bold">
-                        Motivo informado pelo cidadão
-                      </p>
-                      <p className="text-sm bg-surface/50 p-2 rounded border border-error/20">
-                        {caso.motivo_reagendamento || "Não informado."}
-                      </p>
-                    </div>
-
-                    {caso.data_sugerida_reagendamento && (
-                      <div>
-                        <p className="text-xs text-error/80 uppercase font-bold">
-                          Sugestão de nova data
-                        </p>
-                        <p className="text-sm bg-surface/50 p-2 rounded border border-error/20">
-                          {caso.data_sugerida_reagendamento}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <p className="text-xs text-error/90 italic">
-                    Para reagendar, selecione "Reunião Online" ou "Presencial"
-                    abaixo e defina a nova data.
-                  </p>
-                </div>
-              )}
-
-              {/* SEÇÃO DE AGENDAMENTO ONLINE/PRESENCIAL E HISTÓRICO DE AGENDAMENTOS */}
-              <PainelAgendamento
-                caso={caso}
-                statusKey={statusKey}
-                dataAgendamento={dataAgendamento}
-                setDataAgendamento={setDataAgendamento}
-                linkAgendamento={linkAgendamento}
-                setLinkAgendamento={setLinkAgendamento}
-                handleAgendarReuniao={handleAgendarReuniao}
-                isAgendando={isAgendando}
-              />
-
               {/* ÁREA DE PENDÊNCIA (Só aparece se selecionar aguardando_documentos) */}
               {statusKey === "aguardando_documentos" && (
                 <div className="p-4 bg-bg border border-border rounded-lg space-y-2 animate-fade-in">
@@ -1105,6 +1230,35 @@ const handleArquivarClick = async () => {
               {isUpdating && (
                 <p className="text-xs text-muted">Atualizando status...</p>
               )}
+            </div>
+
+            {/* --- SEÇÃO: CÁLCULO E DADOS JURÍDICOS --- */}
+            <div className="card space-y-4 border-l-4 border-l-primary">
+              <div className="flex items-center gap-3">
+                <Mic className="text-primary" />
+                <h2 className="heading-2">Memória de Cálculo / Dados Jurídicos</h2>
+              </div>
+              <p className="text-sm text-muted">
+                Campo exclusivo para o defensor/servidor registrar como chegou ao valor do débito ou outras anotações técnicas. 
+                <span className="font-bold text-primary"> (Uso interno)</span>
+              </p>
+              <textarea
+                className="input min-h-[150px] font-mono text-sm bg-bg/30"
+                placeholder="Ex: Ref jan/24 a mar/24 + multa 10%... "
+                value={memoriaCalculo}
+                onChange={(e) => setMemoriaCalculo(e.target.value)}
+              />
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleSaveJuridico}
+                  disabled={isSavingJuridico}
+                  className="btn btn-primary btn-sm flex items-center gap-2"
+                >
+                  <Save size={16} />
+                  {isSavingJuridico ? "Salvando..." : "Salvar Dados de Cálculo"}
+                </button>
+              </div>
             </div>
             {/* --- ZONA DE FINALIZAÇÃO DO ESTAGIÁRIO --- */}
             <div className="mt-8 pt-8 border-t border-soft">
@@ -1251,12 +1405,22 @@ const handleArquivarClick = async () => {
               <div className="flex items-center justify-between">
                 <h2 className="heading-2 text-error">Excluir Caso</h2>
                 <button
+                  onClick={handleUnlock}
+                  disabled={isUpdating}
+                  className="btn btn-ghost border border-soft flex items-center gap-2 text-red-600 hover:bg-red-50"
+                  title="Libera o caso para outros usuários"
+                >
+                  <Lock size={18} />
+                  Liberar Caso
+                </button>
+
+                <button
                   onClick={handleDeleteCaso}
                   disabled={isDeleting}
-                  className="btn btn-danger w-fit flex items-center gap-2"
+                  className="btn btn-ghost border border-soft flex items-center gap-2 text-red-600 hover:bg-red-50"
                 >
                   <Trash2 size={18} />
-                  {isDeleting ? "Excluindo..." : ""}
+                  {isDeleting ? "Excluindo..." : "Excluir"}
                 </button>
               </div>
               <p className="text-sm text-muted">
@@ -1298,11 +1462,78 @@ const handleArquivarClick = async () => {
               >
                 Cancelar
               </button>
+              <div className="flex gap-4 mt-8">
+            <button
+              onClick={() => navigate("/painel")}
+              className="px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-lg hover:bg-primary-dark transition-all transform hover:-translate-y-1"
+            >
+              Voltar ao Início
+            </button>
+            {user?.cargo === "admin" && (
               <button
-                onClick={confirmArchive}
-                className="btn btn-secondary flex-1 bg-amber-500 hover:bg-amber-600 text-white border-amber-500"
+                onClick={async () => {
+                   if (await confirm("Como administrador, deseja forçar a liberação deste caso?", "Forçar Liberação?")) {
+                      await fetch(`${API_BASE}/casos/${id}/unlock`, {
+                        method: "PATCH",
+                        headers: { Authorization: `Bearer ${token}` }
+                      });
+                      mutate();
+                   }
+                }}
+                className="px-8 py-3 bg-red-100 text-red-700 font-bold rounded-xl border border-red-200 hover:bg-red-200 transition-all"
               >
-                Confirmar Arquivamento
+                Forçar Liberação (Admin)
+              </button>
+            )}
+          </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL DE COMPARTILHAMENTO */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 px-4 animate-fade-in">
+          <div className="bg-surface border border-soft p-6 rounded-2xl shadow-xl max-w-md w-full space-y-4">
+            <div className="flex items-center gap-3 text-primary">
+              <User size={24} />
+              <h3 className="text-xl font-bold text-main">Compartilhar Acesso</h3>
+            </div>
+
+            <p className="text-muted text-sm">
+              Selecione um colega para dar acesso e permissão de edição neste caso. 
+              Ele receberá uma notificação para aceitar.
+            </p>
+
+            {isLoadingColegas ? (
+              <div className="flex justify-center p-4">
+                <Loader2 className="animate-spin text-primary" />
+              </div>
+            ) : (
+              <select 
+                className="input"
+                value={selectedColegaId}
+                onChange={(e) => setSelectedColegaId(e.target.value)}
+              >
+                <option value="">Selecione um colega...</option>
+                {colegas.map(c => (
+                  <option key={c.id} value={c.id}>{c.nome}</option>
+                ))}
+              </select>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setIsShareModalOpen(false)}
+                className="btn btn-ghost flex-1 border border-soft"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmShare}
+                disabled={isSharing || !selectedColegaId}
+                className="btn btn-primary flex-1"
+              >
+                {isSharing ? "Enviando..." : "Enviar Convite"}
               </button>
             </div>
           </div>
@@ -1310,4 +1541,4 @@ const handleArquivarClick = async () => {
       )}
     </div>
   );
-};;
+};

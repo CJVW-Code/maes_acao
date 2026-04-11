@@ -1,6 +1,6 @@
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 1.1 · **Atualizado em:** 2026-04-06  
+> **Versão:** 2.0 · **Atualizado em:** 2026-04-10 (Estabilização Mutirão)  
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
@@ -124,29 +124,33 @@ graph TB
 - Define se vai "Anexar Agora" ou "Deixar para Scanner"
 - Status inicial: `aguardando_documentos` + protocolo gerado
 
-### Etapa 2 — Scanner (Servidor B)
+### Etapa 2 — Scanner (Servidor B / Balcão)
 
-- Busca por CPF ou protocolo
-- Dropzone única — todos os documentos de uma vez
-- Backend comprime imagens > 1.5MB antes de salvar no Storage
-- Ao finalizar: status → `documentacao_completa`, job publicado no QStash
-- Frontend retorna 200 imediatamente — IA processa em background
+- **Endpoint Dedicado:** `/api/scanner/upload` (Otimizado para alto volume).
+- Busca por CPF ou protocolo.
+- Dropzone única — todos os documentos de uma vez.
+- Backend comprime imagens > 1.5MB antes de salvar no Storage.
+- Ao finalizar: status → `documentacao_completa`, job publicado no QStash.
+- Frontend retorna 200 imediatamente — IA processa em background.
 
 ### Etapa 3 — Atendimento Jurídico (Servidor Jurídico)
 
-- Filtra fila por `pronto_para_analise` + sua `unidade_id`
-- Atribui caso ao seu nome → locking nível 1 (`servidor_id` + `servidor_at`)
-- Revisa relato, DOS FATOS gerado, documentos
-- Pode editar e clicar "Regerar com IA"
-- Ao concluir: status → `liberado_para_protocolo`
+- Filtra fila por `pronto_para_analise` + sua `unidade_id`.
+- **Locking Nível 1:** Atribuição explícita via roteamento ou botão "Travar Atendimento".
+- Atribui caso ao seu nome → locking nível 1 (`servidor_id` + `servidor_at`).
+- Revisa relato, DOS FATOS gerado, documentos.
+- **Múltiplas Minutas:** IA pode gerar ritos de Prisão e Penhora simultaneamente para o mesmo protocolo.
+- Pode editar e clicar "Regerar com IA".
+- Ao concluir: status → `liberado_para_protocolo`.
 
 ### Etapa 4 — Protocolo (Defensor)
 
-- Filtra casos com status `liberado_para_protocolo`
-- Atribui ao seu nome → locking nível 2 (`defensor_id` + `defensor_at`)
-- Protocola no SOLAR ou SIGAD (Salvador usa SIGAD)
-- Salva `numero_processo` + upload da capa
-- Status → `protocolado`
+- Filtra casos com status `liberado_para_protocolo`.
+- **Locking Nível 2:** Atribuição explícita (`defensor_id` + `defensor_at`).
+- Protocola no SOLAR ou SIGAD.
+- Salva `numero_processo` + upload da capa.
+- **Manual Unlock:** Botão "Liberar Caso" disponível para devolver o processo à fila global.
+- Status → `protocolado`.
 
 ---
 
@@ -171,12 +175,13 @@ stateDiagram-v2
     documentos_entregues --> documentacao_completa : Scanner processa
 ```
 
-### Locking — Dois Níveis Independentes
+### Locking — Sessões e Concorrência
 
-- **Nível 1:** `servidor_id` + `servidor_at` — expira após 30min de inatividade
-- **Nível 2:** `defensor_id` + `defensor_at` — expira após 30min de inatividade
-- **Unlock explícito** obrigatório nos botões "Finalizar" e "Cancelar"
-- **HTTP 423 (Locked)** com nome do usuário ativo quando bloqueado
+- **Nível 1 (Servidor):** Bloqueia edição de dados jurídicos e relato.
+- **Nível 2 (Defensor):** Bloqueia a etapa de protocolo e finalização.
+- **HTTP 423 (Locked):** Retorno padrão quando um usuário tenta acessar um caso cujo `id` de lock pertence a outro.
+- **Admin Bypass:** Administradores podem forçar o destravamento (`PATCH /unlock`) de qualquer caso.
+- **UI Feedback:** Ícones de cadeado vermelho (ocupado) e usuário verde (seu atendimento) nas listagens.
 
 ---
 

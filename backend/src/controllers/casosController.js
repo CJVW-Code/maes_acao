@@ -13,7 +13,7 @@ import { visionOCR } from "../services/aiService.js";
 import {
   generateDocx,
   generateTermoDeclaracao,
-  generateMultiplosDocx
+  generateMultiplosDocx,
 } from "../services/documentGenerationService.js";
 import { analyzeCase, generateDosFatos } from "../services/geminiService.js";
 import { getVaraByTipoAcao } from "../config/varasMapping.js";
@@ -23,14 +23,16 @@ import { Client } from "@upstash/qstash";
 // --- UTILS DE NORMALIZAÇÃO ---
 const mapCasoRelations = (caso) => {
   if (!caso) return caso;
-  
-  // Trata array de relações (Supabase style)
-  const partes = Array.isArray(caso.casos_partes) ? caso.casos_partes[0] : caso.partes;
-  const ia = Array.isArray(caso.casos_ia) ? caso.casos_ia[0] : caso.ia;
-  const juridico = Array.isArray(caso.casos_juridico) ? caso.casos_juridico[0] : caso.juridico;
+
+  const resolveRel = (rel) => (Array.isArray(rel) ? rel[0] : rel);
+
+  // Trata array de relações de forma segura (Resolve arrays aninhados do Supabase)
+  const partes = resolveRel(caso.casos_partes || caso.partes);
+  const ia = resolveRel(caso.casos_ia || caso.ia);
+  const juridico = resolveRel(caso.casos_juridico || caso.juridico);
 
   const enriched = { ...caso };
-  
+
   if (partes) {
     enriched.nome_assistido = partes.nome_assistido;
     enriched.cpf_assistido = partes.cpf_assistido;
@@ -43,46 +45,58 @@ const mapCasoRelations = (caso) => {
     enriched.assistido_nacionalidade = partes.nacionalidade;
     enriched.assistido_estado_civil = partes.estado_civil;
     enriched.assistido_ocupacao = partes.profissao;
-    
+
+    // Mapeamento para tags oficiais do dicionarioTags.js
+    enriched.REPRESENTANTE_NOME = partes.nome_assistido;
+    enriched.nome_representante = partes.nome_assistido; // Alias compatibilidade
+    enriched.representante_cpf = partes.cpf_assistido;
+    enriched.nome_mae_representante = partes.nome_mae_representante;
+    enriched.nome_pai_representante = partes.nome_pai_representante;
+
     enriched.nome_requerido = partes.nome_requerido;
     enriched.cpf_requerido = partes.cpf_requerido;
     enriched.endereco_requerido = partes.endereco_requerido;
   }
-  
+
   if (ia) {
+    const extras = safeJsonParse(ia.dados_extraidos, {});
     enriched.relato_texto = ia.relato_texto;
     enriched.dos_fatos_gerado = ia.dos_fatos_gerado;
-    enriched.resumo_ia = ia.resumo_ia;
+    enriched.resumo_ia = ia.resumo_ia || extras.resumo_ia || null;
     enriched.url_peticao = ia.url_peticao;
     enriched.url_documento_gerado = ia.url_peticao;
-    enriched.peticao_inicial_rascunho = ia.peticao_inicial_rascunho;
+    enriched.peticao_inicial_rascunho = ia.peticao_inicial_rascunho || extras.peticao_inicial_rascunho || null;
     enriched.peticao_completa_texto = ia.peticao_completa_texto;
-    enriched.url_peticao_penhora = ia.url_peticao_penhora;
-    enriched.url_peticao_prisao = ia.url_peticao_prisao;
-    
+    enriched.url_peticao_penhora = ia.url_peticao_penhora || extras.url_peticao_penhora || null;
+    enriched.url_peticao_prisao = ia.url_peticao_prisao || extras.url_peticao_prisao || null;
+    enriched.url_termo_declaracao = ia.url_termo_declaracao || extras.url_termo_declaracao || null;
+
     // Alias para attachSignedUrls
     enriched.casos_ia = ia;
-    // Mapeia dados_extraidos para dados_formulario para facilitar o front
-    enriched.dados_formulario = ia.dados_extraidos || {};
+    enriched.ia = ia;
+    // [FIX] O dados_formulario agora abraça o próprio payload JSONB extraído com integridade
+    enriched.dados_formulario = extras;
   } else {
     enriched.dados_formulario = {};
   }
-  
+
   if (partes) {
     // ... campos já mapeados acima ...
     // Alias para consultas Supabase style
     enriched.casos_partes = [partes];
+    enriched.partes = partes;
   }
-  
+
   if (juridico) {
     enriched.numero_processo_originario = juridico.numero_processo_titulo;
     enriched.percentual_salario_minimo = juridico.percentual_salario;
     enriched.dia_pagamento_fixado = juridico.vencimento_dia;
+    enriched.juridico = juridico;
   }
 
   // Populate urls_documentos for attachSignedUrls
   if (caso.documentos && Array.isArray(caso.documentos)) {
-    enriched.urls_documentos = caso.documentos.map(doc => doc.storage_path);
+    enriched.urls_documentos = caso.documentos.map((doc) => doc.storage_path);
   } else if (!enriched.urls_documentos) {
     enriched.urls_documentos = [];
   }
@@ -109,30 +123,38 @@ const salarioMinimoAtual = Number.parseFloat(
 // --- VALIDAÇÃO DE CPF ---
 const validarCPF = (cpf) => {
   if (!cpf) return false;
-  const strCPF = String(cpf).replace(/[^\d]/g, '');
+  const strCPF = String(cpf).replace(/[^\d]/g, "");
   if (strCPF.length !== 11) return false;
   if (/^(\d)\1+$/.test(strCPF)) return false;
-  let soma = 0, resto;
-  for (let i = 1; i <= 9; i++) soma += parseInt(strCPF.substring(i - 1, i)) * (11 - i);
-  resto = (soma * 10) % 11; if (resto === 10 || resto === 11) resto = 0;
+  let soma = 0,
+    resto;
+  for (let i = 1; i <= 9; i++)
+    soma += parseInt(strCPF.substring(i - 1, i)) * (11 - i);
+  resto = (soma * 10) % 11;
+  if (resto === 10 || resto === 11) resto = 0;
   if (resto !== parseInt(strCPF.substring(9, 10))) return false;
-  soma = 0; for (let i = 1; i <= 10; i++) soma += parseInt(strCPF.substring(i - 1, i)) * (12 - i);
-  resto = (soma * 10) % 11; if (resto === 10 || resto === 11) resto = 0;
+  soma = 0;
+  for (let i = 1; i <= 10; i++)
+    soma += parseInt(strCPF.substring(i - 1, i)) * (12 - i);
+  resto = (soma * 10) % 11;
+  if (resto === 10 || resto === 11) resto = 0;
   return resto === parseInt(strCPF.substring(10, 11));
 };
 
 // --- UTILS DE PARSE SEGURO ---
 const safeJsonParse = (jsonString, fallback = null) => {
-  if (typeof jsonString === 'object' && jsonString !== null) {
+  if (typeof jsonString === "object" && jsonString !== null) {
     return jsonString; // Já é um objeto, retorna diretamente
   }
-  if (typeof jsonString !== 'string' || !jsonString) {
+  if (typeof jsonString !== "string" || !jsonString) {
     return fallback;
   }
   try {
     return JSON.parse(jsonString);
   } catch (e) {
-    logger.warn(`Falha ao analisar JSON: ${e.message}. Tamanho da string: ${jsonString?.length || 0}`);
+    logger.warn(
+      `Falha ao analisar JSON: ${e.message}. Tamanho da string: ${jsonString?.length || 0}`,
+    );
     return fallback;
   }
 };
@@ -331,7 +353,9 @@ const buildSignedUrl = async (bucket, storedValue) => {
   } else {
     // Local storage fallback: aponta para a rota estática do backend
     // No Docker, o backend expõe a pasta uploads em /api/files
-    const baseUrl = process.env.API_BASE_URL ? process.env.API_BASE_URL.replace(/\/api$/, "") : "http://localhost:8001";
+    const baseUrl = process.env.API_BASE_URL
+      ? process.env.API_BASE_URL.replace(/\/api$/, "")
+      : "http://localhost:8001";
     return `${baseUrl}/api/files/${bucket}/${objectPath}`;
   }
 };
@@ -339,18 +363,24 @@ const buildSignedUrl = async (bucket, storedValue) => {
 const attachSignedUrls = async (caso) => {
   if (!caso) return caso;
   const enriched = { ...caso };
-  
-  const iaPenhoraUrl = caso.casos_ia?.url_peticao_penhora || null;
-  const iaPrisaoUrl = caso.casos_ia?.url_peticao_prisao || null;
 
-  const [docGerado, audio, peticao, termoDeclaracao, docPenhora, docPrisao] = await Promise.all([
-    buildSignedUrl(storageBuckets.peticoes, caso.url_documento_gerado),
-    buildSignedUrl(storageBuckets.audios, caso.url_audio),
-    buildSignedUrl(storageBuckets.peticoes, caso.url_peticao),
-    buildSignedUrl(storageBuckets.peticoes, caso.url_termo_declaracao),
-    buildSignedUrl(storageBuckets.peticoes, iaPenhoraUrl),
-    buildSignedUrl(storageBuckets.peticoes, iaPrisaoUrl),
-  ]);
+  // Busca unificada para o Prisma e Supabase fallback garantindo que as urls são mapeadas
+  const ia = Array.isArray(caso.casos_ia)
+    ? caso.casos_ia[0]
+    : caso.casos_ia || caso.ia;
+  const iaPenhoraUrl =
+    caso.url_peticao_penhora || ia?.url_peticao_penhora || null;
+  const iaPrisaoUrl = caso.url_peticao_prisao || ia?.url_peticao_prisao || null;
+
+  const [docGerado, audio, peticao, termoDeclaracao, docPenhora, docPrisao] =
+    await Promise.all([
+      buildSignedUrl(storageBuckets.peticoes, caso.url_documento_gerado),
+      buildSignedUrl(storageBuckets.audios, caso.url_audio),
+      buildSignedUrl(storageBuckets.peticoes, caso.url_peticao),
+      buildSignedUrl(storageBuckets.peticoes, caso.url_termo_declaracao),
+      buildSignedUrl(storageBuckets.peticoes, iaPenhoraUrl),
+      buildSignedUrl(storageBuckets.peticoes, iaPrisaoUrl),
+    ]);
   enriched.url_documento_gerado = docGerado;
   enriched.url_audio = audio;
   enriched.url_peticao = peticao;
@@ -371,7 +401,12 @@ const attachSignedUrls = async (caso) => {
 };
 
 const ensureText = (val, fallback = "") => {
-  if (val === undefined || val === null || String(val).toLowerCase() === "undefined") return fallback;
+  if (
+    val === undefined ||
+    val === null ||
+    String(val).toLowerCase() === "undefined"
+  )
+    return fallback;
   const text = String(val).trim();
   return text.length ? text : fallback;
 };
@@ -461,7 +496,7 @@ const buildFallbackDosFatos = (caseData = {}) => {
   const safe = (value) =>
     typeof value === "string" ? value.trim() : (value ?? "");
   const paragraphs = [];
-  
+
   // --- LÓGICA MULTI-FILHOS ---
   const outrosFilhos = safeJsonParse(caseData.outros_filhos_detalhes, []);
 
@@ -472,7 +507,9 @@ const buildFallbackDosFatos = (caseData = {}) => {
     "";
   const nomesAssistidos = [assistidoPrincipal];
   if (Array.isArray(outrosFilhos)) {
-      outrosFilhos.forEach(f => { if(f.nome) nomesAssistidos.push(safe(f.nome)); });
+    outrosFilhos.forEach((f) => {
+      if (f.nome) nomesAssistidos.push(safe(f.nome));
+    });
   }
   const assistidoNome = nomesAssistidos.filter(Boolean).join(", ");
   const isPlural = nomesAssistidos.filter(Boolean).length > 1;
@@ -495,7 +532,7 @@ const buildFallbackDosFatos = (caseData = {}) => {
       ? `relata que ${requeridoNome} não contribui de forma regular para o custeio das despesas básicas`
       : "relata a ausência de contribuição regular da outra parte para o custeio das despesas básicas";
     paragraphs.push(
-      `${sujeito} ${complemento}, razão pela qual busca a tutela jurisdicional para garantir a subsistência da${isPlural ? 's crianças' : ' criança'}.`,
+      `${sujeito} ${complemento}, razão pela qual busca a tutela jurisdicional para garantir a subsistência da${isPlural ? "s crianças" : " criança"}.`,
     );
   }
   if (safe(caseData.descricao_guarda)) {
@@ -561,22 +598,41 @@ const buildFallbackDosFatos = (caseData = {}) => {
   return paragraphs.filter(Boolean).join("\n\n");
 };
 
-const processarDadosFilhosParaPeticao = (baseData = {}, normalizedData = {}) => {
+const processarDadosFilhosParaPeticao = (
+  baseData = {},
+  normalizedData = {},
+) => {
   const outrosFilhosRaw = safeJsonParse(baseData.outros_filhos_detalhes, []);
-  const outrosFilhosSafe = Array.isArray(outrosFilhosRaw) ? outrosFilhosRaw : (outrosFilhosRaw ? [outrosFilhosRaw] : []);
+  const outrosFilhosSafe = Array.isArray(outrosFilhosRaw)
+    ? outrosFilhosRaw
+    : outrosFilhosRaw
+      ? [outrosFilhosRaw]
+      : [];
 
   const filhoPrincipal = {
-    nome: ensureText(baseData.nome || baseData.nome_assistido || normalizedData.requerente_nome),
-    cpf: ensureText(baseData.cpf || baseData.cpf_assistido || normalizedData.requerente_cpf),
-    nascimento: ensureText(
-      baseData.assistido_data_nascimento || 
-      formatDateBr(baseData.data_nascimento_assistido) || 
-      formatDateBr(baseData.dataNascimentoAssistido) || 
-      formatDateBr(baseData.dados_formulario?.assistido_data_nascimento) ||
-      formatDateBr(baseData.dados_formulario?.data_nascimento_assistido)
+    nome: ensureText(
+      baseData.nome ||
+        baseData.nome_assistido ||
+        normalizedData.requerente_nome,
     ),
-    rg: ensureText(baseData.assistido_rg_numero ? `${baseData.assistido_rg_numero} ${baseData.assistido_rg_orgao}` : ""),
-    nacionalidade: ensureText(normalizeGenderTerm(baseData.assistido_nacionalidade || "brasileiro(a)")),
+    cpf: ensureText(
+      baseData.cpf || baseData.cpf_assistido || normalizedData.requerente_cpf,
+    ),
+    nascimento: ensureText(
+      baseData.assistido_data_nascimento ||
+        formatDateBr(baseData.data_nascimento_assistido) ||
+        formatDateBr(baseData.dataNascimentoAssistido) ||
+        formatDateBr(baseData.dados_formulario?.assistido_data_nascimento) ||
+        formatDateBr(baseData.dados_formulario?.data_nascimento_assistido),
+    ),
+    rg: ensureText(
+      baseData.assistido_rg_numero
+        ? `${baseData.assistido_rg_numero} ${baseData.assistido_rg_orgao}`
+        : "",
+    ),
+    nacionalidade: ensureText(
+      normalizeGenderTerm(baseData.assistido_nacionalidade || "brasileiro(a)"),
+    ),
   };
 
   const irmaos = outrosFilhosSafe.map((f) => ({
@@ -587,9 +643,13 @@ const processarDadosFilhosParaPeticao = (baseData = {}, normalizedData = {}) => 
     nacionalidade: ensureText(normalizeGenderTerm(f.nacionalidade)),
   }));
 
-  const lista_filhos_raw = [filhoPrincipal, ...irmaos].filter((f) => f.nome && f.nome !== "[PREENCHER]");
+  const lista_filhos_raw = [filhoPrincipal, ...irmaos].filter(
+    (f) => f.nome && f.nome !== "[PREENCHER]",
+  );
 
-  const idades = lista_filhos_raw.map((f) => calcularIdade(f.nascimento)).filter((age) => age !== null);
+  const idades = lista_filhos_raw
+    .map((f) => calcularIdade(f.nascimento))
+    .filter((age) => age !== null);
   const isPlural = lista_filhos_raw.length > 1;
   const temMenorDe16 = idades.some((idade) => idade < 16);
   const temEntre16e18 = idades.some((idade) => idade >= 16 && idade < 18);
@@ -614,17 +674,31 @@ const processarDadosFilhosParaPeticao = (baseData = {}, normalizedData = {}) => 
   let termo_representacao = "";
   if (baseData.assistido_eh_incapaz === "sim") {
     if (isPlural) {
-      if (temMenorDe16 && temEntre16e18) termo_representacao = "neste ato representados e assistidos";
+      if (temMenorDe16 && temEntre16e18)
+        termo_representacao = "neste ato representados e assistidos";
       else if (temEntre16e18) termo_representacao = "neste ato assistidos";
       else termo_representacao = "neste ato representados";
     } else if (idades.length === 1) {
-      termo_representacao = idades[0] < 16 ? "neste ato representado(a)" : "neste ato assistido(a)";
+      termo_representacao =
+        idades[0] < 16 ? "neste ato representado(a)" : "neste ato assistido(a)";
     }
   }
 
-  const assistidoNome = lista_filhos.length > 0 ? lista_filhos.map((f) => f.nome).join(", ") : (baseData.nome_assistido || normalizedData.requerente_nome);
-  const assistidoCpf = lista_filhos.length > 0 ? lista_filhos[0].cpf : (baseData.cpf_assistido || normalizedData.requerente_cpf);
-  const dataNascimentoAssistidoBr = lista_filhos.length > 0 ? lista_filhos[0].nascimento : formatDateBr(baseData.assistido_data_nascimento || normalizedData.requerente?.dataNascimento);
+  const assistidoNome =
+    lista_filhos.length > 0
+      ? lista_filhos.map((f) => f.nome).join(", ")
+      : baseData.nome_assistido || normalizedData.requerente_nome;
+  const assistidoCpf =
+    lista_filhos.length > 0
+      ? lista_filhos[0].cpf
+      : baseData.cpf_assistido || normalizedData.requerente_cpf;
+  const dataNascimentoAssistidoBr =
+    lista_filhos.length > 0
+      ? lista_filhos[0].nascimento
+      : formatDateBr(
+          baseData.assistido_data_nascimento ||
+            normalizedData.requerente?.dataNascimento,
+        );
 
   return {
     lista_filhos,
@@ -643,30 +717,133 @@ const buildDocxTemplatePayload = (
   acaoKey = "",
 ) => {
   // A lógica do '#lista_filhos' ainda precisa processar idades e formatação de datas
-  const { lista_filhos, rotulo_qualificacao, termo_representacao } = processarDadosFilhosParaPeticao(baseData, normalizedData);
+  const { lista_filhos, rotulo_qualificacao, termo_representacao } =
+    processarDadosFilhosParaPeticao(baseData, normalizedData);
 
   const hoje = new Date();
-  const mesesExtenso = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  const mesesExtenso = [
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
+  ];
   const dataAtualTexto = `${hoje.getDate()} de ${mesesExtenso[hoje.getMonth()]} de ${hoje.getFullYear()}`;
 
-  const debitoCalculado = parseCurrencyToNumber(baseData.valor_debito || "0");
-  const debitoCalculadoExtenso = debitoCalculado > 0 ? numeroParaExtenso(debitoCalculado) : "";
+  const debitoCalculado = parseCurrencyToNumber(
+    baseData.valor_debito || baseData.valor_total_debito_execucao || "0",
+  );
+  const debitoCalculadoExtenso =
+    debitoCalculado > 0 ? numeroParaExtenso(debitoCalculado) : "";
 
-  // Assumimos que baseData (req.body.dados_formulario) já contém todas as tags oficiais espelhadas
-  // como REPRESENTANTE_NOME, percentual_salario_minimo, executado_cpf, etc.
   const payload = {
     ...baseData, // 1:1 Injeção Direta
     lista_filhos,
     rotulo_qualificacao,
     termo_representacao,
 
-    // Variáveis que o backend DEVE calcular pois dependem de processamento na hora
+    // --- TAGS GERAIS E EXECUÇÃO (CAIXA ALTA OBRIGATÓRIA) ---
+    VARA: String(baseData.VARA || baseData.vara || baseData.numero_vara || normalizedData.numero_vara || "______").toUpperCase(),
+    CIDADEASSINATURA: String(baseData.CIDADEASSINATURA || baseData.cidade_assinatura || normalizedData.comarca || "______").toUpperCase(),
+    REPRESENTANTE_NOME: String(baseData.REPRESENTANTE_NOME || baseData.representante_nome || baseData.nome_assistido || "______").toUpperCase(),
+    REQUERIDO_NOME: String(baseData.REQUERIDO_NOME || baseData.nome_requerido || "______").toUpperCase(),
+
+    // RECUPERAÇÃO DE CONTATOS E ENDEREÇOS (Evita sumiços nas minutas)
+    requerente_endereco_residencial: baseData.requerente_endereco_residencial || baseData.endereco_assistido || baseData.representante_endereco_residencial || "não informado",
+    requerente_telefone: baseData.requerente_telefone || baseData.telefone_assistido || baseData.representante_telefone || "não informado",
+    requerente_email: baseData.requerente_email || baseData.email_assistido || baseData.representante_email || "não informado",
+
+    executado_endereco_residencial: baseData.executado_endereco_residencial || baseData.endereco_requerido || "não informado",
+    executado_telefone: baseData.executado_telefone || baseData.telefone_requerido || "não informado",
+    executado_email: baseData.executado_email || baseData.email_requerido || "não informado",
+
+    representante_rg: baseData.representante_rg || baseData.assistido_rg_numero || baseData.representante_rg_numero || "não informado",
+    emissor_rg_exequente: baseData.emissor_rg_exequente || baseData.assistido_rg_orgao || baseData.representante_rg_orgao || "não informado",
+    nome_mae_representante: baseData.nome_mae_representante || baseData.representante_nome_mae || "não informado",
+    nome_pai_representante: baseData.nome_pai_representante || baseData.representante_nome_pai || "não informado",
+
+    rg_executado: baseData.rg_executado || baseData.requerido_rg_numero || "não informado",
+    emissor_rg_executado: baseData.emissor_rg_executado || baseData.requerido_rg_orgao || "não informado",
+    nome_mae_executado: baseData.nome_mae_executado || baseData.requerido_nome_mae || "não informado",
+    nome_pai_executado: baseData.nome_pai_executado || baseData.requerido_nome_pai || "não informado",
+
+    cidadeOriginaria: baseData.cidadeOriginaria || baseData.cidade_originaria || "______",
+    varaOriginaria: baseData.varaOriginaria || baseData.vara_originaria || "______",
+    processoOrigemNumero: baseData.processoOrigemNumero || baseData.numero_processo_originario || "______",
+    tipo_decisao: baseData.tipo_decisao || "Sentença/Acordo",
+    periodo_meses_ano: baseData.periodo_meses_ano || baseData.periodo_debito_execucao || baseData.periodo_debito || "______",
+    valor_debito: baseData.valor_debito || baseData.valor_total_debito_execucao || (debitoCalculado > 0 ? formatCurrencyBr(debitoCalculado) : "______"),
+    valor_debito_extenso: baseData.valor_debito_extenso || debitoCalculadoExtenso || "______",
     data_atual: baseData.data_atual || dataAtualTexto,
-    valor_debito_extenso: baseData.valor_debito_extenso || debitoCalculadoExtenso,
+    defensoraNome: baseData.defensoraNome || normalizedData.defensoraNome || "DEFENSOR(A) PÚBLICO(A)",
+    dos_fatos: ensureText(dosFatosTexto, "[DESCREVER OS FATOS]") || "[DESCREVER OS FATOS]",
+
+    // --- ALIASES EXATOS PARA O TEMPLATE XML (Fixação, Divórcio, etc) ---
+    vara: String(baseData.VARA || baseData.vara || baseData.numero_vara || "______").toUpperCase(),
+    comarca: String(baseData.CIDADEASSINATURA || baseData.cidade_assinatura || normalizedData.comarca || "______").toUpperCase(),
+    triagemNumero: baseData.protocolo || normalizedData.triagemNumero || "______",
+
+    // REQUERENTE = Criança (Titular do direito)
+    requerente_nome: String(lista_filhos[0]?.nome || baseData.NOME || baseData.nome_assistido || "______").toUpperCase(),
+    requerente_data_nascimento: lista_filhos[0]?.nascimento || baseData.nascimento || baseData.assistido_data_nascimento || "______",
+    requerente_cpf: lista_filhos[0]?.cpf || baseData.cpf_assistido || "______",
+    dados_adicionais_requerente: baseData.dados_adicionais_requerente || "______",
+
+    // REPRESENTANTE = Mãe (Assina pelo incapaz)
+    representante_nome: String(baseData.REPRESENTANTE_NOME || baseData.representante_nome || "______").toUpperCase(),
+    representante_nacionalidade: baseData.representante_nacionalidade || "brasileira",
+    representante_estado_civil: baseData.representante_estado_civil || "solteira",
+    representante_ocupacao: baseData.representante_ocupacao || baseData.assistido_ocupacao || "______",
+    representante_cpf: baseData.representante_cpf || "______",
+    representante_endereco_residencial: baseData.requerente_endereco_residencial || baseData.representante_endereco_residencial || baseData.endereco_assistido || "não informado",
+    representante_endereco_profissional: baseData.representante_endereco_profissional || "não informado",
+    representante_email: baseData.requerente_email || baseData.representante_email || baseData.email_assistido || "não informado",
+    representante_telefone: baseData.requerente_telefone || baseData.representante_telefone || baseData.telefone_assistido || "não informado",
+
+    // REQUERIDO / EXECUTADO = Pai
+    requerido_nome: String(baseData.REQUERIDO_NOME || baseData.nome_requerido || "______").toUpperCase(),
+    executado_nacionalidade: baseData.requerido_nacionalidade || "brasileiro(a)",
+    executado_estado_civil: baseData.requerido_estado_civil || "solteiro(a)",
+    executado_ocupacao: baseData.executado_ocupacao || baseData.requerido_ocupacao || "______",
+    requerido_cpf: baseData.executado_cpf || baseData.cpf_requerido || "______",
+    requerido_endereco_residencial: baseData.executado_endereco_residencial || baseData.endereco_requerido || "______",
+    executado_endereco_profissional: baseData.requerido_endereco_profissional || "não informado",
+    executado_email: baseData.executado_email || baseData.email_requerido || "não informado",
+    executado_telefone: baseData.executado_telefone || baseData.telefone_requerido || "não informado",
+    dados_adicionais_requerido: baseData.dados_adicionais_requerido || "______",
+
+    // PEDIDOS E VALORES
+    filhos_info: baseData.filhos_info || "______",
+    percentual_provisorio_salario_min: baseData.percentual_salario_minimo || "______",
+    valor_provisorio_referencia: baseData.valor_pensao || "______",
+    percentual_despesas_extras: baseData.percentual_definitivo_extras || "50",
+    dia_pagamento: baseData.dia_pagamento || baseData.dia_pagamento_fixado || baseData.dia_pagamento_requerido || "10",
+    dados_bancarios_requerente: baseData.dados_bancarios_exequente || baseData.dados_bancarios_deposito || "______",
     
-    // Injetando IA extraída ou default
-    dos_fatos: ensureText(dosFatosTexto, "[DESCREVER OS FATOS]") || "[DESCREVER OS FATOS]"
+    empregador_nome: baseData.empregador_nome || baseData.empregador_requerido_nome || "______",
+    empregador_endereco_profissional: baseData.empregador_requerido_endereco || "______",
+    empregador_email: baseData.empregador_email || "não informado",
+
+    percentual_definitivo_salario_min: baseData.percentual_definitivo_salario_min || baseData.percentual_salario_minimo || "______",
+    
+    valor_causa: baseData.valor_debito || baseData.valor_total_debito_execucao || (debitoCalculado > 0 ? formatCurrencyBr(debitoCalculado) : "______"),
+    valor_causa_extenso: baseData.valor_debito_extenso || debitoCalculadoExtenso || "______",
+    cidade_data_assinatura: baseData.data_atual || dataAtualTexto,
   };
+
+  // Limpa 'undefined' ou 'null' para garantir que não sujem o Docx final
+  Object.keys(payload).forEach((key) => {
+    if (payload[key] === undefined || payload[key] === null) {
+      payload[key] = "";
+    }
+  });
 
   return payload;
 };
@@ -745,117 +922,145 @@ export async function processarCasoEmBackground(
 ) {
   try {
     // Extrair a chave do dicionário enviada pelo frontend
-    const acaoKey = dados_formulario.acaoEspecifica || 
+    let acaoRaw =
+      dados_formulario.acaoEspecifica ||
       (dados_formulario.tipoAcao || "").split(" - ")[1]?.trim() ||
-      (dados_formulario.tipoAcao || "").trim() || "";
-    logger.info(`[Background] Processando protocolo=${protocolo} | acaoKey="${acaoKey}"`);
+      (dados_formulario.tipoAcao || "").trim() ||
+      "";
+
+    // Normalização básica: converte para snake_case se vier com espaços ou camelCase
+    let acaoKey = acaoRaw
+      .toLowerCase()
+      .replace(/\s+/g, "_")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    // Mapeamento manual para casos comuns
+    if (
+      acaoKey.includes("execucao") &&
+      (acaoKey.includes("penhora") || acaoKey.includes("prisao"))
+    ) {
+      acaoKey = "execucao_alimentos";
+    }
+    logger.info(
+      `[Background] Processando protocolo=${protocolo} | acaoKey="${acaoKey}"`,
+    );
 
     await prisma.casos.update({
       where: { protocolo },
-      data: { status: "processando_ia", updated_at: new Date() }
+      data: { status: "processando_ia", updated_at: new Date() },
     });
 
     const casoRaw = await prisma.casos.findUnique({
       where: { protocolo },
-      include: { partes: true, ia: true }
+      include: { partes: true, ia: true },
     });
     const caso = mapCasoRelations(casoRaw);
     if (!caso) throw new Error("Caso não encontrado no Prisma");
 
     // Obter configuração da ação
-    const { getConfigAcaoBackend } = await import("../config/dicionarioAcoes.js");
+    const { getConfigAcaoBackend } =
+      await import("../config/dicionarioAcoes.js");
     const configAcao = getConfigAcaoBackend(acaoKey);
 
-    // OCR
+    // OCR / Leitura de Documentos
     let textoCompleto = caso.relato_texto || "";
     let resumo_ia = null;
     let dosFatosTexto = "";
 
-    if (configAcao.ignorarDosFatos !== true && configAcao.promptIA !== null) {
+    // Verificação se deve ignorar leitura de documentos (OCR)
+    const deveIgnorarIA =
+      configAcao.ignorarDosFatos === true && configAcao.promptIA === null;
+    const deveIgnorarOCR = configAcao.ignorarOCR === true;
+
+    if (!deveIgnorarIA && !deveIgnorarOCR) {
       for (const docPath of urls_documentos) {
         // Processa imagens e PDFs
         if (docPath.match(/\.(jpg|jpeg|png|pdf)$/i)) {
-        logger.info(`[OCR] Processando arquivo: ${docPath}`);
-        try {
-          // 1. Baixar o arquivo do Supabase Storage
-          if (!isSupabaseConfigured) throw new Error("Supabase inativo. Impossível baixar arquivo.");
-          
-          const { data: blob, error: downloadError } = await supabase.storage
-            .from(storageBuckets.documentos)
-            .download(docPath);
-
-          if (downloadError) {
-            throw new Error(
-              `Erro no download do arquivo ${docPath}: ${downloadError.message}`,
-            );
-          }
-
-          // 2. Converter o Blob para Buffer
-          const buffer = Buffer.from(await blob.arrayBuffer());
-
-          // 3. Extrair texto (IA com Fallback para Tesseract em imagens)
-          let textoExtraido = "";
-          const lowerPath = docPath.toLowerCase();
-          // Define o tipo correto para a IA (PDF ou Imagem)
-          let mimeType = lowerPath.endsWith(".pdf")
-            ? "application/pdf"
-            : lowerPath.endsWith(".png")
-              ? "image/png"
-              : "image/jpeg";
-
+          logger.info(`[OCR] Processando arquivo: ${docPath}`);
           try {
-            textoExtraido = await visionOCR(
-              buffer,
-              mimeType,
-              "Transcreva todo o texto deste documento fielmente.",
-            );
-            
-          } catch (aiError) {
-            logger.warn(
-              `[OCR IA] Falha ao processar ${docPath}: ${aiError.message}`,
-            );
-            // Fallback: Tesseract (Apenas para imagens, pois Tesseract puro não lê PDF binário)
-            if (mimeType !== "application/pdf") {
-              
-              textoExtraido = await extractTextFromImage(buffer);
-              logger.info(`[OCR Fallback] Sucesso com Tesseract.`);
-            } else {
-              throw aiError; // Se for PDF e a IA falhar, repassa o erro
+            // 1. Baixar o arquivo do Supabase Storage
+            if (!isSupabaseConfigured)
+              throw new Error("Supabase inativo. Impossível baixar arquivo.");
+
+            const { data: blob, error: downloadError } = await supabase.storage
+              .from(storageBuckets.documentos)
+              .download(docPath);
+
+            if (downloadError) {
+              throw new Error(
+                `Erro no download do arquivo ${docPath}: ${downloadError.message}`,
+              );
             }
-          }
 
-          if (textoExtraido) {
-            textoCompleto += `\n\n--- TEXTO EXTRAÍDO (${docPath}) ---\n${textoExtraido}`;
-          }
+            // 2. Converter o Blob para Buffer
+            const buffer = Buffer.from(await blob.arrayBuffer());
 
-          // Delay entre documentos para evitar rate limit (429) do Gemini
-          if (urls_documentos.indexOf(docPath) < urls_documentos.length - 1) {
-            logger.info(`[OCR] Aguardando 6s antes do próximo documento...`);
-            await new Promise(r => setTimeout(r, 6000));
+            // 3. Extrair texto (IA com Fallback para Tesseract em imagens)
+            let textoExtraido = "";
+            const lowerPath = docPath.toLowerCase();
+            // Define o tipo correto para a IA (PDF ou Imagem)
+            let mimeType = lowerPath.endsWith(".pdf")
+              ? "application/pdf"
+              : lowerPath.endsWith(".png")
+                ? "image/png"
+                : "image/jpeg";
+
+            try {
+              textoExtraido = await visionOCR(
+                buffer,
+                mimeType,
+                "Transcreva todo o texto deste documento fielmente.",
+              );
+            } catch (aiError) {
+              logger.warn(
+                `[OCR IA] Falha ao processar ${docPath}: ${aiError.message}`,
+              );
+              // Fallback: Tesseract (Apenas para imagens, pois Tesseract puro não lê PDF binário)
+              if (mimeType !== "application/pdf") {
+                textoExtraido = await extractTextFromImage(buffer);
+                logger.info(`[OCR Fallback] Sucesso com Tesseract.`);
+              } else {
+                throw aiError; // Se for PDF e a IA falhar, repassa o erro
+              }
+            }
+
+            if (textoExtraido) {
+              textoCompleto += `\n\n--- TEXTO EXTRAÍDO (${docPath}) ---\n${textoExtraido}`;
+            }
+
+            // Delay entre documentos para evitar rate limit (429) do Gemini
+            if (urls_documentos.indexOf(docPath) < urls_documentos.length - 1) {
+              logger.info(`[OCR] Aguardando 6s antes do próximo documento...`);
+              await new Promise((r) => setTimeout(r, 6000));
+            }
+          } catch (ocrError) {
+            logger.warn(`Falha no OCR para ${docPath}: ${ocrError.message}`);
           }
-        } catch (ocrError) {
-          logger.warn(`Falha no OCR para ${docPath}: ${ocrError.message}`);
+        } else {
+          logger.info(
+            `[OCR] Pulando arquivo (formato não suportado): ${docPath}`,
+          );
         }
-      } else {
-        logger.info(
-          `[OCR] Pulando arquivo (formato não suportado): ${docPath}`,
-        );
       }
-    }
 
-    // IA: Resumo e Dos Fatos
-    try {
-      resumo_ia = await analyzeCase(textoCompleto);
-    } catch (analyzeError) {
-      logger.warn(`Falha ao gerar resumo IA: ${analyzeError.message}`);
-    }
+      // IA: Resumo e Dos Fatos
+      try {
+        resumo_ia = await analyzeCase(textoCompleto);
+      } catch (analyzeError) {
+        logger.warn(`Falha ao gerar resumo IA: ${analyzeError.message}`);
+      }
     } else {
-      logger.info(`[Background] IA ignorada pela configuração da ação ${acaoKey}.`);
+      logger.info(
+        `[Background] IA ignorada pela configuração da ação ${acaoKey}.`,
+      );
     }
 
     // Formatação de Dados
     // Garante que a data de nascimento não seja formatada se estiver vazia ou inválida
-    const rawAssistidoNascimento = dados_formulario.assistido_data_nascimento || dados_formulario.data_nascimento_assistido;
+    const rawAssistidoNascimento =
+      dados_formulario.assistido_data_nascimento ||
+      dados_formulario.data_nascimento_assistido;
     const formattedAssistidoNascimento = rawAssistidoNascimento
       ? formatDateBr(rawAssistidoNascimento)
       : "";
@@ -883,7 +1088,10 @@ export async function processarCasoEmBackground(
       dados_formulario.valor_mensal_pensao,
     );
 
-    const documentosInformadosArray = safeJsonParse(dados_formulario.documentos_informados, []);
+    const documentosInformadosArray = safeJsonParse(
+      dados_formulario.documentos_informados,
+      [],
+    );
     const varaMapeada = getVaraByTipoAcao(dados_formulario.tipoAcao);
     const varaAutomatica =
       varaMapeada && !varaMapeada.includes("NÃO ESPECIFICADA")
@@ -891,6 +1099,7 @@ export async function processarCasoEmBackground(
         : null;
 
     const caseDataForPetitionRaw = {
+      ...dados_formulario, // Injeção de todas as TAGS do dicionarioTags enviadas pelo Frontend
       protocolo,
       nome_assistido: dados_formulario.nome,
       cpf_assistido: dados_formulario.cpf,
@@ -914,7 +1123,9 @@ export async function processarCasoEmBackground(
       assistido_rg_numero: dados_formulario.assistido_rg_numero,
       assistido_rg_orgao: dados_formulario.assistido_rg_orgao,
       // Mapeamento do campo data_nascimento_assistido (frontend) → assistido_data_nascimento (backend)
-      data_nascimento_assistido: dados_formulario.data_nascimento_assistido || dados_formulario.assistido_data_nascimento,
+      data_nascimento_assistido:
+        dados_formulario.data_nascimento_assistido ||
+        dados_formulario.assistido_data_nascimento,
       representante_nome: dados_formulario.representante_nome,
       representante_nacionalidade: dados_formulario.representante_nacionalidade,
       representante_estado_civil: dados_formulario.representante_estado_civil,
@@ -943,10 +1154,16 @@ export async function processarCasoEmBackground(
       requerido_nome_pai: dados_formulario.requerido_nome_pai,
       requerido_endereco_profissional:
         dados_formulario.requerido_endereco_profissional,
-      requerido_email: dados_formulario.email_requerido || dados_formulario.requerido_email,
-      requerido_telefone: dados_formulario.telefone_requerido || dados_formulario.requerido_telefone,
-      telefone_requerido: dados_formulario.telefone_requerido || dados_formulario.requerido_telefone,
-      email_requerido: dados_formulario.email_requerido || dados_formulario.requerido_email,
+      requerido_email:
+        dados_formulario.email_requerido || dados_formulario.requerido_email,
+      requerido_telefone:
+        dados_formulario.telefone_requerido ||
+        dados_formulario.requerido_telefone,
+      telefone_requerido:
+        dados_formulario.telefone_requerido ||
+        dados_formulario.requerido_telefone,
+      email_requerido:
+        dados_formulario.email_requerido || dados_formulario.requerido_email,
       filhos_info: dados_formulario.filhos_info,
       data_inicio_relacao: formattedDataInicioRelacao,
       data_separacao: formattedDataSeparacao,
@@ -966,7 +1183,9 @@ export async function processarCasoEmBackground(
       valor_pensao: formattedValorPensao,
       valor_pensao_solicitado: formattedValorPensao,
       valor_mensal_pensao: dados_formulario.valor_mensal_pensao,
-      percentual_salario_minimo: dados_formulario.percentual_salario_minimo || percentualSalarioMinimoCalculado,
+      percentual_salario_minimo:
+        dados_formulario.percentual_salario_minimo ||
+        percentualSalarioMinimoCalculado,
       salario_minimo_atual: salarioMinimoAtual,
       salario_minimo_formatado: formatCurrencyBr(salarioMinimoAtual),
       valor_salario_minimo: formatCurrencyBr(salarioMinimoAtual),
@@ -987,8 +1206,12 @@ export async function processarCasoEmBackground(
       valor_multa: dados_formulario.valor_multa,
       valor_juros: dados_formulario.valor_juros,
       valor_honorarios: dados_formulario.valor_honorarios,
-      periodo_debito_execucao: dados_formulario.periodo_debito_execucao || dados_formulario.periodo_debito,
-      periodo_debito: dados_formulario.periodo_debito || dados_formulario.periodo_debito_execucao,
+      periodo_debito_execucao:
+        dados_formulario.periodo_debito_execucao ||
+        dados_formulario.periodo_debito,
+      periodo_debito:
+        dados_formulario.periodo_debito ||
+        dados_formulario.periodo_debito_execucao,
       valor_total_debito_execucao: formattedValorTotalDebitoExecucao,
       regime_bens: dados_formulario.regime_bens,
       retorno_nome_solteira: dados_formulario.retorno_nome_solteira,
@@ -1001,7 +1224,7 @@ export async function processarCasoEmBackground(
     );
 
     // Usa a configAcao já carregada no topo
-    
+
     try {
       if (configAcao.ignorarDosFatos) {
         dosFatosTexto = "";
@@ -1017,7 +1240,7 @@ export async function processarCasoEmBackground(
     let url_documento_gerado = null;
     let url_peticao_penhora = null;
     let url_peticao_prisao = null;
-    
+
     const normalizedData = {
       comarca:
         process.env.DEFENSORIA_DEFAULT_COMARCA || "Teixeira de Freitas/BA",
@@ -1034,41 +1257,65 @@ export async function processarCasoEmBackground(
         caseDataForPetition,
         acaoKey,
       );
-      
-      const { getConfigAcaoBackend } = await import("../config/dicionarioAcoes.js");
+
+      const { getConfigAcaoBackend } =
+        await import("../config/dicionarioAcoes.js");
       const configAcao = getConfigAcaoBackend(acaoKey);
-      
+
       if (configAcao.gerarMultiplos) {
-          const periodoParaCalculo = caseDataForPetition.periodo_debito_execucao || caseDataForPetition.periodo_debito || "";
-          logger.info(`[DOCX Multi] Período para cálculo: "${periodoParaCalculo}"`);
-          const docs = await generateMultiplosDocx(docxData, acaoKey, periodoParaCalculo);
-          for (const doc of docs) {
-             const docxPath = `${protocolo}/${doc.filename}`;
-             if (isSupabaseConfigured) {
-               const { error: uploadDocxErr } = await supabase.storage
-                   .from("peticoes")
-                   .upload(docxPath, doc.buffer, {
-                     contentType:
-                       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                     upsert: true,
-                   });
-                   
-               if (!uploadDocxErr) {
-                   if (doc.tipo === "penhora") url_peticao_penhora = docxPath;
-                   if (doc.tipo === "prisao") url_peticao_prisao = docxPath;
-               }
-             } else {
-               // Fallback: salva localmente
-               const localDir = path.resolve("uploads", "peticoes", protocolo);
-               await fs.mkdir(localDir, { recursive: true });
-               await fs.writeFile(path.join(localDir, doc.filename), doc.buffer);
-               if (doc.tipo === "penhora") url_peticao_penhora = docxPath;
-               if (doc.tipo === "prisao") url_peticao_prisao = docxPath;
-               logger.info(`[Local] DOCX ${doc.tipo} salvo em ${localDir}/${doc.filename}`);
-             }
+        const periodoParaCalculo =
+          caseDataForPetition.periodo_debito_execucao ||
+          caseDataForPetition.periodo_debito ||
+          "";
+        logger.info(
+          `[DOCX Multi] Período para cálculo: "${periodoParaCalculo}"`,
+        );
+        const docs = await generateMultiplosDocx(
+          docxData,
+          acaoKey,
+          periodoParaCalculo,
+        );
+        for (const doc of docs) {
+          const docxPath = `${protocolo}/${doc.filename}`;
+          if (isSupabaseConfigured) {
+            const { error: uploadDocxErr } = await supabase.storage
+              .from("peticoes")
+              .upload(docxPath, doc.buffer, {
+                contentType:
+                  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                upsert: true,
+              });
+
+            if (!uploadDocxErr) {
+              if (doc.tipo === "penhora") url_peticao_penhora = docxPath;
+              if (doc.tipo === "prisao") url_peticao_prisao = docxPath;
+            } else {
+              logger.error(
+                `[Supabase] Erro ao fazer upload da minuta ${doc.tipo}: ${uploadDocxErr.message}`,
+              );
+              const localDir = path.resolve("uploads", "peticoes", protocolo);
+              await fs.mkdir(localDir, { recursive: true });
+              await fs.writeFile(path.join(localDir, doc.filename), doc.buffer);
+              if (doc.tipo === "penhora") url_peticao_penhora = docxPath;
+              if (doc.tipo === "prisao") url_peticao_prisao = docxPath;
+              logger.info(
+                `[Local Fallback] DOCX ${doc.tipo} salvo em ${localDir}/${doc.filename}`,
+              );
+            }
+          } else {
+            // Fallback: salva localmente
+            const localDir = path.resolve("uploads", "peticoes", protocolo);
+            await fs.mkdir(localDir, { recursive: true });
+            await fs.writeFile(path.join(localDir, doc.filename), doc.buffer);
+            if (doc.tipo === "penhora") url_peticao_penhora = docxPath;
+            if (doc.tipo === "prisao") url_peticao_prisao = docxPath;
+            logger.info(
+              `[Local] DOCX ${doc.tipo} salvo em ${localDir}/${doc.filename}`,
+            );
           }
-          // The main url gets the penhora as fallback
-          url_documento_gerado = url_peticao_penhora;
+        }
+        // The main url gets the penhora as fallback
+        url_documento_gerado = url_peticao_penhora;
       } else {
         const docxBuffer = await generateDocx(docxData, acaoKey);
         const docxPath = `${protocolo}/peticao_inicial_${protocolo}.docx`;
@@ -1081,8 +1328,21 @@ export async function processarCasoEmBackground(
               upsert: true,
             });
           if (!uploadDocxErr) {
-             url_documento_gerado = docxPath;
-             url_peticao_penhora = docxPath;
+            url_documento_gerado = docxPath;
+            url_peticao_penhora = docxPath;
+          } else {
+            logger.error(
+              `[Supabase] Erro ao fazer upload da minuta única: ${uploadDocxErr.message}`,
+            );
+            const localDir = path.resolve("uploads", "peticoes", protocolo);
+            await fs.mkdir(localDir, { recursive: true });
+            const localFilename = `peticao_inicial_${protocolo}.docx`;
+            await fs.writeFile(path.join(localDir, localFilename), docxBuffer);
+            url_documento_gerado = docxPath;
+            url_peticao_penhora = docxPath;
+            logger.info(
+              `[Local Fallback] DOCX salvo em ${localDir}/${localFilename}`,
+            );
           }
         } else {
           // Fallback: salva localmente
@@ -1111,6 +1371,16 @@ export async function processarCasoEmBackground(
       ),
     );
 
+    // Agrupa dados virtuais (links multi-rito, rascunhos, resumos) que NÃO constam
+    // na tipagem bruta do DB dentro do JSONB flexível para respeitar o Schema 1.0
+    const iaDadosExtraidos = {
+      ...dadosFormularioFinal,
+      resumo_ia,
+      peticao_inicial_rascunho: `DOS FATOS\n\n${dosFatosTexto || ""}`,
+      url_peticao_penhora,
+      url_peticao_prisao,
+    };
+
     // Finalizar processamento - Atualiza Status no Caso e Dados na IA
     await prisma.casos.update({
       where: { protocolo },
@@ -1122,27 +1392,25 @@ export async function processarCasoEmBackground(
             create: {
               relato_texto: textoCompleto,
               dos_fatos_gerado: dosFatosTexto,
-              resumo_ia,
-              peticao_inicial_rascunho: `DOS FATOS\n\n${dosFatosTexto || ""}`,
               peticao_completa_texto,
               url_peticao: url_documento_gerado,
-              url_peticao_penhora,
-              url_peticao_prisao,
-              versao_peticao: 1
+              url_peticao_penhora: url_peticao_penhora,
+              url_peticao_prisao: url_peticao_prisao,
+              dados_extraidos: iaDadosExtraidos,
+              versao_peticao: 1,
             },
             update: {
               relato_texto: textoCompleto,
               dos_fatos_gerado: dosFatosTexto,
-              resumo_ia,
-              peticao_inicial_rascunho: `DOS FATOS\n\n${dosFatosTexto || ""}`,
               peticao_completa_texto,
               url_peticao: url_documento_gerado,
-              url_peticao_penhora,
-              url_peticao_prisao
-            }
-          }
-        }
-      }
+              url_peticao_penhora: url_peticao_penhora,
+              url_peticao_prisao: url_peticao_prisao,
+              dados_extraidos: iaDadosExtraidos,
+            },
+          },
+        },
+      },
     });
 
     logger.info(`✅ Caso ${protocolo} processado com sucesso em background.`);
@@ -1150,29 +1418,38 @@ export async function processarCasoEmBackground(
     logger.error(`❌ Erro no background para ${protocolo}: ${error.message}`, {
       stack: error.stack,
     });
-    await prisma.casos.update({
-      where: { protocolo },
-      data: { status: "erro_processamento", erro_processamento: error.message }
-    }).catch(e => logger.error("Falha ao salvar erro no BD do caso: " + e.message));
+    await prisma.casos
+      .update({
+        where: { protocolo },
+        data: {
+          status: "erro_processamento",
+          erro_processamento: error.message,
+        },
+      })
+      .catch((e) =>
+        logger.error("Falha ao salvar erro no BD do caso: " + e.message),
+      );
   }
 }
 
 // --- CONTROLLER PRINCIPAL ---
 export const criarNovoCaso = async (req, res) => {
-  try { // O bloco finally cuidará da limpeza de arquivos
+  try {
+    // O bloco finally cuidará da limpeza de arquivos
     const dados_formulario = req.body;
     const avisos = [];
     // Desestruturação segura (mantida do seu código)
-    const {
-      tipoAcao,
-      relato,
-      documentos_informados,
-      documentos_nomes,
-    } = dados_formulario;
+    const { tipoAcao, relato, documentos_informados, documentos_nomes } =
+      dados_formulario;
 
     // Extração mapeada forçadamente para o dicionário padrão (Sem Aliases)
-    const nome = dados_formulario.REPRESENTANTE_NOME || "";
-    const cpf = dados_formulario.representante_cpf || "";
+    const nome =
+      dados_formulario.REPRESENTANTE_NOME || dados_formulario.nome || "";
+    let cpf = dados_formulario.representante_cpf || dados_formulario.cpf || "";
+    cpf = cpf.replace(/\D/g, ""); // Remove pontuações para não bugar a busca depois
+    const cpf_requerido_limpo = (
+      dados_formulario.executado_cpf || cpf_requerido
+    ).replace(/\D/g, "");
     const telefone = dados_formulario.requerente_telefone || "";
     const cpf_requerido = dados_formulario.executado_cpf || "";
     const detalhes_filhos = dados_formulario.lista_filhos || "";
@@ -1185,14 +1462,19 @@ export const criarNovoCaso = async (req, res) => {
     }
 
     if (cpf_requerido && !validarCPF(cpf_requerido)) {
-      avisos.push("Alerta: O CPF informado para a parte contrária (Requerido) parece inválido.");
+      avisos.push(
+        "Alerta: O CPF informado para a parte contrária (Requerido) parece inválido.",
+      );
     }
     // Validação de filhos (lista_filhos)
     if (detalhes_filhos) {
       const filhos = safeJsonParse(detalhes_filhos, []);
       if (Array.isArray(filhos)) {
         filhos.forEach((f, i) => {
-          if (f.cpf && !validarCPF(f.cpf)) avisos.push(`Alerta: O CPF do filho(a) ${f.NOME || i+1} parece inválido.`);
+          if (f.cpf && !validarCPF(f.cpf))
+            avisos.push(
+              `Alerta: O CPF do filho(a) ${f.NOME || i + 1} parece inválido.`,
+            );
         });
       }
     }
@@ -1212,13 +1494,16 @@ export const criarNovoCaso = async (req, res) => {
       if (req.files.audio) {
         const audioFile = req.files.audio[0];
         const filePath = `${protocolo}/${audioFile.filename}`;
-        
+
         if (!isSupabaseConfigured) {
-           const localDir = path.resolve("uploads", "audios", protocolo);
-           await fs.mkdir(localDir, { recursive: true });
-           await fs.copyFile(audioFile.path, path.join(localDir, audioFile.filename));
-           url_audio = filePath;
-           logger.info(`[Local] Áudio salvo em ${localDir}`);
+          const localDir = path.resolve("uploads", "audios", protocolo);
+          await fs.mkdir(localDir, { recursive: true });
+          await fs.copyFile(
+            audioFile.path,
+            path.join(localDir, audioFile.filename),
+          );
+          url_audio = filePath;
+          logger.info(`[Local] Áudio salvo em ${localDir}`);
         } else {
           const audioStream = fsSync.createReadStream(audioFile.path);
           const { error: audioErr } = await supabase.storage
@@ -1239,18 +1524,27 @@ export const criarNovoCaso = async (req, res) => {
         if (!isSupabaseConfigured) {
           for (const docFile of req.files.documentos) {
             const filePath = `${protocolo}/${docFile.filename}`;
-            const bucket = docFile.originalname.toLowerCase().includes("peticao") ? "peticoes" : "documentos";
+            const bucket = docFile.originalname
+              .toLowerCase()
+              .includes("peticao")
+              ? "peticoes"
+              : "documentos";
             const localDir = path.resolve("uploads", bucket, protocolo);
             await fs.mkdir(localDir, { recursive: true });
-            await fs.copyFile(docFile.path, path.join(localDir, docFile.filename));
-            
+            await fs.copyFile(
+              docFile.path,
+              path.join(localDir, docFile.filename),
+            );
+
             if (bucket === "peticoes") {
               url_peticao = filePath;
             } else {
               urls_documentos.push(filePath);
             }
           }
-          logger.info(`[Local] ${req.files.documentos.length} documento(s) salvos.`);
+          logger.info(
+            `[Local] ${req.files.documentos.length} documento(s) salvos.`,
+          );
         } else {
           for (const docFile of req.files.documentos) {
             const filePath = `${protocolo}/${docFile.filename}`;
@@ -1258,24 +1552,55 @@ export const criarNovoCaso = async (req, res) => {
             if (docFile.originalname.toLowerCase().includes("peticao")) {
               const { error: petErr } = await supabase.storage
                 .from("peticoes")
-                .upload(filePath, docStream, { contentType: docFile.mimetype, duplex: "half" });
+                .upload(filePath, docStream, {
+                  contentType: docFile.mimetype,
+                  duplex: "half",
+                });
               if (petErr) {
                 logger.error(`Erro upload petição (${docFile.originalname}):`, {
                   error: petErr,
                 });
-                avisos.push(`Erro ao salvar petição: ${docFile.originalname}`);
+                avisos.push(
+                  `Erro ao salvar petição no Supabase, salvando local: ${docFile.originalname}`,
+                );
+                const localDir = path.resolve("uploads", "peticoes", protocolo);
+                await fs.mkdir(localDir, { recursive: true });
+                await fs.copyFile(
+                  docFile.path,
+                  path.join(localDir, docFile.filename),
+                );
+                url_peticao = filePath;
               } else {
                 url_peticao = filePath; // Agora seguro
               }
             } else {
               const { error: docErr } = await supabase.storage
                 .from("documentos")
-                .upload(filePath, docStream, { contentType: docFile.mimetype, duplex: "half" });
-              if (docErr) {
-                logger.error(`Erro upload documento (${docFile.originalname}):`, {
-                  error: docErr,
+                .upload(filePath, docStream, {
+                  contentType: docFile.mimetype,
+                  duplex: "half",
                 });
-                avisos.push(`Erro ao salvar: ${docFile.originalname}`);
+              if (docErr) {
+                logger.error(
+                  `Erro upload documento (${docFile.originalname}):`,
+                  {
+                    error: docErr,
+                  },
+                );
+                avisos.push(
+                  `Erro ao salvar no Supabase, salvando local: ${docFile.originalname}`,
+                );
+                const localDir = path.resolve(
+                  "uploads",
+                  "documentos",
+                  protocolo,
+                );
+                await fs.mkdir(localDir, { recursive: true });
+                await fs.copyFile(
+                  docFile.path,
+                  path.join(localDir, docFile.filename),
+                );
+                urls_documentos.push(filePath);
               } else {
                 urls_documentos.push(filePath);
               }
@@ -1295,19 +1620,28 @@ export const criarNovoCaso = async (req, res) => {
 
     // Salvar no Banco (Resposta Rápida)
     logger.debug("Salvando dados básicos no Banco...");
-    
+
     // Busca a unidade pela cidade_assinatura informada no formulário
-    const cidadeFormulario = dados_formulario.cidade_assinatura || dados_formulario.cidadeAssinatura || "";
+    const cidadeFormulario =
+      dados_formulario.cidade_assinatura ||
+      dados_formulario.cidadeAssinatura ||
+      "";
     let unidadeDb = null;
 
     if (cidadeFormulario) {
       // Busca case-insensitive pela comarca
-      const todasUnidades = await prisma.unidades.findMany({ where: { ativo: true } });
+      const todasUnidades = await prisma.unidades.findMany({
+        where: { ativo: true },
+      });
       unidadeDb = todasUnidades.find(
-        (u) => u.comarca.toLowerCase().trim() === cidadeFormulario.toLowerCase().trim()
+        (u) =>
+          u.comarca.toLowerCase().trim() ===
+          cidadeFormulario.toLowerCase().trim(),
       );
       if (!unidadeDb) {
-        logger.warn(`Nenhuma unidade encontrada para a comarca "${cidadeFormulario}". Usando a primeira unidade disponível.`);
+        logger.warn(
+          `Nenhuma unidade encontrada para a comarca "${cidadeFormulario}". Usando a primeira unidade disponível.`,
+        );
       }
     }
 
@@ -1317,28 +1651,37 @@ export const criarNovoCaso = async (req, res) => {
     }
 
     if (!unidadeDb) {
-      logger.warn("Aviso: Nenhuma 'unidade' cadastrada. Criando 'Unidade Sede Defensoria' automaticamente.");
+      logger.warn(
+        "Aviso: Nenhuma 'unidade' cadastrada. Criando 'Unidade Sede Defensoria' automaticamente.",
+      );
       unidadeDb = await prisma.unidades.create({
-         data: {
-            nome: "Unidade Sede Defensoria",
-            comarca: cidadeFormulario || "Teixeira de Freitas",
-            sistema: "solar",
-            ativo: true
-         }
+        data: {
+          nome: "Unidade Sede Defensoria",
+          comarca: cidadeFormulario || "Teixeira de Freitas",
+          sistema: "solar",
+          ativo: true,
+        },
       });
     }
 
     // Mapeia para um enum válido do Prisma:
     let tipoAcaoPrisma = "fixacao_alimentos";
-    if (tipoAcao.toLowerCase().includes("execução") || tipoAcao.toLowerCase().includes("execucao")) {
+    if (
+      tipoAcao.toLowerCase().includes("execução") ||
+      tipoAcao.toLowerCase().includes("execucao")
+    ) {
       tipoAcaoPrisma = "exec_cumulado"; // Ou outro mapeamento correspondente ao DB
     } else if (tipoAcao.toLowerCase().includes("gravidicos")) {
-       tipoAcaoPrisma = "alimentos_gravidicos";
+      tipoAcaoPrisma = "alimentos_gravidicos";
     }
 
     // Determina o status inicial baseado em se o usuário vai enviar documentos depois
-    const enviarDocDepois = dados_formulario.enviar_documentos_depois === "true" || dados_formulario.enviar_documentos_depois === true;
-    const statusInicial = enviarDocDepois ? "aguardando_documentos" : "documentacao_completa";
+    const enviarDocDepois =
+      dados_formulario.enviar_documentos_depois === "true" ||
+      dados_formulario.enviar_documentos_depois === true;
+    const statusInicial = enviarDocDepois
+      ? "aguardando_documentos"
+      : "documentacao_completa";
 
     // Tenta salvar via Prisma de preferência (Normalizado v1.0)
     await prisma.casos.create({
@@ -1353,26 +1696,100 @@ export const criarNovoCaso = async (req, res) => {
             nome_assistido: nome,
             cpf_assistido: cpf,
             telefone_assistido: telefone,
-            email_assistido: dados_formulario.requerente_email,
-            endereco_assistido: dados_formulario.requerente_endereco_residencial,
-            nome_requerido: dados_formulario.REQUERIDO_NOME,
-            cpf_requerido: cpf_requerido,
-            // exequentes: detalhes_filhos ? safeJsonParse(detalhes_filhos, []) : []
-          }
+            email_assistido:
+              dados_formulario.requerente_email ||
+              dados_formulario.email_assistido,
+            endereco_assistido:
+              dados_formulario.requerente_endereco_residencial ||
+              dados_formulario.endereco_assistido,
+            rg_assistido:
+              dados_formulario.representante_rg ||
+              dados_formulario.assistido_rg_numero,
+            emissor_rg_assistido:
+              dados_formulario.emissor_rg_exequente ||
+              dados_formulario.assistido_rg_orgao,
+            nacionalidade:
+              dados_formulario.representante_nacionalidade ||
+              dados_formulario.assistido_nacionalidade,
+            estado_civil:
+              dados_formulario.representante_estado_civil ||
+              dados_formulario.assistido_estado_civil,
+            profissao:
+              dados_formulario.representante_ocupacao ||
+              dados_formulario.assistido_ocupacao,
+            nome_mae_representante: dados_formulario.nome_mae_representante,
+            nome_pai_representante: dados_formulario.nome_pai_representante,
+            nome_requerido:
+              dados_formulario.REQUERIDO_NOME ||
+              dados_formulario.nome_requerido,
+            cpf_requerido: cpf_requerido_limpo,
+            rg_requerido:
+              dados_formulario.rg_executado ||
+              dados_formulario.requerido_rg_numero,
+            emissor_rg_requerido:
+              dados_formulario.emissor_rg_executado ||
+              dados_formulario.requerido_rg_orgao,
+            profissao_requerido:
+              dados_formulario.executado_profissao ||
+              dados_formulario.requerido_ocupacao,
+            nome_mae_requerido:
+              dados_formulario.nome_mae_executado ||
+              dados_formulario.requerido_nome_mae,
+            nome_pai_requerido:
+              dados_formulario.nome_pai_executado ||
+              dados_formulario.requerido_nome_pai,
+            endereco_requerido:
+              dados_formulario.executado_endereco_residencial ||
+              dados_formulario.endereco_requerido,
+            telefone_requerido:
+              dados_formulario.executado_telefone ||
+              dados_formulario.telefone_requerido,
+            email_requerido:
+              dados_formulario.executado_email ||
+              dados_formulario.email_requerido,
+          },
+        },
+        juridico: {
+          create: {
+            numero_processo_titulo:
+              dados_formulario.numero_processo_originario ||
+              dados_formulario.processo_titulo_numero,
+            percentual_salario: parseCurrencyToNumber(
+              dados_formulario.percentual_salario_minimo,
+            ),
+            vencimento_dia:
+              parseInt(
+                dados_formulario.dia_pagamento_fixado ||
+                  dados_formulario.dia_pagamento_requerido,
+              ) || null,
+            periodo_inadimplencia:
+              dados_formulario.periodo_debito_execucao ||
+              dados_formulario.periodo_debito,
+            debito_valor:
+              dados_formulario.valor_total_debito_execucao ||
+              dados_formulario.valor_mensal_pensao,
+            debito_penhora_valor: dados_formulario.debito_penhora_valor || null,
+            debito_prisao_valor: dados_formulario.debito_prisao_valor || null,
+            conta_banco: dados_formulario.banco_deposito,
+            conta_agencia: dados_formulario.agencia_deposito,
+            conta_numero: dados_formulario.conta_deposito,
+            empregador_nome: dados_formulario.empregador_requerido_nome,
+            empregador_endereco: dados_formulario.empregador_requerido_endereco,
+          },
         },
         ia: {
           create: {
             relato_texto: relato,
-            dados_extraidos: dadosFormularioFinal // Guardamos o form completo aqui para histórico
-          }
+            dados_extraidos: dadosFormularioFinal, // Guardamos o form completo aqui para histórico
+          },
         },
         documentos: {
-          create: urls_documentos.map(path => ({
+          create: urls_documentos.map((path) => ({
             storage_path: path,
-            tipo: path.toLowerCase().includes("peticao") ? "peticao" : "outro"
-          }))
-        }
-      }
+            tipo: path.toLowerCase().includes("peticao") ? "peticao" : "outro",
+          })),
+        },
+      },
     });
 
     logger.info(`Caso ${protocolo} salvo com status "${statusInicial}".`);
@@ -1382,7 +1799,9 @@ export const criarNovoCaso = async (req, res) => {
 
     // Se vai enviar documentos depois, responde e NÃO processa em background
     if (enviarDocDepois) {
-      logger.info(`📋 Caso ${protocolo} aguardando documentos. Processamento adiado.`);
+      logger.info(
+        `📋 Caso ${protocolo} aguardando documentos. Processamento adiado.`,
+      );
       res.status(201).json({
         ...responsePayload,
         message: "Caso registrado! Envie os documentos quando possível.",
@@ -1415,7 +1834,7 @@ export const criarNovoCaso = async (req, res) => {
       const qstashClient = new Client({ token: qstashToken });
       try {
         await qstashClient.publishJSON({
-          url: `${apiBaseUrl.replace(/\/$/, '')}/api/jobs/process`,
+          url: `${apiBaseUrl.replace(/\/$/, "")}/api/jobs/process`,
           body: {
             protocolo,
             dados_formulario: dadosFormularioFinal, // Passa os dados do formulario ja finalizados
@@ -1444,9 +1863,13 @@ export const criarNovoCaso = async (req, res) => {
       }
     } else {
       if (!qstashToken) {
-        logger.warn('[QStash] QSTASH_TOKEN ausente; processamento local acionado.');
+        logger.warn(
+          "[QStash] QSTASH_TOKEN ausente; processamento local acionado.",
+        );
       } else if (!apiBaseUrlValida) {
-        logger.warn('[QStash] API_BASE_URL invalida; processamento local acionado.');
+        logger.warn(
+          "[QStash] API_BASE_URL invalida; processamento local acionado.",
+        );
       }
       setImmediate(async () => {
         try {
@@ -1462,7 +1885,6 @@ export const criarNovoCaso = async (req, res) => {
         }
       });
     }
-
   } catch (error) {
     logger.error(`Erro na criação do caso: ${error.message}`, {
       stack: error.stack,
@@ -1479,7 +1901,10 @@ export const criarNovoCaso = async (req, res) => {
           try {
             await fs.unlink(file.path);
           } catch (e) {
-            logger.warn(`Falha ao limpar arquivo temporário: ${file.path}`, e.message);
+            logger.warn(
+              `Falha ao limpar arquivo temporário: ${file.path}`,
+              e.message,
+            );
           }
         }
       }
@@ -1490,7 +1915,7 @@ export const criarNovoCaso = async (req, res) => {
 export const listarCasos = async (req, res) => {
   try {
     const { cpf, arquivado, limite } = req.query;
-    const statusFiltro = arquivado === 'true';
+    const statusFiltro = arquivado === "true";
 
     const where = { arquivado: statusFiltro };
 
@@ -1508,30 +1933,32 @@ export const listarCasos = async (req, res) => {
         {
           ia: {
             dados_extraidos: {
-              path: ['representante_cpf'],
-              equals: cpf
-            }
-          }
+              path: ["representante_cpf"],
+              equals: cpf,
+            },
+          },
         },
         {
           ia: {
             dados_extraidos: {
-              path: ['representante_cpf'],
-              equals: cpfLimpo
-            }
-          }
-        }
+              path: ["representante_cpf"],
+              equals: cpfLimpo,
+            },
+          },
+        },
       ];
     }
 
     const queryOptions = {
       where,
-      orderBy: { created_at: 'desc' },
-      include: { 
+      orderBy: { created_at: "desc" },
+      include: {
         partes: true,
         ia: true,
-        documentos: true
-      }
+        documentos: true,
+        defensor: { select: { id: true, nome: true } },
+        servidor: { select: { id: true, nome: true } },
+      },
     };
 
     if (limite) {
@@ -1544,7 +1971,7 @@ export const listarCasos = async (req, res) => {
     // Hidrata e garante compatibilidade com o frontend
     const normalizedData = data.map((casoRaw) => {
       const caso = mapCasoRelations(casoRaw);
-      if (!caso.dados_formulario || typeof caso.dados_formulario !== 'object') {
+      if (!caso.dados_formulario || typeof caso.dados_formulario !== "object") {
         caso.dados_formulario = {};
       }
       if (!caso.dados_formulario.document_names)
@@ -1553,11 +1980,13 @@ export const listarCasos = async (req, res) => {
         caso.dados_formulario.documentNames =
           caso.dados_formulario.document_names;
       }
-      
+
       // Adiciona o nome do representante no topo para facilitar a listagem no front
-      caso.nome_representante = caso.dados_formulario?.REPRESENTANTE_NOME || 
-                               caso.dados_formulario?.representante_nome || 
-                               caso.dados_formulario?.representanteNome || null;
+      caso.nome_representante =
+        caso.dados_formulario?.REPRESENTANTE_NOME ||
+        caso.dados_formulario?.representante_nome ||
+        caso.dados_formulario?.representanteNome ||
+        null;
 
       return caso;
     });
@@ -1587,7 +2016,7 @@ export const resumoCasos = async (req, res) => {
       select: {
         status: true,
         tipo_acao: true,
-      }
+      },
     });
 
     const contagens = {
@@ -1613,7 +2042,10 @@ export const resumoCasos = async (req, res) => {
       // Mapeamento de legado/variantes para o material estratégico (Enum Prisma)
       if (s === "aguardando_documentos" || s === "aguardando_docs") {
         contagens.aguardando_documentos++;
-      } else if (s === "documentacao_completa" || s === "documentos_entregues") {
+      } else if (
+        s === "documentacao_completa" ||
+        s === "documentos_entregues"
+      ) {
         contagens.documentacao_completa++;
       } else if (s === "processando_ia" || s === "processando") {
         contagens.processando_ia++;
@@ -1658,7 +2090,10 @@ export const obterDetalhesCaso = async (req, res) => {
   const { id } = req.params;
 
   // Validação: Se o ID não for número nem UUID (ex: "arquivados"), retorna 400 e evita erro 500 no banco
-  const isValidId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || /^\d+$/.test(id);
+  const isValidId =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      id,
+    ) || /^\d+$/.test(id);
   if (!isValidId) {
     return res.status(400).json({ error: "ID do caso inválido." });
   }
@@ -1667,18 +2102,28 @@ export const obterDetalhesCaso = async (req, res) => {
     let data;
 
     if (isSupabaseConfigured) {
+      // Supabase Join: usamos os nomes definidos no Prisma (ia, partes, juridico)
       const result = await supabase
         .from("casos")
-        .select("*, casos_ia(url_peticao_penhora, url_peticao_prisao)")
+        .select(
+          `
+          *,
+          ia:casos_ia(*),
+          partes:casos_partes(*),
+          juridico:casos_juridico(*),
+          documentos(*)
+        `,
+        )
         .eq("id", id)
         .single();
-      
+
       if (result.error) {
-        if (result.error.code === 'PGRST116') {
+        logger.error(
+          `[Supabase Detail] Erro query para ID ${id}: ${result.error.message}`,
+          result.error,
+        );
+        if (result.error.code === "PGRST116") {
           return res.status(404).json({ error: "Caso não encontrado." });
-        }
-        if (result.error.code === '22P02') {
-          return res.status(400).json({ error: "ID do caso inválido." });
         }
         throw result.error;
       }
@@ -1692,16 +2137,68 @@ export const obterDetalhesCaso = async (req, res) => {
           ia: true,
           juridico: true,
           documentos: true,
+          defensor: { select: { nome: true } },
+          servidor: { select: { nome: true } },
+          assistencia_casos: {
+            where: {
+              destinatario_id: req.user.id,
+              status: "aceito",
+            },
+          },
         },
       });
 
       if (!dataRaw) {
         return res.status(404).json({ error: "Caso não encontrado." });
       }
-      data = mapCasoRelations(dataRaw);
+
+      data = dataRaw;
     }
 
-    // Garante que dados_formulario e sua propriedade document_names sejam sempre objetos
+    // Normaliza relações aninhadas para expor os campos corretamente na raiz (nome_assistido, dados_formulario, etc.)
+    data = mapCasoRelations(data);
+
+    // --- Lógica de Travamento (Locking) e Vínculo Automático ---
+    const isAdmin = req.user.cargo === "admin";
+    const isOwner =
+      data.defensor_id === req.user.id || data.servidor_id === req.user.id;
+    const isShared = (data.assistencia_casos || []).length > 0;
+
+    if (
+      !isAdmin &&
+      !isOwner &&
+      !isShared &&
+      (data.defensor_id || data.servidor_id)
+    ) {
+      const holderName =
+        data.defensor?.nome || data.servidor?.nome || "outro usuário";
+      return res.status(423).json({
+        error: "Caso bloqueado",
+        message: `Este caso já está vinculado ao defensor(a) ${holderName}.`,
+        holder: holderName,
+      });
+    }
+
+    // Vínculo Automático
+    if (!isAdmin && !data.defensor_id && !data.servidor_id && !isShared) {
+      const updateData = {};
+      if (req.user.cargo.toLowerCase().includes("defensor")) {
+        updateData.defensor_id = req.user.id;
+        updateData.defensor_at = new Date();
+        data.defensor_id = req.user.id;
+      } else {
+        updateData.servidor_id = req.user.id;
+        updateData.servidor_at = new Date();
+        data.servidor_id = req.user.id;
+      }
+
+      await prisma.casos.update({
+        where: { id: BigInt(id) },
+        data: updateData,
+      });
+    }
+
+    // Garante que dados_formulario existe
     if (!data.dados_formulario) {
       data.dados_formulario = {};
     }
@@ -1740,7 +2237,6 @@ export const obterDetalhesCaso = async (req, res) => {
   }
 };
 
-
 export const atualizarStatusCaso = async (req, res) => {
   const { id } = req.params;
   let { status, descricao_pendencia, numero_solar } = req.body;
@@ -1750,11 +2246,14 @@ export const atualizarStatusCaso = async (req, res) => {
 
     const updateData = {};
     if (status !== undefined) updateData.status = status;
-    if (descricao_pendencia !== undefined) updateData.descricao_pendencia = descricao_pendencia;
+    if (descricao_pendencia !== undefined)
+      updateData.descricao_pendencia = descricao_pendencia;
     if (numero_solar !== undefined) updateData.numero_solar = numero_solar;
 
     if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ error: "Nenhum dado enviado para atualização." });
+      return res
+        .status(400)
+        .json({ error: "Nenhum dado enviado para atualização." });
     }
 
     let data;
@@ -1779,15 +2278,49 @@ export const atualizarStatusCaso = async (req, res) => {
     res.status(200).json(casoAtualizadoComUrls);
   } catch (error) {
     logger.error(`Erro ao atualizar caso ${id}: ${error.message}`);
-    
-    if (error.code === '23505') {
-      return res.status(409).json({ error: "Este número Solar já está vinculado a outro caso." });
+
+    if (error.code === "23505") {
+      return res
+        .status(409)
+        .json({ error: "Este número Solar já está vinculado a outro caso." });
     }
-    if (error.code === '22P02') {
-      return res.status(400).json({ error: "Formato inválido. O número Solar deve conter apenas números." });
+    if (error.code === "22P02") {
+      return res.status(400).json({
+        error: "Formato inválido. O número Solar deve conter apenas números.",
+      });
     }
-    
+
     res.status(500).json({ error: "Erro ao atualizar dados do caso." });
+  }
+};
+
+export const salvarDadosJuridicos = async (req, res) => {
+  const { id } = req.params;
+  const { memoria_calculo, debito_valor, percentual_salario } = req.body;
+
+  try {
+    const updateData = {};
+    if (memoria_calculo !== undefined)
+      updateData.memoria_calculo = memoria_calculo;
+    if (debito_valor !== undefined) updateData.debito_valor = debito_valor;
+    if (percentual_salario !== undefined)
+      updateData.percentual_salario = percentual_salario;
+
+    await prisma.casos_juridico.upsert({
+      where: { caso_id: BigInt(id) },
+      update: updateData,
+      create: {
+        caso_id: BigInt(id),
+        ...updateData,
+      },
+    });
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    logger.error(
+      `Erro ao salvar dados jurídicos do caso ${id}: ${error.message}`,
+    );
+    res.status(500).json({ error: "Erro ao salvar dados jurídicos." });
   }
 };
 
@@ -1849,7 +2382,7 @@ export const regenerarDosFatos = async (req, res) => {
       caso = data;
     } else {
       caso = await prisma.casos.findUnique({
-        where: { id: BigInt(id) }
+        where: { id: BigInt(id) },
       });
       if (!caso) throw new Error("Caso não encontrado");
     }
@@ -1858,21 +2391,45 @@ export const regenerarDosFatos = async (req, res) => {
     if (!dados.relato_texto && caso.relato_texto)
       dados.relato_texto = caso.relato_texto;
     const dosFatosTexto = await generateDosFatos(dados);
-    
+
     let casoAtualizado;
+
+    // Mantém e atualiza o JSONB atual sem sobrescrever os outros links
+    const currentExtra = safeJsonParse(
+      caso.ia?.dados_extraidos || caso.casos_ia?.dados_extraidos,
+      {},
+    );
+    currentExtra.peticao_inicial_rascunho = `DOS FATOS\n\n${dosFatosTexto}`;
+
     if (isSupabaseConfigured) {
-      const { data, error: updateError } = await supabase
-        .from("casos")
-        .update({ peticao_inicial_rascunho: `DOS FATOS\n\n${dosFatosTexto}` })
-        .eq("id", id)
-        .select()
-        .single();
+      const { error: updateError } = await supabase
+        .from("casos_ia")
+        .update({
+          dos_fatos_gerado: dosFatosTexto,
+          dados_extraidos: currentExtra,
+        })
+        .eq("caso_id", id);
       if (updateError) throw updateError;
+
+      const { data } = await supabase
+        .from("casos")
+        .select(
+          "*, ia:casos_ia(*), partes:casos_partes(*), juridico:casos_juridico(*), documentos(*)",
+        )
+        .eq("id", id)
+        .single();
       casoAtualizado = data;
     } else {
-      casoAtualizado = await prisma.casos.update({
+      await prisma.casos_ia.update({
+        where: { caso_id: BigInt(id) },
+        data: {
+          dos_fatos_gerado: dosFatosTexto,
+          dados_extraidos: currentExtra,
+        },
+      });
+      casoAtualizado = await prisma.casos.findUnique({
         where: { id: BigInt(id) },
-        data: { peticao_inicial_rascunho: `DOS FATOS\n\n${dosFatosTexto}` }
+        include: { partes: true, ia: true, juridico: true, documentos: true },
       });
     }
 
@@ -1897,7 +2454,7 @@ export const gerarTermoDeclaracao = async (req, res) => {
 
     const casoRaw = await prisma.casos.findUnique({
       where: { id: BigInt(id) },
-      include: { partes: true, ia: true }
+      include: { partes: true, ia: true },
     });
     if (!casoRaw) throw new Error("Caso não encontrado");
     const caso = mapCasoRelations(casoRaw);
@@ -1943,27 +2500,41 @@ export const gerarTermoDeclaracao = async (req, res) => {
       const { error: uploadError } = await supabase.storage
         .from("peticoes")
         .upload(termoPath, docxBuffer, {
-          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          contentType:
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
           upsert: true,
         });
-      if (uploadError) throw new Error(`Erro upload Supabase: ${uploadError.message}`);
+      if (uploadError)
+        throw new Error(`Erro upload Supabase: ${uploadError.message}`);
     } else {
       const localDir = path.resolve("uploads", "peticoes", caso.protocolo);
       await fs.mkdir(localDir, { recursive: true });
-      await fs.writeFile(path.join(localDir, `termo_declaracao_${caso.protocolo}.docx`), docxBuffer);
+      await fs.writeFile(
+        path.join(localDir, `termo_declaracao_${caso.protocolo}.docx`),
+        docxBuffer,
+      );
       logger.info(`[Local] Termo de declaração salvo em ${localDir}`);
     }
+
+    // Salva o link do termo extra via JSONB Respeitando o DB
+    const currentExtra = safeJsonParse(
+      caso.ia?.dados_extraidos || caso.casos_ia?.dados_extraidos,
+      {},
+    );
+    currentExtra.url_termo_declaracao = termoPath;
 
     const casoAtualizadoRaw = await prisma.casos.update({
       where: { id: BigInt(id) },
       data: {
         ia: {
-          update: { url_termo_declaracao: termoPath }
-        }
+          update: { dados_extraidos: currentExtra },
+        },
       },
-      include: { partes: true, ia: true }
+      include: { partes: true, ia: true, juridico: true, documentos: true },
     });
-    const casoAtualizado = await attachSignedUrls(mapCasoRelations(casoAtualizadoRaw));
+    const casoAtualizado = await attachSignedUrls(
+      mapCasoRelations(casoAtualizadoRaw),
+    );
     res.status(200).json(casoAtualizado);
   } catch (error) {
     logger.error(`Erro ao gerar termo de declaração: ${error.message}`);
@@ -1981,9 +2552,9 @@ export const regerarMinuta = async (req, res) => {
       });
     }
 
-    const dataRaw = await prisma.casos.findUnique({ 
-        where: { id: BigInt(id) },
-        include: { partes: true, ia: true, juridico: true }
+    const dataRaw = await prisma.casos.findUnique({
+      where: { id: BigInt(id) },
+      include: { partes: true, ia: true, juridico: true },
     });
     if (!dataRaw) throw new Error("Caso não encontrado");
     const caso = mapCasoRelations(dataRaw);
@@ -2022,11 +2593,25 @@ export const regerarMinuta = async (req, res) => {
       valor_pensao_solicitado: valorPensaoFormatado,
     };
 
-    const acaoKey = 
-      caso.dados_formulario?.acaoEspecifica || 
+    let acaoRaw =
+      caso.dados_formulario?.acaoEspecifica ||
       (caso.tipo_acao || "").split(" - ")[1]?.trim() ||
-      (caso.tipo_acao || "").trim() || 
-      "";
+      (caso.tipo_acao || "").trim();
+
+    // Normalização básica: converte para snake_case se vier com espaços ou camelCase
+    let acaoKey = acaoRaw
+      .toLowerCase()
+      .replace(/\s+/g, "_")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    // Mapeamento manual para casos comuns que podem vir do PDF/Formulário
+    if (
+      acaoKey.includes("execucao") &&
+      (acaoKey.includes("penhora") || acaoKey.includes("prisao"))
+    ) {
+      acaoKey = "execucao_alimentos";
+    }
 
     // 3. Gera o novo payload e o buffer do Word
     const payload = buildDocxTemplatePayload(
@@ -2036,29 +2621,39 @@ export const regerarMinuta = async (req, res) => {
       acaoKey,
     );
 
-    const { getConfigAcaoBackend } = await import("../config/dicionarioAcoes.js");
+    const { getConfigAcaoBackend } =
+      await import("../config/dicionarioAcoes.js");
     const configAcao = getConfigAcaoBackend(acaoKey);
 
     let docxPath; // URL da minuta primária ou única
 
     if (configAcao.gerarMultiplos) {
-      const periodoParaCalculo = dadosComPercentual.periodo_debito_execucao || dadosComPercentual.periodo_debito || "";
-      const docs = await generateMultiplosDocx(payload, acaoKey, periodoParaCalculo);
+      const periodoParaCalculo =
+        dadosComPercentual.periodo_debito_execucao ||
+        dadosComPercentual.periodo_debito ||
+        "";
+      const docs = await generateMultiplosDocx(
+        payload,
+        acaoKey,
+        periodoParaCalculo,
+      );
 
       let url_peticao_penhora = null;
       let url_peticao_prisao = null;
 
       for (const doc of docs) {
         const pathMultiplo = `${caso.protocolo}/${doc.filename}`;
-        
+
         if (isSupabaseConfigured) {
           const { error: uploadError } = await supabase.storage
             .from("peticoes")
             .upload(pathMultiplo, doc.buffer, {
-              contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              contentType:
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
               upsert: true,
             });
-          if (uploadError) throw new Error(`Erro upload Supabase: ${uploadError.message}`);
+          if (uploadError)
+            throw new Error(`Erro upload Supabase: ${uploadError.message}`);
         } else {
           const localDir = path.resolve("uploads", "peticoes", caso.protocolo);
           await fs.mkdir(localDir, { recursive: true });
@@ -2072,19 +2667,28 @@ export const regerarMinuta = async (req, res) => {
 
       docxPath = url_peticao_penhora;
 
-      // 5. Atualiza o banco com as novas URLs múltiplas
-      let updateData = { 
-        url_documento_gerado: docxPath,
-        url_peticao_penhora: url_peticao_penhora || null,
-        url_peticao_prisao: url_peticao_prisao || null
+      // 5. Atualiza a IA com as novas URLs múltiplas via JSONB flexível
+      const currentExtra = safeJsonParse(caso.ia?.dados_extraidos, {});
+      if (url_peticao_penhora)
+        currentExtra.url_peticao_penhora = url_peticao_penhora;
+      if (url_peticao_prisao)
+        currentExtra.url_peticao_prisao = url_peticao_prisao;
+
+      let iaUpdateData = {
+        url_peticao: docxPath,
+        url_peticao_penhora: url_peticao_penhora,
+        url_peticao_prisao: url_peticao_prisao,
+        dados_extraidos: currentExtra,
       };
 
       if (isSupabaseConfigured) {
-        await supabase.from("casos").update(updateData).eq("id", id);
+        await supabase.from("casos_ia").update(iaUpdateData).eq("caso_id", id);
       } else {
-        await prisma.casos.update({ where: { id: BigInt(id) }, data: updateData });
+        await prisma.casos_ia.update({
+          where: { caso_id: BigInt(id) },
+          data: iaUpdateData,
+        });
       }
-
     } else {
       // Lógica ÚNICA: Apenas 1 doc gerado
       const docxBuffer = await generateDocx(payload, acaoKey);
@@ -2094,22 +2698,36 @@ export const regerarMinuta = async (req, res) => {
         const { error: uploadError } = await supabase.storage
           .from("peticoes")
           .upload(docxPath, docxBuffer, {
-            contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            contentType:
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             upsert: true,
           });
-        if (uploadError) throw new Error(`Erro upload Supabase: ${uploadError.message}`);
+        if (uploadError)
+          throw new Error(`Erro upload Supabase: ${uploadError.message}`);
       } else {
         const localDir = path.resolve("uploads", "peticoes", caso.protocolo);
         await fs.mkdir(localDir, { recursive: true });
-        await fs.writeFile(path.join(localDir, `peticao_inicial_${caso.protocolo}.docx`), docxBuffer);
+        await fs.writeFile(
+          path.join(localDir, `peticao_inicial_${caso.protocolo}.docx`),
+          docxBuffer,
+        );
         logger.info(`[Local] Minuta regerada salva em ${localDir}`);
       }
 
       // 5. Atualiza URL única no banco
+      const currentExtra = safeJsonParse(caso.ia?.dados_extraidos, {});
+      currentExtra.url_peticao_penhora = docxPath;
+
       if (isSupabaseConfigured) {
-        await supabase.from("casos").update({ url_documento_gerado: docxPath }).eq("id", id);
+        await supabase
+          .from("casos_ia")
+          .update({ url_peticao: docxPath, url_peticao_penhora: docxPath, dados_extraidos: currentExtra })
+          .eq("caso_id", id);
       } else {
-        await prisma.casos.update({ where: { id: BigInt(id) }, data: { url_documento_gerado: docxPath } });
+        await prisma.casos_ia.update({
+          where: { caso_id: BigInt(id) },
+          data: { url_peticao: docxPath, url_peticao_penhora: docxPath, dados_extraidos: currentExtra },
+        });
       }
     }
 
@@ -2138,10 +2756,16 @@ export const buscarPorCpf = async (req, res) => {
       where: {
         OR: [
           { protocolo: cpf },
-          { partes: { cpf_assistido: cpf } },
-          { partes: { cpf_assistido: cpfLimpo } },
-          { partes: { cpf_requerido: cpf } },
-          { partes: { cpf_requerido: cpfLimpo } },
+          {
+            partes: {
+              OR: [
+                { cpf_assistido: cpf },
+                { cpf_assistido: cpfLimpo },
+                { cpf_requerido: cpf },
+                { cpf_requerido: cpfLimpo },
+              ],
+            },
+          },
           {
             ia: {
               dados_extraidos: {
@@ -2173,14 +2797,14 @@ export const buscarPorCpf = async (req, res) => {
                 equals: cpfLimpo,
               },
             },
-          }
+          },
         ],
       },
       include: {
         partes: true,
         ia: true,
         juridico: true,
-        documentos: true
+        documentos: true,
       },
       orderBy: { created_at: "desc" },
     });
@@ -2189,12 +2813,13 @@ export const buscarPorCpf = async (req, res) => {
     const normalizedData = (data || []).map((casoRaw) => {
       // Como o include já traz partes, ia, etc, a mapCasoRelations lida com eles
       const caso = mapCasoRelations(casoRaw);
-      
+
       if (!caso.dados_formulario || typeof caso.dados_formulario !== "object") {
-         // Tenta remapear de ia.dados_extraidos se existir
-         caso.dados_formulario = caso.casos_ia?.dados_extraidos || caso.ia?.dados_extraidos || {};
+        // Tenta remapear de ia.dados_extraidos se existir
+        caso.dados_formulario =
+          caso.casos_ia?.dados_extraidos || caso.ia?.dados_extraidos || {};
       }
-      
+
       if (!caso.dados_formulario.document_names)
         caso.dados_formulario.document_names = {};
       if (!caso.dados_formulario.documentNames) {
@@ -2235,7 +2860,10 @@ export const finalizarCasoSolar = async (req, res) => {
         // Fallback Local
         const localDir = path.resolve("uploads", "capas");
         await fs.mkdir(localDir, { recursive: true });
-        const localPath = path.join(localDir, `${id}_${Date.now()}_${safeOriginalName}`);
+        const localPath = path.join(
+          localDir,
+          `${id}_${Date.now()}_${safeOriginalName}`,
+        );
         await fs.copyFile(file.path, localPath);
         url_capa_processual = `capas/${path.basename(localPath)}`;
         logger.info(`[Local] Capa processual salva em ${localPath}`);
@@ -2260,7 +2888,7 @@ export const finalizarCasoSolar = async (req, res) => {
     } else {
       await prisma.casos.update({
         where: { id: BigInt(id) },
-        data: updateData
+        data: updateData,
       });
     }
 
@@ -2300,7 +2928,7 @@ export const agendarReuniao = async (req, res) => {
           agendamento_data,
           agendamento_link,
           agendamento_status: status,
-        }
+        },
       });
     }
 
@@ -2334,7 +2962,7 @@ export const reverterFinalizacao = async (req, res) => {
     } else {
       caso = await prisma.casos.findUnique({
         where: { id: BigInt(id) },
-        select: { url_capa_processual: true, protocolo: true }
+        select: { url_capa_processual: true, protocolo: true },
       });
       if (!caso) throw new Error("Caso não encontrado");
     }
@@ -2345,8 +2973,12 @@ export const reverterFinalizacao = async (req, res) => {
       if (isSupabaseConfigured) {
         const filePath = extractObjectPath(url_capa_processual);
         if (filePath) {
-          logger.info(`Revertendo finalização: Excluindo capa do Supabase para o caso ${id}`);
-          await supabase.storage.from(storageBuckets.documentos).remove([filePath]);
+          logger.info(
+            `Revertendo finalização: Excluindo capa do Supabase para o caso ${id}`,
+          );
+          await supabase.storage
+            .from(storageBuckets.documentos)
+            .remove([filePath]);
         }
       } else {
         // Fallback Local
@@ -2377,7 +3009,7 @@ export const reverterFinalizacao = async (req, res) => {
     } else {
       await prisma.casos.update({
         where: { id: BigInt(id) },
-        data: updateData
+        data: updateData,
       });
     }
 
@@ -2386,7 +3018,9 @@ export const reverterFinalizacao = async (req, res) => {
     );
     res.status(200).json({ message: "Finalização revertida com sucesso." });
   } catch (error) {
-    logger.error(`Erro ao reverter finalização do caso ${id}: ${error.message}`);
+    logger.error(
+      `Erro ao reverter finalização do caso ${id}: ${error.message}`,
+    );
     res.status(500).json({ error: "Erro ao reverter finalização do caso." });
   }
 };
@@ -2405,7 +3039,7 @@ export const resetarChaveAcesso = async (req, res) => {
     } else {
       caso = await prisma.casos.findUnique({
         where: { id: BigInt(id) },
-        select: { tipo_acao: true }
+        select: { tipo_acao: true },
       });
     }
 
@@ -2423,7 +3057,7 @@ export const resetarChaveAcesso = async (req, res) => {
     } else {
       await prisma.casos.update({
         where: { id: BigInt(id) },
-        data: { chave_acesso_hash: chaveAcessoHash }
+        data: { chave_acesso_hash: chaveAcessoHash },
       });
     }
 
@@ -2491,7 +3125,9 @@ export const receberDocumentosComplementares = async (req, res) => {
             .eq("cpf_assistido", cpf);
           casosCpf = data;
         } else {
-          casosCpf = await prisma.casos.findMany({ where: { cpf_assistido: cpf } });
+          casosCpf = await prisma.casos.findMany({
+            where: { cpf_assistido: cpf },
+          });
         }
 
         if (casosCpf && casosCpf.length > 0) {
@@ -2519,7 +3155,7 @@ export const receberDocumentosComplementares = async (req, res) => {
           .normalize("NFD")
           .replace(/[\u0300-\u036f]/g, "");
         const filePath = `${caso.protocolo}/complementar_${Date.now()}_${safeName}`;
-        
+
         if (isSupabaseConfigured) {
           const docStream = fsSync.createReadStream(docFile.path);
           const { error: uploadError } = await supabase.storage
@@ -2528,15 +3164,27 @@ export const receberDocumentosComplementares = async (req, res) => {
               contentType: docFile.mimetype,
               duplex: "half",
             });
-          if (uploadError) logger.error(`Erro upload complementar Supabase: ${uploadError.message}`);
+          if (uploadError)
+            logger.error(
+              `Erro upload complementar Supabase: ${uploadError.message}`,
+            );
           else novosUrls.push(filePath);
         } else {
           // Fallback Local
-          const localDir = path.resolve("uploads", "documentos", caso.protocolo);
+          const localDir = path.resolve(
+            "uploads",
+            "documentos",
+            caso.protocolo,
+          );
           await fs.mkdir(localDir, { recursive: true });
-          const localPath = path.join(localDir, `complementar_${Date.now()}_${safeName}`);
+          const localPath = path.join(
+            localDir,
+            `complementar_${Date.now()}_${safeName}`,
+          );
           await fs.copyFile(docFile.path, localPath);
-          novosUrls.push(`documentos/${caso.protocolo}/${path.basename(localPath)}`);
+          novosUrls.push(
+            `documentos/${caso.protocolo}/${path.basename(localPath)}`,
+          );
           logger.info(`[Local] Documento complementar salvo em ${localPath}`);
         }
 
@@ -2544,7 +3192,10 @@ export const receberDocumentosComplementares = async (req, res) => {
         try {
           await fs.unlink(docFile.path);
         } catch (e) {
-          logger.warn(`Falha ao limpar arquivo temporário complementar: ${docFile.path}`, e.message);
+          logger.warn(
+            `Falha ao limpar arquivo temporário complementar: ${docFile.path}`,
+            e.message,
+          );
         }
       }
     }
@@ -2556,12 +3207,12 @@ export const receberDocumentosComplementares = async (req, res) => {
     // 3. Atualiza metadados de nomes (dados_formulario.document_names)
     const nomesMap = safeJsonParse(nomes_arquivos, {});
 
-    const currentDadosFormulario = caso.dados_formulario || {}; 
-    const currentNames = currentDadosFormulario.document_names || {}; 
+    const currentDadosFormulario = caso.dados_formulario || {};
+    const currentNames = currentDadosFormulario.document_names || {};
 
     const updatedNames = { ...currentNames, ...nomesMap };
     const updatedDadosFormulario = {
-      ...currentDadosFormulario, 
+      ...currentDadosFormulario,
       document_names: updatedNames,
     };
 
@@ -2569,7 +3220,7 @@ export const receberDocumentosComplementares = async (req, res) => {
     const updatePayload = {
       urls_documentos: [...(caso.urls_documentos || []), ...novosUrls],
       dados_formulario: updatedDadosFormulario,
-      status: "documentacao_completa", 
+      status: "documentacao_completa",
       updated_at: new Date(),
     };
 
@@ -2582,7 +3233,7 @@ export const receberDocumentosComplementares = async (req, res) => {
     } else {
       await prisma.casos.update({
         where: { id: caso.id },
-        data: updatePayload
+        data: updatePayload,
       });
     }
 
@@ -2610,14 +3261,19 @@ export const receberDocumentosComplementares = async (req, res) => {
         updatePayload.dados_formulario,
         updatePayload.urls_documentos,
         caso.url_audio,
-        caso.url_peticao
+        caso.url_peticao,
       );
     });
 
-    res.status(200).json({ message: "Documentos enviados com sucesso e caso na fila de processamento!" });
+    res.status(200).json({
+      message:
+        "Documentos enviados com sucesso e caso na fila de processamento!",
+    });
   } catch (error) {
     logger.error(`Erro upload complementar para caso ${id}: ${error.message}`);
-    res.status(500).json({ error: error.message || "Falha ao enviar documentos." });
+    res
+      .status(500)
+      .json({ error: error.message || "Falha ao enviar documentos." });
   }
 };
 
@@ -2639,14 +3295,14 @@ export const deletarCaso = async (req, res) => {
         .select("*")
         .eq("id", id)
         .single();
-      
+
       if (fetchError || !data) {
         return res.status(404).json({ error: "Caso não encontrado." });
       }
       caso = data;
     } else {
       const data = await prisma.casos.findUnique({
-        where: { id: BigInt(id) }
+        where: { id: BigInt(id) },
       });
       if (!data) {
         return res.status(404).json({ error: "Caso não encontrado." });
@@ -2703,7 +3359,7 @@ export const deletarCaso = async (req, res) => {
       if (deleteError) throw deleteError;
     } else {
       await prisma.casos.delete({
-        where: { id: BigInt(id) }
+        where: { id: BigInt(id) },
       });
     }
 
@@ -2861,13 +3517,16 @@ export const solicitarReagendamento = async (req, res) => {
     const { error: notifError } = await supabase.from("notificacoes").insert({
       caso_id: id,
       mensagem: `Solicitação de reagendamento para o caso ${caso.nome_assistido || "Assistido"}.`,
-      tipo: 'reagendamento',
+      tipo: "reagendamento",
       lida: false,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     });
 
     if (notifError) {
-      logger.error(`Falha ao criar notificação de reagendamento: ${notifError.message}`, { error: notifError });
+      logger.error(
+        `Falha ao criar notificação de reagendamento: ${notifError.message}`,
+        { error: notifError },
+      );
     }
 
     res.status(200).json({ message: "Solicitação enviada com sucesso." });
@@ -2883,7 +3542,9 @@ export const alternarArquivamento = async (req, res) => {
 
   // Validação: Motivo obrigatório ao arquivar
   if (arquivado === true && (!motivo || motivo.trim().length < 5)) {
-    return res.status(400).json({ error: "Motivo de arquivamento é obrigatório (mín. 5 caracteres)." });
+    return res.status(400).json({
+      error: "Motivo de arquivamento é obrigatório (mín. 5 caracteres).",
+    });
   }
 
   try {
@@ -2895,16 +3556,16 @@ export const alternarArquivamento = async (req, res) => {
     }
 
     const { data, error } = await supabase
-      .from('casos')
+      .from("casos")
       .update(updateData)
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    res.status(500).json({ error: 'Erro ao processar arquivamento' });
+    res.status(500).json({ error: "Erro ao processar arquivamento" });
   }
 };
 
@@ -2912,8 +3573,12 @@ export const alternarArquivamento = async (req, res) => {
 
 export const listarNotificacoes = async (req, res) => {
   try {
-    // Temporariamente retorna lista vazia, pois tabela notificacoes não existe
-    res.status(200).json([]);
+    const notificacoes = await prisma.notificacoes.findMany({
+      where: { usuario_id: req.user.id },
+      orderBy: { created_at: "desc" },
+      take: 20,
+    });
+    res.status(200).json(notificacoes);
   } catch (error) {
     logger.error(`Erro ao listar notificações: ${error.message}`);
     res.status(500).json({ error: "Erro ao buscar notificações." });
@@ -2923,9 +3588,93 @@ export const listarNotificacoes = async (req, res) => {
 export const marcarNotificacaoLida = async (req, res) => {
   const { id } = req.params;
   try {
-    // Temporariamente não faz nada, pois tabela notificacoes não existe
-    res.status(200).json({ message: "Lida" });
+    await prisma.notificacoes.update({
+      where: { id },
+      data: { lida: true },
+    });
+    res.status(200).json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: "Erro ao atualizar" });
+    res.status(500).json({ error: "Erro ao atualizar notificação." });
+  }
+};
+
+// --- CONTROLLERS DE ASSISTÊNCIA / COMPARTILHAMENTO ---
+
+export const solicitarAssistencia = async (req, res) => {
+  const { id: caso_id } = req.params;
+  const { destinatario_id } = req.body;
+  const remetente_id = req.user.id;
+
+  try {
+    // 1. Cria o registro de assistência
+    const assistencia = await prisma.assistencia_casos.create({
+      data: {
+        caso_id: BigInt(caso_id),
+        remetente_id,
+        destinatario_id,
+        status: "pendente",
+      },
+    });
+
+    // 2. Cria a notificação para o destinatário
+    await prisma.notificacoes.create({
+      data: {
+        usuario_id: destinatario_id,
+        titulo: "Pedido de Colaboração",
+        mensagem: `${req.user.nome} solicitou sua ajuda no caso #${caso_id}.`,
+        tipo: "assistencia",
+        referencia_id: assistencia.id,
+        link: `/painel/casos/${caso_id}`,
+      },
+    });
+
+    res.status(201).json({
+      message: "Solicitação enviada!",
+      assistencia_id: assistencia.id,
+    });
+  } catch (error) {
+    logger.error(`Erro ao solicitar assistência: ${error.message}`);
+    res.status(500).json({ error: "Erro ao enviar solicitação." });
+  }
+};
+
+export const responderAssistencia = async (req, res) => {
+  const { assistencia_id } = req.params;
+  const { aceito } = req.body; // boolean
+  const userId = req.user.id;
+
+  try {
+    const assistencia = await prisma.assistencia_casos.findUnique({
+      where: { id: assistencia_id },
+      include: { caso: true },
+    });
+
+    if (!assistencia || assistencia.destinatario_id !== userId) {
+      return res
+        .status(403)
+        .json({ error: "Solicitação não encontrada ou não autorizada." });
+    }
+
+    const novoStatus = aceito ? "aceito" : "recusado";
+
+    await prisma.assistencia_casos.update({
+      where: { id: assistencia_id },
+      data: { status: novoStatus },
+    });
+
+    // Notifica o remetente sobre a resposta
+    await prisma.notificacoes.create({
+      data: {
+        usuario_id: assistencia.remetente_id,
+        titulo: aceito ? "Colaboração Aceita" : "Colaboração Recusada",
+        mensagem: `${req.user.nome} ${aceito ? "aceitou" : "recusou"} o pedido de ajuda no caso #${assistencia.caso_id}.`,
+        tipo: "assistencia_resposta",
+      },
+    });
+
+    res.status(200).json({ status: novoStatus });
+  } catch (error) {
+    logger.error(`Erro ao responder assistência: ${error.message}`);
+    res.status(500).json({ error: "Erro ao processar resposta." });
   }
 };

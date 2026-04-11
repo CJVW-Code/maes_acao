@@ -1,6 +1,6 @@
 # Regras de Negócio — Mães em Ação · DPE-BA
 
-> **Versão:** 1.0 · **Gerado em:** 2026-03-26  
+> **Versão:** 2.0 · **Atualizado em:** 2026-04-10 (Estabilização Mutirão)  
 > **Fonte:** Análise da codebase (controllers, services, middleware, config)  
 > **Propósito:** Referência canônica para treinamento de IAs e orientação de defensores
 
@@ -224,15 +224,16 @@ O primeiro filho é sempre extraído dos campos raiz (`nome`, `cpf`, `assistido_
 
 ## 3. Regras de Validação
 
-### 3.1 Validação de CPF
+### 3.1 Normalização e Busca de CPF
 
-| Regra | Tipo | Comportamento |
-|:------|:-----|:-------------|
-| CPF do assistido é **obrigatório e validado** algoritmicamente | **Bloqueante** | Retorna `400` se inválido |
-| CPF do requerido, se informado, é validado | **Não-bloqueante** | Gera aviso no array `avisos` da resposta |
-| CPF dos filhos adicionais, se informado, é validado | **Não-bloqueante** | Gera aviso no array `avisos` |
-| CPF com todos dígitos iguais é rejeitado | **Bloqueante** (assistido) | Ex: `111.111.111-11` → inválido |
-| CPF deve ter exatamente 11 dígitos numéricos | **Bloqueante** (assistido) | Após remoção de caracteres não-numéricos |
+Para garantir que a busca seja resiliente a diferentes formatos de entrada, o sistema aplica as seguintes regras:
+
+| Regra | Descrição |
+|:------|:----------|
+| **Normalização** | CPFs informados na busca são limpos (removendo `.` e `-`) antes da consulta. |
+| **Busca Resiliente** | O backend consulta simultaneamente o CPF "sujo" (como digitado) e o CPF "limpo" na tabela `casos_partes`. |
+| **Escopo de Busca** | A busca verifica os campos `cpf_assistido` e `representante_cpf` para garantir que o caso seja encontrado independente de quem iniciou o processo. |
+| **Validação** | CPF do assistido é **obrigatório e validado** algoritmicamente (Bloqueante). |
 
 ### 3.2 Unicidade de CPF e Arquitetura Multi-Casos
 
@@ -313,10 +314,11 @@ criarNovoCaso() → QStash.publishJSON() → jobController.processJob()
 | **Regenerar Dos Fatos** | — | ✅ Admin pode regerar via `POST /:id/gerar-fatos` |
 | **Reprocessar caso** | ✅ Re-executa todo o pipeline | — |
 
-*Nota Especial - Execução de Alimentos:* 
-Se a ação de Execução de Alimentos registrar que o débito da pensão é igual ou superior a **3 meses**, o pipeline gera **duas** peças separadas simultaneamente:
-1. Uma **Execução sob o Rito de Prisão** (para os últimos 3 meses)
-2. Uma **Execução sob o Rito de Penhora/Expropriação** (para os meses excedentes)
+*Nota Especial - Execução de Alimentos (v2.0):* 
+O sistema agora suporta a geração e visualização simultânea de múltiplos documentos para o mesmo protocolo:
+1. **Ritos Combinados:** Se a ação registrar débito superior a 3 meses, o pipeline gera automaticamente uma peça de **Prisão** e outra de **Penhora**.
+2. **Termo de Declaração:** Pode ser gerado e armazenado de forma independente das peças processuais.
+3. **Download Dinâmico:** O frontend exibe abas para cada documento disponível no Storage.
 
 ### 4.3 O que a IA recebe como input
 
@@ -611,11 +613,19 @@ Exemplo: DPB-01234-012345
 
 ---
 
-## 10. Regras de Auditoria
+## 11. Session Locking e Concorrência
 
-| Aspecto | Detalhe |
-|:--------|:-------|
-| **O que é logado** | Toda operação de escrita (POST, PATCH, PUT, DELETE) em rotas protegidas |
-| **Dados sanitizados** | Campos `senha`, `cpf`, `token` são mascarados antes de gravar no log |
-| **Tabela** | `logs_auditoria` |
-| **Dados registrados** | `usuario_id` (do JWT), `acao` (método HTTP), `entidade` (rota), `registro_id` (ID do recurso), `detalhes` (payload sanitizado) |
+Para evitar que dois usuários editem o mesmo caso simultaneamente, o sistema utiliza um mecanismo de **Session Locking** no banco de dados.
+
+### 11.1 Níveis de Bloqueio
+- **Nível 1 (Servidor):** Ativado quando um servidor acessa o caso para análise jurídica. Bloqueia outros servidores.
+- **Nível 2 (Defensor):** Ativado quando um defensor inicia a etapa de protocolo no Solar/Sigad. Bloqueia outros defensores.
+
+### 11.2 Comportamento da API
+- **Bloqueio Automático:** Ao abrir o detalhe do caso, o backend tenta realizar o lock (`UPDATE WHERE owner_id IS NULL`).
+- **Bloqueio Manual:** Endpoints `PATCH /lock` e `PATCH /unlock` permitem controle explícito.
+- **Conflito (HTTP 423):** Se o caso já estiver bloqueado por outro usuário (id diferente), a API retorna `423 Locked` com o nome do atual responsável.
+
+### 11.3 Liberação
+- O lock é liberado automaticamente após 30 minutos de inatividade ou manualmente pelo botão **Liberar Caso**.
+- **Administradores** possuem bypass e podem forçar o destravamento de qualquer sessão.

@@ -20,6 +20,7 @@ Não use listas ou tópicos na resposta final. Escreva apenas parágrafos coesos
     templateDocx: "executacao_alimentos_penhora.docx",
     templateDocxPrisao: "executacao_alimentos_prisao.docx",
     ignorarDosFatos: true,
+    ignorarOCR: true,
     promptIA: null,
     gerarMultiplos: true,
   },

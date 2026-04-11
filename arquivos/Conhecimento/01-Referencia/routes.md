@@ -30,6 +30,21 @@ Rotas acessíveis por qualquer usuário (ex: assistidos submetendo demandas).
 | `POST` | `/:id/upload-complementar` | Envio de documentos complementares para um caso existente.                   |
 | `POST` | `/:id/reagendar`           | Solicita o reagendamento de um caso pelo assistido.                          |
 
+### Rotas de Controle de Sessão (Locking)
+Exigem autenticação. Fundamentais para evitar edição concorrente.
+
+| Método | Rota            | Descrição                                                |
+| :----- | :-------------- | :------------------------------------------------------- |
+| `PATCH`| `/:id/lock`     | Tenta travar o caso para o usuário (Retorna 423 se ocupado)|
+| `PATCH`| `/:id/unlock`   | Libera o caso manualmente para outros usuários           |
+
+### Rotas de Scanner (Balcão)
+Endpoint otimizado para alto volume.
+
+| Método | Rota            | Descrição                                         |
+| :----- | :-------------- | :------------------------------------------------ |
+| `POST` | `/api/scanner/upload` | Upload em lote de documentos via aplicativo/web |
+
 ### Rotas Protegidas (Leitura)
 Exigem autenticação do Defensor.
 
@@ -274,9 +289,9 @@ Webhook para processamento assíncrono gerenciado pelo [Upstash QStash].
 
 ## 6. Valores Extraídos (`ARCHITECTURE.md` / `BUSINESS_RULES.md`)
 
-* **status (`casos`):** `recebido`, `processando`, `processado`, `erro`, `em_analise`, `aguardando_documentos`, `aguardando_docs` (legado), `documentos_entregues`, `documentacao_completa`, `reuniao_agendada`, `reuniao_online_agendada`, `reuniao_presencial_agendada`, `aguardando_protocolo`, `reagendamento_solicitado`, `encaminhado_solar`.
-* **cargo (`defensores`):** `admin`, `defensor`, `estagiario`, `recepcao`, `visualizador`. *(Registro bloqueia a entrada de "operador")*
-* **tipo_acao (`dicionarioAcoes`):** `fixacao_alimentos`, `execucao_alimentos`, `execucao_alimentos_prisao`, `execucao_alimentos_penhora`, `divorcio`, `guarda`, `alvara`, `termo_declaracao`.
+* **status (`casos`):** `recebido`, `processando`, `processado`, `erro`, `em_analise`, `aguardando_documentos`, `aguardando_docs` (legado), `documentos_entregues`, `documentocao_completa`, `reuniao_agendada`, `reuniao_online_agendada`, `reuniao_presencial_agendada`, `aguardando_protocolo`, `reagendamento_solicitado`, `encaminhado_solar`.
+* **cargo (`defensores`):** `admin`, `defensor`, `estagiario`, `recepcao`, `visualizador`.
+* **tipo_acao (`dicionarioAcoes`):** `fixacao_alimentos`, `exec_penhora`, `exec_prisao`, `exec_cumulado`, `def_penhora`, `def_prisao`, `def_cumulado`, `alimentos_gravidicos`, `termo_declaracao`.
 
 ---
 

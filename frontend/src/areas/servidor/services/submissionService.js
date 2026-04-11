@@ -177,9 +177,9 @@ export const processSubmission = async ({
   if (formState.data_inicio_debito && formState.data_fim_debito) {
     const inicio = formatMonthYear(formState.data_inicio_debito);
     const fim = formatMonthYear(formState.data_fim_debito);
-    formData.append("periodo_meses_ano", `${inicio} a ${fim}`);
+    formData.append("periodo_debito_execucao", `${inicio} a ${fim}`);
   } else if (formState.data_inicio_debito) {
-    formData.append("periodo_meses_ano", `Desde ${formatMonthYear(formState.data_inicio_debito)}`);
+    formData.append("periodo_debito_execucao", `Desde ${formatMonthYear(formState.data_inicio_debito)}`);
   }
 
   // 1. Preenche o FormData

@@ -8,6 +8,7 @@ import {
   stripNonDigits,
   validateCpfAlgorithm,
   formatRgNumber,
+  formatDateMask,
 } from "../../../utils/formatters";
 import {
   nacionalidadeOptions,
@@ -30,7 +31,12 @@ export const StepDadosPessoais = ({
   isRepresentacao,
   today,
   labelAutor,
+  configAcao,
 }) => {
+  const isExecution =
+    formState.acaoEspecifica?.toLowerCase().includes("execução") ||
+    configAcao?.titulo?.toLowerCase().includes("execução");
+
   return (
     <section className="card space-y-6 border-l-4 border-l-green-500">
       <div className="flex items-center gap-2 border-b border-soft pb-2">
@@ -79,7 +85,9 @@ export const StepDadosPessoais = ({
             type="text"
             placeholder="Nome Completo *"
             name={isRepresentacao ? "NOME" : "REPRESENTANTE_NOME"}
-            value={isRepresentacao ? formState.NOME : formState.REPRESENTANTE_NOME}
+            value={
+              isRepresentacao ? formState.NOME : formState.REPRESENTANTE_NOME
+            }
             onChange={handleFieldChange}
             {...validar("Informe o nome completo.")}
             className="input"
@@ -88,16 +96,24 @@ export const StepDadosPessoais = ({
             <input
               type="text"
               inputMode="numeric"
-              placeholder="CPF *"
-              name="representante_cpf"
-              value={formState.representante_cpf}
-              onChange={handleCpfChangeAndValidate("representante_cpf")}
-              {...(!isRepresentacao ? validar("Informe o CPF.") : {})}
-              className={`input ${formErrors.representante_cpf ? "border-error ring-1 ring-error" : ""}`}
+              placeholder={
+                isRepresentacao || isExecution ? "CPF (Opcional)" : "CPF *"
+              }
+              name={isRepresentacao ? "cpf" : "representante_cpf"}
+              value={
+                isRepresentacao ? formState.cpf : formState.representante_cpf
+              }
+              onChange={handleCpfChangeAndValidate(
+                isRepresentacao ? "cpf" : "representante_cpf",
+              )}
+              {...(!isRepresentacao && !isExecution
+                ? validar("Informe o CPF.")
+                : {})}
+              className={`input ${formErrors[isRepresentacao ? "cpf" : "representante_cpf"] ? "border-error ring-1 ring-error" : ""}`}
             />
-            {formErrors.representante_cpf && (
+            {formErrors[isRepresentacao ? "cpf" : "representante_cpf"] && (
               <span className="text-xs text-error mt-1 ml-1">
-                {formErrors.representante_cpf}
+                {formErrors[isRepresentacao ? "cpf" : "representante_cpf"]}
               </span>
             )}
           </div>
@@ -107,17 +123,32 @@ export const StepDadosPessoais = ({
           className={`grid grid-cols-1 ${forcaRepresentacao ? "md:grid-cols-2" : "md:grid-cols-3"} gap-4`}
         >
           <div>
-            <label htmlFor="dataNascimentoAssistido" className="label text-sm font-medium mb-1 block text-text">
+            <label
+              htmlFor="dataNascimentoAssistido"
+              className="label text-sm font-medium mb-1 block text-text"
+            >
               Data de Nascimento *
             </label>
             <input
-              id={isRepresentacao ? "nascimento" : "representante_data_nascimento"}
+              id={
+                isRepresentacao ? "nascimento" : "representante_data_nascimento"
+              }
               type="text"
               inputMode="numeric"
               placeholder="DD/MM/AAAA"
-              name={isRepresentacao ? "nascimento" : "representante_data_nascimento"}
-              value={isRepresentacao ? formState.nascimento : formState.representante_data_nascimento}
-              onChange={handleDateChange(isRepresentacao ? "nascimento" : "representante_data_nascimento")}
+              name={
+                isRepresentacao ? "nascimento" : "representante_data_nascimento"
+              }
+              value={
+                isRepresentacao
+                  ? formState.nascimento
+                  : formState.representante_data_nascimento
+              }
+              onChange={handleDateChange(
+                isRepresentacao
+                  ? "nascimento"
+                  : "representante_data_nascimento",
+              )}
               className={`input ${formErrors[isRepresentacao ? "nascimento" : "representante_data_nascimento"] ? "border-error ring-1 ring-error" : ""}`}
               {...validar("Informe a data de nascimento.")}
             />
@@ -127,116 +158,114 @@ export const StepDadosPessoais = ({
               </span>
             )}
           </div>
-          {!isRepresentacao && (
-            <select
-              name="representante_nacionalidade"
-              value={formState.representante_nacionalidade}
-              onChange={handleFieldChange}
-              className="input"
-            >
-              {nacionalidadeOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          )}
-          {!isRepresentacao && (
-            <select
-              name="representante_estado_civil"
-              value={formState.representante_estado_civil}
-              onChange={handleFieldChange}
-              className="input"
-            >
-              {estadoCivilOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          )}
-          {!isRepresentacao && (
-            <input
-              type="text"
-              placeholder="Sua Profissão"
-              name="representante_ocupacao"
-              value={formState.representante_ocupacao}
-              onChange={handleFieldChange}
-              className="input"
-            />
-          )}
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {!isRepresentacao && (
-            <input
-              type="text"
-              placeholder="Seu Endereço Profissional (se houver)"
-              name="representante_endereco_profissional"
-              value={formState.representante_endereco_profissional}
-              onChange={handleFieldChange}
-              className="input"
-            />
-          )}
-          {!isRepresentacao && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <>
+              <select
+                name="representante_nacionalidade"
+                value={formState.representante_nacionalidade}
+                onChange={handleFieldChange}
+                className="input mt-auto"
+              >
+                {nacionalidadeOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                name="representante_estado_civil"
+                value={formState.representante_estado_civil}
+                onChange={handleFieldChange}
+                className="input mt-auto"
+              >
+                {estadoCivilOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+
               <input
                 type="text"
-                inputMode="numeric"
-                placeholder="RG (Opcional)"
-                name="representante_rg"
-                value={formState.representante_rg}
-                onChange={handleRgChange("representante_rg")}
+                placeholder="Sua Profissão"
+                name="representante_ocupacao"
+                value={formState.representante_ocupacao}
+                onChange={handleFieldChange}
                 className="input"
               />
-              <SearchableSelect
-                name="emissor_rg_exequente"
-                placeholder="Órgão Emissor (ex: SSP, DETRAN)"
-                options={orgaoEmissorOptions}
-                value={formState.emissor_rg_exequente}
-                onChange={handleFieldChange}
-                className="md:col-span-2"
-              />
+            </>
           )}
         </div>
 
         {!isRepresentacao && (
-          <EnderecoInput
-            label="Endereço Residencial Completo *"
-            name="requerente_endereco_residencial"
-            value={formState.requerente_endereco_residencial}
-            onChange={handleFieldChange}
-            className="w-full mt-4"
-          />
-        )}
-
-        {!isRepresentacao && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="email"
-              placeholder="Email (opcional)"
-              name="requerente_email"
-              value={formState.requerente_email}
-              onChange={handleFieldChange}
-              className="input"
-            />
-            <div className="relative">
-              <Phone
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"
-                size={18}
-              />
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
               <input
                 type="text"
-                inputMode="tel"
-                placeholder="Telefone/WhatsApp para contato *"
-                name="requerente_telefone"
-                value={formState.requerente_telefone}
-                onChange={handlePhoneChange("requerente_telefone")}
-                {...validar("Informe um telefone para contato.")}
-                className="input pl-10"
+                placeholder="Seu Endereço Profissional (se houver)"
+                name="representante_endereco_profissional"
+                value={formState.representante_endereco_profissional}
+                onChange={handleFieldChange}
+                className="input"
               />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:col-span-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="RG (Opcional)"
+                  name="representante_rg"
+                  value={formState.representante_rg}
+                  onChange={handleRgChange("representante_rg")}
+                  className="input"
+                />
+                <SearchableSelect
+                  name="emissor_rg_exequente"
+                  placeholder="Órgão Emissor (ex: SSP, DETRAN)"
+                  options={orgaoEmissorOptions}
+                  value={formState.emissor_rg_exequente}
+                  onChange={handleFieldChange}
+                  className="md:col-span-2"
+                />
+              </div>
             </div>
-          </div>
+
+            <EnderecoInput
+              label="Endereço Residencial Completo *"
+              name="requerente_endereco_residencial"
+              value={formState.requerente_endereco_residencial}
+              onChange={handleFieldChange}
+              className="w-full mt-4"
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <input
+                type="email"
+                placeholder="Email (opcional)"
+                name="requerente_email"
+                value={formState.requerente_email}
+                onChange={handleFieldChange}
+                className="input"
+              />
+              <div className="relative">
+                <Phone
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+                  size={18}
+                />
+                <input
+                  type="text"
+                  inputMode="tel"
+                  placeholder="Telefone/WhatsApp para contato *"
+                  name="requerente_telefone"
+                  value={formState.requerente_telefone}
+                  onChange={handlePhoneChange("requerente_telefone")}
+                  {...validar("Informe um telefone para contato.")}
+                  className="input pl-10"
+                />
+              </div>
+            </div>
+          </>
         )}
 
         {/* Campo WhatsApp Removido conforme solicitação */}
@@ -333,7 +362,10 @@ export const StepDadosPessoais = ({
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <label htmlFor={`filho-dataNascimento-${index}`} className="label text-sm font-medium mb-1 block text-text md:col-span-2">
+                <label
+                  htmlFor={`filho-dataNascimento-${index}`}
+                  className="label text-sm font-medium mb-1 block text-text md:col-span-2"
+                >
                   Data de Nascimento do Filho(a) *
                 </label>
                 <input
@@ -394,12 +426,14 @@ export const StepDadosPessoais = ({
               <input
                 type="text"
                 inputMode="numeric"
-                placeholder="Seu CPF *"
+                placeholder={isExecution ? "Seu CPF (Opcional)" : "Seu CPF *"}
                 name="representante_cpf"
                 value={formState.representante_cpf}
                 onChange={handleCpfChangeAndValidate("representante_cpf")}
                 className={`input ${formErrors.representante_cpf ? "border-error ring-1 ring-error" : ""}`}
-                {...validar("Informe o CPF do representante.")}
+                {...(!isExecution
+                  ? validar("Informe o CPF do representante.")
+                  : {})}
               />
               {formErrors.representante_cpf && (
                 <span className="text-xs text-error mt-1 ml-1">
@@ -410,7 +444,10 @@ export const StepDadosPessoais = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <label htmlFor="representanteDataNascimento" className="label text-sm font-medium mb-1 block text-text md:hidden">
+            <label
+              htmlFor="representanteDataNascimento"
+              className="label text-sm font-medium mb-1 block text-text md:hidden"
+            >
               Sua Data de Nascimento
             </label>
             <input

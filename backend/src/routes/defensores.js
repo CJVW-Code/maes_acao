@@ -7,6 +7,7 @@ import {
   atualizarDefensor,
   deletarDefensor,
   resetarSenhaDefensor,
+  listarColegas,
 } from "../controllers/defensoresController.js";
 import { authMiddleware } from "../middleware/auth.js";
 
@@ -20,6 +21,7 @@ router.post("/register", authMiddleware, registrarDefensor);
 router.get("/", authMiddleware, listarDefensores);
 router.put("/:id", authMiddleware, atualizarDefensor);
 router.delete("/:id", authMiddleware, deletarDefensor);
+router.get("/colegas", authMiddleware, listarColegas);
 router.post("/:id/reset-password", authMiddleware, resetarSenhaDefensor);
 
 export default router;

@@ -33,19 +33,26 @@ async function main() {
       console.log(`ℹ️ Admin já existe no banco (ID: ${existe.id})`);
       console.log(`📧 Email: ${email}`);
       console.log(`🔓 Status Ativo: ${existe.ativo}`);
-      
+
+      console.log("🔄 Gerando novo hash e atualizando a senha...");
+      const senha_hash = await hashPassword(senha);
+
+      await prisma.defensores.update({
+        where: { id: existe.id },
+        data: {
+          ativo: true,
+          senha_hash: senha_hash,
+        },
+      });
+
       if (!existe.ativo) {
-        console.log("⚠️ Admin desativado! Reativando...");
-        await prisma.defensores.update({
-          where: { id: existe.id },
-          data: { ativo: true },
-        });
         console.log("✅ Admin reativado!");
       }
+      console.log("✅ Senha do Admin atualizada com o Hash correto!");
     } else {
       console.log("🔐 Gerando hash da senha...");
       const senha_hash = await hashPassword(senha);
-      
+
       const novoAdmin = await prisma.defensores.create({
         data: {
           nome,
@@ -54,7 +61,7 @@ async function main() {
           cargo_id: cargoAdmin.id,
         },
       });
-      
+
       console.log("✅ Admin criado com sucesso!");
       console.log(`🆔 ID: ${novoAdmin.id}`);
       console.log(`📧 Email: ${email}`);

@@ -5,12 +5,12 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem("defensorToken"));
+  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notificacoes, setNotificacoes] = useState([]);
   const intervalRef = useRef(null);
 
-  // Busca notificações — definida com useCallback para ser referência estável
+  // Busca notificações
   const fetchNotificacoes = useCallback(async (currentToken) => {
     if (!currentToken) return;
     try {
@@ -18,7 +18,7 @@ export const AuthProvider = ({ children }) => {
         headers: { Authorization: `Bearer ${currentToken}` },
       });
       if (response.status === 401) {
-        logout();
+        // Token expirado ou inválido
         return;
       }
       if (response.ok) {
@@ -28,9 +28,25 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error("Erro ao buscar notificações", error);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Inicia ou para o polling conforme disponibilidade do token
+  // Inicializa estado do Auth a partir do LocalStorage
+  useEffect(() => {
+    const storedToken = localStorage.getItem("defensorToken");
+    const storedUser = localStorage.getItem("defensorUser");
+
+    if (storedToken && storedUser) {
+      setToken(storedToken);
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error("Erro ao parsear usuário logado", e);
+      }
+    }
+    setLoading(false);
+  }, []);
+
+  // Polling de Notificações
   useEffect(() => {
     if (token) {
       fetchNotificacoes(token);
@@ -41,83 +57,39 @@ export const AuthProvider = ({ children }) => {
     };
   }, [token, fetchNotificacoes]);
 
-  useEffect(() => {
-    const initAuth = async () => {
-      const storedUser = localStorage.getItem("defensorUser");
-      const storedToken = localStorage.getItem("defensorToken");
-
-      if (storedToken && storedUser) {
-        try {
-          // PROTEÇÃO: Verifica se não é "undefined" texto
-          if (storedUser !== "undefined" && storedUser !== "null") {
-            const parsedUser = JSON.parse(storedUser);
-            setUser(parsedUser);
-          } else {
-            // Se tiver lixo, limpa
-            localStorage.removeItem("defensorUser");
-            localStorage.removeItem("defensorToken");
-          }
-        } catch (e) {
-          console.error("Erro crítico ao ler usuário:", e);
-          // Se der erro no JSON, limpa tudo para não travar o app
-          localStorage.removeItem("defensorUser");
-          localStorage.removeItem("defensorToken");
-          setUser(null);
-        }
-      }
-      setLoading(false);
-    };
-
-    initAuth();
-
-    const handleSessionExpired = () => {
-      console.warn("Sessão expirada. Fazendo logout...");
-      logout();
-    };
-
-    window.addEventListener("auth:session-expired", handleSessionExpired);
-
-    return () => {
-      window.removeEventListener("auth:session-expired", handleSessionExpired);
-    };
-  }, []);
-
-  const login = async (email, senha) => {
+  const login = async (email, password) => {
     try {
       const response = await fetch(`${API_BASE}/defensores/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, senha }),
+        body: JSON.stringify({ email, senha: password }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Erro no login");
+        throw new Error(errorData.error || "Falha na autenticação.");
       }
 
-      const data = await response.json();
-      const userObj = data.defensor;
+      const { token: receivedToken, defensor } = await response.json();
 
-      localStorage.setItem("defensorToken", data.token);
-      localStorage.setItem("defensorUser", JSON.stringify(userObj));
-
-      setToken(data.token);
-      setUser(userObj);
+      setToken(receivedToken);
+      setUser(defensor);
+      
+      localStorage.setItem("defensorToken", receivedToken);
+      localStorage.setItem("defensorUser", JSON.stringify(defensor));
 
       return true;
     } catch (error) {
-      console.error(error);
+      console.error("Erro no login:", error);
       throw error;
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem("defensorToken");
-    localStorage.removeItem("defensorUser");
+  const logout = async () => {
     setToken(null);
     setUser(null);
-    setNotificacoes([]);
-    // Redirecionamento seguro
+    localStorage.removeItem("defensorToken");
+    localStorage.removeItem("defensorUser");
     window.location.href = "/painel/login";
   };
 
@@ -139,6 +111,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider
       value={{
         user,
+        setUser,
         token,
         login,
         logout,
@@ -153,4 +126,3 @@ export const AuthProvider = ({ children }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
-

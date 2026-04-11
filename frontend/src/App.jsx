@@ -14,7 +14,6 @@ import { ConfirmModal } from "./components/ui/ConfirmModal";
 import { LayoutCidadao } from "./areas/servidor/pages/LayoutCidadao";
 import { HomeCidadao } from "./areas/servidor/pages/BuscaCentral";
 import { FormularioSubmissao } from "./areas/servidor/pages/TriagemCaso";
-import { ConsultaStatus } from "./areas/servidor/pages/EnvioDoc";
 
 import { Layout } from "./areas/defensor/components/layout/Layout";
 import { Login } from "./areas/defensor/pages/Login";
@@ -104,8 +103,6 @@ function App() {
                 <Route index element={<HomeCidadao />} />
                 {/* A rota /novo-pedido carrega o formulário gigante limpo */}
                 <Route path="novo-pedido" element={<FormularioSubmissao />} />
-                {/* A rota /consultar carrega a tela de colocar a chave */}
-                <Route path="consultar" element={<ConsultaStatus />} />
               </Route>
 
               {/* ROTA DE LOGIN DO DEFENSOR (Pública) */}

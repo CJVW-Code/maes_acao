@@ -10,12 +10,12 @@ const resolveTemplatePath = (baseDir, filename) => {
   return path.resolve(baseDir, "..", "..", "templates", filename);
 };
 
-export const generateDocx = async (data, acaoKey) => {
+export const generateDocx = async (data, acaoKey, templateOverride = null) => {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
 
   const config = getConfigAcaoBackend(acaoKey);
-  const templateFile = config.templateDocx;
+  const templateFile = templateOverride || config.templateDocx;
   logger.info(`[DOCX] acaoKey="${acaoKey}" -> template="${templateFile}"`);
 
   const templatePath = resolveTemplatePath(__dirname, templateFile);
@@ -68,11 +68,16 @@ const extractMonthsFromPeriod = (periodo = "") => {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
-  logger.info(`[Storage] Analisando periodo para calculo de meses: "${normalized}"`);
+  logger.info(
+    `[Storage] Analisando periodo para calculo de meses: "${normalized}"`,
+  );
 
+  // Detecta "acima de X meses", "X meses", "mais de X meses"
   const monthsExplicit = normalized.match(/(\d+)\s*mes(?:es)?\b/);
   if (monthsExplicit) {
-    return Number.parseInt(monthsExplicit[1], 10);
+    const value = Number.parseInt(monthsExplicit[1], 10);
+    logger.info(`[Storage] Meses detectados explicitamente: ${value}`);
+    return value;
   }
 
   const yearsExplicit = normalized.match(/(\d+)\s*anos?\b/);
@@ -158,11 +163,16 @@ const extractMonthsFromPeriod = (periodo = "") => {
     return total;
   }
 
-  if (candidates.length === 1 && /\bate\b.*\b(hoje|atual|momento)\b/.test(normalized)) {
+  if (
+    candidates.length === 1 &&
+    /\bate\b.*\b(hoje|atual|momento)\b/.test(normalized)
+  ) {
     const now = new Date();
     const start = candidates[0];
     const diff =
-      (now.getFullYear() - start.year) * 12 + (now.getMonth() - start.month) + 1;
+      (now.getFullYear() - start.year) * 12 +
+      (now.getMonth() - start.month) +
+      1;
     const total = Math.max(0, diff);
     logger.info(`[Storage] Meses calculados ate hoje: ${total}`);
     return total;
@@ -177,7 +187,11 @@ const extractMonthsFromPeriod = (periodo = "") => {
   return 0;
 };
 
-export const generateMultiplosDocx = async (data, acaoKey, periodoInadimplencia) => {
+export const generateMultiplosDocx = async (
+  data,
+  acaoKey,
+  periodoInadimplencia,
+) => {
   const config = getConfigAcaoBackend(acaoKey);
   const documentos = [];
 
@@ -192,8 +206,11 @@ export const generateMultiplosDocx = async (data, acaoKey, periodoInadimplencia)
     const meses = extractMonthsFromPeriod(periodoInadimplencia);
     logger.info(`[DOCX Multi] Meses de inadimplencia detectados: ${meses}`);
     if (meses >= 3) {
-      const mockKey = `${acaoKey}_prisao`;
-      const prisaoBuffer = await generateDocx(data, mockKey);
+      const prisaoBuffer = await generateDocx(
+        data,
+        acaoKey,
+        config.templateDocxPrisao,
+      );
       documentos.push({
         tipo: "prisao",
         buffer: prisaoBuffer,

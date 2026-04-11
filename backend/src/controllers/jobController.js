@@ -102,12 +102,20 @@ export const processJob = async (req, res) => {
         `🚀 [Background] Iniciando processamento pesado para o caso ${protocolo}...`,
       );
       try {
+        // [FIX] Priorizar dados vindos no corpo da requisição (QStash)
+        // Isso resolve o erro 'Cannot read properties of undefined (reading acaoEspecifica)'
+        // pois a tabela 'casos' não possui a coluna 'dados_formulario'
+        const dadosFormulario = req.body.dados_formulario || caso.dados_formulario;
+        const documentosUrls = req.body.urls_documentos || caso.urls_documentos || [];
+        const audioUrl = req.body.url_audio || caso.url_audio;
+        const peticaoUrl = req.body.url_peticao || caso.url_peticao;
+
         await processarCasoEmBackground(
           protocolo,
-          caso.dados_formulario,
-          caso.urls_documentos || [],
-          caso.url_audio,
-          caso.url_peticao,
+          dadosFormulario,
+          documentosUrls,
+          audioUrl,
+          peticaoUrl,
         );
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         logger.info(

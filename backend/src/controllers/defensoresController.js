@@ -2,13 +2,15 @@ import { prisma } from "../config/prisma.js";
 import { hashPassword, verifyPassword } from "../services/securityService.js";
 import { generateToken } from "../config/jwt.js";
 import logger from "../utils/logger.js";
+import { supabase, isSupabaseConfigured } from "../config/supabase.js";
 
 // --- FUNÇÃO DE CADASTRO (Atualizada com Cargo) ---
 export const registrarDefensor = async (req, res) => {
   try {
     if (!req.user || req.user.cargo !== "admin") {
       return res.status(403).json({
-        error: "Acesso negado. Apenas administradores podem cadastrar novos membros.",
+        error:
+          "Acesso negado. Apenas administradores podem cadastrar novos membros.",
       });
     }
 
@@ -63,9 +65,13 @@ export const registrarDefensor = async (req, res) => {
 export const loginDefensor = async (req, res) => {
   const { email, senha } = req.body;
 
+  if (!email || !senha) {
+    return res.status(400).json({ error: "Email e senha são obrigatórios." });
+  }
+
   try {
     console.log(`🔐 Tentativa de login: ${email}`);
-    
+
     const defensor = await prisma.defensores.findUnique({
       where: { email },
       include: {
@@ -79,31 +85,31 @@ export const loginDefensor = async (req, res) => {
       return res.status(401).json({ error: "Email ou senha inválidos." });
     }
 
-    console.log(`✅ Usuário encontrado: ativo=${defensor.ativo}, cargo=${defensor.cargo.nome}`);
+    console.log(
+      `✅ Usuário encontrado: ativo=${defensor.ativo}, cargo=${defensor.cargo.nome}`,
+    );
 
     if (!defensor.ativo) {
       console.log(`❌ Usuário inativo: ${email}`);
       return res.status(401).json({ error: "Email ou senha inválidos." });
     }
 
+    // JWT Local Exclusivo (Garante que o client do Supabase no Backend não seja "envenenado" com sessões temporárias)
     const senhaValida = await verifyPassword(senha, defensor.senha_hash);
-
     if (!senhaValida) {
-      console.log(`❌ Senha inválida para: ${email}`);
       return res.status(401).json({ error: "Email ou senha inválidos." });
     }
-
-    console.log(`✅ Login bem-sucedido: ${email}`);
 
     const payload = {
       id: defensor.id,
       nome: defensor.nome,
       email: defensor.email,
-      cargo: defensor.cargo.nome,
+      cargo: defensor.cargo?.nome || "operador",
       unidade_id: defensor.unidade_id,
     };
-
     const token = generateToken(payload);
+
+    console.log(`✅ Login bem-sucedido: ${email}`);
 
     res.status(200).json({
       token,
@@ -111,7 +117,7 @@ export const loginDefensor = async (req, res) => {
         id: defensor.id,
         nome: defensor.nome,
         email: defensor.email,
-        cargo: defensor.cargo.nome,
+        cargo: defensor.cargo?.nome || "operador",
         unidade_id: defensor.unidade_id,
         unidade_nome: defensor.unidade?.nome || null,
       },
@@ -119,7 +125,7 @@ export const loginDefensor = async (req, res) => {
   } catch (err) {
     logger.error(`Erro no login (Email: ${email}): ${err.message}`);
     console.error(`❌ Erro no login: ${err.message}`);
-    res.status(500).json({ error: "Falha ao fazer login." });
+    res.status(500).json({ error: `Erro interno do servidor: ${err.message}` });
   }
 };
 
@@ -156,8 +162,36 @@ export const listarDefensores = async (req, res) => {
 
     res.json(data);
   } catch (err) {
-    logger.error(`Erro ao listar equipe: ${err.message}`);
     res.status(500).json({ error: "Erro ao buscar membros da equipe." });
+  }
+};
+
+// --- LISTAR COLEGAS (Para compartilhamento - Todos logados) ---
+export const listarColegas = async (req, res) => {
+  try {
+    const colegas = await prisma.defensores.findMany({
+      where: {
+        ativo: true,
+        id: { not: req.user.id }, // Não lista a si mesmo
+      },
+      select: {
+        id: true,
+        nome: true,
+        cargo: { select: { nome: true } },
+        unidade: { select: { nome: true } },
+      },
+      orderBy: { nome: "asc" },
+    });
+
+    const data = colegas.map((c) => ({
+      id: c.id,
+      nome: `${c.nome} (${c.cargo.nome} - ${c.unidade?.nome || "Sem unidade"})`,
+    }));
+
+    res.json(data);
+  } catch (err) {
+    logger.error(`Erro ao listar colegas: ${err.message}`);
+    res.status(500).json({ error: "Erro ao buscar colegas." });
   }
 };
 

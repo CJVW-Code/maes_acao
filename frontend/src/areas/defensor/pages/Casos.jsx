@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { Eye, Search } from "lucide-react";
+import { Eye, Search, Lock, User } from "lucide-react";
 import useSWR from "swr";
 
 // 1. Trazemos seu authFetch de volta
@@ -11,8 +11,12 @@ import { authFetch } from "../../../utils/apiBase";
 
 // 2. Criamos o fetcher do SWR usando a sua função oficial
 const fetcher = async (url) => {
-  const response = await authFetch(url); // O authFetch já lida com o token e API_BASE!
-  if (!response.ok) throw new Error("Falha ao buscar os casos.");
+  const response = await authFetch(url);
+  if (!response.ok) {
+    const error = new Error("Falha ao buscar os casos.");
+    error.status = response.status;
+    throw error;
+  }
   return response.json();
 };
 const statusStyles = {
@@ -126,6 +130,7 @@ export const Casos = () => {
                     <th className="px-4 py-3">Protocolo</th>
                     <th className="px-4 py-3">Nome do cidadão</th>
                     <th className="px-4 py-3">Data de abertura</th>
+                    <th className="px-4 py-3">Responsável</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3 text-right">Ações</th>
                   </tr>
@@ -157,12 +162,32 @@ export const Casos = () => {
                           )}
                         </td>
                         <td className="p-4 text-muted">
-                          {new Date(caso.created_at).toLocaleDateString(
-                            "pt-BR",
+                          {new Date(caso.created_at).toLocaleDateString("pt-BR")}
+                        </td>
+                        <td className="p-4">
+                          {caso.defensor || caso.servidor ? (
+                            <div className="flex items-center gap-2 text-xs">
+                              <div className={`p-1 rounded-full ${
+                                (caso.defensor_id === user.id || caso.servidor_id === user.id) 
+                                  ? "bg-green-100 text-green-700" 
+                                  : "bg-amber-100 text-amber-700"
+                              }`}>
+                                { (caso.defensor_id === user.id || caso.servidor_id === user.id) ? <User size={12} /> : <Lock size={12} /> }
+                              </div>
+                              <span className="font-medium whitespace-nowrap">
+                                { (caso.defensor_id === user.id || caso.servidor_id === user.id) 
+                                  ? "Meu Atendimento" 
+                                  : (caso.defensor?.nome || caso.servidor?.nome) }
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted italic">Disponível</span>
                           )}
                         </td>
                         <td className="p-4">
-                          <span className={`badge capitalize ${badgeStyle}`}>
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-bold border ${badgeStyle}`}
+                          >
                             {statusKey.replace(/_/g, " ")}
                           </span>
                         </td>

@@ -58,26 +58,17 @@ export const useFormEffects = ({
       location.state?.payload
     ) {
       hasLoadedData.current = true;
-      const repData = location.state.payload;
-
-      // Função para converter snake_case para camelCase
-      const snakeToCamel = (str) =>
-        str.replace(/([-_][a-z])/g, (group) =>
-          group.toUpperCase().replace("-", "").replace("_", "")
-        );
-
       Object.entries(repData).forEach(([key, value]) => {
         if (value) {
-          const camelKey = snakeToCamel(key);
           let formattedValue = value;
           
-          if (camelKey.toLowerCase().includes("cpf")) {
+          if (key.toLowerCase().includes("cpf")) {
              formattedValue = formatCpf(value);
-          } else if (camelKey.toLowerCase().includes("telefone")) {
+          } else if (key.toLowerCase().includes("telefone")) {
              formattedValue = formatPhone(value);
           }
           
-          dispatch({ type: "UPDATE_FIELD", field: camelKey, value: formattedValue });
+          dispatch({ type: "UPDATE_FIELD", field: key, value: formattedValue });
         }
       });
 

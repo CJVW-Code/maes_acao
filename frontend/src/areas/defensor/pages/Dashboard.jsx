@@ -13,6 +13,8 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  Lock,
+  User,
 } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
 import { authFetch } from "../../../utils/apiBase";
@@ -57,8 +59,7 @@ const summaryFilterLabels = {
 };
 
 export const Dashboard = () => {
-  const { token } = useAuth();
-  const [defensor, setDefensor] = useState(null);
+  const { token, user } = useAuth();
   const [statusFilter, setStatusFilter] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -81,12 +82,7 @@ export const Dashboard = () => {
     revalidateOnFocus: true,
   });
 
-  useEffect(() => {
-    if (token) {
-      const decoded = jwtDecode(token);
-      setDefensor(decoded);
-    }
-  }, [token]);
+    // useEffect removido: o usuário já vem do AuthContext
 
   useEffect(() => {
     setCurrentPage(1);
@@ -152,8 +148,8 @@ export const Dashboard = () => {
               Painel atualizado
             </p>
             <h1 className="heading-hero mt-2">
-              Olá, {defensor?.cargo === "defensor" ? "Dr(a). " : ""}
-              {defensor?.nome || "Usuário"}
+              Olá, {user?.cargo === "defensor" ? "Dr(a). " : ""}
+              {user?.nome || "Usuário"}
             </h1>
             <p className="text-white/80 max-w-2xl mt-2">
               Acompanhe os casos recebidos pelo Assistente Def Sul, identifique
@@ -262,7 +258,7 @@ export const Dashboard = () => {
 
       {/* --- SEÇÃO DE INTELIGÊNCIA DE DADOS --- */}
       {/* Exibe apenas para ADMIN */}
-      {stats && defensor?.cargo === "admin" && (
+      {stats && user?.cargo === "admin" && (
         <section className="grid gap-6 md:grid-cols-2">
           <div className="card space-y-4 hover:scale-[1.02] transition-transform duration-300 cursor-default border-l-4 border-l-primary">
             <div className="flex items-center gap-2 text-primary">
@@ -393,11 +389,27 @@ export const Dashboard = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-3 md:items-center">
-                        <span className={`badge ${badgeStyle}`}>
-                          {statusKey.replace("_", " ")}
-                        </span>
-                        <div className="flex items-center gap-2 text-sm text-muted">
+                       <div className="flex flex-wrap gap-2 md:items-center">
+                         {/* Indicador de Responsável / Lock */}
+                         {caso.defensor || caso.servidor ? (
+                           <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                             (caso.defensor_id === user.id || caso.servidor_id === user.id) 
+                               ? "bg-green-100 text-green-700 border border-green-200" 
+                               : "bg-amber-100 text-amber-700 border border-amber-200"
+                           }`}>
+                             { (caso.defensor_id === user.id || caso.servidor_id === user.id) ? <User size={10} /> : <Lock size={10} /> }
+                             { (caso.defensor_id === user.id || caso.servidor_id === user.id) ? "Meu Atendimento" : (caso.defensor?.nome || caso.servidor?.nome) }
+                           </div>
+                         ) : (
+                           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 border border-slate-200 italic">
+                             Disponível
+                           </div>
+                         )}
+
+                         <span className={`badge ${badgeStyle}`}>
+                           {statusKey.replace("_", " ")}
+                         </span>
+                         <div className="flex items-center gap-2 text-sm text-muted">
                           <Clock size={16} />
                           {new Date(caso.created_at).toLocaleDateString(
                             "pt-BR",
