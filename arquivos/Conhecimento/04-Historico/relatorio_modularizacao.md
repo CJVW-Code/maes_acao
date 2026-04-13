@@ -1,177 +1,202 @@
-# RELATÓRIO DE PROGRESSO: MODULARIZAÇÃO DO TRIAGEMCASO.JSX
+# Relatório de Progresso de Refatoração — Mães em Ação
 
-## 📊 STATUS ATUAL (25 de março de 2026)
-
-### ✅ CONCLUÍDO - FASE 1: EXTRAÇÃO DE COMPONENTES
-**Redução:** ~200 linhas → Componente principal reduzido de ~1000+ para ~800 linhas
-
-- ✅ `StepTipoAcao.jsx` - Seleção do tipo de ação
-- ✅ `StepDadosPessoais.jsx` - Dados pessoais do assistido/representante
-- ✅ `StepRequerido.jsx` - Dados da outra parte
-- ✅ `StepDetalhesCaso.jsx` - Detalhes específicos da ação
-- ✅ `StepRelatoDocs.jsx` - Relato e upload de documentos
-- ✅ `StepDadosProcessuais.jsx` - Dados processuais
-
-### ✅ CONCLUÍDO - FASE 2: EXTRAÇÃO DE ESTADO
-**Arquivo:** `src/areas/servidor/state/formState.js`
-**Redução:** ~50 linhas
-
-- ✅ `initialState` - Estado inicial completo com todos os campos
-- ✅ `formReducer` - Reducer com actions:
-  - `UPDATE_FIELD` - Atualização genérica de campos
-  - `LOAD_RASCUNHO` - Carregamento de dados salvos
-  - `ADD_FILHO` - Adicionar filho na lista
-  - `REMOVE_FILHO` - Remover filho da lista
-  - `UPDATE_FILHO` - Atualizar dados de filho
-  - `RESET_FORM` - Resetar formulário
-
-### ✅ CONCLUÍDO - FASE 3: EXTRAÇÃO DE CONSTANTES
-**Arquivo:** `src/areas/servidor/utils/formConstants.js`
-**Redução:** ~30 linhas
-
-- ✅ `fieldMapping` - Mapeamento camelCase ↔ snake_case para API
-- ✅ `digitsOnlyFields` - Set de campos que devem conter apenas dígitos
-
-### ✅ CONCLUÍDO - FASE 4: EXTRAÇÃO DE SERVIÇO
-**Arquivo:** `src/areas/servidor/services/submissionService.js`
-**Redução:** ~400 linhas
-
-- ✅ `processSubmission()` - Toda lógica de:
-  - Validação de campos obrigatórios
-  - Validação de CPF (algoritmo matemático)
-  - Validação de datas futuras
-  - Validação de documentos obrigatórios
-  - Formatação de dados para API
-  - Construção do FormData
-  - Chamada para endpoint `/casos/novo`
-
-### 📈 MÉTRICAS ATUAIS
-- **Tamanho original:** ~1000+ linhas
-- **Tamanho atual:** 519 linhas
-- **Redução total:** ~48% do código original
-- **Arquitetura:** Modular com separação clara de responsabilidades
-
-### 🔄 PRÓXIMO - FASE 5: HOOKS PERSONALIZADOS
-**Status:** Pendente - Próxima implementação
-
-#### 1. `useFormHandlers` (Prioridade Alta)
-- **Localização:** `src/areas/servidor/hooks/useFormHandlers.js`
-- **Handlers a extrair:**
-  - `handleFieldChange` - Mudança genérica de campos
-  - `handleNumericInput` - Campos numéricos com máscara
-  - `handleCurrencyChange` - Campos monetários
-  - `handleDayInputChange` - Campos de dia
-  - `handleCidadeChange` - Busca de cidades
-  - `handleSelecionaCidade` - Seleção de cidade
-  - `handleFilesChange` - Upload de arquivos
-  - `startRecording/stopRecording` - Gravação de áudio
-  - `removeAudioRecording` - Remoção de áudio
-  - `clearFieldError` - Limpeza de erros
-- **Redução esperada:** ~150 linhas
-
-#### 2. `useFormValidation` (Prioridade Média)
-- **Localização:** `src/areas/servidor/hooks/useFormValidation.js`
-- **Validações:**
-  - CPF em tempo real
-  - Campos obrigatórios
-  - Formato de dados
-  - Regras de negócio
-- **Redução esperada:** ~50 linhas
-
-#### 3. `useFormEffects` (Prioridade Baixa)
-- **Localização:** `src/areas/servidor/hooks/useFormEffects.js`
-- **Effects:**
-  - Carregamento de rascunho
-  - Verificação de saúde da API
-  - Efeitos de cidades
-- **Redução esperada:** ~30 linhas
-
-### 🎯 OBJETIVO FINAL
-- **TriagemCaso.jsx:** ~200 linhas (apenas renderização)
-- **Separação:** UI ↔ Lógica ↔ Estado ↔ API
-- **Benefícios:** Melhor testabilidade, manutenção e reutilização
-
-### 📁 ESTRUTURA CRIADA
-```
-src/areas/servidor/
-├── components/     ✅ 6 componentes extraídos
-├── services/       ✅ submissionService.js
-├── state/          ✅ formState.js (initialState + formReducer)
-├── utils/          ✅ formConstants.js
-└── hooks/          🔄 A implementar
-```
-
-### ⚠️ PENDÊNCIAS TÉCNICAS
-1. **Testes:** Verificar se aplicação compila após mudanças
-2. **Hooks:** Implementar hooks personalizados
-3. **Refatoração final:** Simplificar componente principal
-4. **Testes unitários:** Criar testes para módulos extraídos
-
-### ✅ CONCLUÍDO - FASE 5: HOOKS PERSONALIZADOS E MULTI-CASOS (27 de Março de 2026)
-**Status:** ✅ Concluído
-**Objetivo Alcançado:** A lógica e os efeitos colaterais foram **100% isolados**. O `TriagemCaso.jsx` foi reduzido de ~624 linhas para ~280 linhas, atuando agora perfeitamente como um mapeador de componentes puramente visual e declarativo.
-
-#### 1. `useFormHandlers` (Alta Prioridade)
-- **Arquivo:** `src/areas/servidor/hooks/useFormHandlers.js`
-- **Responsabilidades:**
-  - Gerenciamento de inputs (Generic, Numeric, Masked, Currency, Day).
-  - Lógica de Mudança de Cidades e Sugestões.
-  - Controle de Gravação de Áudio (MediaRecorder).
-  - Toggle de detalhes de campos de Requerido.
-- **Redução:** ~180 linhas.
-
-#### 2. `useFormEffects` (Fundamental)
-- **Arquivo:** `src/areas/servidor/hooks/useFormEffects.js`
-- **Responsabilidades:**
-  - Carregamento e Auto-Save de **Rascunho** (`localStorage`).
-  - Lógica de **Multi-Casos** (`PREFILL_REPRESENTATIVE_DATA`).
-  - Sincronização de regras automáticas (Ex: Fixação = Representação obrigatória).
-  - Health check da API.
-- **Redução:** ~80 linhas.
-
-#### 3. `useFormValidation` (Média Prioridade)
-- **Arquivo:** `src/areas/servidor/hooks/useFormValidation.js`
-- **Responsabilidades:**
-  - Estado de `formErrors`.
-  - Validação de CPF em tempo real (on-the-fly).
-  - Wrapper de submissão (`handleSubmit` e confirmações).
-- **Redução:** ~60 linhas.
-
-### 📁 ESTRUTURA FINAL ATINGIDA
-```
-src/areas/servidor/
-├── components/     ✅ Step*.jsx
-├── services/       ✅ submissionService.js
-├── state/          ✅ formState.js
-├── utils/          ✅ formConstants.js
-└── hooks/          ✅ useFormHandlers.js, useFormEffects.js, useFormValidation.js
-```
-
-### 🎯 RESULTADO ALCANÇADO
-- `TriagemCaso.jsx` reduzido drasticamente para **menos de 300 linhas**.
-- Separação total de UI (JSX) e Lógica (Hooks/State/Mappers).
-- O arquivo suporta de forma limpa a **Estratégia v2.0**, incluindo o reaproveitamento de dados da mesma representante (Multi-Caso).
-
-### ✅ PLANO DE AÇÃO EXECUTADO
-1.  [x] Criar diretório `src/areas/servidor/hooks/`.
-2.  [x] Criar `useFormHandlers.js` e migrar todos os handlers (gravação de áudio, formatações, mappers).
-3.  [x] Criar `useFormEffects.js` e migrar lógicas de rascunho de `localStorage` e pre-fill iterativo de representantes (`PREFILL_REPRESENTATIVE_DATA`).
-4.  [x] Criar `useFormValidation.js` e centralizar erros, loaders e a blindagem de submit.
-5.  [x] Limpar `TriagemCaso.jsx` mantendo apenas JSX limpo e injetando as propriedades via Hooks.
+> **Última atualização:** 2026-04-13 · Compilado do histórico git e conversas de desenvolvimento
 
 ---
 
-## 🚀 WALKTHROUGH: FASE 5 (Post-Mortem)
+## ✅ FASE 1 — Modularização do TriagemCaso.jsx (Março 2026)
 
-Nesta etapa conseguimos contornar a maior dificuldade até então: O `TriagemCaso.jsx` havia voltado a inchar após a adição dos recursos de Múltiplos Protocolos por CPF. Com o isolamento das regras, chegamos a uma arquitetura limpa:
+**Status:** ✅ **Concluído**
+**Objetivo:** Reduzir `TriagemCaso.jsx` de ~1.000 linhas para ~300 linhas.
 
-### 1. `useFormHandlers`
-Extraímos todas as funções puras de interação `(event) => state`, englobando os mapeadores como `handleCurrencyChange`, lógica do seletor da Cidade e Autocomplete, controle explícito da gravação de Media via microfone (`startRecording`/`stopRecording`), e toggle condicional dos dados adicionais do Requerido (`toggleRequeridoDetalhe`). 
+### Extração de Componentes (Fase 1.1)
 
-### 2. `useFormEffects`
-Blindou e isolou todo comportamento nativo e ciclo de vida. O `useEffect` responsável pelo debounce save do Rascunho roda em background; o fetch do `health` monitora a API silenciosamente; e a pesada interceptação do `location.state` avalia quando a tela de Triagem foi invocada a partir da "Aba Reuso da Mãe" sem contaminar a arvore do Componente central.
+| Component | Responsabilidade |
+|:----------|:----------------|
+| `StepTipoAcao.jsx` | Seleção do tipo de ação |
+| `StepDadosPessoais.jsx` | Dados pessoais do assistido/representante |
+| `StepRequerido.jsx` | Dados da parte contrária (requerido) |
+| `StepDetalhesCaso.jsx` | Detalhes específicos da ação |
+| `StepRelatoDocs.jsx` | Relato e upload de documentos |
+| `StepDadosProcessuais.jsx` | Dados processuais (processo original, vara) |
 
-### 3. `useFormValidation`
-Passou a abraçar o Wrapper encapsulando o `processSubmission`, levantando os alertas de confirmação visual (`useConfirm`), disparando o Loading Spinner, bloqueando duplos envios e mapeando a exibição condicional da UI de sucesso (Cards de Credentials com senha gerada) sem poluir o formulário real.
+### Extração de Estado e Reducer (Fase 1.2)
 
-**Conclusão da Refatoração:** Dívida técnica zerada. A porta de entrada do portal (`TriagemCaso.jsx`) é hoje rápida de entender, testar e editar sem arriscar a quebra dos fluxos lógicos por baixo dos panos.
+**Arquivo:** `src/areas/servidor/state/formState.js`
+
+Actions do reducer:
+- `UPDATE_FIELD` — atualização genérica de campos
+- `LOAD_RASCUNHO` — carrega dados salvos do localStorage
+- `ADD_FILHO` / `REMOVE_FILHO` / `UPDATE_FILHO` — gerenciamento de lista de filhos
+- `RESET_FORM` — limpa o formulário
+- `PREFILL_REPRESENTATIVE_DATA` — pré-preenche dados da mãe de um caso anterior
+
+### Extração de Constantes (Fase 1.3)
+
+**Arquivo:** `src/areas/servidor/utils/formConstants.js`
+- `fieldMapping` — Mapeamento camelCase → snake_case para a API
+- `digitsOnlyFields` — Set de campos que aceitam apenas dígitos
+
+### Extração do Serviço de Submissão (Fase 1.4)
+
+**Arquivo:** `src/areas/servidor/services/submissionService.js`
+- `processSubmission()` — validação, formatação e envio para `POST /api/casos/novo`
+- Validação algorítmica de CPF
+- Validação de datas futuras
+- Validação de documentos obrigatórios
+- Construção do `FormData` multipart
+
+### Hooks Personalizados (Fase 1.5)
+
+**`useFormHandlers.js`**
+- `handleFieldChange` — mudança genérica de campos
+- `handleNumericInput` — campos numéricos com máscara
+- `handleCurrencyChange` — formatação monetária
+- `handleCidadeChange` / `handleSelecionaCidade` — autocomplete de cidades
+- `startRecording` / `stopRecording` / `removeAudioRecording` — controle de áudio
+- `toggleRequeridoDetalhe` — toggle de campos adicionais
+
+**`useFormEffects.js`**
+- Auto-save de rascunho no `localStorage` (debounce)
+- Lógica de multi-casos: pré-preenchimento do representante ao iniciar novo protocolo para a mesma mãe
+- Health check silencioso da API
+- Sincronização de regras automáticas (ex: Fixação = representação obrigatória)
+
+**`useFormValidation.js`**
+- Estado de `formErrors`
+- Validação de CPF em tempo real
+- Wrapper de submissão com confirmação visual (`useConfirm`)
+- Loading state e proteção contra duplos envios
+
+### Resultado Final
+
+```
+TriagemCaso.jsx: ~1.000 linhas → ~280 linhas (redução de ~72%)
+```
+
+| Módulo | Arquivo | Linhas |
+|:-------|:--------|:-------|
+| Main | `TriagemCaso.jsx` | ~280 |
+| Estado | `formState.js` | ~150 |
+| Handlers | `useFormHandlers.js` | ~262 |
+| Efeitos | `useFormEffects.js` | ~86 |
+| Validação | `useFormValidation.js` | ~84 |
+| Submissão | `submissionService.js` | ~425 |
+| Constantes | `formConstants.js` | ~67 |
+
+---
+
+## ✅ FASE 2 — Infraestrutura Docker + Prisma (Abril 2026)
+
+**Status:** ✅ **Concluído**
+
+### Docker
+
+| Arquivo | Propósito |
+|:--------|:----------|
+| `backend/Dockerfile` | Container Node.js para o backend |
+| `frontend/Dockerfile` | Container Node.js para o frontend |
+| `docker-compose.yml` | Orquestra 3 serviços: `db`, `backend`, `frontend` |
+| `docker/init.sql` | Schema completo v1.0 — roda automaticamente no primeiro `up` |
+
+### Prisma
+
+| Arquivo | Propósito |
+|:--------|:----------|
+| `backend/prisma/schema.prisma` | 5 enums + 13 models mapeados |
+| `backend/src/config/prisma.js` | Singleton do PrismaClient |
+
+---
+
+## ✅ FASE 3 — Session Locking + Scanner Dedicado (2026-04-10)
+
+**Status:** ✅ **Concluído** (commit `2dadee3`)
+
+### Novos Módulos Backend
+
+- **`lockController.js`** — Locking atômico com `UPDATE WHERE owner IS NULL`
+  - Nível 1: Servidor (`servidor_id`)
+  - Nível 2: Defensor (`defensor_id`)
+  - Admin bypass para forçar destravamento
+- **`scannerController.js`** — Upload otimizado para balcão de scanner
+  - Endpoint: `POST /api/scanner/upload`
+  - Compressão automática de imagens > 1.5MB
+  - Rota dedicada: `backend/src/routes/scanner.js`
+
+---
+
+## ✅ FASE 4 — Colaboração e Compartilhamento de Casos (2026-04-10)
+
+**Status:** ✅ **Concluído** (commits `2dadee3` + `601877e`)
+
+### O que foi implementado
+
+- **Tabela `assistencia_casos`** — Auditoria de colaborações
+- **Flag `compartilhado`** em `casos` — tracking de status de colaboração
+- **Notificações** — `notificacoes` table + `NotificacoesBell.jsx`
+- **Visibilidade role-based** — defensores de outras unidades NÃO vêem casos compartilhados privados
+- **`DetalhesCaso.jsx`** refatorado para exibir badge e histórico de colaboração
+
+### Correções Críticas Aplicadas (commit `601877e`)
+
+- BigInt serialization: normalizador recursivo no backend para evitar erro "Illegal constructor"
+- Flag `compartilhado` persistida no banco
+- Audit trail para operações de compartilhamento
+- Fix no parsing de `Invalid Date` nas datas de agendamento
+
+---
+
+## ✅ FASE 5 — ScannerBalcao + Correções (2026-04-13)
+
+**Status:** ✅ **Concluído** (commit `3c9bb9e`)
+
+### Novo Componente
+
+- **`ScannerBalcao.jsx`** (~140 linhas) — Tela dedicada para o balcão do scanner
+  - Busca por CPF ou protocolo
+  - Dropzone de upload única com múltiplos documentos
+  - Rota adicionada em `App.jsx`
+
+### Correções
+
+- `casosController.js` — Correções na busca por CPF e visualização de casos
+- `BuscaCentral.jsx` — Melhorias no fluxo de vínculo de irmãos
+- `DetalhesCaso.jsx` — Ajustes visuais e de permissão
+
+---
+
+## 🔄 FASE 6 — Refatoração por Configuração (PLANEJADA)
+
+**Status:** 🔄 **Planejada** (documentada em `relatorio_consolidado_v2.md`)
+
+### Objetivo
+
+Fazer o formulário (`TriagemCaso.jsx`) atuar **exclusivamente** como consumidor declarativo do arquivo de configuração (`familia.js`), eliminando qualquer lógica hardcoded.
+
+### Flags de Controle a Implementar
+
+- `exigeDadosProcessoOriginal`
+- `ocultarDadosRequerido`
+- `isCpfRepresentanteOpcional`
+- `labelAutor` (Mãe, Assistida, etc.)
+
+### Outros Gaps Identificados
+
+1. **Lista de filhos `exequentes`** — `dados_formulario.lista_filhos` não está sendo roteado corretamente para `casos_partes.exequentes`
+2. **Geração Dupla** — Pipeline deve detectar dívida ≥ 3 meses e gerar automaticamente Prisão + Penhora
+3. **Limpeza de Código Fantasma** — Remover `PainelRecepcao.jsx` e status obsoletos (`reuniao_agendada`)
+
+---
+
+## 📊 Métricas de Progresso Geral
+
+| Aspecto | Estado Inicial (09/04/04) | Estado Atual (2026-04-13) |
+|:--------|:--------------------------|:--------------------------|
+| `TriagemCaso.jsx` linhas | ~1.000 | ~280 |
+| Cobertura de testes | 0 | 5 suites Jest |
+| Controllers backend | 3 | 7 |
+| Tabelas banco | 11 | 13+ |
+| Features de colaboração | ❌ | ✅ |
+| Scanner dedicado | ❌ | ✅ |
+| Session Locking | ❌ | ✅ |
+| Notificações | ❌ | ✅ |

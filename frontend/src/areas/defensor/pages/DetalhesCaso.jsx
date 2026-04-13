@@ -24,6 +24,9 @@ import {
   ArchiveRestore,
   LayoutDashboard,
   User,
+  Users,
+  Eye,
+  Paperclip,
 } from "lucide-react";
 import { API_BASE } from "../../../utils/apiBase";
 import { useToast } from "../../../contexts/ToastContext";
@@ -184,6 +187,7 @@ export const DetalhesCaso = () => {
   const [selectedColegaId, setSelectedColegaId] = useState("");
   const [isSharing, setIsSharing] = useState(false);
   const [minutaPreview, setMinutaPreview] = useState("penhora");
+  const [isUploadingDocs, setIsUploadingDocs] = useState(false);
 
   // 1. O SWR substitui o estado do caso, o fetchDetalhes, e o polling!
   const {
@@ -785,6 +789,41 @@ export const DetalhesCaso = () => {
     }
   };
 
+  // ── Upload de documentos pelo painel do defensor ──────────────────────────
+  const handleUploadDocumentos = async (files) => {
+    if (!files || files.length === 0) return;
+
+    const formData = new FormData();
+    Array.from(files).forEach((file) => formData.append("documentos", file));
+
+    setIsUploadingDocs(true);
+    try {
+      const response = await fetch(
+        `${API_BASE}/casos/${id}/upload-complementar`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || "Erro ao enviar documentos.");
+      }
+
+      toast.success(
+        `${files.length} arquivo(s) enviado(s) com sucesso!`,
+      );
+      mutate(); // Revalida os dados do SWR automaticamente
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsUploadingDocs(false);
+    }
+  };
+
+
   return (
     <div className="space-y-8 pb-24">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -832,6 +871,38 @@ export const DetalhesCaso = () => {
               </button>
             </div>
           </div>
+          
+          {caso.assistencia_casos && caso.assistencia_casos.length > 0 && (
+             <div className="mt-4 flex flex-wrap items-center gap-2">
+               <span className="text-xs font-bold text-indigo-700/70 uppercase tracking-wider bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
+                 Colaboradores envolvidos:
+               </span>
+               {Array.from(new Map(caso.assistencia_casos.map(a => [a.remetente_id === user?.id ? a.destinatario_id : a.remetente_id, a])).values()).map((a, i) => {
+                 const isMine = a.remetente_id === user?.id;
+                 const targetName = isMine ? a.destinatario?.nome : a.remetente?.nome;
+                 if (!targetName) return null;
+                 
+                 return (
+                   <div 
+                     key={i} 
+                     className="flex items-center gap-1.5 px-3 py-1 bg-white border border-indigo-100 rounded-full text-xs text-indigo-900 shadow-sm transition-all hover:border-indigo-300 hover:shadow"
+                     title={isMine ? `Aguardando ${targetName} aceitar` : `${targetName} compartilhou com você`}
+                   >
+                     <div className="bg-indigo-100 w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] text-indigo-700">
+                       {targetName.charAt(0).toUpperCase()}
+                     </div>
+                     <span className="font-medium">{targetName.split(' ')[0]}</span>
+                     {a.status === 'pendente' && (
+                       <span className="w-2 h-2 rounded-full bg-amber-400 ml-1" title="Pendente"></span>
+                     )}
+                     {a.status === 'aceito' && (
+                       <span className="w-2 h-2 rounded-full bg-green-500 ml-1" title="Aceito"></span>
+                     )}
+                   </div>
+                 );
+               })}
+             </div>
+          )}
         </div>
         <div className="flex flex-col md:items-end gap-2">
           <button
@@ -1026,6 +1097,8 @@ export const DetalhesCaso = () => {
               setEditingFile={setEditingFile}
               handleSaveRename={handleSaveRename}
               isRenaming={isRenaming}
+              handleUploadDocumentos={handleUploadDocumentos}
+              isUploadingDocs={isUploadingDocs}
             />
             <div className="card space-y-4">
               <div className="flex items-center gap-3">

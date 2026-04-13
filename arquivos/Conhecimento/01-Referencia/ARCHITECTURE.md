@@ -1,56 +1,57 @@
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 2.0 · **Atualizado em:** 2026-04-10 (Estabilização Mutirão)  
+> **Versão:** 2.1 · **Atualizado em:** 2026-04-13 (Correções Básicas + ScannerBalcao)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
 
 ## 1. Visão Geral
 
-O **Mães em Ação** é um sistema Full Stack desenvolvido para apoiar o mutirão estadual da Defensoria Pública da Bahia, cobrindo **35 a 52 sedes simultaneamente** durante **~5 dias úteis em maio de 2025**. O sistema automatiza triagem, processamento de documentos via IA e geração de petições de Direito de Família para mães solo e em situação de vulnerabilidade.
+O **Mães em Ação** é um sistema Full Stack desenvolvido para apoiar o mutirão estadual da Defensoria Pública da Bahia, cobrindo **35 a 52 sedes simultaneamente** durante **~5 dias úteis**. O sistema automatiza triagem, processamento de documentos via IA e geração de petições de Direito de Família para mães solo e em situação de vulnerabilidade.
 
-**Diferença crítica:** O sistema foi projetado para escalar de 17 casos (Def Sul) para centenas de casos em poucos minutos, exigindo arquitetura robusta e processamento assíncrono.
+**Diferença crítica:** Projetado para escalar de ~17 casos (Def Sul Bahia) para centenas de casos em poucos minutos, exigindo arquitetura robusta e processamento assíncrono.
 
 ---
 
 ## 2. Stack Tecnológica
 
 ### Frontend
-- **React 18 + Vite** → Vercel (Free — SPA estática, sem serverless)
-- **TypeScript** → Tipagem segura
-- **Tailwind CSS** → Estilização consistente
+- **React 18 + Vite** → Vercel (SPA estática)
+- **Vanilla CSS** → Estilização personalizada via `index.css`
 - **React Router** → Navegação SPA
 
 ### Backend
-- **Node.js + Express** → Railway Pro ($20/mês)
-- **ES Modules** → `"type": "module"` no package.json
-- **Prisma ORM** → Abstração do banco de dados
+- **Node.js + Express** → Railway Pro
+- **ES Modules** → `"type": "module"` no `package.json`
+- **Prisma ORM** → Abstração do banco (equipe/RBAC)
+- **Supabase JS Client** → Core de casos e pipeline IA
 - **Multer** → Upload de arquivos
 
 ### Banco de Dados
 - **Supabase Pro** (PostgreSQL, sa-east-1) — projeto ISOLADO do Def Sul
-- **Schema v1.0** → 11 tabelas normalizadas
-- **Índices estratégicos** → Performance em buscas por CPF, protocolo e status
+- **Schema v1.0** → 11+ tabelas normalizadas (incluindo `assistencia_casos`, `notificacoes`)
+- **Índices estratégicos** → CPF, protocolo, status, unidade
 
 ### Storage
-- **Supabase Storage** (S3-compatible) — apenas signed URLs, nunca públicas
-- **Compressão de imagens** → Redução de tamanho antes do upload
+- **Supabase Storage** (S3-compatible) — apenas signed URLs (1h de validade), nunca públicas
+- **3 Buckets:** `audios`, `documentos`, `peticoes`
+- **Compressão de imagens** → Redução automática antes do upload
 
 ### Fila & Processamento
-- **QStash (Upstash)** Pay-as-you-go — US Region
-- **Processamento assíncrono** → Evita timeouts de 30s do Railway
+- **Upstash QStash** — Fila de jobs assíncronos
 - **Retry automático** → 3 tentativas com backoff de 30s
+- **Fallback local** → `setImmediate()` quando QStash indisponível
 
 ### IA & OCR
-- **GPT-4o-mini (OpenAI)** → OCR e extração de documentos
+- **Gemini Vision (Google)** → OCR primário para documentos
 - **Groq Llama 3.3 70B** → Geração de texto jurídico (DOS FATOS)
-- **Fallbacks** → Tesseract.js para imagens, Gemini para texto
+- **Fallbacks:** Tesseract.js (imagens), Gemini Flash (texto)
 
 ### Autenticação
 - **JWT** gerado no próprio backend Express (não Supabase Auth)
-- **Secret:** 64 chars aleatórios
+- **Payload:** `{ id, nome, email, cargo, unidade_id }`
 - **Expiração:** 12h (cobre um dia de mutirão)
-- **Payload:** `{ id, nome, email, cargo, unidade_id }` — permite filtro regional automático
+- **Servidores do balcão:** `X-API-Key` (string aleatória 64 chars)
 
 ---
 
@@ -72,13 +73,13 @@ graph TB
 
     subgraph "Supabase"
         direction TB
-        DB["PostgreSQL<br/>(11 tabelas)"]
+        DB["PostgreSQL<br/>(11+ tabelas)"]
         STORAGE["Storage<br/>(3 buckets)"]
     end
 
     subgraph "Serviços de IA"
         direction TB
-        GPT["GPT-4o-mini<br/>OCR + Extração"]
+        GEMINI["Gemini Vision<br/>OCR + Extração"]
         GROQ["Groq<br/>Llama 3.3 70B"]
     end
 
@@ -92,9 +93,9 @@ graph TB
     QSTASH -->|"3. POST /api/jobs/process"| API
     API -->|"4. Dispara worker"| WORKER
 
-    WORKER -->|"OCR docs"| GPT
+    WORKER -->|"OCR docs"| GEMINI
     WORKER -->|"Dos Fatos"| GROQ
-    GROQ -.->|"Fallback"| GPT
+    GROQ -.->|"Fallback"| GEMINI
     WORKER -->|"5. Salva resultados"| DB
     WORKER -->|"6. Upload .docx"| STORAGE
 
@@ -107,7 +108,7 @@ graph TB
     style WORKER fill:#FF5722,color:#fff
     style DB fill:#9C27B0,color:#fff
     style STORAGE fill:#9C27B0,color:#fff
-    style GPT fill:#00BCD4,color:#fff
+    style GEMINI fill:#00BCD4,color:#fff
     style GROQ fill:#00BCD4,color:#fff
     style QSTASH fill:#E91E63,color:#fff
 ```
@@ -118,39 +119,40 @@ graph TB
 
 ### Etapa 1 — Triagem (Atendente Primário)
 
-- Busca por CPF → verifica cadastro existente
-- Preenche qualificação da assistida + dados do requerido + relato informal
-- Seleciona tipo de ação no seletor
+- Busca por CPF na `BuscaCentral.jsx` → verifica cadastro existente
+- Se CPF com caso existente → detecta vínculo de irmãos (pré-preenche dados do representante)
+- Preenche qualificação da assistida + dados do requerido + relato informal em `TriagemCaso.jsx`
+- Seleciona tipo de ação no seletor configuração-driven (`familia.js`)
 - Define se vai "Anexar Agora" ou "Deixar para Scanner"
 - Status inicial: `aguardando_documentos` + protocolo gerado
 
 ### Etapa 2 — Scanner (Servidor B / Balcão)
 
-- **Endpoint Dedicado:** `/api/scanner/upload` (Otimizado para alto volume).
-- Busca por CPF ou protocolo.
-- Dropzone única — todos os documentos de uma vez.
-- Backend comprime imagens > 1.5MB antes de salvar no Storage.
-- Ao finalizar: status → `documentacao_completa`, job publicado no QStash.
-- Frontend retorna 200 imediatamente — IA processa em background.
+- **Página Dedicada:** `ScannerBalcao.jsx` (novo, commit `3c9bb9e`)
+- **Endpoint Dedicado:** `/api/scanner/upload` — otimizado para alto volume
+- Busca por CPF ou protocolo
+- Dropzone única — todos os documentos de uma vez
+- Backend comprime imagens > 1.5MB antes de salvar no Storage
+- Ao finalizar: status → `documentacao_completa`, job publicado no QStash
+- Frontend retorna 200 imediatamente — IA processa em background
 
 ### Etapa 3 — Atendimento Jurídico (Servidor Jurídico)
 
-- Filtra fila por `pronto_para_analise` + sua `unidade_id`.
-- **Locking Nível 1:** Atribuição explícita via roteamento ou botão "Travar Atendimento".
-- Atribui caso ao seu nome → locking nível 1 (`servidor_id` + `servidor_at`).
-- Revisa relato, DOS FATOS gerado, documentos.
-- **Múltiplas Minutas:** IA pode gerar ritos de Prisão e Penhora simultaneamente para o mesmo protocolo.
-- Pode editar e clicar "Regerar com IA".
-- Ao concluir: status → `liberado_para_protocolo`.
+- Filtra fila por `pronto_para_analise` + sua `unidade_id`
+- **Locking Nível 1:** Atribuição via botão "Travar Atendimento"
+- Revisa relato, DOS FATOS gerado, documentos
+- **Múltiplas Minutas:** IA gera Prisão + Penhora simultaneamente (se dívida ≥ 3 meses)
+- Pode editar e clicar "Regerar com IA"
+- Ao concluir: status → `liberado_para_protocolo`
 
 ### Etapa 4 — Protocolo (Defensor)
 
-- Filtra casos com status `liberado_para_protocolo`.
-- **Locking Nível 2:** Atribuição explícita (`defensor_id` + `defensor_at`).
-- Protocola no SOLAR ou SIGAD.
-- Salva `numero_processo` + upload da capa.
-- **Manual Unlock:** Botão "Liberar Caso" disponível para devolver o processo à fila global.
-- Status → `protocolado`.
+- Filtra casos com status `liberado_para_protocolo`
+- **Locking Nível 2:** Atribuição explícita (`defensor_id` + `defensor_at`)
+- Protocola no SOLAR ou SIGAD
+- Salva `numero_processo` + upload da capa
+- **Manual Unlock:** Botão "Liberar Caso" devolve o processo à fila global
+- Status → `protocolado`
 
 ---
 
@@ -177,15 +179,15 @@ stateDiagram-v2
 
 ### Locking — Sessões e Concorrência
 
-- **Nível 1 (Servidor):** Bloqueia edição de dados jurídicos e relato.
-- **Nível 2 (Defensor):** Bloqueia a etapa de protocolo e finalização.
-- **HTTP 423 (Locked):** Retorno padrão quando um usuário tenta acessar um caso cujo `id` de lock pertence a outro.
-- **Admin Bypass:** Administradores podem forçar o destravamento (`PATCH /unlock`) de qualquer caso.
-- **UI Feedback:** Ícones de cadeado vermelho (ocupado) e usuário verde (seu atendimento) nas listagens.
+- **Nível 1 (Servidor):** Bloqueia edição de dados jurídicos e relato
+- **Nível 2 (Defensor):** Bloqueia a etapa de protocolo e finalização
+- **HTTP 423 (Locked):** Retorno padrão quando outro usuário detém o lock
+- **Admin Bypass:** Administradores podem forçar destravamento via painel
+- **Auto-release:** Lock liberado após 30min de inatividade
 
 ---
 
-## 6. Banco de Dados (Schema Normalizado)
+## 6. Banco de Dados (Schema Normalizado — v2.1)
 
 ### Principais Tabelas
 
@@ -196,23 +198,39 @@ stateDiagram-v2
 | `casos_juridico` | Dados jurídicos específicos | 1:1 com casos |
 | `casos_ia` | Resultados de IA e URLs Duplas | 1:1 com casos |
 | `documentos` | Arquivos enviados | N:1 com casos |
+| `assistencia_casos` | Registro de colaboração/compartilhamento | N:N com casos e defensores |
 | `unidades` | Sedes da DPE-BA | 1:N com casos |
 | `defensores` | Usuários do sistema | N:1 com casos |
 | `cargos` | Permissões por cargo | N:1 com defensores |
 | `permissoes` | Sistema de RBAC | N:N com cargos |
+| `notificacoes` | Alertas do sistema | N:1 com defensores |
 | `logs_auditoria` | Auditoria de ações | N:1 com defensores, casos |
 | `logs_pipeline` | Logs do pipeline IA | N:1 com casos |
 
-> **Nota - Estratégia v2.0 (Multi-Casos):** O modelo `casos` suporta múltiplas instâncias (filhos) originadas por um único representante legal (mãe) mantendo a estrutura 1:1 de `casos_partes` isolada por caso, mas reaproveitando e agrupando via `representante_cpf`.
+### Campos Chave na Tabela `casos` (v2.1)
 
-### Modelo `unidades` — Pivot Regional
+Além dos campos existentes, os seguintes campos foram adicionados nas fases recentes:
 
-A tabela `unidades` é o eixo central da regionalização:
+| Campo | Tipo | Descrição |
+|:------|:-----|:----------|
+| `compartilhado` | `Boolean` | `true` se o caso possui assistência colaborativa ativa |
+| `agendamento_data` | `Timestamptz` | Data/hora do agendamento |
+| `agendamento_link` | `String` | Link ou endereço do agendamento |
+| `agendamento_status` | `String` | `"agendado"` ou `"pendente"` |
+| `chave_acesso_hash` | `String` | Hash SHA-256 da chave de acesso pública |
+| `feedback` | `String` | Feedback do defensor sobre o caso |
+| `finished_at` | `Timestamptz` | Quando o caso foi finalizado/encaminhado |
+| `url_capa_processual` | `String` | URL da capa processual no Storage |
+| `assistencia_casos` | `Relation` | Vínculo N:N com `assistencia_casos` |
 
-- **Casos** são vinculados automaticamente à unidade cuja `comarca` corresponde à `cidade_assinatura` do formulário.
-- **Defensores** são alocados a unidades pelo administrador (campo obrigatório no cadastro).
-- **Filtro automático:** `listarCasos` e `resumoCasos` filtram por `unidade_id` do JWT (exceto admins).
-- **CRUD administrativo:** Rota `/api/unidades` permite gestão completa (com validação de integridade na exclusão).
+### Modelo `defensores` (v2.1)
+
+| Campo novo | Descrição |
+|:-----------|:----------|
+| `supabase_uid` | UID do Supabase Auth (opcional, para integração futura) |
+| `senha_hash` | Agora opcional (`String?`) — permite gestão externa de autenticação |
+| `notificacoes` | Relação com nova tabela `notificacoes` |
+| `assistencia_recebida` / `assistencia_enviada` | Relações de colaboração |
 
 ### Índices Estratégicos
 
@@ -220,15 +238,15 @@ A tabela `unidades` é o eixo central da regionalização:
 -- Buscas frequentes
 CREATE INDEX idx_casos_protocolo ON casos (protocolo);
 CREATE INDEX idx_casos_status ON casos (status);
-CREATE INDEX idx_casos_unidade ON casos (unidade_id);
-CREATE INDEX idx_casos_tipo_acao ON casos (tipo_acao);
+CREATE INDEX idx_casos_unidade_status ON casos (unidade_id, status);
 
 -- Locking
-CREATE INDEX idx_casos_servidor ON casos (servidor_id, status);
-CREATE INDEX idx_casos_defensor ON casos (defensor_id, status);
+CREATE INDEX idx_casos_lock_servidor ON casos (servidor_id);
+CREATE INDEX idx_casos_lock_defensor ON casos (defensor_id);
 
 -- Busca por CPF (query mais frequente)
-CREATE INDEX idx_partes_cpf ON casos_partes (cpf_assistido);
+CREATE INDEX idx_partes_cpf_assistido ON casos_partes (cpf_assistido);
+CREATE INDEX idx_partes_representante_cpf ON casos_partes (representante_cpf);
 ```
 
 ---
@@ -244,34 +262,8 @@ CREATE INDEX idx_partes_cpf ON casos_partes (cpf_assistido);
 | `def_penhora.docx` | Cumprimento de Sentença — Rito da Penhora | {valor_causa}, {valor_causa_extenso}, {data_pagamento} |
 | `def_prisao.docx` | Cumprimento de Sentença — Rito da Prisão | {porcetagem_salario}, {data_inadimplencia}, {dados_conta} |
 | `fixacao_alimentos.docx` | Fixação de Alimentos | {nome_representacao}, {endereço_exequente}, {email_exequente} |
-
-### Tags Padronizadas
-
-```javascript
-// Loop de filhos/exequentes
-{#lista_filhos} ... {/lista_filhos}
-{NOME_EXEQUENTE}               → nome do filho/exequente (maiúsculo)
-{data_nascimento_exequente}    → data de nascimento
-
-// Representante legal (assistida)
-{nome_representacao}           → nome da genitora/representante
-{emprego_exequente}            → profissão da representante
-{rg_exequente}                 → RG da representante
-{cpf_exequente}                → CPF da representante
-
-// Executado/requerido
-{nome_executado}               → nome do requerido
-{emprego_executado}            → profissão do requerido
-{telefone_executado}           → telefone do requerido
-{endereco_executado}           → endereço do requerido
-
-// Processo
-{numero_processo}              → número do processo
-{NUMERO_VARA}                  → número da vara (maiúsculo)
-{CIDADE}                       → cidade (maiúsculo)
-{dados_conta}                  → dados bancários formatados
-{data_pagamento}               → data de pagamento
-```
+| `prov_cumulado.docx` | Execução Cumulada (Prisão + Penhora) | Todos os campos combinados |
+| `termo_declaracao.docx` | Termo de Declaração | {relato_texto}, {protocolo} |
 
 ---
 
@@ -284,7 +276,7 @@ sequenceDiagram
     participant S as Scanner
     participant B as Backend
     participant Q as QStash
-    participant GPT as GPT-4o-mini
+    participant G as Gemini Vision
     participant Groq as Groq Llama 3.3
     participant D as Docxtemplater
 
@@ -294,8 +286,8 @@ sequenceDiagram
     B->>B: Atualiza status = documentacao_completa
     B->>Q: Publica job
     Q->>B: Webhook (retry automático)
-    B->>GPT: OCR + Extração
-    GPT->>B: Texto extraído
+    B->>G: OCR + Extração
+    G->>B: Texto extraído
     B->>Groq: Geração DOS FATOS
     Groq->>B: Texto jurídico
     B->>D: Merge template
@@ -303,29 +295,13 @@ sequenceDiagram
     B->>B: Atualiza status = pronto_para_analise
 ```
 
-### Configuração de IA
-
-```javascript
-// Groq (geração de texto)
-{
-  model: "llama-3.3-70b-versatile",
-  temperature: 0.3,
-  max_tokens: 4096
-}
-
-// GPT-4o-mini (OCR)
-{
-  model: "gpt-4o-mini",
-  temperature: 0.3,
-  max_tokens: 4096
-}
-```
-
 ### Fallbacks
 
-- **GPT-4o-mini 429** → QStash retry automático (transparente)
-- **GPT-4o-mini 500** → status `erro_processamento` + alerta painel admin
-- **Groq falha** → salva OCR do GPT e marca DOS FATOS como pendente
+- **Gemini 429/500** → QStash retry automático (transparente)
+- **Gemini 500** → status `erro_processamento` + alerta painel admin
+- **Groq falha** → Gemini Flash como fallback de texto
+- **Dos Fatos falha** → `buildFallbackDosFatos()` — texto templateado sem IA
+- **QStash indisponível** → `setImmediate()` para processamento local síncrono
 
 ---
 
@@ -333,168 +309,148 @@ sequenceDiagram
 
 ### Regras Inegociáveis
 
-- **Storage:** apenas `signed URLs` com expiração de 1 hora — zero URLs públicas permanentes
+- **Storage:** apenas `signed URLs` com expiração de 1 hora
 - **Logs:** nunca registrar CPF, nome ou dados pessoais — apenas `caso_id`, `acao`, timestamps
 - **Região:** sa-east-1 (Brasil) exclusivamente
 - **JWT:** gerado no backend com `jsonwebtoken`, secret no Railway, expiração 12h
 - **API Key servidores:** header `X-API-Key`, string aleatória 64 chars
 
-### Permissões por Cargo
+### Permissões por Cargo (RBAC)
 
-```javascript
-// Atendente (triagem e scanner)
-'casos:criar', 'casos:buscar', 'docs:upload', 'docs:ver'
+| Cargo | Leitura | Escrita | Admin |
+|:------|:--------|:--------|:------|
+| `admin` | ✅ | ✅ | ✅ |
+| `defensor` | ✅ | ✅ | ❌ |
+| `estagiario` | ✅ | ✅ | ❌ |
+| `recepcao` | ✅ | ✅ | ❌ |
+| `visualizador` | ✅ | ❌ | ❌ |
 
-// Servidor (atendimento jurídico)
-'casos:buscar', 'casos:ver_unidade', 'casos:atribuir',
-'casos:liberar', 'docs:ver', 'ia:regenerar'
-
-// Defensor (protocolo + atendimento)
-'casos:buscar', 'casos:ver_unidade', 'casos:atribuir',
-'casos:liberar', 'casos:protocolar', 'docs:ver',
-'ia:regenerar', 'relatorios:ver'
-
-// Admin (acesso total)
-Todas as permissões do sistema
-```
+> **Middleware:** `requireWriteAccess` bloqueia `visualizador` de operações POST/PATCH/DELETE com HTTP 403.
 
 ---
 
-## 10. Docker & Portabilidade
+## 10. Sistema de Colaboração (Compartilhamento de Casos)
 
-### Arquitetura Docker
+### Tabela `assistencia_casos`
+
+Registra o histórico completo de colaborações entre defensores:
+
+| Campo | Tipo | Descrição |
+|:------|:-----|:----------|
+| `caso_id` | `BigInt` | FK para `casos` |
+| `remetente_id` | `UUID` | Defensor que iniciou o compartilhamento |
+| `destinatario_id` | `UUID` | Defensor que recebeu o caso |
+| `acao` | `String` | Tipo de ação: `"compartilhado"`, `"aceito"`, `"recusado"` |
+| `created_at` | `Timestamptz` | Timestamp da ação |
+
+### Flag `compartilhado`
+
+- `casos.compartilhado = true` indica que o caso possui assistência ativa
+- Visibilidade no Dashboard: defensores não envolvidos NÃO vêem casos compartilhados de outras unidades (privacidade por design)
+- Notificação automática gerada ao compartilhar (`tipo: "assistencia"`)
+
+---
+
+## 11. Frontend — Estrutura Modular (Atual)
+
+### Área do Servidor
+
+```
+frontend/src/areas/servidor/
+├── components/
+│   ├── StepTipoAcao.jsx
+│   ├── StepDadosPessoais.jsx      ← Suporta multi-casos (pré-fill representante)
+│   ├── StepRequerido.jsx
+│   ├── StepDetalhesCaso.jsx
+│   ├── StepRelatoDocs.jsx
+│   ├── StepDadosProcessuais.jsx
+│   └── secoes/                    ← Seções específicas por tipo de ação
+│       ├── SecaoCamposGeraisFamilia.jsx
+│       ├── SecaoDadosDivorcio.jsx
+│       ├── SecaoValoresPensao.jsx
+│       └── SecaoProcessoOriginal.jsx
+├── hooks/
+│   ├── useFormHandlers.js         ← Event handlers, formatação, áudio
+│   ├── useFormValidation.js       ← Validação CPF, campos obrigatórios
+│   └── useFormEffects.js          ← Rascunho, prefill, health check
+├── services/
+│   └── submissionService.js       ← Validação + envio para API
+├── state/
+│   └── formState.js               ← initialState + formReducer
+├── utils/
+│   └── formConstants.js           ← fieldMapping, digitsOnlyFields
+└── pages/
+    ├── BuscaCentral.jsx            ← Busca por CPF + detecção de irmãos
+    ├── TriagemCaso.jsx             ← Formulário multi-step (~280 linhas)
+    ├── ScannerBalcao.jsx           ← [NOVO v2.1] Tela de scanner dedicada
+    └── EnvioDoc.jsx                ← Upload avançado de documentos
+```
+
+### Área do Defensor
+
+```
+frontend/src/areas/defensor/
+├── pages/
+│   ├── Dashboard.jsx              ← Visão geral por status/unidade
+│   ├── Casos.jsx                  ← Listagem com filtros
+│   ├── DetalhesCaso.jsx           ← Detalhe completo + ações
+│   ├── GerenciarEquipe.jsx        ← CRUD membros + CRUD unidades
+│   └── CasosArquivados.jsx        ← Arquivo de casos encerrados
+└── contexts/
+    └── AuthContext.jsx            ← JWT, cargo, unidade
+```
+
+### Configuração Declarativa de Ações (`familia.js`)
+
+A pasta `frontend/src/config/formularios/acoes/` contém arquivos de configuração que determinam **quais campos** são exibidos, obrigatórios ou ocultados para cada tipo de ação. O formulário não possui lógica hardcoded — apenas consome a configuração.
+
+Flags chave:
+- `exigeDadosProcessoOriginal` — exibe campos do processo originário
+- `ocultarDadosRequerido` — oculta seção da parte contrária
+- `isCpfRepresentanteOpcional` — torna CPF da mãe opcional
+- `labelAutor` — rótulo do autor (Mãe, Assistida, etc.)
+
+---
+
+## 12. Docker & Portabilidade
+
+### Configuração Docker
 
 ```yaml
 services:
   db:
     image: postgres:17
-    environment:
-      POSTGRES_DB: maes_em_acao
-      POSTGRES_USER: maes
-      POSTGRES_PASSWORD: maes123
-    volumes:
-      - db_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    ports: ["5432:5432"]
 
   backend:
     build: ./backend
     environment:
       DATABASE_URL: postgresql://maes:maes123@db:5432/maes_em_acao
-      NODE_ENV: production
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-    ports:
-      - "8001:8001"
-    depends_on:
-      - db
+      DIRECT_URL: postgresql://maes:maes123@db:5432/maes_em_acao
+    ports: ["8001:8001"]
+    depends_on: [db]
 
   frontend:
     build: ./frontend
     environment:
       VITE_API_URL: http://localhost:8001/api
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
+    ports: ["3000:3000"]
+    depends_on: [backend]
 ```
 
-### Comandos Docker
-
-```bash
-# Subir ambiente
-docker compose up -d
-
-# Verificar logs
-docker compose logs -f backend
-
-# Prisma no Docker
-docker compose exec backend npx prisma studio
-
-# Gerar client Prisma
-docker compose exec backend npx prisma generate
-```
-
----
-
-## 11. Frontend - Estrutura Modular
-
-### Organização de Pastas
-
-```bash
-frontend/src/areas/servidor/
-├── components/           # Componentes reutilizáveis
-│   ├── StepTipoAcao.jsx
-│   ├── StepDadosPessoais.jsx
-│   ├── StepRequerido.jsx
-│   ├── StepDetalhesCaso.jsx
-│   ├── StepRelatoDocs.jsx
-│   └── StepDadosProcessuais.jsx
-├── services/             # Lógica de negócio
-│   └── submissionService.js
-├── state/                # Estado global
-│   └── formState.js
-├── utils/                # Constantes e helpers
-│   └── formConstants.js
-└── hooks/                # Hooks personalizados
-    ├── useFormHandlers.js
-    ├── useFormValidation.js
-    └── useFormEffects.js
-```
-
-### Principais Páginas
-
-- **BuscaCentral.jsx** → Consulta instantânea por CPF com detecção de status `aguardando_documentos`
-- **TriagemCaso.jsx** → Formulário de criação de casos (modularizado)
-- **EnvioDoc.jsx** → Upload avançado de documentos (integrado com `DocumentUpload.jsx`)
-- **Dashboard.jsx** → Visão geral por status e unidade (filtrada automaticamente)
-
-### Páginas Administrativas (Defensor)
-
-- **GerenciarEquipe.jsx** → Sistema de abas: **Membros** (com filtro por unidade) + **Unidades** (CRUD de sedes)
-- **Cadastro.jsx** → Criação de novos membros com seletor de unidade obrigatório
-- **DetalhesCaso.jsx** → Detalhes do caso com ações do defensor
-
----
-
-## 12. Desafios de Escala
-
-### Problemas Resolvidos
-
-1. **Timeouts de Railway** → Processamento assíncrono via QStash
-2. **Múltiplos usuários simultâneos** → Locking atômico com UPDATE WHERE
-3. **Busca por CPF** → Índice dedicado + debounce no frontend
-4. **Upload de arquivos** → Compressão automática + validação de tamanho
-5. **Consistência de dados** → Transações completas + rollback em erros
-
-### Estratégias de Performance
-
-- **Debounce de 500ms** nas buscas por CPF
-- **Índices estratégicos** para queries mais frequentes
-- **Compressão de imagens** antes do upload
-- **Signed URLs** com expiração curta
-- **Retry automático** com backoff exponencial
+> **Nota:** `DIRECT_URL` é necessário no Prisma quando se usa o pooler do Supabase (Supabase Transaction Mode). Para Docker local, pode ser igual à `DATABASE_URL`.
 
 ---
 
 ## 13. Monitoramento & Logs
 
-### Níveis de Logging
+### Dois níveis de rastreabilidade
 
-1. **Auditoria de Ações** → Quem fez o quê e quando
-2. **Pipeline de IA** → Etapas do processamento de documentos
-3. **Erros de Sistema** → Falhas de conexão, timeouts, validações
+1. **`logs_auditoria`** → Rastreia ações humanas (quem fez o quê e quando)
+2. **`logs_pipeline`** → Rastreia falhas técnicas na IA (etapa, erro, timestamp)
 
-### Métricas de Monitoramento
-
-- **Tempo médio de triagem** → Triagem → IA
-- **Tempo médio de IA** → IA → Protocolo
-- **Taxa de sucesso de IA** → Casos processados com sucesso
-- **Tempo de resposta da API** → Latência das endpoints
+> [!CAUTION]
+> **LGPD:** NUNCA grave CPFs, nomes ou dados pessoais nas colunas de `detalhes` dos logs. Use apenas IDs e referências genéricas.
 
 ---
 
@@ -503,54 +459,25 @@ frontend/src/areas/servidor/
 ### Ambientes
 
 - **Desenvolvimento:** Docker local + Prisma
-- **Homologação:** Railway Pro + Supabase Pro
-- **Produção:** Railway Pro + Supabase Pro (isolado)
+- **Produção:** Railway Pro (backend) + Vercel (frontend) + Supabase Pro (banco/storage)
 
-### Variáveis de Ambiente
+### Variáveis de Ambiente Essenciais
 
 ```bash
 # Backend
 SUPABASE_URL=https://xyz.supabase.co
 SUPABASE_SERVICE_KEY=eyJ...
-DATABASE_URL=postgresql://...
-OPENAI_API_KEY=sk-...
+DATABASE_URL=postgresql://...       # Supabase pooler (para Prisma)
+DIRECT_URL=postgresql://...         # Supabase direct (para migrations)
+GEMINI_API_KEY=AIza...
 GROQ_API_KEY=gsk_...
 QSTASH_TOKEN=...
+QSTASH_CURRENT_SIGNING_KEY=...
+QSTASH_NEXT_SIGNING_KEY=...
 JWT_SECRET=64_chars_random_string
+API_KEY_SERVIDORES=64_chars_random
+SALARIO_MINIMO_ATUAL=1621.00
 
 # Frontend
 VITE_API_URL=https://api.mutirao.dpe.ba.gov.br
 ```
-
----
-
-## 15. Próximos Passos
-
-### Features Planejadas
-
-1. **BuscaCentral.jsx** → Consulta instantânea por CPF com debounce
-2. **Relatórios Avançados** → Exportação CSV/PDF para gestão
-3. **Notificações** → Alertas para servidores sobre novos casos
-4. **Integração Solar/SIGAD** → Envio automático de processos
-5. **Mobile App** → Aplicativo para servidores em campo
-
-### Otimizações Futuras
-
-1. **Cache de Resultados** → Evitar reprocessamento de documentos
-2. **CDN para Templates** → Reduzir tempo de download de .docx
-3. **Clusterização** → Distribuir carga entre múltiplos servidores
-4. **Backup Automatizado** → Backup diário do banco de dados
-
----
-
-## 16. Considerações Finais
-
-O **Mães em Ação** foi projetado para ser:
-
-- **Escalável:** Suportar centenas de casos simultaneamente
-- **Robusto:** Lidar com falhas de IA e timeouts
-- **Seguro:** Proteger dados sensíveis de assistidas
-- **Usável:** Interface intuitiva para servidores não técnicos
-- **Manutenível:** Código modular e bem documentado
-
-O sistema representa um avanço significativo na capacidade de atendimento da Defensoria Pública da Bahia, permitindo que mais mães em situação de vulnerabilidade recebam assistência jurídica de forma rápida e eficiente.

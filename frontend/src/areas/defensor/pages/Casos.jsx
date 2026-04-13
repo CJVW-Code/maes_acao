@@ -74,6 +74,9 @@ export const Casos = () => {
   }
 
   if (error) {
+    if (error.message === "Sessão expirada") {
+      return null; // O context vai redirecionar
+    }
     return (
       <div className="card border-l-4 border-l-red-500 text-red-600">
         {error.message || "Falha ao buscar os casos."}
@@ -89,7 +92,7 @@ export const Casos = () => {
         </p>
         <h1 className="heading-1">Todos os casos recebidos</h1>
         <p className="text-muted">
-          Consulte rapidamente o status dos atendimentos enviados pelo portal do
+          Consulte rapidamente o status dos atendimentos resgatados da triagem
           cidadão e avance as tratativas.
         </p>
       </section>

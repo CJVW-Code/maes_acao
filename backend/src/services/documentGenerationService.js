@@ -195,6 +195,7 @@ export const generateMultiplosDocx = async (
   const config = getConfigAcaoBackend(acaoKey);
   const documentos = [];
 
+  // Sempre gera a Penhora
   const penhoraBuffer = await generateDocx(data, acaoKey);
   documentos.push({
     tipo: "penhora",
@@ -202,21 +203,30 @@ export const generateMultiplosDocx = async (
     filename: `execucao_penhora_${data.protocolo}.docx`,
   });
 
+  // Gera a Prisão se a configuração indicar documentos múltiplos
+  // Estratégia do mutirão: SEMPRE gera ambas as minutas.
+  // Se o período for informado e detectarmos < 3 meses, logamos aviso mas ainda geramos
+  // para que o defensor possa decidir qual petição efetivamente protocolar.
   if (config.gerarMultiplos && config.templateDocxPrisao) {
     const meses = extractMonthsFromPeriod(periodoInadimplencia);
-    logger.info(`[DOCX Multi] Meses de inadimplencia detectados: ${meses}`);
-    if (meses >= 3) {
-      const prisaoBuffer = await generateDocx(
-        data,
-        acaoKey,
-        config.templateDocxPrisao,
+    logger.info(
+      `[DOCX Multi] Meses de inadimplência detectados: ${meses}. Gerando minuta de Prisão para avaliação do defensor.`,
+    );
+    if (meses > 0 && meses < 3) {
+      logger.warn(
+        `[DOCX Multi] Inadimplência < 3 meses (${meses}). Gerando mesmo assim — defensor decidirá.`,
       );
-      documentos.push({
-        tipo: "prisao",
-        buffer: prisaoBuffer,
-        filename: `execucao_prisao_${data.protocolo}.docx`,
-      });
     }
+    const prisaoBuffer = await generateDocx(
+      data,
+      acaoKey,
+      config.templateDocxPrisao,
+    );
+    documentos.push({
+      tipo: "prisao",
+      buffer: prisaoBuffer,
+      filename: `execucao_prisao_${data.protocolo}.docx`,
+    });
   }
 
   return documentos;

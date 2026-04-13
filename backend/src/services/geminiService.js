@@ -187,44 +187,8 @@ function sanitizeLegalAbbreviations(text) {
  * Usa o orquestrador para garantir alta disponibilidade.
  */
 export const analyzeCase = async (fullText) => {
-  const systemPrompt = `Você é um assistente jurídico sênior e objetivo da Defensoria Pública.
-  Sua tarefa é analisar o relato de um caso e criar um resumo executivo claro para o defensor.
-  REGRA CRÍTICA: NUNCA use o termo "menor" para se referir a uma criança ou adolescente. Utilize sempre os termos "criança", "adolescente" ou "filho(a)".
-  Não adicione saudações, frases introdutórias ou conclusões genéricas.`;
-
-  const userPrompt = `Analise o texto abaixo e retorne APENAS os seguintes tópicos:
-  1. Problema Central
-  2. Partes Envolvidas
-  3. Pedido Principal
-  4. Urgência (Sim/Não e por quê)
-  5. Área do Direito
-
-  --- TEXTO DO CASO ---
-  ${fullText}`;
-
-  try {
-    // Resumo para painel interno tem menor risco, mas passa pelo orquestrador para velocidade (Groq)
-    logger.info("🤖 [IA] Iniciando análise de caso (Resumo)...");
-    const start = Date.now();
-    const result = await generateLegalText(systemPrompt, userPrompt, 0.3);
-    logger.info(
-      `✅ [IA] Análise concluída em ${((Date.now() - start) / 1000).toFixed(
-        2,
-      )}s`,
-    );
-    return result;
-  } catch (error) {
-    logger.error(`❌ Erro na análise do caso (IA): ${error.message}`);
-    // Melhor tratamento de erros com mensagens mais específicas
-    if (error.message.includes("Timeout")) {
-      logger.warn(
-        "⏱️  Análise do caso atingiu timeout. Continuando sem resumo automático.",
-      );
-      return null;
-    } else {
-      throw new Error("Falha ao gerar o resumo do caso: " + error.message);
-    }
-  }
+  logger.info("🤖 [IA] Função analyzeCase desativada por solicitação de arquitetura.");
+  return null;
 };
 
 /**

@@ -61,8 +61,7 @@ export const processSubmission = async ({
 
   // ... (rest of mandatory validations) ...
   if (configAcao?.secoes?.includes("processo_original")) {
-    const isExecution = formState.acaoEspecifica?.toLowerCase().includes("execução") || configAcao?.titulo?.toLowerCase().includes("execução");
-    if (isExecution) {
+    if (configAcao?.exigeDadosProcessoOriginal) {
       if (!formState.data_inicio_debito) validationErrors.data_inicio_debito = "O mês inicial do débito é obrigatório.";
       if (!formState.data_fim_debito) validationErrors.data_fim_debito = "O mês final do débito é obrigatório.";
     }

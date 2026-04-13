@@ -122,10 +122,9 @@ export const Dashboard = () => {
       em_atendimento: [
         "em_atendimento",
         "em_analise",
-        "reuniao_agendada",
-        "reuniao_online_agendada",
-        "reuniao_presencial_agendada",
       ],
+      liberado_para_protocolo: ["liberado_para_protocolo"],
+      em_protocolo: ["em_protocolo"],
       protocolado: ["protocolado", "encaminhado_solar"],
     };
 
@@ -145,6 +144,9 @@ export const Dashboard = () => {
   };
 
   if (resumoError || casosError) {
+    if (resumoError?.message === "Sessão expirada" || casosError?.message === "Sessão expirada") {
+      return null; // O context vai redirecionar
+    }
     return (
       <div className="card border-l-4 border-l-red-500 text-red-600">
         Erro ao carregar o painel. Tente recarregar a página.
@@ -364,7 +366,7 @@ export const Dashboard = () => {
           <div>
             <h2 className="heading-2">Casos mais recentes</h2>
             <p className="text-sm text-muted">
-              Últimos atendimentos enviados pelo portal do cidadão.
+              Últimos atendimentos cadastrados na triagem.
             </p>
             {statusFilter && (
               <p className="text-sm mt-1 flex items-center gap-2">
@@ -418,6 +420,11 @@ export const Dashboard = () => {
                             <p className="text-sm font-bold text-primary-600 mt-1 mb-1">
                               Representante: {caso.nome_representante}
                             </p>
+                          )}
+                          {caso.assistencia_casos && caso.assistencia_casos.some(a => a.destinatario_id === user.id) && (
+                            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold uppercase tracking-wider mb-2 border border-purple-200">
+                               <Users size={10} /> Compartilhado com você
+                            </div>
                           )}
                           <p className="text-sm text-muted">
                             Protocolo: {caso.protocolo}

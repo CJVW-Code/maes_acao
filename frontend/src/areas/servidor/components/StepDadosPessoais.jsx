@@ -33,9 +33,7 @@ export const StepDadosPessoais = ({
   labelAutor,
   configAcao,
 }) => {
-  const isExecution =
-    formState.acaoEspecifica?.toLowerCase().includes("execução") ||
-    configAcao?.titulo?.toLowerCase().includes("execução");
+  const isCpfOpcional = configAcao?.isCpfRepresentanteOpcional || false;
 
   return (
     <section className="card space-y-6 border-l-4 border-l-green-500">
@@ -97,7 +95,7 @@ export const StepDadosPessoais = ({
               type="text"
               inputMode="numeric"
               placeholder={
-                isRepresentacao || isExecution ? "CPF (Opcional)" : "CPF *"
+                isRepresentacao || isCpfOpcional ? "CPF (Opcional)" : "CPF *"
               }
               name={isRepresentacao ? "cpf" : "representante_cpf"}
               value={
@@ -106,7 +104,7 @@ export const StepDadosPessoais = ({
               onChange={handleCpfChangeAndValidate(
                 isRepresentacao ? "cpf" : "representante_cpf",
               )}
-              {...(!isRepresentacao && !isExecution
+              {...(!isRepresentacao && !isCpfOpcional
                 ? validar("Informe o CPF.")
                 : {})}
               className={`input ${formErrors[isRepresentacao ? "cpf" : "representante_cpf"] ? "border-error ring-1 ring-error" : ""}`}
@@ -426,12 +424,12 @@ export const StepDadosPessoais = ({
               <input
                 type="text"
                 inputMode="numeric"
-                placeholder={isExecution ? "Seu CPF (Opcional)" : "Seu CPF *"}
+                placeholder={isCpfOpcional ? "Seu CPF (Opcional)" : "Seu CPF *"}
                 name="representante_cpf"
                 value={formState.representante_cpf}
                 onChange={handleCpfChangeAndValidate("representante_cpf")}
                 className={`input ${formErrors.representante_cpf ? "border-error ring-1 ring-error" : ""}`}
-                {...(!isExecution
+                {...(!isCpfOpcional
                   ? validar("Informe o CPF do representante.")
                   : {})}
               />

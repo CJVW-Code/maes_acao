@@ -140,10 +140,17 @@ model casos_partes {
   estado_civil           String?
   profissao              String?
   nome_mae_assistido     String?
-  nome_pai_assistido     String?
-  nome_mae_representante String?
-  nome_pai_representante String?
-  endereco_assistido     String?
+  nome_pai_assistido          String?
+  cpf_representante           String?
+  nome_representante          String?
+  rg_representante            String?
+  emissor_rg_representante    String?
+  nacionalidade_representante String?
+  estado_civil_representante  String?
+  profissao_representante     String?
+  nome_mae_representante      String?
+  nome_pai_representante      String?
+  endereco_assistido          String?
   telefone_assistido     String?
   email_assistido        String?
   nome_requerido         String?
@@ -162,6 +169,7 @@ model casos_partes {
   caso                   casos    @relation(fields: [caso_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([cpf_assistido], map: "idx_casos_cpf")
+  @@index([cpf_representante], map: "idx_casos_cpf_rep")
   @@index([caso_id], map: "idx_partes_caso")
 }
 
@@ -169,6 +177,9 @@ model casos_juridico {
   id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   caso_id                BigInt   @unique
   numero_processo_titulo String?
+  tipo_decisao           String?
+  vara_originaria        String?
+  cidade_originaria      String?
   percentual_salario     Decimal? @db.Decimal(5, 2)
   vencimento_dia         Int?
   periodo_inadimplencia  String?

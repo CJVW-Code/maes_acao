@@ -838,6 +838,7 @@ const buildDocxTemplatePayload = (
     executado_estado_civil: baseData.requerido_estado_civil || "solteiro(a)",
     executado_ocupacao: baseData.executado_ocupacao || baseData.requerido_ocupacao || "______",
     requerido_cpf: baseData.executado_cpf || baseData.cpf_requerido || "______",
+    executado_cpf: baseData.executado_cpf || baseData.cpf_requerido || "______",
     requerido_endereco_residencial: baseData.executado_endereco_residencial || baseData.endereco_requerido || "______",
     executado_endereco_profissional: baseData.requerido_endereco_profissional || "não informado",
     executado_email: baseData.executado_email || baseData.email_requerido || "não informado",
@@ -851,6 +852,8 @@ const buildDocxTemplatePayload = (
     percentual_despesas_extras: baseData.percentual_definitivo_extras || "50",
     dia_pagamento: baseData.dia_pagamento || baseData.dia_pagamento_fixado || baseData.dia_pagamento_requerido || "10",
     dados_bancarios_requerente: baseData.dados_bancarios_exequente || baseData.dados_bancarios_deposito || "______",
+    // Tag exata do template DOCX de execução
+    dados_bancarios_exequente: baseData.dados_bancarios_exequente || baseData.dados_bancarios_deposito || "______",
     
     empregador_nome: baseData.empregador_nome || baseData.empregador_requerido_nome || "______",
     empregador_endereco_profissional: baseData.empregador_requerido_endereco || "______",
@@ -994,9 +997,15 @@ export async function processarCasoEmBackground(
     let dosFatosTexto = "";
 
     // Verificação se deve ignorar leitura de documentos (OCR)
-    const deveIgnorarIA =
+    let deveIgnorarIA =
       configAcao.ignorarDosFatos === true && configAcao.promptIA === null;
-    const deveIgnorarOCR = configAcao.ignorarOCR === true;
+    let deveIgnorarOCR = configAcao.ignorarOCR === true;
+
+    if (acaoKey === "execucao_alimentos") {
+      deveIgnorarIA = true;
+      deveIgnorarOCR = true;
+      logger.info("[Background] Execução: Forçando desativação total de IA/OCR.");
+    }
 
     if (!deveIgnorarIA && !deveIgnorarOCR) {
       for (const docPath of urls_documentos) {
@@ -1069,12 +1078,8 @@ export async function processarCasoEmBackground(
         }
       }
 
-      // IA: Resumo e Dos Fatos
-      try {
-        resumo_ia = await analyzeCase(textoCompleto);
-      } catch (analyzeError) {
-        logger.warn(`Falha ao gerar resumo IA: ${analyzeError.message}`);
-      }
+      // IA: Resumo desativado pela arquitetura relacional
+      resumo_ia = null;
     } else {
       logger.info(
         `[Background] IA ignorada pela configuração da ação ${acaoKey}.`,
@@ -1492,16 +1497,14 @@ export const criarNovoCaso = async (req, res) => {
       );
     }
     // Validação de filhos (lista_filhos)
-    if (detalhes_filhos) {
-      const filhos = safeJsonParse(detalhes_filhos, []);
-      if (Array.isArray(filhos)) {
-        filhos.forEach((f, i) => {
-          if (f.cpf && !validarCPF(f.cpf))
-            avisos.push(
-              `Alerta: O CPF do filho(a) ${f.NOME || i + 1} parece inválido.`,
-            );
-        });
-      }
+    const filhosParsed = safeJsonParse(detalhes_filhos, []);
+    if (Array.isArray(filhosParsed)) {
+      filhosParsed.forEach((f, i) => {
+        if (f.cpf && !validarCPF(f.cpf))
+          avisos.push(
+            `Alerta: O CPF do filho(a) ${f.NOME || i + 1} parece inválido.`,
+          );
+      });
     }
 
     const { protocolo } = generateCredentials(tipoAcao);
@@ -1742,6 +1745,13 @@ export const criarNovoCaso = async (req, res) => {
             profissao:
               dados_formulario.representante_ocupacao ||
               dados_formulario.assistido_ocupacao,
+            cpf_representante: dados_formulario.representante_cpf || null,
+            nome_representante: dados_formulario.REPRESENTANTE_NOME || dados_formulario.representante_nome || null,
+            rg_representante: dados_formulario.representante_rg || null,
+            emissor_rg_representante: dados_formulario.emissor_rg_exequente || null,
+            nacionalidade_representante: dados_formulario.representante_nacionalidade || null,
+            estado_civil_representante: dados_formulario.representante_estado_civil || null,
+            profissao_representante: dados_formulario.representante_ocupacao || null,
             nome_mae_representante: dados_formulario.nome_mae_representante,
             nome_pai_representante: dados_formulario.nome_pai_representante,
             nome_requerido:
@@ -1772,25 +1782,34 @@ export const criarNovoCaso = async (req, res) => {
             email_requerido:
               dados_formulario.executado_email ||
               dados_formulario.email_requerido,
+            exequentes: filhosParsed,
           },
         },
         juridico: {
           create: {
             numero_processo_titulo:
+              dados_formulario.processoOrigemNumero ||
               dados_formulario.numero_processo_originario ||
               dados_formulario.processo_titulo_numero,
+            tipo_decisao: dados_formulario.tipo_decisao || null,
+            vara_originaria: dados_formulario.varaOriginaria || dados_formulario.vara_originaria || null,
+            cidade_originaria: dados_formulario.cidadeOriginaria || dados_formulario.cidade_originaria || null,
             percentual_salario: parseCurrencyToNumber(
               dados_formulario.percentual_salario_minimo,
             ),
             vencimento_dia:
               parseInt(
+                dados_formulario.dia_pagamento ||
                 dados_formulario.dia_pagamento_fixado ||
                   dados_formulario.dia_pagamento_requerido,
               ) || null,
             periodo_inadimplencia:
+              dados_formulario.periodo_meses_ano ||
               dados_formulario.periodo_debito_execucao ||
               dados_formulario.periodo_debito,
             debito_valor:
+              dados_formulario.valor_debito ||
+              dados_formulario.valor_pensao ||
               dados_formulario.valor_total_debito_execucao ||
               dados_formulario.valor_mensal_pensao,
             debito_penhora_valor: dados_formulario.debito_penhora_valor || null,
@@ -1942,36 +1961,48 @@ export const listarCasos = async (req, res) => {
     const { cpf, arquivado, limite } = req.query;
     const statusFiltro = arquivado === "true";
 
-    const where = { arquivado: statusFiltro };
+    const baseWhere = { arquivado: statusFiltro };
 
-    // Filtro por unidade: admin vê tudo, demais veem apenas sua unidade
+    // Filtro por unidade: admin vê tudo, demais veem apenas sua unidade + casos compartilhados com eles
     if (req.user && req.user.cargo !== "admin" && req.user.unidade_id) {
-      where.unidade_id = req.user.unidade_id;
-    }
-
-    if (cpf) {
-      const cpfLimpo = cpf.replace(/\D/g, "");
-      where.OR = [
-        { protocolo: cpf },
-        { partes: { cpf_assistido: cpf } },
-        { partes: { cpf_assistido: cpfLimpo } },
+      baseWhere.OR = [
+        { unidade_id: req.user.unidade_id },
         {
-          ia: {
-            dados_extraidos: {
-              path: ["representante_cpf"],
-              equals: cpf,
-            },
-          },
-        },
-        {
-          ia: {
-            dados_extraidos: {
-              path: ["representante_cpf"],
-              equals: cpfLimpo,
+          assistencia_casos: {
+            some: {
+              destinatario_id: req.user.id,
+              status: "aceito",
             },
           },
         },
       ];
+    }
+
+    const where = { ...baseWhere };
+
+    if (cpf) {
+      const cpfLimpo = cpf.replace(/\D/g, "");
+      const cpfFormatado = cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+      
+      const cpfQuery = [
+        { protocolo: cpf },
+        { partes: { cpf_assistido: cpf } },
+        { partes: { cpf_assistido: cpfLimpo } },
+        { partes: { cpf_assistido: cpfFormatado } },
+        { partes: { cpf_representante: cpf } },
+        { partes: { cpf_representante: cpfLimpo } },
+        { partes: { cpf_representante: cpfFormatado } },
+      ];
+
+      if (baseWhere.OR) {
+        where.AND = [
+          { OR: baseWhere.OR },
+          { OR: cpfQuery }
+        ];
+        delete where.OR;
+      } else {
+        where.OR = cpfQuery;
+      }
     }
 
     const queryOptions = {
@@ -2845,6 +2876,9 @@ export const buscarPorCpf = async (req, res) => {
                 { cpf_requerido: cpf },
                 { cpf_requerido: cpfLimpo },
                 { cpf_requerido: cpfFormatado },
+                { cpf_representante: cpf },
+                { cpf_representante: cpfLimpo },
+                { cpf_representante: cpfFormatado },
               ],
             },
           },

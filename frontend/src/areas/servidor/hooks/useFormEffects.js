@@ -58,14 +58,24 @@ export const useFormEffects = ({
       location.state?.payload
     ) {
       hasLoadedData.current = true;
-      Object.entries(repData).forEach(([key, value]) => {
-        if (value) {
-          let formattedValue = value;
+      const repData = location.state.payload;
+      const representativeKeys = [
+        "representante_nome", "representante_cpf", "representante_rg_numero",
+        "representante_rg_orgao", "representante_nacionalidade",
+        "representante_estado_civil", "representante_ocupacao",
+        "representante_endereco_residencial", "representante_endereco_profissional",
+        "representante_telefone", "representante_email", "nome_mae_representante",
+        "nome_pai_representante", "cidade_assinatura"
+      ];
+
+      representativeKeys.forEach((key) => {
+        if (repData[key]) {
+          let formattedValue = repData[key];
           
           if (key.toLowerCase().includes("cpf")) {
-             formattedValue = formatCpf(value);
+             formattedValue = formatCpf(formattedValue);
           } else if (key.toLowerCase().includes("telefone")) {
-             formattedValue = formatPhone(value);
+             formattedValue = formatPhone(formattedValue);
           }
           
           dispatch({ type: "UPDATE_FIELD", field: key, value: formattedValue });
