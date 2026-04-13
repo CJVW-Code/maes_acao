@@ -2228,7 +2228,9 @@ export const obterDetalhesCaso = async (req, res) => {
     // Vínculo Automático
     if (!isAdmin && !data.defensor_id && !data.servidor_id && !isShared) {
       const updateData = {};
-      if (req.user.cargo.toLowerCase().includes("defensor")) {
+      const isDefensor = req.user.cargo.toLowerCase().includes("defensor");
+      
+      if (isDefensor) {
         updateData.defensor_id = req.user.id;
         updateData.defensor_at = new Date();
         data.defensor_id = req.user.id;
@@ -2238,10 +2240,40 @@ export const obterDetalhesCaso = async (req, res) => {
         data.servidor_id = req.user.id;
       }
 
+      // Atualiza o caso atual
       await prisma.casos.update({
         where: { id: BigInt(id) },
         data: updateData,
       });
+
+      // NOVO: Vincular automaticamente todos os outros casos da mesma mãe (mesmo CPF)
+      // Isso garante que o defensor assuma todos os processos/filhos daquela assistida
+      const cpfMae = data.cpf_assistido;
+      if (cpfMae) {
+        try {
+          const outrosCasos = await prisma.casos_partes.findMany({
+            where: { cpf_assistido: cpfMae },
+            select: { caso_id: true }
+          });
+
+          const idsIrmaos = outrosCasos
+            .map(c => c.caso_id)
+            .filter(cid => cid.toString() !== id.toString());
+
+          if (idsIrmaos.length > 0) {
+            await prisma.casos.updateMany({
+              where: {
+                id: { in: idsIrmaos },
+                ...(isDefensor ? { defensor_id: null } : { servidor_id: null })
+              },
+              data: updateData
+            });
+            logger.info(`Vinculado automaticamente ${idsIrmaos.length} caso(s) irmão(s) ao usuário ${req.user.id}`);
+          }
+        } catch (err) {
+          logger.error(`Erro ao vincular casos familiares: ${err.message}`);
+        }
+      }
     }
 
     // Garante que dados_formulario existe
@@ -2796,19 +2828,23 @@ export const buscarPorCpf = async (req, res) => {
 
   try {
     const cpfLimpo = cpf.replace(/\D/g, "");
+    const cpfFormatado = cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
 
     // Usamos Prisma diretamente para poder buscar em JSONs e relações profundamente
     let data = await prisma.casos.findMany({
       where: {
         OR: [
           { protocolo: cpf },
+          { protocolo: cpfLimpo },
           {
             partes: {
               OR: [
                 { cpf_assistido: cpf },
                 { cpf_assistido: cpfLimpo },
+                { cpf_assistido: cpfFormatado },
                 { cpf_requerido: cpf },
                 { cpf_requerido: cpfLimpo },
+                { cpf_requerido: cpfFormatado },
               ],
             },
           },
@@ -2826,6 +2862,14 @@ export const buscarPorCpf = async (req, res) => {
                 path: ["representante_cpf"],
                 equals: cpfLimpo,
               },
+          },
+        },
+        {
+          ia: {
+            dados_extraidos: {
+              path: ["representante_cpf"],
+              equals: cpfFormatado,
+            },
             },
           },
           {
@@ -2842,6 +2886,14 @@ export const buscarPorCpf = async (req, res) => {
                 path: ["cpf"],
                 equals: cpfLimpo,
               },
+          },
+        },
+        {
+          ia: {
+            dados_extraidos: {
+              path: ["cpf"],
+              equals: cpfFormatado,
+            },
             },
           },
         ],

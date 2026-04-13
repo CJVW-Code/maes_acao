@@ -946,6 +946,46 @@ export const DetalhesCaso = () => {
         {activeTab === "visao_geral" && (
           <div className="space-y-6 animate-fade-in">
             <InfoAssistido caso={caso} />
+            
+            {/* NOVA SESSÃO: MINUTAS E DOCUMENTOS GERADOS NA VISÃO GERAL */}
+            {(caso.url_peticao_penhora || caso.url_peticao_prisao || caso.url_termo_declaracao || caso.url_documento_gerado) && (
+              <section className="card space-y-4 border-l-4 border-l-primary/50 bg-primary/5">
+                <div className="flex items-center gap-2">
+                  <Scale className="text-primary" size={20} />
+                  <h2 className="heading-2">Minutas e Documentos Gerados</h2>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {(caso.url_peticao_penhora || (!caso.url_peticao_prisao && caso.url_documento_gerado)) && (
+                    <a
+                      href={caso.url_peticao_penhora || caso.url_documento_gerado}
+                      target="_blank" rel="noopener noreferrer" download
+                      className="btn btn-primary text-sm flex items-center gap-2"
+                    >
+                      <Download size={16} /> Baixar {caso.url_peticao_prisao ? "Rito da Penhora" : "Petição Inicial"}
+                    </a>
+                  )}
+                  {caso.url_peticao_prisao && (
+                    <a
+                      href={caso.url_peticao_prisao}
+                      target="_blank" rel="noopener noreferrer" download
+                      className="btn btn-secondary text-sm flex items-center gap-2 text-error border-error/30 hover:bg-error/10"
+                    >
+                      <Download size={16} /> Baixar Rito da Prisão
+                    </a>
+                  )}
+                  {caso.url_termo_declaracao && (
+                    <a
+                      href={caso.url_termo_declaracao}
+                      target="_blank" rel="noopener noreferrer" download
+                      className="btn btn-secondary text-sm flex items-center gap-2 text-purple-600 border-purple-300 hover:bg-purple-50"
+                    >
+                      <Download size={16} /> Baixar Termo de Declaração
+                    </a>
+                  )}
+                </div>
+              </section>
+            )}
+
             {/* SEÇÃO DE FEEDBACK / ANOTAÇÕES */}
             <section className="card space-y-4">
               <div className="flex items-center gap-3">
@@ -1002,125 +1042,89 @@ export const DetalhesCaso = () => {
 
         {/* ABA 2: MINUTA E REVISÃO */}
         {activeTab === "minuta" && (
-          <div className="space-y-6 animate-fade-in">
-            <section className="card space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Scale className="text-primary" />
-                  <h2 className="heading-2">Minuta da Petição</h2>
-                </div>
-                {/* Botão de gerar fatos (IA) movido para o cabeçalho */}
-                {user?.cargo === "admin" && (
-                  <button
-                    onClick={handleGenerateFatos}
-                    disabled={isGenerating || caso.status === "processando"}
-                    className="btn btn-ghost btn-sm text-primary hover:bg-primary/10"
-                    title="Regerar texto dos fatos com IA"
-                  >
-                    {isGenerating ? (
-                      <Loader2 className="animate-spin" size={16} />
-                    ) : (
-                      <RefreshCw size={16} />
-                    )}
-                  </button>
-                )}
-              </div>
-
-              {/* SELETOR DE MINUTAS MULTIPLAS E DOWNLOADS */}
-              <div className="flex flex-wrap items-center justify-between gap-4 bg-surface p-3 rounded-lg border border-soft">
-                <div className="flex flex-wrap gap-2">
-                  {/* Penhora / Principal */}
-                  {(caso.url_peticao_penhora || caso.url_documento_gerado) && (
+          <div className="flex flex-col lg:flex-row gap-6 animate-fade-in">
+            
+            {/* SIDEBAR LATERA - GESTÃO E DOWNLOADS DAS MINUTAS */}
+            <div className="lg:w-1/3 flex flex-col gap-4">
+              <div className="card space-y-4">
+                <div className="flex items-center justify-between border-b border-soft pb-2">
+                  <h3 className="heading-3">Arquivos Gerados</h3>
+                  {user?.cargo === "admin" && (
                     <button
-                      onClick={() => setMinutaPreview("penhora")}
-                      className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${
-                        minutaPreview === "penhora"
-                          ? "bg-primary text-white shadow-sm"
-                          : "text-muted hover:bg-black/5"
-                      }`}
+                      onClick={handleGenerateFatos}
+                      disabled={isGenerating || caso.status === "processando"}
+                      className="text-primary hover:bg-primary/10 p-1 rounded transition-colors"
+                      title="Regerar texto dos fatos com IA"
                     >
-                      {caso.url_peticao_prisao
-                        ? "Rito da Penhora"
-                        : "Petição Inicial"}
+                      <RefreshCw size={16} className={isGenerating ? "animate-spin" : ""} />
                     </button>
                   )}
+                </div>
+                
+                <p className="text-sm text-muted">
+                  Selecione um arquivo para pré-visualizar ao lado, ou clique no ícone de download.
+                </p>
 
-                  {/* Prisão */}
+                <div className="space-y-3">
+                  {/* Minuta Principal / Penhora */}
+                  {(caso.url_peticao_penhora || caso.url_documento_gerado) && (
+                    <div className={`flex items-center justify-between p-3 border rounded-lg transition-colors cursor-pointer ${minutaPreview === "penhora" ? "border-primary bg-primary/5" : "border-soft bg-surface hover:border-primary/30"}`}>
+                      <button onClick={() => setMinutaPreview("penhora")} className="flex-1 text-left font-bold text-sm text-primary">
+                        {caso.url_peticao_prisao ? "Rito da Penhora" : "Petição Inicial"}
+                      </button>
+                      <a href={caso.url_peticao_penhora || caso.url_documento_gerado} download className="p-2 text-muted hover:text-primary transition-colors" title="Fazer Download">
+                        <Download size={18} />
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Minuta Prisão */}
                   {caso.url_peticao_prisao && (
-                    <button
-                      onClick={() => setMinutaPreview("prisao")}
-                      className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${
-                        minutaPreview === "prisao"
-                          ? "bg-error text-white shadow-sm"
-                          : "text-muted hover:bg-black/5"
-                      }`}
-                    >
-                      Rito da Prisão (3+ meses)
-                    </button>
+                    <div className={`flex items-center justify-between p-3 border rounded-lg transition-colors cursor-pointer ${minutaPreview === "prisao" ? "border-error bg-error/5" : "border-soft bg-surface hover:border-error/30"}`}>
+                      <button onClick={() => setMinutaPreview("prisao")} className="flex-1 text-left font-bold text-sm text-error">
+                        Rito da Prisão (3+ meses)
+                      </button>
+                      <a href={caso.url_peticao_prisao} download className="p-2 text-muted hover:text-error transition-colors" title="Fazer Download">
+                        <Download size={18} />
+                      </a>
+                    </div>
                   )}
 
                   {/* Termo de Declaração */}
                   {caso.url_termo_declaracao && (
-                    <button
-                      onClick={() => setMinutaPreview("termo")}
-                      className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${
-                        minutaPreview === "termo"
-                          ? "bg-purple-600 text-white shadow-sm"
-                          : "text-muted hover:bg-black/5"
-                      }`}
-                    >
-                      Termo de Declaração
-                    </button>
+                    <div className={`flex items-center justify-between p-3 border rounded-lg transition-colors cursor-pointer ${minutaPreview === "termo" ? "border-purple-500 bg-purple-500/5" : "border-soft bg-surface hover:border-purple-500/30"}`}>
+                      <button onClick={() => setMinutaPreview("termo")} className="flex-1 text-left font-bold text-sm text-purple-600">
+                        Termo de Declaração
+                      </button>
+                      <a href={caso.url_termo_declaracao} download className="p-2 text-muted hover:text-purple-600 transition-colors" title="Fazer Download">
+                        <Download size={18} />
+                      </a>
+                    </div>
                   )}
-                </div>
-
-                {!caso.url_peticao_penhora &&
-                  !caso.url_peticao_prisao &&
-                  !caso.url_documento_gerado &&
-                  !caso.url_termo_declaracao && (
-                    <div className="text-sm font-bold text-muted px-2 italic">
+                  
+                  {!caso.url_peticao_penhora && !caso.url_peticao_prisao && !caso.url_documento_gerado && !caso.url_termo_declaracao && (
+                    <div className="text-sm font-medium text-muted p-4 border border-dashed border-soft rounded-lg text-center">
                       Nenhum documento gerado ainda.
                     </div>
                   )}
-
-                {/* BOTÕES DE DOWNLOAD DIRETO */}
-                <div className="flex gap-2">
-                  {(minutaPreview === "penhora" || !caso.url_peticao_prisao) &&
-                    (caso.url_peticao_penhora || caso.url_documento_gerado) && (
-                      <a
-                        href={
-                          caso.url_peticao_penhora || caso.url_documento_gerado
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-secondary btn-sm flex items-center gap-2"
-                        download
-                      >
-                        <Download size={16} />
-                        Baixar {caso.url_peticao_prisao
-                          ? "Penhora"
-                          : "Minuta"}{" "}
-                        (.docx)
-                      </a>
-                    )}
-                  {minutaPreview === "prisao" && caso.url_peticao_prisao && (
-                    <a
-                      href={caso.url_peticao_prisao}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-ghost border border-error/30 text-error hover:bg-error/10 btn-sm flex items-center gap-2"
-                      download
-                    >
-                      <Download size={16} />
-                      Baixar Prisão (.docx)
-                    </a>
-                  )}
                 </div>
               </div>
+            </div>
 
+            {/* ÁREA PRINCIPAL - PRÉ-VISUALIZAÇÃO (IFRAME) */}
+            <div className="lg:w-2/3">
+              <div className="card h-full p-0 overflow-hidden border-2 border-soft">
+                {/* Header do Preview */}
+                <div className="bg-surface-alt p-3 border-b border-soft flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-muted font-medium text-sm">
+                    <Eye size={16} />
+                    Pré-visualização: <span className="text-primary uppercase tracking-wider">{minutaPreview}</span>
+                  </div>
+                </div>
+                
               {/* Visualização DOCX via Microsoft Viewer */}
               {caso.url_documento_gerado ? (
-                <div className="w-full h-[800px] rounded-xl border border-soft overflow-hidden bg-white">
+                <div className="w-full h-[800px] bg-white">
                   <iframe
                     src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
                       minutaPreview === "prisao" && caso.url_peticao_prisao
@@ -1143,7 +1147,8 @@ export const DetalhesCaso = () => {
                     "A minuta ainda não foi gerada. Aguarde o processamento."}
                 </div>
               )}
-            </section>
+              </div>
+            </div>
           </div>
         )}
 
