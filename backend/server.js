@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import logger from "./src/utils/logger.js";
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
@@ -21,7 +22,54 @@ BigInt.prototype.toJSON = function () {
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-app.use(cors());
+// Configuração Detalhada de CORS
+const allowedOrigins = [
+  "https://maes-acao.vercel.app",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Permite requisições sem origin (como mobile apps ou curl)
+    if (!origin) return callback(null, true);
+    if (
+      allowedOrigins.indexOf(origin) !== -1 ||
+      process.env.NODE_ENV !== "production"
+    ) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS Blocked]: Origin ${origin} not allowed`);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "Accept",
+    "X-Requested-With",
+  ],
+  credentials: true,
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+
+// Middleware de diagnóstico para CORS e Pre-flight
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV !== "test") {
+    console.log(
+      `[${new Date().toISOString()}] ${req.method} ${req.url} - Origin: ${req.headers.origin || "N/A"}`,
+    );
+  }
+
+  // Tratamento manual redundante para OPTIONS (garantia extra)
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
+});
 
 // Servir arquivos locais quando o Supabase não estiver disponível
 app.use("/api/files", express.static(path.join(process.cwd(), "uploads")));
