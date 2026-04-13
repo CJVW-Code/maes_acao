@@ -121,7 +121,7 @@ app.use((req, res) => {
 export default app;
 
 if (process.env.NODE_ENV !== "test") {
-  app.listen(PORT, () => {
-    console.log("🚀 Servidor rodando na porta " + PORT);
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log("🚀 Servidor rodando na porta " + PORT + " em 0.0.0.0");
   });
 }
