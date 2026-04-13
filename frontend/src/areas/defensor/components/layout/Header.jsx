@@ -1,21 +1,29 @@
 import React from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { jwtDecode } from "jwt-decode";
-import { Link } from "react-router-dom";
-import { ExternalLink, LogOut } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { ExternalLink, LogOut, ChevronLeft } from "lucide-react";
 import { ThemeToggle } from "../../../../components/ThemeToggle";
 import { NotificacoesBell } from "./NotificacoesBell";
 
 export const Header = () => {
-  const { token, logout } = useAuth();
-  const defensor = token ? jwtDecode(token) : null;
-  const defensorName = defensor?.nome || "Defensor";
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const defensorName = user?.nome || "Defensor";
   const avatarLetter = defensorName.charAt(0)?.toUpperCase() || "D";
 
   return (
     <header className="sticky top-0 z-40 bg-surface/95 border-b border-soft backdrop-blur">
-      <div className="container-app py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-4">
+      <div className="container-app py-4 flex flex-col md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center ml-4 gap-4">
+          <button
+            onClick={() => navigate(-1)}
+            className=" btn btn-secondary text-sm"
+            title="Voltar"
+          >
+            <ChevronLeft size={24} />
+            Voltar
+          </button>
           <div className="h-12 w-12 rounded-2xl bg-primary/15 text-primary font-semibold flex items-center justify-center shadow-inner">
             {avatarLetter}
           </div>
@@ -24,7 +32,7 @@ export const Header = () => {
               Painel do Defensor
             </p>
             <p className="text-lg font-semibold mt-1">
-              {defensor?.cargo === "defensor" ? "Dr(a). " : ""}
+              {user?.cargo === "defensor" ? "Dr(a). " : ""}
               {defensorName}
             </p>
           </div>

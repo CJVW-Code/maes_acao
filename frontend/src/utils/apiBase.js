@@ -1,4 +1,4 @@
-﻿export function getApiBase() {
+export function getApiBase() {
   try {
     const envUrl =
       (typeof import.meta !== "undefined" &&
@@ -20,12 +20,12 @@
   ) {
     const origin = window.location.origin;
     if (/localhost|127\.0\.0\.1/.test(origin)) {
-      return "http://localhost:8001/api";
+      return "http://localhost:8000/api";
     }
     return origin.replace(/\/$/, "");
   }
 
-  return "http://localhost:8001/api";
+  return "http://localhost:8000/api";
 }
 
 export const API_BASE = getApiBase();
@@ -56,8 +56,23 @@ export const authFetch = async (endpoint, options = {}) => {
 
   // 5. DETECTA SESSÃO EXPIRADA
   if (response.status === 401) {
-    // Dispara o evento que o AuthContext vai escutar
-    window.dispatchEvent(new Event("auth:session-expired"));
+    // Dispara o evento que o AuthContext vai escutar de forma ultra-resiliente
+    try {
+      if (typeof window !== "undefined") {
+        // Tenta o método moderno primeiro
+        let event;
+        try {
+          event = new CustomEvent("auth:session-expired");
+        } catch (e) {
+          // Fallback para navegadores/ambientes com restrição de constructor
+          event = document.createEvent("Event");
+          event.initEvent("auth:session-expired", true, true);
+        }
+        window.dispatchEvent(event);
+      }
+    } catch (e) {
+      console.warn("Falha crítica ao disparar evento de expiração:", e);
+    }
     throw new Error("Sessão expirada");
   }
 

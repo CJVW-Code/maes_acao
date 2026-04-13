@@ -91,9 +91,11 @@ export const FormularioSubmissao = () => {
 
   // Lógica de Representação
   const isRepresentacao = formState.assistidoEhIncapaz === "sim";
-  const labelAutor = isRepresentacao
-    ? "Dados da Criança/Adolescente (Assistido)"
-    : "Seus Dados (Você é o autor da ação)";
+  // Prioriza rótulo customizado da config (ex: "Filho(a) Exequente" para execução)
+  const labelAutor = configAcao?.labelAutor ||
+    (isRepresentacao
+      ? "Dados da Criança/Adolescente (Assistido)"
+      : "Seus Dados (Você é o autor da ação)");
 
   // Renderização da Tela de Sucesso
   if (generatedCredentials) {
@@ -226,6 +228,7 @@ export const FormularioSubmissao = () => {
               isRepresentacao={isRepresentacao}
               today={today}
               labelAutor={labelAutor}
+              configAcao={configAcao}
             />
 
             {!isAlvara && (

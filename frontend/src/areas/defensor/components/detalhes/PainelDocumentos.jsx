@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useState } from "react";
 import {
   Download,
   Mic,
@@ -8,6 +8,9 @@ import {
   Pencil,
   Check,
   X,
+  Paperclip,
+  UploadCloud,
+  Plus,
 } from "lucide-react";
 
 export const PainelDocumentos = ({
@@ -21,7 +24,44 @@ export const PainelDocumentos = ({
   setEditingFile,
   handleSaveRename,
   isRenaming,
+  handleUploadDocumentos,
+  isUploadingDocs,
 }) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const [filasEnvio, setFilasEnvio] = useState([]);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const inputRef = useRef(null);
+
+  const podeEscrever = user?.cargo !== "visualizador";
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const dropped = Array.from(e.dataTransfer.files).filter((f) =>
+      /\.(pdf|jpg|jpeg|png)$/i.test(f.name),
+    );
+    setFilasEnvio((prev) => [...prev, ...dropped]);
+  };
+
+  const handleFileInput = (e) => {
+    const selected = Array.from(e.target.files).filter((f) =>
+      /\.(pdf|jpg|jpeg|png)$/i.test(f.name),
+    );
+    setFilasEnvio((prev) => [...prev, ...selected]);
+    e.target.value = "";
+  };
+
+  const removeFile = (index) => {
+    setFilasEnvio((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleEnviar = async () => {
+    if (filasEnvio.length === 0) return;
+    await handleUploadDocumentos(filasEnvio);
+    setFilasEnvio([]);
+    setUploadOpen(false);
+  };
+
   return (
     <div className="card space-y-4">
       <h2 className="heading-2">Documentos e anexos</h2>
@@ -40,7 +80,7 @@ export const PainelDocumentos = ({
             </a>
           </div>
         )}
-        
+
         {/* Caso Específico: Execução Dual (Penhora + Prisão) */}
         {caso.url_peticao_prisao && (
           <div className="space-y-2">
@@ -66,24 +106,20 @@ export const PainelDocumentos = ({
             </a>
           </div>
         )}
-        
-        {/* Funcionalidade de regerar (comum) */}
-        {caso.url_documento_gerado && (
-          <div className="space-y-2">
-            {user?.cargo === "admin" && (
-              <button
-                onClick={handleRegenerateMinuta}
-                disabled={isRegeneratingMinuta}
-                className="btn btn-ghost border border-soft w-full justify-start text-xs"
-              >
-                <RefreshCw
-                  size={14}
-                  className={isRegeneratingMinuta ? "animate-spin" : ""}
-                />
-                {isRegeneratingMinuta ? "Regerando..." : "Regerar Minuta Word"}
-              </button>
-            )}
-          </div>
+
+        {/* Funcionalidade de regerar (admin) */}
+        {caso.url_documento_gerado && user?.cargo === "admin" && (
+          <button
+            onClick={handleRegenerateMinuta}
+            disabled={isRegeneratingMinuta}
+            className="btn btn-ghost border border-soft w-full justify-start text-xs"
+          >
+            <RefreshCw
+              size={14}
+              className={isRegeneratingMinuta ? "animate-spin" : ""}
+            />
+            {isRegeneratingMinuta ? "Regerando..." : "Regerar Minuta Word"}
+          </button>
         )}
 
         {/* Termo de Declaração */}
@@ -149,7 +185,7 @@ export const PainelDocumentos = ({
 
         {/* Lista de Documentos Anexos */}
         {caso.urls_documentos?.length > 0 ? (
-          caso.urls_documentos.map((url, index) => {
+          caso.urls_documentos.map((url) => {
             let rawFileName = url.split("/").pop().split("?")[0];
             try {
               rawFileName = decodeURIComponent(rawFileName);
@@ -158,14 +194,12 @@ export const PainelDocumentos = ({
             }
             let fileName = rawFileName;
 
-            // Limpeza visual
             fileName = fileName
               .replace(/^complementar_(\d+[-_])?/, "")
               .replace(/^\d+[-_]/, "");
 
             const isComplementar = url.includes("complementar_");
             const docNames = caso.dados_formulario?.documentNames || {};
-
             let customName = docNames[rawFileName];
 
             if (!customName) {
@@ -283,6 +317,137 @@ export const PainelDocumentos = ({
           <p className="text-sm text-muted">
             Nenhum documento complementar enviado.
           </p>
+        )}
+
+        {/* ── UPLOAD PELO PAINEL ────────────────────────────────────────── */}
+        {podeEscrever && (
+          <div className="mt-4 pt-4 border-t border-soft">
+            {!uploadOpen ? (
+              <button
+                onClick={() => setUploadOpen(true)}
+                className="btn btn-ghost border border-dashed border-primary/40 text-primary w-full justify-center gap-2 hover:bg-primary/5 hover:border-primary transition-all"
+              >
+                <Paperclip size={16} />
+                Adicionar Documentos ao Caso
+              </button>
+            ) : (
+              <div className="space-y-3 animate-fade-in">
+                {/* Cabeçalho da seção */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-primary flex items-center gap-2">
+                    <Paperclip size={15} />
+                    Anexar Documentos
+                  </span>
+                  <button
+                    onClick={() => {
+                      setUploadOpen(false);
+                      setFilasEnvio([]);
+                    }}
+                    className="text-muted hover:text-main transition-colors"
+                    title="Fechar"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                {/* Dropzone */}
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleDrop}
+                  onClick={() => inputRef.current?.click()}
+                  className={`relative flex flex-col items-center justify-center gap-2 py-8 px-4 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-200 ${
+                    isDragging
+                      ? "border-primary bg-primary/10 scale-[1.01]"
+                      : "border-soft hover:border-primary/50 hover:bg-primary/5"
+                  }`}
+                >
+                  <UploadCloud
+                    size={32}
+                    className={`transition-colors ${isDragging ? "text-primary" : "text-muted"}`}
+                  />
+                  <p className="text-sm text-center text-muted">
+                    <span className="font-semibold text-primary">
+                      Clique para selecionar
+                    </span>{" "}
+                    ou arraste os arquivos aqui
+                  </p>
+                  <p className="text-xs text-muted">PDF, JPG ou PNG</p>
+                  <input
+                    ref={inputRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="hidden"
+                    onChange={handleFileInput}
+                  />
+                </div>
+
+                {/* Lista de arquivos pendentes */}
+                {filasEnvio.length > 0 && (
+                  <div className="space-y-1.5">
+                    {filasEnvio.map((file, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-2 p-2 bg-surface border border-soft rounded-lg text-sm"
+                      >
+                        <FileText
+                          size={14}
+                          className="shrink-0 text-primary"
+                        />
+                        <span className="flex-1 truncate text-main">
+                          {file.name}
+                        </span>
+                        <span className="text-xs text-muted shrink-0">
+                          {(file.size / 1024).toFixed(0)} KB
+                        </span>
+                        <button
+                          onClick={() => removeFile(i)}
+                          className="text-muted hover:text-error transition-colors"
+                          title="Remover"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Botões de ação */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleEnviar}
+                    disabled={isUploadingDocs || filasEnvio.length === 0}
+                    className="btn btn-primary flex-1 justify-center gap-2 disabled:opacity-60"
+                  >
+                    {isUploadingDocs ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      <>
+                        <UploadCloud size={16} />
+                        Enviar{filasEnvio.length > 0 && ` (${filasEnvio.length})`}
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => inputRef.current?.click()}
+                    disabled={isUploadingDocs}
+                    className="btn btn-ghost border border-soft gap-2"
+                    title="Adicionar mais arquivos"
+                  >
+                    <Plus size={16} />
+                    Mais
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

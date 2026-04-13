@@ -172,12 +172,15 @@ export const StepRequerido = ({
       </div>
 
       <div>
-        <EnderecoInput
-          label="Endereço de Trabalho (se souber)"
+        <label htmlFor="requeridoEnderecoTrabalho" className="label">Endereço de Trabalho (se souber)</label>
+        <input
+          id="requeridoEnderecoTrabalho"
+          type="text"
+          placeholder="Endereço de Trabalho (se souber)"
           name="executado_endereco_profissional"
           value={formState.executado_endereco_profissional}
           onChange={handleFieldChange}
-          className="w-full"
+          className="input"
         />
       </div>
 

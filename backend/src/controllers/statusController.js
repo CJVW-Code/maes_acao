@@ -19,23 +19,29 @@ export const consultarStatus = async (req, res) => {
   logger.debug(`Consultando status para CPF: ${cpfLimpo}`);
 
   try {
-    // 2. Busca no Supabase TODOS os casos com o CPF informado
-    // REMOVIDO: .single() -> Agora aceitamos múltiplos resultados (array)
-    const { data: casos, error } = await supabase
-      .from("casos")
-      .select(
-        "id, status, numero_processo, url_capa, protocolado_at, casos_partes(nome_assistido)"
-      )
-      .eq("partes(cpf_assistido)", cpfLimpo);
+    // 2. Busca via Prisma para evitar erros de schema do Supabase legados
+    const casos = await prisma.casos.findMany({
+      where: {
+        partes: { cpf_assistido: cpfLimpo }
+      },
+      select: {
+        id: true,
+        status: true,
+        numero_processo: true,
+        url_capa: true,
+        protocolado_at: true,
+        partes: {
+          select: {
+            nome_assistido: true,
+            cpf_assistido: true
+          }
+        }
+      }
+    });
 
-    // Se der erro ou array vazio (nenhum caso encontrado)
-    if (error || !casos || casos.length === 0) {
-      logger.warn(
-        `Consulta falhou: CPF ${cpfLimpo} não encontrado ou erro no banco.`,
-      );
-      return res
-        .status(404)
-        .json({ error: "CPF inválido." });
+    if (!casos || casos.length === 0) {
+      logger.warn(`Consulta falhou: CPF ${cpfLimpo} não encontrado.`);
+      return res.status(404).json({ error: "CPF inválido ou sem casos vinculados." });
     }
 
     // 3. LÓGICA DE MULTI-CASOS: Itera sobre os casos para encontrar qual chave abre qual porta
@@ -91,7 +97,8 @@ export const consultarStatus = async (req, res) => {
 
 
     // 4. Se tudo estiver correto, retorna o status do caso ENCONTRADO
-    const partes = Array.isArray(casoEncontrado.casos_partes) ? casoEncontrado.casos_partes[0] : casoEncontrado.partes || {};
+    // Mapeamos para as tags oficiais do dicionarioTags.js onde aplicável
+    const partes = casoEncontrado.partes || {};
 
     res.status(200).json({
       id: casoEncontrado.id,
@@ -99,7 +106,9 @@ export const consultarStatus = async (req, res) => {
       descricao:
         statusDescricaoMap[casoEncontrado.status] ||
         "Estamos analisando suas informações. Por favor, aguarde.",
-      nome_assistido: partes.nome_assistido,
+      REPRESENTANTE_NOME: partes.nome_assistido, // Tag Oficial
+      nome_representante: partes.nome_assistido, // Alias para o Front antigo
+      nome_assistido: partes.nome_assistido,      // Compatibilidade
       numero_processo: casoEncontrado.numero_processo,
       url_capa: casoEncontrado.url_capa,
     });
@@ -131,48 +140,54 @@ export const consultarPorCpf = async (req, res) => {
     // Buscar casos com join em casos_partes para obter nome_representante
     let casosFinal = [];
 
-    if (isSupabaseConfigured) {
-      // Usar a syntax OR do Supabase para buscar no cpf_assistido OU na coluna json dados_formulario->>representante_cpf
-      const { data: casos, error } = await supabase
-        .from("casos")
-        .select(`
-          id, status, numero_processo, url_capa, protocolado_at,
-          casos_partes!inner(nome_assistido, nome_representante, cpf_assistido)
-        `)
-        .eq("casos_partes.cpf_assistido", cpfLimpo)
-        .order("created_at", { ascending: false });
+    const cpfLimpo = cpf.replace(/\D/g, "");
+    logger.info(`Consultando casos para CPF: ${cpf} (Limpo: ${cpfLimpo})`);
 
-      if (error) {
-        logger.error(`Erro ao consultar casos via Supabase: ${error.message}`);
-        return res.status(500).json({ error: "Erro interno do servidor." });
-      }
+    // Busca robusta: protocolo, partes (assistido/representante) ou IA tags
+    const casosPrisma = await prisma.casos.findMany({
+      where: {
+        OR: [
+          { protocolo: cpfLimpo },
+          { protocolo: cpf },
+          {
+            partes: {
+              OR: [
+                { cpf_assistido: cpfLimpo },
+                { cpf_assistido: cpf },
+              ],
+            },
+          },
+          {
+            ia: {
+              dados_extraidos: {
+                path: ["representante_cpf"],
+                equals: cpfLimpo,
+              },
+            },
+          },
+          {
+            ia: {
+              dados_extraidos: {
+                path: ["representante_cpf"],
+                equals: cpf,
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        partes: true,
+        ia: true,
+      },
+      orderBy: { created_at: "desc" },
+    });
 
-      if (!casos || casos.length === 0) {
-        logger.info(`Nenhum caso encontrado para CPF: ${cpfLimpo}`);
-        return res.status(404).json({ error: "Nenhum caso encontrado para este CPF." });
-      }
-
-      casosFinal = casos;
-    } else {
-      const casosPrisma = await prisma.casos.findMany({
-        where: {
-          partes: { cpf_assistido: cpfLimpo }
-        },
-        orderBy: {
-          created_at: "desc",
-        },
-        include: {
-          partes: true,
-        },
-      });
-
-      if (!casosPrisma || casosPrisma.length === 0) {
-        logger.info(`Nenhum caso encontrado para CPF: ${cpfLimpo}`);
-        return res.status(404).json({ error: "Nenhum caso encontrado para este CPF." });
-      }
-
-      casosFinal = casosPrisma;
+    if (!casosPrisma || casosPrisma.length === 0) {
+      logger.info(`Nenhum caso encontrado para CPF: ${cpfLimpo} ou ${cpf}`);
+      return res.status(404).json({ error: "Nenhum caso encontrado para este CPF." });
     }
+
+    casosFinal = casosPrisma;
 
     // Mapeamento de status
     const statusPublicoMap = {
@@ -200,33 +215,32 @@ export const consultarPorCpf = async (req, res) => {
     };
 
     const respostaCasos = casosFinal.map(caso => {
-      // Trata array de ref do supabase (casos_partes é array por conta do FK genérico, mas é 1:1)
-      const partes = Array.isArray(caso.casos_partes) ? caso.casos_partes[0] || {} : caso.casos_partes || caso.partes || {};
-      const form = caso.dados_formulario || {};
+      const partes = caso.partes || {};
+      const ia = caso.ia || {};
+      const tags = ia.dados_extraidos || {};
       
       return {
         id: caso.id,
         status: statusPublicoMap[caso.status] || "enviado",
         descricao: statusDescricaoMap[caso.status] || "Estamos analisando suas informações.",
+        REPRESENTANTE_NOME: partes.nome_assistido || tags.REPRESENTANTE_NOME,
+        nome_representante: partes.nome_assistido || tags.REPRESENTANTE_NOME, // Alias
         nome_assistido: partes.nome_assistido,
-        nome_representante: partes.nome_representante || null,
+        representante_cpf: partes.cpf_assistido || tags.representante_cpf,
         numero_processo: caso.numero_processo,
         descricao_pendencia: caso.descricao_pendencia,
         dados_representante: {
-          representanteNome: form.representanteNome || form.representante_nome || partes.nome_representante,
-          representanteCpf: form.representanteCpf || form.representante_cpf || partes.cpf_representante,
-          representanteDataNascimento: form.representanteDataNascimento || form.representante_data_nascimento || form.dataNascimentoRepresentante,
-          representanteTelefone: form.representanteTelefone || form.representante_telefone || form.telefone_representante,
-          representanteEmail: form.representanteEmail || form.representante_email || form.email_representante,
-          representanteEnderecoResidencial: form.representanteEnderecoResidencial || form.representante_endereco_residencial || form.endereco_representante,
-          representanteEnderecoProfissional: form.representanteEnderecoProfissional || form.representante_endereco_profissional,
-          representanteEstadoCivil: form.representanteEstadoCivil || form.representante_estado_civil,
-          representanteNacionalidade: form.representanteNacionalidade || form.representante_nacionalidade,
-          representanteOcupacao: form.representanteOcupacao || form.representante_ocupacao || form.representante_profissao,
-          representanteRgNumero: form.representanteRgNumero || form.representante_rg_numero || form.representante_rg,
-          representanteRgOrgao: form.representanteRgOrgao || form.representante_rg_orgao,
-          representanteNomeMae: form.representanteNomeMae || form.representante_nome_mae || form.nome_mae_representante || partes.nome_mae_representante,
-          representanteNomePai: form.representanteNomePai || form.representante_nome_pai || form.nome_pai_representante || partes.nome_pai_representante,
+          REPRESENTANTE_NOME: tags.REPRESENTANTE_NOME || partes.nome_assistido,
+          representante_cpf: tags.representante_cpf || partes.cpf_assistido,
+          representante_rg: tags.representante_rg || partes.rg_assistido,
+          requerente_endereco_residencial: tags.representante_endereco || partes.endereco_assistido,
+          requerente_telefone: tags.representante_telefone || partes.telefone_assistido,
+          requerente_email: tags.representante_email || partes.email_assistido,
+          representante_estado_civil: tags.representante_estado_civil || partes.estado_civil,
+          representante_ocupacao: tags.representante_ocupacao || partes.profissao,
+          representante_nacionalidade: tags.nacionalidade || partes.nacionalidade,
+          nome_mae_representante: tags.nome_mae_representante || partes.nome_mae_representante,
+          nome_pai_representante: tags.nome_pai_representante || partes.nome_pai_representante,
         }
       };
     });

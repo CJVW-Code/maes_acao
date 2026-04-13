@@ -19,39 +19,55 @@ export const HomeCidadao = () => {
   const formatCpf = (value) => {
     const cleaned = cleanCpf(value);
     if (cleaned.length <= 3) return cleaned;
-    if (cleaned.length <= 6) return `${cleaned.slice(0, 3)}.${cleaned.slice(3)}`;
-    if (cleaned.length <= 9) return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6)}`;
+    if (cleaned.length <= 6)
+      return `${cleaned.slice(0, 3)}.${cleaned.slice(3)}`;
+    if (cleaned.length <= 9)
+      return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6)}`;
     return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6, 9)}-${cleaned.slice(9, 11)}`;
   };
 
   // Função para consultar API
-  const consultarCpf = useCallback(async (cpf) => {
-    const cleanedCpf = cleanCpf(cpf);
-    if (cleanedCpf.length !== 11) return;
+  const consultarCpf = useCallback(
+    async (cpf) => {
+      const cleanedCpf = cleanCpf(cpf);
+      if (cleanedCpf.length !== 11) return;
 
-    setLoading(true);
-    setError(null);
-    setCaseFound(null);
-    setNoCase(false);
+      setLoading(true);
+      setError(null);
+      setCaseFound(null);
+      setNoCase(false);
 
-    try {
-      const response = await fetch(`${API_BASE}/status/cpf/${cleanedCpf}`);
-      if (response.status === 404) {
-        setNoCase(true);
-        setTimeout(() => navigate("/novo-pedido"), 2000); // Auto-redirecionar após 2s
-        return;
+      try {
+        // Utilizamos a rota V2.0 que verifica tanto o CPF do filho quanto da mãe
+        // Enviamos a API Key no cabeçalho para funcionar sem precisar de Login
+        const response = await fetch(
+          `${API_BASE}/casos/buscar-cpf?cpf=${cleanedCpf}`,
+          {
+            headers: {
+              "x-api-key": import.meta.env.VITE_API_KEY_BALCAO || "",
+            },
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error("Erro na consulta");
+        }
+        const data = await response.json();
+
+        // O novo endpoint retorna um array vazio [] se não achar nada
+        if (Array.isArray(data) && data.length === 0) {
+          setNoCase(true);
+        } else {
+          setCaseFound(data);
+        }
+      } catch (err) {
+        setError("Erro ao consultar CPF. Tente novamente.");
+      } finally {
+        setLoading(false);
       }
-      if (!response.ok) {
-        throw new Error("Erro na consulta");
-      }
-      const data = await response.json();
-      setCaseFound(data);
-    } catch (err) {
-      setError("Erro ao consultar CPF. Tente novamente.");
-    } finally {
-      setLoading(false);
-    }
-  }, [navigate]);
+    },
+    [navigate],
+  );
 
   // Debounce effect
   useEffect(() => {
@@ -114,8 +130,15 @@ export const HomeCidadao = () => {
             )}
 
             {noCase && (
-              <div className="bg-highlight/10 border border-highlight text-highlight p-4 rounded-lg">
-                Nenhum caso encontrado para este CPF. Redirecionando para novo pedido...
+              <div className="bg-highlight/10 border border-highlight text-highlight p-4 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-4">
+                <p>Nenhum atendimento encontrado para esta Assistida.</p>
+                <button
+                  onClick={() => navigate("/novo-pedido")}
+                  className="btn btn-primary whitespace-nowrap"
+                >
+                  <FilePlus size={18} className="mr-2" />
+                  Iniciar Novo Atendimento
+                </button>
               </div>
             )}
 
@@ -123,18 +146,23 @@ export const HomeCidadao = () => {
               <div className="flex flex-col gap-4">
                 <div className="flex justify-between items-center bg-highlight/10 p-4 rounded-lg border border-highlight/20">
                   <div>
-                    <h3 className="font-bold text-lg text-highlight">Próximo Passo</h3>
-                    <p className="text-sm text-muted">Você pode gerenciar os casos existentes ou iniciar um novo para esta mesma representante.</p>
+                    <h3 className="font-bold text-lg text-highlight">
+                      Próximo Passo
+                    </h3>
+                    <p className="text-sm text-muted">
+                      Você pode gerenciar os casos existentes ou iniciar um novo
+                      para esta mesma representante.
+                    </p>
                   </div>
-                  <button 
+                  <button
                     onClick={() => {
                       // Pega os dados da representante do primeiro caso (se existir)
-                      const repData = caseFound[0]?.dados_representante || {};
-                      navigate("/novo-pedido", { 
-                        state: { 
-                           action: 'PREFILL_REPRESENTATIVE_DATA', 
-                           payload: repData 
-                        } 
+                      const repData = caseFound[0]?.dados_formulario || {};
+                      navigate("/novo-pedido", {
+                        state: {
+                          action: "PREFILL_REPRESENTATIVE_DATA",
+                          payload: repData,
+                        },
                       });
                     }}
                     className="btn btn-primary whitespace-nowrap"
@@ -142,8 +170,10 @@ export const HomeCidadao = () => {
                     Novo Caso (Mesma Rep.)
                   </button>
                 </div>
-                
-                <h3 className="font-bold text-xl mt-2">Casos Encontrados ({caseFound.length})</h3>
+
+                <h3 className="font-bold text-xl mt-2">
+                  Casos Encontrados ({caseFound.length})
+                </h3>
                 {caseFound.map((caso) => (
                   <motion.div
                     key={caso.id}
@@ -153,24 +183,36 @@ export const HomeCidadao = () => {
                   >
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="font-bold text-lg mb-2">Processo / Caso</h3>
-                        <p><strong>Nome do Assistido:</strong> {caso.nome_assistido}</p>
+                        <h3 className="font-bold text-lg mb-2">
+                          Processo / Caso
+                        </h3>
+                        <p>
+                          <strong>Nome do Assistido:</strong>{" "}
+                          {caso.nome_assistido}
+                        </p>
                         {caso.nome_representante && (
-                          <p><strong>Nome da Representante:</strong> {caso.nome_representante}</p>
+                          <p>
+                            <strong>Nome da Representante:</strong>{" "}
+                            {caso.nome_representante}
+                          </p>
                         )}
-                        <p><strong>Status:</strong> <span className="badge">{caso.status}</span></p>
-                        <p className="text-sm text-muted mt-2">{caso.descricao}</p>
+                        <p>
+                          <strong>Status:</strong>{" "}
+                          <span className="badge">{caso.status}</span>
+                        </p>
+                        <p className="text-sm text-muted mt-2">
+                          {caso.descricao}
+                        </p>
                       </div>
                       <div className="text-right">
-                        {(caso.status === "documentos pendentes") ? (
-                          <Link to={`/consultar?cpf=${cleanCpf(cpfInput)}`} className="btn btn-primary mt-2">
-                            Anexar Documentos
-                          </Link>
-                        ) : (
-                          <Link to={`/consultar?cpf=${cleanCpf(cpfInput)}`} className="btn btn-secondary mt-2">
-                            Ver Detalhes
-                          </Link>
-                        )}
+                        <Link
+                          to={`/scanner/${caso.protocolo}`}
+                          className={`btn mt-2 ${caso.status === "aguardando_documentos" ? "btn-primary" : "btn-secondary"}`}
+                        >
+                          {caso.status === "aguardando_documentos"
+                            ? "Anexar Documentos"
+                            : "Abrir no Scanner"}
+                        </Link>
                       </div>
                     </div>
                   </motion.div>

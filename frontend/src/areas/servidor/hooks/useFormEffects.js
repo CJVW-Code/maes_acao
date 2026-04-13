@@ -59,25 +59,26 @@ export const useFormEffects = ({
     ) {
       hasLoadedData.current = true;
       const repData = location.state.payload;
+      const representativeKeys = [
+        "representante_nome", "representante_cpf", "representante_rg_numero",
+        "representante_rg_orgao", "representante_nacionalidade",
+        "representante_estado_civil", "representante_ocupacao",
+        "representante_endereco_residencial", "representante_endereco_profissional",
+        "representante_telefone", "representante_email", "nome_mae_representante",
+        "nome_pai_representante", "cidade_assinatura"
+      ];
 
-      // Função para converter snake_case para camelCase
-      const snakeToCamel = (str) =>
-        str.replace(/([-_][a-z])/g, (group) =>
-          group.toUpperCase().replace("-", "").replace("_", "")
-        );
-
-      Object.entries(repData).forEach(([key, value]) => {
-        if (value) {
-          const camelKey = snakeToCamel(key);
-          let formattedValue = value;
+      representativeKeys.forEach((key) => {
+        if (repData[key]) {
+          let formattedValue = repData[key];
           
-          if (camelKey.toLowerCase().includes("cpf")) {
-             formattedValue = formatCpf(value);
-          } else if (camelKey.toLowerCase().includes("telefone")) {
-             formattedValue = formatPhone(value);
+          if (key.toLowerCase().includes("cpf")) {
+             formattedValue = formatCpf(formattedValue);
+          } else if (key.toLowerCase().includes("telefone")) {
+             formattedValue = formatPhone(formattedValue);
           }
           
-          dispatch({ type: "UPDATE_FIELD", field: camelKey, value: formattedValue });
+          dispatch({ type: "UPDATE_FIELD", field: key, value: formattedValue });
         }
       });
 

@@ -1,0 +1,651 @@
+MÃES  EM  AÇÃO   ·   DPE-BADocumento  de  Estratégia   v2.0 
+ 
+MÃES  EM  AÇÃO 
+Documento  de  Estratégia  do  Sistema  
+ Projeto Assistente  Mães  em  Ação  —  DPE-BA  
+Versão 
+2.0  —  Revisado  com  fluxo  operacional,  schema  de  banco  e  decisões  de  infraestrutura  
+Mutirão Maio  2025  —  ~5  dias  úteis,  35–52  sedes  DPE-BA  
+Referência Evolução  do  Assistente  Def  Sul  (em  produção  desde  2024)  
+Stack 
+React  18  ·  Node.js/Express  ·  Supabase  Pro  ·  QStash  Pay-as-you-go  ·  GPT-4o-mini  ·  Groq  Llama  3.3  70B  
+Classificação INTERNO  —  NÃO  DISTRIBUIR  
+Documento  Interno  —  Confidencial  ·  Não  Distribuir 
+MÃES  EM  AÇÃO   ·   DPE-BADocumento  de  Estratégia   v2.0 
+01   VISÃO  GERAL 
+Objetivo  e  Contexto 
+O  Mães  em  Ação  é  uma  evolução  do  Assistente  Def  Sul,  adaptado  para  escala  estadual.  Automatiza  a  
+triagem,
+ 
+o
+ 
+processamento
+ 
+de
+ 
+documentos
+ 
+via
+ 
+IA
+ 
+e
+ 
+a
+ 
+geração
+ 
+de
+ 
+petições
+ 
+de
+ 
+Direito
+ 
+de
+ 
+Família
+ 
+para
+ 
+mães
+ 
+solo
+ 
+e
+ 
+em
+ 
+situação
+ 
+de
+ 
+vulnerabilidade,
+ 
+cobrindo
+ 
+35
+ 
+a
+ 
+52
+ 
+sedes
+ 
+da
+ 
+DPE-BA
+ 
+em
+ 
+mutirão
+ 
+concentrado
+ 
+de
+ 
+~5
+ 
+dias
+ 
+úteis
+ 
+em
+ 
+maio.
+  
+52 
+Sedes  DPE-BA 
+5.000+ 
+Atendimentos 
+5  dias 
+Janela  de  Operação 
+4+ 
+Tipos  de  Ação 
+~70 
+Servidores  no  Pico 
+ 
+✖ 
+CRÍTICO:   O  Def  Sul  processou  17  casos  no  total  desde  que  abriu  para  testes.  O  mutirão  pode  atingir  esse  número  em  menos  de  15  minutos.  Estabilidade  supera  qualquer  feature  nova.   
+Documento  Interno  —  Confidencial  ·  Não  Distribuir 
+MÃES  EM  AÇÃO   ·   DPE-BADocumento  de  Estratégia   v2.0 
+02   FLUXO  OPERACIONAL 
+Fluxo  Completo  do  Mutirão  de  Balcão 
+O  fluxo  é  fragmentado  em  quatro  etapas  com  perfis  distintos  de  usuário,  permitindo  operação  paralela  em  
+múltiplas
+ 
+estações
+ 
+simultâneas
+ 
+dentro
+ 
+de
+ 
+cada
+ 
+sede.
+ 
+ 
+Etapa  1  —  Triagem  /  Cadastro  (Atendente  Primário) 1.  Atendente  busca  assistida  pelo  CPF  —  verifica  cadastro  existente.  2.  Se  nova:  preenche  qualificação  completa  +  dados  do  requerido  +  relato  informal.  3.  Seleciona  o  tipo  de  ação  no  seletor  (Fixação,  Exec.  Penhora,  Exec.  Prisão,  Gravídicos...).  4.  Marca  se  vai  'Anexar  Agora'  ou  'Deixar  para  o  Scanner'.  5.  Status  inicial:  aguardando_documentos.  Protocolo  gerado  e  exibido.   
+Etapa  2  —  Documentação  (Scanner) 6.  Scanner  busca  caso  por  CPF  ou  protocolo.  7.  Dropzone  única:  todos  os  documentos  arrastados  de  uma  vez  (PDFs  e  imagens).  8.  Backend  comprime  imagens  grandes  e  renomeia  arquivos  automaticamente.  9.  Ao  finalizar:  status  →  documentacao_completa,  job  publicado  no  QStash.  10.  Frontend  retorna  sucesso  imediatamente  —  IA  processa  em  background.   
+Etapa  3  —  Atendimento  Jurídico  (Servidor  Jurídico  /  Defensor) 11.  Servidor  visualiza  fila  de  casos  pronto_para_analise  filtrada  por  sua  unidade.  12.  Seleciona  um  caso  e  o  atribui  ao  seu  nome  —  locking  ativo  (outros  veem  aviso).  13.  Revisa  relato,  dados  extraídos  pela  IA  e  seção  DOS  FATOS  gerada.  14.  Edita  a  peça  se  necessário  —  pode  clicar  'Regerar  com  IA'  para  novo  processamento.  15.  Confere  documentos  anexados  e  dados  das  partes.  16.  Ao  finalizar:  altera  status  para  liberado_para_protocolo.   
+Etapa  4  —  Protocolo  (Defensor) 17.  Defensor  filtra  casos  com  status  liberado_para_protocolo.  18.  Seleciona  caso  e  atribui  ao  seu  nome  para  protocolo  —  segundo  nível  de  locking.  19.  Protocola  a  demanda  no  sistema  judicial  (SOLAR  ou  SIGAD  conforme  a  sede).  20.  Salva  o  número  do  processo  no  campo  específico  do  painel.  21.  Faz  upload  ou  gera  a  capa  do  processo  no  sistema.  22.  Altera  status  para  protocolado  —  caso  encerrado  no  sistema.  23.  Atendente  imprime  a  capa  do  processo  e  entrega  à  assistida.  
+ 
+i 
+NOTA:   Salvador  utilizará  o  SIGAD  no  dia  do  mutirão.  As  demais  sedes  utilizam  o  SOLAR.  A  extensão  de  navegador  em  desenvolvimento  permitirá  importar  cadastro  e  documentos  direto  no  sistema  judicial,  
+Documento  Interno  —  Confidencial  ·  Não  Distribuir 
+MÃES  EM  AÇÃO   ·   DPE-BADocumento  de  Estratégia   v2.0 
+eliminando  o  trabalho  duplicado.  Para  2025,  caso  a  extensão  não  esteja  pronta,  o  cadastro  manual  segue  como  fallback  —  o  sistema  Mães  em  Ação  já  reduz  erros  de  preenchimento  mesmo  nesse  cenário.  
+ 
+Máquina  de  Estados  do  Caso  
+Status Responsável Origem Próximo(s) 
+aguardando_documentos 
+Atendente  /  Scanner  
+Triagem  ou  Defensor  documentacao_completa  
+documentacao_completa 
+Sistema  (automático)  
+Scanner  processando_ia  
+processando_ia Sistema  (QStash)  Job  automático  
+pronto_para_analise  /  erro_processamento  
+pronto_para_analise 
+Sistema  (automático)  
+Job  de  IA  em_atendimento  
+em_atendimento Servidor  jurídico  Servidor  pegou  o  caso  liberado_para_protocolo  
+liberado_para_protocolo Servidor  jurídico  
+Servidor  conferiu  e  liberou  
+em_protocolo  
+em_protocolo Defensor  
+Defensor  pegou  para  protocolar  
+protocolado  
+protocolado Defensor  
+Protocolo  realizado  +  nº  processo  salvo  
+—  
+erro_processamento Sistema  QStash  retry  esgotado  
+processando_ia  (reprocessamento  manual)   
+Documento  Interno  —  Confidencial  ·  Não  Distribuir 
+MÃES  EM  AÇÃO   ·   DPE-BADocumento  de  Estratégia   v2.0 
+03   AÇÕES  JURÍDICAS  &  TEMPLATES 
+Tipos  de  Ação  e  Sistema  de  Templates 
+Cada  tipo  de  ação  possui  um  arquivo  .docx  próprio  com  variáveis  de  substituição  via  docxtemplater.  O  
+backend
+ 
+seleciona
+ 
+o
+ 
+template
+ 
+com
+ 
+base
+ 
+no
+ 
+campo
+ 
+tipo_acao
+ 
+do
+ 
+caso
+ 
+e
+ 
+faz
+ 
+o
+ 
+merge
+ 
+das
+ 
+variáveis.
+ 
+Nenhuma
+ 
+lógica
+ 
+condicional
+ 
+dentro
+ 
+dos
+ 
+templates
+ 
+—
+ 
+simplicidade
+ 
+que
+ 
+permite
+ 
+adicionar
+ 
+novos
+ 
+modelos
+ 
+sem
+ 
+impacto
+ 
+no
+ 
+código.
+ 
+ 
+3.1  Ações  Confirmadas  
+Tipo  de  Ação Arquivo  Template Fundamentação Status  do  Modelo 
+Fixação  de  Alimentos  fixacao_alimentos.docx  —  Aguardando  modelo 
+Exec.  Alimentos  —  Rito  Penhora  
+exec_penhora.docx  Art.  528,  §8º  e  531,  CPC  Modelo  em  mãos  ✓ 
+Exec.  Alimentos  —  Rito  Prisão  exec_prisao.docx  Art.  528,  §7º,  CPC  Modelo  em  mãos  ✓ 
+Exec.  Alimentos  —  Rito  Misto  exec_misto.docx  Art.  528  §7º  e  §8º,  CPC  Derivar  dos  2  modelos 
+Alimentos  Gravídicos  alimentos_gravidicos.docx  Lei  11.804/2008  Aguardando  modelo 
+Autos  Apartados  autos_apartados.docx  A  definir  Aguardando  briefing 
+Outros  modelos  (até  10  total)  modelo_N.docx  A  definir  Aguardando  modelos 
+ 
+! 
+ATENÇÃO:   Os  modelos  restantes  chegam  em  3–5  dias  úteis.  Assim  que  cada  modelo  chegar:  mapear  os  campos  variáveis  imediatamente  e  criar  o  template  antes  de  qualquer  outra  tarefa.  Modelo  novo  na  semana  do  deploy  pode  quebrar  o  pipeline.  
+ 
+3.2  Diferenças  Estruturais  entre  Ritos  
+Elemento Rito  Penhora Rito  Prisão 
+Fundamentação  principal  
+Art.  523  c/c  art.  528,  §8º  e  art.  531,  CPC  
+Art.  5º,  LXVII,  CRFB,  c/c  art.  528,  §7º,  CPC  
+Intimação  para  
+Pagar  o  débito,  sob  pena  de  penhora  
+Pagar  parcelas  vencidas  e  vincendas,  sob  pena  de  prisão  
+Bloqueio  SISBAJUD  +  PIX  Sim  (item  específico)  Não  incluso  
+Exequentes  Suporta  múltiplos  filhos  (array)  Geralmente  exequente  único  
+Pedido  de  prisão  civil  Não  Sim  —  art.  528,  §7º   
+Documento  Interno  —  Confidencial  ·  Não  Distribuir 
+MÃES  EM  AÇÃO   ·   DPE-BADocumento  de  Estratégia   v2.0 
+04   INFRAESTRUTURA  &  STACK 
+Decisões  de  Infraestrutura 
+ 
+Serviço Plano Custo Justificativa 
+Railway  (Backend)  Pro  $20/mês  mín.  
+50  réplicas,  suporte  dedicado,  sem  sleep.  O  Hobby  não  tem  SLA  —  inaceitável  para  evento  público  da  DPE-BA.  
+Supabase  (DB  +  Storage)  
+Pro  $25/mês  
+Projeto  isolado  do  Def  Sul.  8GB  banco,  100GB  storage,  backups  diários,  PgBouncer  ativo.  O  Free  pausa  após  1  semana  de  inatividade.  
+QStash  (Fila  assíncrona)  
+Pay-as-you-go  $1/100k  msgs  
+Mensagens  ilimitadas  por  dia.  Para  5.000  casos  =  centavos.  Elimina  o  limite  de  500  msgs/dia  do  free  que  travaria  o  mutirão.  
+Vercel  (Frontend)  Free R$  0,00  
+SPA  estática  —  React/Vite  gera  arquivos  estáticos.  Sem  serverless  functions  no  Vercel.  O  Free  aguenta  70+  usuários  simultâneos.  
+OpenAI  GPT-4o-mini  (OCR)  
+Pay-as-you-go  ~R$15–25  total  
+OCR  multimodal  de  documentos.  SLA  robusto  vs  instabilidade  do  Gemini  em  cargas  comerciais.  
+Groq  Llama  3.3  70B  (Fatos)  
+Free R$  0,00  
+14.400  req/dia  —  confortável  para  300  casos/dia.  Validado  no  Def  Sul  ($0,21  para  17  casos).  
+ 
+i 
+NOTA:   Custo  total  estimado  para  o  mês  do  mutirão:  ~R$350–400.  Após  o  mutirão,  Railway  pode  ser  suspenso  e  Vercel  permanece  gratuito  —  custo  cai  para  praticamente  zero.   
+Documento  Interno  —  Confidencial  ·  Não  Distribuir 
+MÃES  EM  AÇÃO   ·   DPE-BADocumento  de  Estratégia   v2.0 
+05   INTELIGÊNCIA  ARTIFICIAL 
+Pipeline  de  IA 
+Arquitetura  dual  herdada  do  Def  Sul  e  validada  em  produção.  Dois  provedores  com  responsabilidades  
+separadas:
+  
+Tarefa Def  Sul Mães  em  Ação Motivo  da  Decisão 
+OCR  /  Leitura  de  documentos  
+Google  Gemini  (gratuito)  
+GPT-4o-mini  
+SLA  mais  robusto  para  o  volume  do  mutirão.  Gemini  tem  instabilidade  em  cargas  comerciais.  
+Redação  jurídica  (DOS  FATOS)  
+Groq  Llama  3.3  70B  
+Groq  Llama  3.3  70B  (manter)  
+Validado  em  produção.  Custo  ~zero.  Rate  limit  confortável.  Troca  só  após  comparação  de  qualidade  real.  
+Geração  do  .docx  docxtemplater  +  pizzip  
+docxtemplater  +  pizzip  (manter)  
+Sem  necessidade  de  alteração.  
+ 
+5.1  Fluxo  Assíncrono  (Obrigatório  via  QStash) 
+✖ 
+CRÍTICO:   NUNCA  chamar  GPT-4o-mini  ou  Groq  de  forma  síncrona  em  uma  request  HTTP.  O  Railway  tem  timeout  de  30s.  Todo  processamento  de  IA  ocorre  via  QStash  em  background.  
+ 24.  Scanner  finaliza  upload  →  backend  salva  no  Storage  →  status:  documentacao_completa.  25.  Backend  publica  job  no  QStash  com  {  caso_id,  tipo_acao  }  →  retorna  200  imediatamente.  26.  QStash  chama  POST  /api/jobs  (retry  automático  em  falha  —  3  tentativas,  backoff  30s).  27.  Backend:  busca  arquivos  →  GPT-4o-mini  (OCR  +  extração  de  dados)  →  Groq  (DOS  FATOS)  →  merge  
+no
+ 
+template
+ 
+.docx
+ 
+→
+ 
+salva
+ 
+no
+ 
+Storage
+ 
+→
+ 
+status:
+ 
+pronto_para_analise.
+  
+Documento  Interno  —  Confidencial  ·  Não  Distribuir 
+MÃES  EM  AÇÃO   ·   DPE-BADocumento  de  Estratégia   v2.0 
+06   BANCO  DE  DADOS 
+Modelagem  —  Schema  Normalizado 
+A  tabela  casos  do  Def  Sul  tinha  40+  colunas  misturando  responsabilidades.  O  Mães  em  Ação  adota  schema  
+normalizado
+ 
+em
+ 
+5
+ 
+tabelas
+ 
+principais,
+ 
+com
+ 
+casos
+ 
+como
+ 
+núcleo
+ 
+e
+ 
+tabelas
+ 
+filhas
+ 
+por
+ 
+domínio.
+ 
+ 
+6.1  Estrutura  das  Tabelas  
+Tabela Responsabilidade Colunas  Principais 
+unidades  Sedes  da  DPE-BA  
+id,  nome,  comarca,  sistema  (solar/sigad),  ativo  
+defensores  
+Usuários  do  sistema  (todos  os  perfis)  
+id,  nome,  email,  senha_hash,  cargo,  unidade_id,  ativo  
+casos  
+Núcleo:  status,  locking,  protocolo,  vínculos  
+id,  protocolo,  unidade_id,  tipo_acao,  status,  servidor_id,  servidor_at,  defensor_id,  defensor_at,  numero_processo,  url_capa,  retry_count,  erro_processamento  
+casos_partes  
+Qualificação  completa  de  assistida  e  requerido  
+caso_id  (1:1),  nome/cpf/rg/endereço  da  assistida,  dados  do  requerido,  exequentes  (jsonb  array)  
+casos_juridico  Dados  específicos  da  ação  
+caso_id  (1:1),  vara,  numero_processo_titulo,  obrigacao_alimentar,  debito_valor,  conta_bancaria,  empregador  (jsonb)  
+casos_ia  Tudo  que  a  IA  gera  
+caso_id  (1:1),  relato_texto,  dos_fatos_gerado,  peticao_completa_texto,  url_peticao,  versao_peticao  
+documentos  Arquivos  por  caso  
+caso_id  (N:1),  storage_path,  tipo,  tamanho_bytes  
+logs_auditoria  Rastreabilidade  de  ações  
+usuario_id,  caso_id,  acao,  detalhes  (jsonb)  —  sem  dados  pessoais  
+ 
+6.2  Locking  —  Dois  Níveis  de  Atribuição O  sistema  implementa  dois  níveis  independentes  de  locking,  refletindo  os  dois  perfis  que  atuam  
+sequencialmente
+ 
+sobre
+ 
+o
+ 
+caso:
+  
+Nível Campo Quem  usa Quando  libera 
+Nível  1  —  Atendimento  jurídico  
+servidor_id  +  servidor_at  Servidor  jurídico  
+Ao  alterar  status  para  liberado_para_protocolo  ou  após  30min  de  inatividade  
+Nível  2  —  Protocolo  
+defensor_id  +  defensor_at  
+Defensor  
+Ao  salvar  status  protocolado  +  número  do  processo  ou  após  30min  de  inatividade  
+Documento  Interno  —  Confidencial  ·  Não  Distribuir 
+MÃES  EM  AÇÃO   ·   DPE-BADocumento  de  Estratégia   v2.0 
+ 
+6.3  Índices  Obrigatórios  
+Índice Tabela.Coluna Justificativa 
+idx_casos_cpf  casos_partes.cpf_assistido  
+Query  mais  frequente  —  busca  na  triagem  e  scanner  
+idx_casos_protocolo  casos.protocolo  Busca  por  protocolo  no  scanner  
+idx_casos_status  casos.status  Filtro  do  painel  —  colunas  por  status  
+idx_casos_unidade  casos.unidade_id  Filtro  por  sede  —  essencial  para  52  sedes  
+idx_casos_tipo  casos.tipo_acao  Filtro  por  tipo  de  ação  no  painel  admin  
+idx_casos_servidor  casos.(servidor_id,  status)  Composto  —  painel  do  servidor  jurídico  
+idx_casos_defensor  casos.(defensor_id,  status)  Composto  —  painel  do  defensor  
+idx_docs_caso  documentos.caso_id  Busca  de  arquivos  de  um  caso   
+Documento  Interno  —  Confidencial  ·  Não  Distribuir 
+MÃES  EM  AÇÃO   ·   DPE-BADocumento  de  Estratégia   v2.0 
+07   SEGURANÇA  &  LGPD 
+Controle  de  Acesso  e  Proteção  de  Dados 
+ 
+Perfil Acesso Escopo 
+Atendente  /  Scanner  
+API  Key  no  header  X-API-Key  (64  chars  aleatórios)  
+Criar  casos,  upload  de  documentos,  busca  por  CPF/protocolo  
+Servidor  jurídico  
+JWT  com  e-mail  institucional  —  cargo:  servidor  
+Painel  de  atendimento  —  filtrado  pela  sua  unidade  
+Defensor  
+JWT  com  e-mail  institucional  —  cargo:  defensor  
+Painel  de  protocolo  +  painel  de  atendimento  
+Admin  JWT  com  cargo:  admin  
+Painel  completo  +  reprocessamento  +  gestão  de  usuários  
+ 
+7.1  Regras  LGPD  Inegociáveis –  Storage:  apenas  signed  URLs  com  expiração  de  1  hora  —  zero  URLs  públicas  permanentes.  –  Logs:  nunca  registrar  CPF,  nome  ou  dados  pessoais  —  apenas  caso_id,  ação  e  timestamps.  –  Região:  dados  exclusivamente  em  sa-east-1  (Brasil)  —  projeto  Supabase  isolado  do  Def  Sul.  –  Retenção:  definir  política  com  a  DPE-BA  antes  de  qualquer  exclusão  pós-mutirão.  –  Autos  apartados:  acesso  restrito  ao  defensor  responsável  +  admin  —  campo  sistema  na  tabela  
+unidades
+ 
+permite
+ 
+controle
+ 
+futuro
+ 
+por
+ 
+tipo
+ 
+de
+ 
+sistema
+ 
+judicial.
+  
+Documento  Interno  —  Confidencial  ·  Não  Distribuir 
+MÃES  EM  AÇÃO   ·   DPE-BADocumento  de  Estratégia   v2.0 
+08   EXTENSÃO  SOLAR  /  SIGAD 
+Integração  com  Sistemas  Judiciais 
+A  extensão  de  navegador  em  desenvolvimento  permitirá  importar  cadastro  e  documentos  diretamente  no  
+SOLAR
+ 
+(demais
+ 
+sedes)
+ 
+e
+ 
+SIGAD
+ 
+(Salvador)
+ 
+a
+ 
+partir
+ 
+dos
+ 
+dados
+ 
+já
+ 
+preenchidos
+ 
+no
+ 
+Mães
+ 
+em
+ 
+Ação,
+ 
+eliminando
+ 
+o
+ 
+trabalho
+ 
+duplicado
+ 
+de
+ 
+redigitação.
+ 
+ 
+Status  e  Impacto 
+Cenário Trabalho  do  Servidor Impacto  no  Mutirão 
+COM  extensão  pronta 
+Importa  dados  e  documentos  direto  do  Mães  em  Ação  para  o  SOLAR/SIGAD  com  um  clique  
+Elimina  redigitação  —  reduz  erros  e  tempo  em  ~60%  
+SEM  extensão  (fallback) 
+Digita  dados  manualmente  no  SOLAR/SIGAD  usando  a  peça  gerada  como  referência  
+Trabalho  não  duplicado  —  a  peça  já  foi  gerada  pela  IA  com  os  dados  corretos  
+ 
+i 
+NOTA:   A  extensão  é  classificada  como  PLUS  —  o  sistema  Mães  em  Ação  funciona  completamente  sem  ela.  O  schema  já  inclui  o  campo  sistema  na  tabela  unidades  (solar/sigad)  para  suportar  a  integração  futura  sem  necessidade  de  migração.   
+Documento  Interno  —  Confidencial  ·  Não  Distribuir 
+MÃES  EM  AÇÃO   ·   DPE-BADocumento  de  Estratégia   v2.0 
+09   CRONOGRAMA 
+Plano  de  Desenvolvimento  (12–15  dias) 
+ 
+Período Entregáveis Dependências 
+Dias  1–2  
+Infraestrutura:  Railway  +  Supabase  Pro  configurados,  schema  do  banco  rodado,  variáveis  de  ambiente  no  Railway  
+—  
+Dias  3–5  
+Backend:  rotas  de  triagem,  busca  por  CPF,  upload  Dropzone,  lógica  de  status,  publicação  QStash  
+Schema  pronto  
+Dias  6–8  
+IA:  substituição  Gemini  →  GPT-4o-mini,  ajuste  de  prompts  Groq,  pipeline  assíncrono  completo  via  QStash  
+Templates  .docx  dos  modelos  recebidos  
+Dias  9–11  
+Painel  do  defensor:  dois  níveis  de  locking,  filtro  por  unidade,  regerar  com  IA,  liberação  para  protocolo  
+Backend  e  IA  prontos  
+Dias  12–13  
+Protocolo:  salvar  número  do  processo,  geração/upload  de  capa,  status  protocolado,  painel  admin  +  reprocessamento  
+Painel  do  defensor  pronto  
+Dias  14–15  
+Testes  de  carga  (k6),  ajustes  finais,  deploy  de  produção,  onboarding  dos  usuários  
+Tudo  acima  
+ 
+! 
+ATENÇÃO:   Os  modelos  de  ação  restantes  chegam  até  terça  (3–5  dias  úteis).  O  desenvolvimento  dos  templates  .docx  deve  ser  a  primeira  tarefa  após  o  recebimento  —  bloqueia  o  pipeline  de  IA  se  atrasar.   
+Documento  Interno  —  Confidencial  ·  Não  Distribuir 
+MÃES  EM  AÇÃO   ·   DPE-BADocumento  de  Estratégia   v2.0 
+10   ESTIMATIVA  DE  CUSTOS 
+Custos  do  Mutirão  (5.000  casos) 
+ 
+Item Custo Observação 
+Railway  Pro  (Backend)  ~R$110/mês  
+Mínimo  $20  —  uso  real  depende  de  compute  
+Supabase  Pro  (DB  +  Storage)  ~R$138/mês  
+Fixo  $25  —  armazenamento  extra  se  ultrapassar  8GB  
+QStash  Pay-as-you-go  (Fila)  <  R$5  total  $1/100k  msgs  —  para  5.000  casos  =  centavos  
+Vercel  (Frontend)  R$  0,00 
+Free  —  SPA  estática,  sem  serverless  functions  
+GPT-4o-mini  (OCR)  ~R$15–25  total  
+Estimado  para  5.000  documentos  processados  
+Groq  Llama  3.3  70B  (DOS  FATOS)  R$  0,00 
+Free  tier  —  14.400  req/dia,  dentro  dos  limites  
+TOTAL  ESTIMADO  ~R$270–290/mês  
+Redução  de  ~R$100  vs  estimativa  anterior  (Vercel  Free)  
+ Referência  real:  durante  os  testes  do  Def  Sul  (17  casos),  o  custo  total  de  IA  foi  de  $0,21  com  a  arquitetura  
+Gemini
+ 
++
+ 
+Groq.
+ 
+A
+ 
+migração
+ 
+do
+ 
+OCR
+ 
+para
+ 
+GPT-4o-mini
+ 
+é
+ 
+o
+ 
+único
+ 
+incremento
+ 
+de
+ 
+custo
+ 
+—
+ 
+concentrado
+ 
+nos
+ 
+primeiros
+ 
+dias
+ 
+do
+ 
+mutirão.  
+Documento  Interno  —  Confidencial  ·  Não  Distribuir 
+MÃES  EM  AÇÃO   ·   DPE-BADocumento  de  Estratégia   v2.0 
+11   MÉTRICAS  &  RELATÓRIO 
+Gestão  de  Dados  e  Relatório  Oficial 
+O  sistema  produz  dados  estruturados  para  o  relatório  oficial  de  impacto  da  DPE-BA.  As  queries  abaixo  rodam  
+diretamente
+ 
+no
+ 
+Supabase
+ 
+após
+ 
+o
+ 
+mutirão:
+ 
+ 
+Métrica Query  SQL Uso  no  Relatório 
+Total  de  casos  SELECT  COUNT(*)  FROM  casos  Volume  total  do  mutirão  
+Casos  por  sede  
+SELECT  u.nome,  COUNT(*)  FROM  casos  c  JOIN  unidades  u  ON  c.unidade_id  =  u.id  GROUP  BY  u.nome  ORDER  BY  2  DESC  
+Ranking  de  produtividade  por  sede  
+Casos  por  tipo  de  ação  
+SELECT  tipo_acao,  COUNT(*)  FROM  casos  GROUP  BY  tipo_acao  
+Distribuição  das  demandas  
+Status  final  
+SELECT  status,  COUNT(*)  FROM  casos  GROUP  BY  status  
+Taxa  de  conclusão  
+Tempo  médio  de  IA  
+AVG(EXTRACT(EPOCH  FROM  (processed_at  -  updated_at)))  
+Eficiência  do  pipeline  
+Casos  reprocessados  
+SELECT  COUNT(*)  FROM  casos  WHERE  retry_count  >  1  
+Estabilidade  do  sistema  
+Protocolados  por  defensor  
+SELECT  d.nome,  COUNT(*)  FROM  casos  c  JOIN  defensores  d  ON  c.defensor_id  =  d.id  WHERE  c.status  =  'protocolado'  GROUP  BY  d.nome  
+Produtividade  individual  
+ 
+✓ 
+DECISÃO:   Este  sistema,  documentado  e  evoluído  após  o  mutirão,  torna-se  o  template  para  todas  as  edições  futuras  do  Mães  em  Ação  e  potencialmente  para  outros  mutirões  da  DPE-BA.  O  investimento  técnico  desta  edição  tem  retorno  multiplicado.   
+Documento  Interno  —  Confidencial  ·  Não  Distribuir 

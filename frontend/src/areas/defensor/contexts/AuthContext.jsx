@@ -1,137 +1,120 @@
 import React, { createContext, useState, useContext, useEffect, useRef, useCallback } from "react";
-import { API_BASE } from "../../../utils/apiBase";
+import { API_BASE, authFetch } from "../../../utils/apiBase";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem("defensorToken"));
+  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notificacoes, setNotificacoes] = useState([]);
   const intervalRef = useRef(null);
 
-  // Busca notificações — definida com useCallback para ser referência estável
+  // Busca notificações
   const fetchNotificacoes = useCallback(async (currentToken) => {
     if (!currentToken) return;
     try {
-      const response = await fetch(`${API_BASE}/casos/notificacoes`, {
-        headers: { Authorization: `Bearer ${currentToken}` },
-      });
-      if (response.status === 401) {
-        logout();
-        return;
-      }
+      const response = await authFetch("/casos/notificacoes");
+      // Resposta 401 já é gerada dentro do authFetch disparando o logout
       if (response.ok) {
         const data = await response.json();
         setNotificacoes(data);
       }
     } catch (error) {
-      console.error("Erro ao buscar notificações", error);
+      if (error.message !== "Sessão expirada") {
+        console.error("Erro ao buscar notificações", error);
+      }
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Inicia ou para o polling conforme disponibilidade do token
+  // Inicializa estado do Auth a partir do LocalStorage
+  useEffect(() => {
+    const storedToken = localStorage.getItem("defensorToken");
+    const storedUser = localStorage.getItem("defensorUser");
+
+    if (storedToken && storedUser) {
+      setToken(storedToken);
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error("Erro ao parsear usuário logado", e);
+      }
+    }
+    setLoading(false);
+  }, []);
+
+  // Escuta evento global de sessão expirada
+  useEffect(() => {
+    const handleExpired = () => {
+      console.warn("🔐 Sessão expirada detectada pelo context. Deslogando...");
+      logout();
+    };
+
+    window.addEventListener("auth:session-expired", handleExpired);
+    return () => {
+      window.removeEventListener("auth:session-expired", handleExpired);
+    };
+  }, []);
+
+  // Polling de Notificações
   useEffect(() => {
     if (token) {
       fetchNotificacoes(token);
-      intervalRef.current = setInterval(() => fetchNotificacoes(token), 30000);
+      intervalRef.current = setInterval(() => fetchNotificacoes(token), 300000); // Pausado (5 min) para debug
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [token, fetchNotificacoes]);
 
-  useEffect(() => {
-    const initAuth = async () => {
-      const storedUser = localStorage.getItem("defensorUser");
-      const storedToken = localStorage.getItem("defensorToken");
-
-      if (storedToken && storedUser) {
-        try {
-          // PROTEÇÃO: Verifica se não é "undefined" texto
-          if (storedUser !== "undefined" && storedUser !== "null") {
-            const parsedUser = JSON.parse(storedUser);
-            setUser(parsedUser);
-          } else {
-            // Se tiver lixo, limpa
-            localStorage.removeItem("defensorUser");
-            localStorage.removeItem("defensorToken");
-          }
-        } catch (e) {
-          console.error("Erro crítico ao ler usuário:", e);
-          // Se der erro no JSON, limpa tudo para não travar o app
-          localStorage.removeItem("defensorUser");
-          localStorage.removeItem("defensorToken");
-          setUser(null);
-        }
-      }
-      setLoading(false);
-    };
-
-    initAuth();
-
-    const handleSessionExpired = () => {
-      console.warn("Sessão expirada. Fazendo logout...");
-      logout();
-    };
-
-    window.addEventListener("auth:session-expired", handleSessionExpired);
-
-    return () => {
-      window.removeEventListener("auth:session-expired", handleSessionExpired);
-    };
-  }, []);
-
-  const login = async (email, senha) => {
+  const login = async (email, password) => {
     try {
       const response = await fetch(`${API_BASE}/defensores/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, senha }),
+        body: JSON.stringify({ email, senha: password }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Erro no login");
+        throw new Error(errorData.error || "Falha na autenticação.");
       }
 
-      const data = await response.json();
-      const userObj = data.defensor;
+      const { token: receivedToken, defensor } = await response.json();
 
-      localStorage.setItem("defensorToken", data.token);
-      localStorage.setItem("defensorUser", JSON.stringify(userObj));
-
-      setToken(data.token);
-      setUser(userObj);
+      setToken(receivedToken);
+      setUser(defensor);
+      
+      localStorage.setItem("defensorToken", receivedToken);
+      localStorage.setItem("defensorUser", JSON.stringify(defensor));
 
       return true;
     } catch (error) {
-      console.error(error);
+      console.error("Erro no login:", error);
       throw error;
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem("defensorToken");
-    localStorage.removeItem("defensorUser");
+  const logout = async () => {
     setToken(null);
     setUser(null);
-    setNotificacoes([]);
-    // Redirecionamento seguro
+    localStorage.removeItem("defensorToken");
+    localStorage.removeItem("defensorUser");
     window.location.href = "/painel/login";
   };
 
   const marcarNotificacaoLida = async (id) => {
     try {
-      await fetch(`${API_BASE}/casos/notificacoes/${id}/lida`, {
+      await authFetch(`/casos/notificacoes/${id}/lida`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
       });
       setNotificacoes((prev) =>
         prev.map((n) => (n.id === id ? { ...n, lida: true } : n)),
       );
     } catch (error) {
-      console.error("Erro ao marcar como lida", error);
+      if (error.message !== "Sessão expirada") {
+        console.error("Erro ao marcar como lida", error);
+      }
     }
   };
 
@@ -139,6 +122,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider
       value={{
         user,
+        setUser,
         token,
         login,
         logout,
@@ -153,4 +137,3 @@ export const AuthProvider = ({ children }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
-

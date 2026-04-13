@@ -61,8 +61,7 @@ export const processSubmission = async ({
 
   // ... (rest of mandatory validations) ...
   if (configAcao?.secoes?.includes("processo_original")) {
-    const isExecution = formState.acaoEspecifica?.toLowerCase().includes("execução") || configAcao?.titulo?.toLowerCase().includes("execução");
-    if (isExecution) {
+    if (configAcao?.exigeDadosProcessoOriginal) {
       if (!formState.data_inicio_debito) validationErrors.data_inicio_debito = "O mês inicial do débito é obrigatório.";
       if (!formState.data_fim_debito) validationErrors.data_fim_debito = "O mês final do débito é obrigatório.";
     }
@@ -177,9 +176,9 @@ export const processSubmission = async ({
   if (formState.data_inicio_debito && formState.data_fim_debito) {
     const inicio = formatMonthYear(formState.data_inicio_debito);
     const fim = formatMonthYear(formState.data_fim_debito);
-    formData.append("periodo_meses_ano", `${inicio} a ${fim}`);
+    formData.append("periodo_debito_execucao", `${inicio} a ${fim}`);
   } else if (formState.data_inicio_debito) {
-    formData.append("periodo_meses_ano", `Desde ${formatMonthYear(formState.data_inicio_debito)}`);
+    formData.append("periodo_debito_execucao", `Desde ${formatMonthYear(formState.data_inicio_debito)}`);
   }
 
   // 1. Preenche o FormData

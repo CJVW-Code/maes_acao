@@ -121,6 +121,7 @@ CREATE TABLE unidades (
 -- Usuários do sistema (todos os perfis)
 CREATE TABLE defensores (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  supabase_uid text UNIQUE,
   nome        text NOT NULL,
   email       text NOT NULL UNIQUE,
   senha_hash  text NOT NULL,
@@ -158,6 +159,8 @@ CREATE TABLE casos (
   -- Resultado do protocolo
   numero_processo       text,
   url_capa              text,
+  url_capa_processual   text,
+  chave_acesso_hash     text,
   -- path no Storage — nunca URL pública
   protocolado_at        timestamptz,
 
@@ -171,6 +174,15 @@ CREATE TABLE casos (
   -- Controle
   arquivado             boolean NOT NULL DEFAULT false,
   motivo_arquivamento   text,
+
+  -- Agendamento e Pendências
+  agendamento_data            timestamptz,
+  agendamento_link            text,
+  agendamento_status          text,
+  motivo_reagendamento        text,
+  data_sugerida_reagendamento text,
+  feedback                    text,
+  descricao_pendencia         text,
 
   -- Rastreabilidade de criação
   criado_por            uuid REFERENCES defensores(id),
@@ -299,9 +311,13 @@ CREATE TABLE casos_ia (
   dos_fatos_gerado        text,
   -- seção "DOS FATOS" gerada pela IA
 
+  resumo_ia               text,
+  peticao_inicial_rascunho text,
   -- Petição final
   peticao_completa_texto  text,
   url_peticao             text,
+  url_peticao_penhora     text,
+  url_peticao_prisao      text,
   -- path no Storage — nunca URL pública
 
   -- Controle de versão (a cada "Regerar com IA")
@@ -328,6 +344,32 @@ CREATE TABLE documentos (
   created_at      timestamptz NOT NULL DEFAULT now()
 );
 
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 5.1. COLABORAÇÃO E NOTIFICAÇÕES
+-- ───────────────────────────────────────────────────────────────────────────
+
+CREATE TYPE status_assistencia AS ENUM ('pendente', 'aceito', 'recusado');
+
+CREATE TABLE assistencia_casos (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  caso_id         bigint NOT NULL REFERENCES casos(id) ON DELETE CASCADE,
+  remetente_id    uuid NOT NULL REFERENCES defensores(id),
+  destinatario_id uuid NOT NULL REFERENCES defensores(id),
+  status          status_assistencia NOT NULL DEFAULT 'pendente',
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE notificacoes (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  usuario_id  uuid NOT NULL REFERENCES defensores(id) ON DELETE CASCADE,
+  titulo      text,
+  mensagem    text NOT NULL,
+  lida        boolean NOT NULL DEFAULT false,
+  tipo        text,
+  link        text,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
 
 -- ───────────────────────────────────────────────────────────────────────────
 -- 6. LOGS — DOIS NÍVEIS

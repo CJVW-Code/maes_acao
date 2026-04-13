@@ -167,7 +167,6 @@ export const Cadastro = () => {
               >
                 <option value="estagiario">Estagiário</option>
                 <option value="defensor">Defensor</option>
-                <option value="recepcao">Recepção</option>
                 <option value="admin">Administrador</option>
                 <option value="visualizador">Visualizador</option>
               </select>

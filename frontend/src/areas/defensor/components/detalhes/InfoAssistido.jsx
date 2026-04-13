@@ -106,17 +106,17 @@ export const InfoAssistido = ({ caso }) => {
                   : "Dados do Autor da Ação"}
               </h3>
               <div className="grid gap-4 md:grid-cols-2">
-                {renderDataField("Nome completo", isRepresentacao ? dados.NOME : dados.REPRESENTANTE_NOME)}
-                {renderDataField("CPF", isRepresentacao ? (dados.cpf_assistido || "Não informado") : dados.representante_cpf)}
-                {renderDataField("Data de nascimento", formatDateDisplay(isRepresentacao ? dados.nascimento : dados.representante_data_nascimento))}
-                {renderDataField("Nacionalidade", isRepresentacao ? "Brasileira" : dados.representante_nacionalidade)}
-                {!isRepresentacao && renderDataField("Estado civil", dados.representante_estado_civil)}
-                {!isRepresentacao && renderDataField("Profissão", dados.representante_ocupacao)}
-                {renderDataField("Endereço residencial", dados.requerente_endereco_residencial)}
-                {!isRepresentacao && renderDataField("Endereço profissional", dados.representante_endereco_profissional)}
-                {renderDataField("E-mail", dados.requerente_email)}
-                {renderDataField("Telefone", dados.requerente_telefone)}
-                {renderDataField("RG", isRepresentacao ? "Não coletado" : `${dados.representante_rg || ""} ${dados.emissor_rg_exequente || ""}`.trim())}
+                {renderDataField("Nome completo", isRepresentacao ? pickFirst(dados.NOME, dados.nome) : pickFirst(dados.REPRESENTANTE_NOME, dados.requerente_nome))}
+                {renderDataField("CPF", isRepresentacao ? pickFirst(dados.cpf_assistido, dados.cpf) : pickFirst(dados.representante_cpf, dados.requerente_cpf))}
+                {renderDataField("Data de nascimento", formatDateDisplay(isRepresentacao ? pickFirst(dados.nascimento, dados.assistido_data_nascimento) : pickFirst(dados.representante_data_nascimento, dados.data_nascimento_assistido)))}
+                {renderDataField("Nacionalidade", isRepresentacao ? "Brasileira" : pickFirst(dados.representante_nacionalidade, dados.assistido_nacionalidade))}
+                {!isRepresentacao && renderDataField("Estado civil", pickFirst(dados.representante_estado_civil, dados.assistido_estado_civil))}
+                {!isRepresentacao && renderDataField("Profissão", pickFirst(dados.representante_ocupacao, dados.assistido_ocupacao))}
+                {renderDataField("Endereço residencial", pickFirst(dados.requerente_endereco_residencial, dados.endereco_assistido))}
+                {!isRepresentacao && renderDataField("Endereço profissional", pickFirst(dados.representante_endereco_profissional, dados.requerido_endereco_profissional))}
+                {renderDataField("E-mail", pickFirst(dados.requerente_email, dados.email_assistido))}
+                {renderDataField("Telefone", pickFirst(dados.requerente_telefone, dados.telefone_assistido))}
+                {renderDataField("RG", isRepresentacao ? "Não coletado" : `${pickFirst(dados.representante_rg, dados.assistido_rg_numero) || ""} ${pickFirst(dados.emissor_rg_exequente, dados.assistido_rg_orgao) || ""}`.trim())}
               </div>
             </div>
 
@@ -163,17 +163,17 @@ export const InfoAssistido = ({ caso }) => {
             <div className="space-y-4 pt-4 border-t border-soft">
               <h3 className="heading-3 text-primary">Dados da Parte Contrária (Requerido)</h3>
               <div className="grid gap-4 md:grid-cols-2">
-                {renderDataField("Nome completo", dados.REQUERIDO_NOME)}
-                {renderDataField("CPF", dados.executado_cpf)}
-                {renderDataField("Endereço conhecido", dados.executado_endereco_residencial)}
-                {renderDataField("Telefone", dados.executado_telefone)}
-                {renderDataField("E-mail", dados.executado_email)}
-                {renderDataField("Profissão", dados.executado_ocupacao)}
-                {renderDataField("Endereço de trabalho", dados.executado_endereco_profissional)}
-                {renderDataField("RG", `${dados.rg_executado || ""} ${dados.emissor_rg_executado || ""}`.trim())}
-                {renderDataField("Mãe do requerido", dados.nome_mae_executado)}
-                {renderDataField("Pai do requerido", dados.nome_pai_executado)}
-                {renderDataField("Dados adicionais", dados.dados_adicionais_requerido)}
+                {renderDataField("Nome completo", pickFirst(dados.REQUERIDO_NOME, dados.nome_requerido))}
+                {renderDataField("CPF", pickFirst(dados.executado_cpf, dados.cpf_requerido))}
+                {renderDataField("Endereço conhecido", pickFirst(dados.executado_endereco_residencial, dados.endereco_requerido))}
+                {renderDataField("Telefone", pickFirst(dados.executado_telefone, dados.telefone_requerido))}
+                {renderDataField("E-mail", pickFirst(dados.executado_email, dados.email_requerido))}
+                {renderDataField("Profissão", pickFirst(dados.executado_ocupacao, dados.profissao_requerido))}
+                {renderDataField("Endereço de trabalho", pickFirst(dados.executado_endereco_profissional, dados.requerido_endereco_profissional))}
+                {renderDataField("RG", `${pickFirst(dados.rg_executado, dados.requerido_rg_numero) || ""} ${pickFirst(dados.emissor_rg_executado, dados.requerido_rg_orgao) || ""}`.trim())}
+                {renderDataField("Mãe do requerido", pickFirst(dados.nome_mae_executado, dados.requerido_nome_mae))}
+                {renderDataField("Pai do requerido", pickFirst(dados.nome_pai_executado, dados.requerido_nome_pai))}
+                {renderDataField("Dados adicionais", pickFirst(dados.dados_adicionais_requerido, dados.dados_adicionais_requerido))}
               </div>
             </div>
 

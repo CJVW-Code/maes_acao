@@ -22,12 +22,10 @@ export const Sidebar = ({ isExpanded, setIsExpanded }) => {
 
   const userCargo = user?.cargo || "estagiario";
   const isAdmin = userCargo === "admin";
-  const isRecepcao = userCargo === "recepcao";
   const isJuridico = ["admin", "defensor", "estagiario", "visualizador"].includes(userCargo);
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/painel", show: isJuridico },
-    { icon: Search, label: "Recepção", path: "/painel/recepcao", show: isRecepcao || isAdmin },
     { icon: FolderKanban, label: "Casos e Triagem", path: "/painel/casos", show: isJuridico },
     { icon: Archive, label: "Arquivo Morto", path: "/painel/casos/arquivados", show: isJuridico },
     { icon: UserPlus, label: "Gerenciar Equipe", path: "/painel/equipe", show: isAdmin },

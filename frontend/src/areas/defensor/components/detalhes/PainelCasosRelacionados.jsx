@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Loader2, ArrowRight } from "lucide-react";
-import { API_BASE } from "../../../../utils/apiBase";
+import { authFetch } from "../../../../utils/apiBase";
 
 const statusBadges = {
   aguardando_documentos: "bg-amber-100 text-amber-800 border-amber-200",
@@ -36,10 +36,7 @@ export const PainelCasosRelacionados = ({ casoOriginal }) => {
 
       try {
         const cleanCpf = cpfBusca.replace(/\D/g, "");
-        const res = await fetch(`${API_BASE}/casos`); 
-        // A API já converte a lista para o defender sem auth? wait, we can just use the /status/cpf API which is mixed.
-        // Wait, since this is defender view, we should use the same token... no, /status/cpf/:cpf is public. Let's use it.
-        const response = await fetch(`${API_BASE}/status/cpf/${cleanCpf}`);
+        const response = await authFetch(`/casos?cpf=${cleanCpf}`);
         
         if (!response.ok) {
            if (response.status === 404) {

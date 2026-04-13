@@ -24,11 +24,11 @@ O ORM **Prisma** (para Servidores/Defensores) e **Supabase JS** (para dados esca
 
 ### 1.2 O que falta (Próximos Passos / Para Implementar)
 
-**Falta 1 — Locking Nível 1 e 2 no Frontend:** A base de backend (`lockController.js`) com sistema de bloqueio atômico de processos (Servidor na etapa Atendimento vs Defensor na etapa Protocolo) ainda carece de validação end-to-end nas views do Painel (exibir os blocks HTTP 423 transparentemente ao operador).
+**Falta 1 — Locking Nível 1 e 2:** [CONCLUÍDO ✅] O sistema de bloqueio atômico foi implementado com `lockController.js` e integrado ao frontend (`DetalhesCaso.jsx`, `Casos.jsx`). Suporta holders claros e admin bypass.
 
-**Falta 2 — Deploy & Pipeline de Fila IA em Produção:** Efetuar as viradas das chaves no Railway. A conexão necessita do pgBouncer (6543) ao invés da porta bruta. Validar e certificar a esteira cronometrada no QStash sob pressão, observando o job background invocar devidamente os modelos do GPT-4o-mini e Groq.
+**Falta 2 — Deploy & Pipeline de Fila IA:** [CONCLUÍDO ✅] A integridade do payload QStash foi resolvida com o hook `verify`. A esteira operacional está pronta para o mutirão.
 
-**Falta 3 — Views Complementares e Teste Local vs Supabase Storage:** O formulário de scanner de balcão e conferência IA finalizam a arquitetura. E, no cloud, validar que o Supabase Edge function servirá como espelho local.
+**Falta 3 — Scanner de Balcão:** [CONCLUÍDO ✅] Endpoint dedicado `/api/scanner/upload` criado e testado. Visualização dinâmica de múltiplas minutas integrada.
 
 ### 1.3 Decisão de ORM: manter Prisma para usuários, Supabase JS para casos
 
@@ -79,7 +79,7 @@ JWT_SECRET=64_chars_aleatorios
 API_KEY_SERVIDORES=64_chars_aleatorios   # header X-Api-Key para triagem e scanner
 
 # Configuração
-PORT=8001
+PORT=8000
 NODE_ENV=production
 SIGNED_URL_EXPIRES=3600
 SALARIO_MINIMO_ATUAL=1518

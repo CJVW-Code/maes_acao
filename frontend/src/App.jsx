@@ -14,7 +14,7 @@ import { ConfirmModal } from "./components/ui/ConfirmModal";
 import { LayoutCidadao } from "./areas/servidor/pages/LayoutCidadao";
 import { HomeCidadao } from "./areas/servidor/pages/BuscaCentral";
 import { FormularioSubmissao } from "./areas/servidor/pages/TriagemCaso";
-import { ConsultaStatus } from "./areas/servidor/pages/EnvioDoc";
+import { ScannerBalcao } from "./areas/servidor/pages/ScannerBalcao";
 
 import { Layout } from "./areas/defensor/components/layout/Layout";
 import { Login } from "./areas/defensor/pages/Login";
@@ -23,7 +23,7 @@ import { Dashboard } from "./areas/defensor/pages/Dashboard";
 import { Casos } from "./areas/defensor/pages/Casos";
 import { DetalhesCaso } from "./areas/defensor/pages/DetalhesCaso";
 import { CasosArquivados } from "./areas/defensor/pages/CasosArquivados";
-import { PainelRecepcao } from "./areas/defensor/pages/PainelRecepcao";
+
 import { GerenciarEquipe } from "./areas/defensor/pages/GerenciarEquipe";
 import { NotFound } from "./pages/NotFound";
 
@@ -60,30 +60,12 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
-// 3. Protege rotas da RECEPÇÃO (Admin também acessa) 🔍
-const RecepcaoRoute = ({ children }) => {
-  const { user, loading } = useAuth();
 
-  if (loading) return null;
-
-  // Se não for recepção nem admin, bloqueia
-  if (user?.cargo !== "recepcao" && user?.cargo !== "admin") {
-    return <Navigate to="/painel" />;
-  }
-
-  return children;
-};
-
-// 4. Protege rotas de DEFENSOR/ESTAGIÁRIO (Bloqueia Recepção) 🚫
+// 4. Protege rotas de DEFENSOR/ESTAGIÁRIO
 const DefensorRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
   if (loading) return null;
-
-  // Se for recepção, redireciona para o painel específico deles
-  if (user?.cargo === "recepcao") {
-    return <Navigate to="/painel/recepcao" />;
-  }
 
   return children;
 };
@@ -104,8 +86,8 @@ function App() {
                 <Route index element={<HomeCidadao />} />
                 {/* A rota /novo-pedido carrega o formulário gigante limpo */}
                 <Route path="novo-pedido" element={<FormularioSubmissao />} />
-                {/* A rota /consultar carrega a tela de colocar a chave */}
-                <Route path="consultar" element={<ConsultaStatus />} />
+            {/* Rota do Scanner da Recepção (Terminal Sem Login) */}
+            <Route path="scanner/:protocolo" element={<ScannerBalcao />} />
               </Route>
 
               {/* ROTA DE LOGIN DO DEFENSOR (Pública) */}
@@ -157,15 +139,7 @@ function App() {
                   }
                 />
 
-                {/* Rota Protegida da Recepção */}
-                <Route
-                  path="recepcao"
-                  element={
-                    <RecepcaoRoute>
-                      <PainelRecepcao />
-                    </RecepcaoRoute>
-                  }
-                />
+
 
                 {/* Rota de Gestão de Equipe (Admin) */}
                 <Route

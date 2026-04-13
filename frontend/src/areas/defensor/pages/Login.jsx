@@ -45,11 +45,8 @@ export const Login = () => {
             <Shield className="w-10 h-10" />
             <h1 className="heading-1  ">Painel do Defensor</h1>
             <p className="">
-              Acesse o painel exclusivo para acompanhar casos submetidos via
-              Assistente Def Sul, solicitar documentos e gerar minutas com o
-              mesmo visual do nosso novo portal.
+              Acesse o painel do Defensor para gerenciar suas atividades
             </p>
-            <p className="text-sm">Suporte: suporte@defsul.app</p>
           </div>
         </div>
 
