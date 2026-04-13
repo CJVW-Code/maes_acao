@@ -25,26 +25,54 @@ const PORT = process.env.PORT || 8000;
 // 1. LOG DE DIAGNÓSTICO (O MAIS ALTO POSSÍVEL)
 app.use((req, res, next) => {
   if (process.env.NODE_ENV !== "test") {
-    console.log(`[DEBUG] ${req.method} ${req.url} - Origin: ${req.headers.origin || 'N/A'}`);
+    console.log(
+      `[DEBUG] ${req.method} ${req.url} - Origin: ${req.headers.origin || "N/A"}`,
+    );
   }
   next();
 });
 
-// 2. CONFIGURAÇÃO DE CORS PERMISSIVA (PARA DEPURAR)
-app.use(cors({
-  origin: true, // Reflete a origem da requisição (equivale a permitir todas)
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Requested-With"]
-}));
+// 2. CONFIGURAÇÃO DE CORS DETALHADA
+const allowedOrigins = [
+  "https://maes-acao.vercel.app",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+];
 
-// Responder imediatamente a qualquer pre-flight OPTIONS em qualquer rota
-app.options("*", (req, res) => {
-  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, X-Requested-With");
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.sendStatus(204);
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Permite requisições sem origin (como mobile apps ou curl)
+    if (!origin) return callback(null, true);
+    if (
+      allowedOrigins.indexOf(origin) !== -1 ||
+      process.env.NODE_ENV !== "production"
+    ) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS Blocked]: Origin ${origin} not allowed`);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "Accept",
+    "X-Requested-With",
+  ],
+  credentials: true,
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+
+// Middleware de diagnóstico para CORS e Pre-flight
+app.use((req, res, next) => {
+  // Tratamento manual redundante para OPTIONS (garantia extra)
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
 });
 
 // Servir arquivos locais quando o Supabase não estiver disponível
@@ -82,10 +110,10 @@ app.get("/api/health", (req, res) => {
 // 4. CATCH-ALL PARA TRATAR ERROS 404 E LOGAR
 app.use((req, res) => {
   console.error(`[404 NOT FOUND] ${req.method} ${req.url}`);
-  res.status(404).json({ 
+  res.status(404).json({
     error: "Rota não encontrada no backend",
     path: req.originalUrl,
-    method: req.method
+    method: req.method,
   });
 });
 

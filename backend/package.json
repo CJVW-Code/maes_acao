@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "nodemon --legacy-watch server.js",
     "start": "node server.js",
+    "build": "prisma generate",
     "seed": "node src/scripts/seed-admin.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "prisma:generate": "prisma generate",
