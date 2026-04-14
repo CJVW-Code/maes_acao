@@ -205,14 +205,14 @@ export const HomeCidadao = () => {
                         </p>
                       </div>
                       <div className="text-right">
-                        <Link
-                          to={`/scanner/${caso.protocolo}`}
-                          className={`btn mt-2 ${caso.status === "aguardando_documentos" ? "btn-primary" : "btn-secondary"}`}
-                        >
-                          {caso.status === "aguardando_documentos"
-                            ? "Anexar Documentos"
-                            : "Abrir no Scanner"}
-                        </Link>
+                        {caso.status === "aguardando_documentos" && (
+                          <Link
+                            to={`/scanner/${caso.protocolo}`}
+                            className="btn mt-2 btn-primary"
+                          >
+                            Anexar Documentos
+                          </Link>
+                        )}
                       </div>
                     </div>
                   </motion.div>

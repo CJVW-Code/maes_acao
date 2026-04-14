@@ -10,11 +10,11 @@ Você é um assistente de desenvolvimento especializado no sistema **Mães em A�
 
 ## 1. CONTEXTO DO PROJETO
 
-O **Mães em Ação** é uma evolução do sistema **Def Sul** (Assistente Defensoria Sul Bahia), adaptado para um mutirão de escala estadual cobrindo **35 a 52 sedes da DPE-BA simultaneamente** durante **~5 dias úteis em maio de 2025**. O sistema automatiza triagem, processamento de documentos via IA e geração de petições de Direito de Família para mães solo e em situação de vulnerabilidade.
+O **Mães em Ação** é uma evolução do sistema anterior, adaptado para um mutirão de escala estadual cobrindo **35 a 52 sedes da DPE-BA simultaneamente** durante **~5 dias úteis em maio de 2025**. O sistema automatiza triagem, processamento de documentos via IA e geração de petições de Direito de Família para mães solo e em situação de vulnerabilidade.
 
-**Diferença crítica do Def Sul:** o Def Sul processou 17 casos no total desde que abriu para testes. O mutirão pode atingir esse número em menos de 15 minutos. Toda decisão arquitetural deve considerar esse contraste.
+**Diferença crítica da versão anterior:** a versão anterior processou 17 casos no total desde que abriu para testes. O mutirão pode atingir esse número em menos de 15 minutos. Toda decisão arquitetural deve considerar esse contraste.
 
-**Repositório:** clonado do Def Sul, adaptado para o novo contexto. A base de código é familiar — as mudanças são de escopo, fluxo e infraestrutura, não de stack.
+**Repositório:** clonado da base original, adaptado para o novo contexto. A base de código é familiar — as mudanças são de escopo, fluxo e infraestrutura, não de stack.
 
 ---
 
@@ -23,11 +23,11 @@ O **Mães em Ação** é uma evolução do sistema **Def Sul** (Assistente Defen
 ```
 Frontend:   React 18 + Vite → Vercel (Free — SPA estática, sem serverless)
 Backend:    Node.js + Express → Railway Pro ($20/mês)
-Banco:      Supabase Pro (PostgreSQL, sa-east-1) — projeto ISOLADO do Def Sul
+Banco:      Supabase Pro (PostgreSQL, sa-east-1) — projeto ISOLADO da versão anterior
 Storage:    Supabase Storage (S3-compatible) — apenas signed URLs, nunca públicas
 Fila:       QStash (Upstash) Pay-as-you-go — US Region
-OCR:        GPT-4o-mini (OpenAI) — substitui Gemini do Def Sul
-Redação IA: Groq Llama 3.3 70B — mantido do Def Sul (free tier, ~zero custo)
+OCR:        GPT-4o-mini (OpenAI) — substitui Gemini da versão anterior
+Redação IA: Groq Llama 3.3 70B — mantido da versão anterior (free tier, ~zero custo)
 Templates:  docxtemplater + pizzip — um .docx por tipo de ação
 Auth:       JWT gerado no próprio backend Express (não Supabase Auth)
             Secret: variável JWT_SECRET no Railway (mínimo 64 chars)
@@ -37,11 +37,11 @@ Auth:       JWT gerado no próprio backend Express (não Supabase Auth)
 **Variáveis de ambiente obrigatórias no Railway:**
 
 ```
-SUPABASE_URL                  → URL do projeto Mães em Ação (isolado do Def Sul)
+SUPABASE_URL                  → URL do projeto Mães em Ação (isolado da versão anterior)
 SUPABASE_SERVICE_KEY          → Chave service_role (Legacy) do Supabase
 DATABASE_URL                  → Porta 5432 agora (Pro → migrar para 6543/PgBouncer antes do mutirão)
 OPENAI_API_KEY                → GPT-4o-mini
-GROQ_API_KEY                  → Llama 3.3 70B (mesma do Def Sul)
+GROQ_API_KEY                  → Llama 3.3 70B (mesma da versão anterior)
 QSTASH_URL                    → Endpoint QStash para publicar mensagens
 QSTASH_TOKEN                  → Token de autenticação QStash
 QSTASH_CURRENT_SIGNING_KEY    → Validação de webhooks /api/jobs
@@ -232,7 +232,7 @@ Railway tem timeout de 30s — documentos pesados ultrapassam esse limite.
         → merge docxtemplater → salva .docx no Storage → status pronto_para_analise
 ```
 
-**Configuração Groq (manter igual ao Def Sul):**
+**Configuração Groq (manter igual à versão anterior):**
 
 ```javascript
 {

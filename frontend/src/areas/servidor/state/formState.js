@@ -9,6 +9,8 @@ export const initialState = {
   // Dados pessoais do assistido (Criança ou Autor Adulto)
   NOME: "",            // Nome do assistido principal (criança ou adulto)
   nascimento: "",      // Data nascimento assistido principal
+  cpf: "",             // CPF do assistido principal
+  nacionalidade: "Brasileira",
   
   // Dados do representante (Genitora em casos de incapaz) ou Autor Adulto (mesmo campo para template)
   REPRESENTANTE_NOME: "",
@@ -79,6 +81,7 @@ export const initialState = {
   documentFiles: [],
   documentNames: {},
   documentosMarcados: [],
+  enviarDocumentosDepois: false,
 
   // Localização e Juízo
   VARA: "",

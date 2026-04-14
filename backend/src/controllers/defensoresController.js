@@ -203,9 +203,12 @@ export const atualizarDefensor = async (req, res) => {
     }
 
     const { id } = req.params;
-    const { nome, email, cargo, ativo } = req.body;
+    const { nome, email, cargo, ativo, unidade_id } = req.body;
 
     let updateData = { nome, email, ativo };
+    if (unidade_id !== undefined) {
+      updateData.unidade_id = unidade_id || null; // null = remover unidade
+    }
 
     if (cargo) {
       const cargoDb = await prisma.cargos.findFirst({

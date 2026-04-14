@@ -18,8 +18,30 @@ export const EnderecoInput = ({
     cep: "",
   });
 
-  // If value comes from external source and is string, we just leave the individual fields empty 
-  // or try to do a best effort. For simplicity, we just rebuild the string on change.
+  // Sincroniza o estado interno com o valor vindo de fora (útil para pre-fill)
+  useEffect(() => {
+    if (value && typeof value === "string") {
+      const newAddress = { rua: "", numero: "", complemento: "", bairro: "", cidade: "", cep: "" };
+      const regexMap = {
+        rua: /Rua: ([^,]*)/,
+        numero: /Número: ([^,]*)/,
+        complemento: /Complemento: ([^,]*)/,
+        bairro: /Bairro: ([^,]*)/,
+        cidade: /Cidade: ([^,]*)/,
+        cep: /CEP: ([^,]*)/
+      };
+
+      Object.keys(regexMap).forEach(key => {
+        const match = value.match(regexMap[key]);
+        if (match) newAddress[key] = match[1].trim();
+      });
+
+      setAddress(newAddress);
+    } else if (!value) {
+      // Se o valor for limpo externamente, limpa aqui também
+      setAddress({ rua: "", numero: "", complemento: "", bairro: "", cidade: "", cep: "" });
+    }
+  }, [value]);
 
   const handleChange = (e) => {
     const { name: fieldName, value: fieldValue } = e.target;

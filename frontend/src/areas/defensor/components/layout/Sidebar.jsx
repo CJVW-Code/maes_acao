@@ -60,7 +60,7 @@ export const Sidebar = ({ isExpanded, setIsExpanded }) => {
         {/* Topo: Brasão Dinâmico */}
         <div className="p-4 flex items-center gap-3 border-b border-soft h-24 relative group shrink-0">
           <div className="min-w-8 flex justify-center shrink-0">
-             <img src="/logo.png" alt="Def Sul" className="h-8 w-auto object-contain" />
+             <img src="/logo.png" alt="Mães em Ação" className="h-8 w-auto object-contain" />
           </div>
           
           {/* Logo Title (hidden when collapsed) */}
@@ -69,7 +69,7 @@ export const Sidebar = ({ isExpanded, setIsExpanded }) => {
               isExpanded ? "opacity-100 translate-x-0 w-auto max-w-[200px]" : "opacity-0 -translate-x-4 w-0 max-w-0"
             }`}
           >
-            Def Sul
+            Mães em Ação
           </span>
         </div>
 

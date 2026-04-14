@@ -59,6 +59,7 @@ const corsOptions = {
     "Authorization",
     "Accept",
     "X-Requested-With",
+    "X-API-Key",
   ],
   credentials: true,
   optionsSuccessStatus: 204,
@@ -104,7 +105,7 @@ app.use("/api/unidades", unidadesRoutes);
 app.use("/api/scanner", scannerRoutes);
 
 app.get("/api/health", (req, res) => {
-  res.json({ status: "OK", message: "Def. Sul Bahia API is running" });
+  res.json({ status: "OK", message: "Mães em Ação API is running" });
 });
 
 // 4. CATCH-ALL PARA TRATAR ERROS 404 E LOGAR
