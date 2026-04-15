@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 // Adicione 'export' aqui
 export const generateCredentials = (casoTipo) => {
   const randomPart1 = crypto.randomBytes(3).readUIntBE(0, 3) % 100000;
