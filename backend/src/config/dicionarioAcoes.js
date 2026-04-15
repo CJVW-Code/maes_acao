@@ -12,7 +12,7 @@ REGRA CRÍTICA: NUNCA use o termo "menor" para se referir a uma criança ou adol
 REGRA DE OURO: NÃO cite números de documentos (CPF, RG) ou datas de nascimento no texto narrativo, pois estes dados já constam na qualificação das partes.
 Não use listas ou tópicos na resposta final. Escreva apenas parágrafos coesos.`,
 
-      buildUserPrompt: null, 
+      buildUserPrompt: null,
     },
   },
 
@@ -27,36 +27,42 @@ Não use listas ou tópicos na resposta final. Escreva apenas parágrafos coesos
 
   execucao_alimentos_prisao: {
     templateDocx: "executacao_alimentos_prisao.docx",
-    promptIA: null, 
+    promptIA: null,
   },
 
   execucao_alimentos_penhora: {
     templateDocx: "executacao_alimentos_penhora.docx",
-    promptIA: null, 
+    promptIA: null,
   },
 
-  divorcio: {
-    templateDocx: "fixacao_alimentos1.docx", 
-    promptIA: null, 
+  def_cumulado: {
+    templateDocx: "cumprimento_penhora.docx",
+    templateDocxPrisao: "cumprimento_prisao.docx",
+    ignorarDosFatos: true,
+    ignorarOCR: true,
+    promptIA: null,
+    gerarMultiplos: true,
   },
 
-  guarda: {
-    templateDocx: "fixacao_alimentos1.docx", 
-    promptIA: null, 
+  def_penhora: {
+    templateDocx: "cumprimento_penhora.docx",
+    promptIA: null,
   },
 
-  alvara: {
-    templateDocx: "fixacao_alimentos1.docx", 
-    promptIA: null, 
+  def_prisao: {
+    templateDocx: "cumprimento_prisao.docx",
+    promptIA: null,
   },
+
+
 
   termo_declaracao: {
     templateDocx: "termo_declaracao.docx",
-    promptIA: null, 
+    promptIA: null,
   },
 
   default: {
-    templateDocx: "fixacao_alimentos1.docx", 
+    templateDocx: "fixacao_alimentos1.docx",
     promptIA: null,
   },
 };

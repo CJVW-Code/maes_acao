@@ -366,23 +366,30 @@ export const StepDadosPessoais = ({
                 >
                   Data de Nascimento do Filho(a) *
                 </label>
-                <input
-                  id={`filho-dataNascimento-${index}`}
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="DD/MM/AAAA"
-                  value={filho.dataNascimento}
-                  onChange={(e) =>
-                    dispatch({
-                      type: "UPDATE_FILHO",
-                      index,
-                      field: "dataNascimento",
-                      value: formatDateMask(e.target.value),
-                    })
-                  }
-                  className="input"
-                  {...validar("Informe a data de nascimento.")}
-                />
+                <div>
+                  <input
+                    id={`filho-dataNascimento-${index}`}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="DD/MM/AAAA"
+                    value={filho.dataNascimento}
+                    onChange={(e) =>
+                      dispatch({
+                        type: "UPDATE_FILHO",
+                        index,
+                        field: "dataNascimento",
+                        value: formatDateMask(e.target.value),
+                      })
+                    }
+                    className={`input ${formErrors[`filho_nascimento_${index}`] ? "border-error ring-1 ring-error" : ""}`}
+                    {...validar("Informe a data de nascimento.")}
+                  />
+                  {formErrors[`filho_nascimento_${index}`] && (
+                    <span className="text-xs text-error mt-1 ml-1 block">
+                      {formErrors[`filho_nascimento_${index}`]}
+                    </span>
+                  )}
+                </div>
               </div>
               {/* Campo RG Removido para filhos */}
             </motion.div>

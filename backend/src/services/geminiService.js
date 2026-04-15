@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { generateLegalText } from "./aiService.js";
 import dotenv from "dotenv";
 import logger from "../utils/logger.js";
@@ -114,13 +115,13 @@ export const normalizePromptData = (raw = {}) => {
     exequente: raw.exequente || requerente,
     executado: raw.executado || requerido,
     dadosBancarios,
-    valorMensalPensao: raw.valorMensalPensao ?? raw.valor_mensal_pensao,
-    diaPagamentoMensal: raw.diaPagamentoMensal ?? raw.dia_pagamento_requerido,
-    periodoDevedor: raw.periodoDevedor || raw.periodo_debito_execucao,
-    valorTotalDebito: raw.valorTotalDebito || raw.valor_total_debito_execucao,
+    valorMensalPensao: raw.valorMensalPensao ?? raw.valor_pensao,
+    diaPagamentoMensal: raw.diaPagamentoMensal ?? raw.dia_pagamento,
+    periodoDevedor: raw.periodoDevedor || raw.periodo_debito_execucao || raw.periodo_debito || raw.periodo_meses_ano,
+    valorTotalDebito: raw.valorTotalDebito || raw.valor_debito,
     cidadeDataAssinatura:
       raw.cidadeDataAssinatura ||
-      raw.cidade_assinatura ||
+      raw.CIDADEASSINATURA ||
       DEFAULT_CIDADE_ASSINATURA,
     // AQUI: É bom garantir que o nome da defensora também esteja formatado, caso venha do banco bagunçado
     defensoraNome:

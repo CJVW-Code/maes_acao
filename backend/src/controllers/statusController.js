@@ -7,8 +7,8 @@ export const consultarStatus = async (req, res) => {
   // 1. Pega o CPF e a chave da URL (query parameters)
   const { cpf } = req.query;
 
-  if (!cpf || !chave) {
-    logger.warn(`Tentativa de consulta de caso sem credenciais completas.`);
+  if (!cpf) {
+    logger.warn(`Tentativa de consulta de caso sem CPF.`);
     return res
       .status(400)
       .json({ error: "CPF é obrigatório para consulta." });
@@ -44,19 +44,11 @@ export const consultarStatus = async (req, res) => {
       return res.status(404).json({ error: "CPF inválido ou sem casos vinculados." });
     }
 
-    // 3. LÓGICA DE MULTI-CASOS: Itera sobre os casos para encontrar qual chave abre qual porta
-    let casoEncontrado = null;
-{/* //nao deve ser necessario pois nao tem mais a chave de acesso
-    for (const caso of casos) {
-      const valida = verifyKey(chave, caso.chave_acesso_hash);
-      if (valida) {
-        casoEncontrado = caso;
-        break; // Achamos o caso correto, paramos de procurar
-      }
-    }
-*/}
+    // 3. LÓGICA DE MULTI-CASOS: Como não usamos mais chave de acesso,
+    // apenas retornamos o primeiro caso (ou mais recente)
+    let casoEncontrado = casos[0];
 
-    // Se rodou todos os casos do CPF e nenhuma chave bateu
+    // Se rodou todos os casos do CPF e nenhum bateu
     if (!casoEncontrado) {
       logger.warn(
         `Consulta falhou: Chave inválida para todos os casos do CPF ${cpfLimpo}.`,

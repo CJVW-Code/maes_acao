@@ -9,6 +9,7 @@ import {
   formatMonthYearMask,
   sanitizeDecimalInput,
   validateCpfAlgorithm,
+  validateBrDate,
 } from "../../../utils/formatters.js";
 import {
   cidadesBahia,
@@ -119,7 +120,31 @@ export const useFormHandlers = ({ formState, dispatch, setFormErrors, toast }) =
 
   const handlePhoneChange = useCallback((field) => handleMaskedChange(formatPhone, field), [handleMaskedChange]);
 
-  const handleDateChange = useCallback((field) => handleMaskedChange(formatDateMask, field), [handleMaskedChange]);
+  const handleDateChange = useCallback((field) => (e) => {
+    const formattedValue = formatDateMask(e.target.value);
+    dispatch({ type: "UPDATE_FIELD", field, value: formattedValue });
+
+    if (formattedValue.length === 10) {
+      if (!validateBrDate(formattedValue)) {
+        setFormErrors((prev) => ({ ...prev, [field]: "Data inválida (Ex: 31/12/1990)." }));
+      } else {
+        setFormErrors((prev) => {
+          const updated = { ...prev };
+          delete updated[field];
+          return updated;
+        });
+      }
+    } else {
+      // Limpa alertas enquanto o usuário ainda está digitando
+      setFormErrors((prev) => {
+        const updated = { ...prev };
+        if (updated[field]) {
+          delete updated[field];
+        }
+        return updated;
+      });
+    }
+  }, [dispatch, setFormErrors]);
 
   const handleMonthYearChange = useCallback((field) => handleMaskedChange(formatMonthYearMask, field), [handleMaskedChange]);
   

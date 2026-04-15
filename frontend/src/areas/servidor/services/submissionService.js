@@ -1,4 +1,5 @@
-import { fieldMapping, digitsOnlyFields, dateFields, currencyFields } from '../utils/formConstants.js';
+import { fieldMapping, digitsOnlyFields, dateFields, currencyFields } from '../../../utils/formConstants.js';
+import { validateBrDate } from '../../../utils/formatters.js';
 
 export const processSubmission = async ({
   isAlvaraContext = false,
@@ -69,13 +70,17 @@ export const processSubmission = async ({
 
   // Validação Data de Nascimento Principal (Incapaz ou Adulto)
   const campoDataNasc = formState.assistidoEhIncapaz === "sim" ? "nascimento" : "representante_data_nascimento";
-  const dataIso = parseBrDateToIso(formState[campoDataNasc]);
-  if (!formState[campoDataNasc]) {
+  const dataInputValue = formState[campoDataNasc];
+  const dataIso = parseBrDateToIso(dataInputValue);
+  
+  if (!dataInputValue) {
     validationErrors[campoDataNasc] = "A data de nascimento é obrigatória.";
+  } else if (!validateBrDate(dataInputValue)) {
+    validationErrors[campoDataNasc] = "Informe uma data de calendário válida (Ex: 31/12/1990).";
   } else if (!dataIso) {
-    validationErrors[campoDataNasc] = "Informe uma data válida (DD/MM/AAAA).";
+    validationErrors[campoDataNasc] = "Formato de data inválido (DD/MM/AAAA).";
   } else if (dataIso > today) {
-    validationErrors[campoDataNasc] = "A data de nascimento não pode ser futura.";
+    validationErrors[campoDataNasc] = "A data de nascimento não pode estar no futuro.";
   }
 
   // Validação CPF Matemático
@@ -88,11 +93,23 @@ export const processSubmission = async ({
     validationErrors.executado_cpf = "O CPF da outra parte é inválido.";
   }
 
-  // Validação CPF Outros Filhos
+  // Validação CPF e Data de Nascimento - Outros Filhos
   if (formState.outrosFilhos && formState.outrosFilhos.length > 0) {
     formState.outrosFilhos.forEach((filho, index) => {
       if (filho.cpf && !validateCpfAlgorithm(filho.cpf)) {
         validationErrors[`filho_cpf_${index}`] = `O CPF do Filho(a) ${index + 2} é inválido.`;
+      }
+      
+      const filhoDataInput = filho.dataNascimento;
+      if (!filhoDataInput) {
+        validationErrors[`filho_nascimento_${index}`] = `A data de nascimento do Filho(a) ${index + 2} é obrigatória.`;
+      } else if (!validateBrDate(filhoDataInput)) {
+        validationErrors[`filho_nascimento_${index}`] = `Data inválida no Filho(a) ${index + 2} (Ex: 31/12/1990).`;
+      } else {
+        const filhoIso = parseBrDateToIso(filhoDataInput);
+        if (filhoIso && filhoIso > today) {
+          validationErrors[`filho_nascimento_${index}`] = `A data do Filho(a) ${index + 2} não pode estar no futuro.`;
+        }
       }
     });
   }
