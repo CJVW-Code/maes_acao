@@ -573,9 +573,8 @@ const buildFallbackDosFatos = (caseData = {}) => {
   if (assistidoNome || representanteNome) {
     const sujeito =
       caseData.assistido_eh_incapaz === "sim" && representanteNome
-        ? `${representanteNome}, na qualidade de representante legal de ${
-            assistidoNome || "seu dependente"
-          }`
+        ? `${representanteNome}, na qualidade de representante legal de ${assistidoNome || "seu dependente"
+        }`
         : assistidoNome || representanteNome;
     const complemento = requeridoNome
       ? `relata que ${requeridoNome} não contribui de forma regular para o custeio das despesas básicas`
@@ -618,12 +617,11 @@ const buildFallbackDosFatos = (caseData = {}) => {
     safe(caseData.dia_pagamento_fixado);
   if (valorPretendido || diaPagamento) {
     paragraphs.push(
-      `Diante desse contexto, requer-se a fixação de alimentos no valor de ${
-        valorPretendido || "[valor a ser definido]"
+      `Diante desse contexto, requer-se a fixação de alimentos no valor de ${valorPretendido || "[valor a ser definido]"
       }` +
-        (diaPagamento
-          ? `, com vencimento no dia ${diaPagamento} de cada mês.`
-          : "."),
+      (diaPagamento
+        ? `, com vencimento no dia ${diaPagamento} de cada mês.`
+        : "."),
     );
   }
   if (safe(caseData.relato_texto)) {
@@ -635,8 +633,7 @@ const buildFallbackDosFatos = (caseData = {}) => {
   if (documentosInformados.length) {
     const resumoDocs = documentosInformados.slice(0, 3).join("; ");
     paragraphs.push(
-      `Os fatos narrados encontram respaldo nos documentos informados no formulário, tais como ${resumoDocs}${
-        documentosInformados.length > 3 ? ", entre outros" : ""
+      `Os fatos narrados encontram respaldo nos documentos informados no formulário, tais como ${resumoDocs}${documentosInformados.length > 3 ? ", entre outros" : ""
       }.`,
     );
   } else {
@@ -661,18 +658,18 @@ const processarDadosFilhosParaPeticao = (
   const filhoPrincipal = {
     nome: ensureText(
       baseData.NOME ||
-        baseData.nome ||
-        normalizedData.requerente_nome,
+      baseData.nome ||
+      normalizedData.requerente_nome,
     ),
     cpf: ensureText(
       baseData.cpf || baseData.cpf_assistido || normalizedData.requerente_cpf,
     ),
     nascimento: ensureText(
       baseData.assistido_data_nascimento ||
-        formatDateBr(baseData.data_nascimento_assistido) ||
-        formatDateBr(baseData.dataNascimentoAssistido) ||
-        formatDateBr(baseData.dados_formulario?.assistido_data_nascimento) ||
-        formatDateBr(baseData.dados_formulario?.data_nascimento_assistido),
+      formatDateBr(baseData.data_nascimento_assistido) ||
+      formatDateBr(baseData.dataNascimentoAssistido) ||
+      formatDateBr(baseData.dados_formulario?.assistido_data_nascimento) ||
+      formatDateBr(baseData.dados_formulario?.data_nascimento_assistido),
     ),
     rg: ensureText(
       baseData.assistido_rg_numero
@@ -745,9 +742,9 @@ const processarDadosFilhosParaPeticao = (
     lista_filhos.length > 0
       ? lista_filhos[0].nascimento
       : formatDateBr(
-          baseData.assistido_data_nascimento ||
-            normalizedData.requerente?.dataNascimento,
-        );
+        baseData.assistido_data_nascimento ||
+        normalizedData.requerente?.dataNascimento,
+      );
 
   return {
     lista_filhos,
@@ -878,13 +875,13 @@ const buildDocxTemplatePayload = (
     dados_bancarios_requerente: baseData.dados_bancarios_exequente || baseData.dados_bancarios_deposito || "______",
     // Tag exata do template DOCX de execução
     dados_bancarios_exequente: baseData.dados_bancarios_exequente || baseData.dados_bancarios_deposito || "______",
-    
+
     empregador_nome: baseData.empregador_nome || baseData.empregador_requerido_nome || "______",
     empregador_endereco_profissional: baseData.empregador_requerido_endereco || "______",
     empregador_email: baseData.empregador_email || "não informado",
 
     percentual_definitivo_salario_min: baseData.percentual_definitivo_salario_min || baseData.percentual_salario_minimo || "______",
-    
+
     valor_causa: baseData.valor_debito || baseData.valor_total_debito_execucao || (debitoCalculado > 0 ? formatCurrencyBr(debitoCalculado) : "______"),
     valor_causa_extenso: baseData.valor_debito_extenso || debitoCalculadoExtenso || "______",
     cidade_data_assinatura: baseData.data_atual || dataAtualTexto,
@@ -971,7 +968,7 @@ export const processarCasoEmBackground = async (
   urls_documentos,
   url_audio,
   url_peticao,
-) {
+) => {
   try {
     // [EIXO 3] Guarda: verificar se o caso tem documentos antes de processar
     const casoAtual = await prisma.casos.findUnique({
@@ -1705,14 +1702,14 @@ export const criarNovoCaso = async (req, res) => {
       if (relatedCases.length > 0) {
         const caseIds = relatedCases.map((c) => c.caso_id);
         const lockedCase = await prisma.casos.findFirst({
-           where: {
-             id: { in: caseIds },
-             defensor_id: { not: null }
-           },
-           orderBy: { defensor_at: 'desc' }
+          where: {
+            id: { in: caseIds },
+            defensor_id: { not: null }
+          },
+          orderBy: { defensor_at: 'desc' }
         });
         if (lockedCase) {
-           inheritedDefensorId = lockedCase.defensor_id;
+          inheritedDefensorId = lockedCase.defensor_id;
         }
       }
     }
@@ -1809,7 +1806,7 @@ export const criarNovoCaso = async (req, res) => {
               parseInt(
                 dados_formulario.dia_pagamento ||
                 dados_formulario.dia_pagamento_fixado ||
-                  dados_formulario.dia_pagamento_requerido,
+                dados_formulario.dia_pagamento_requerido,
               ) || null,
             periodo_inadimplencia:
               dados_formulario.periodo_meses_ano ||
@@ -1991,7 +1988,7 @@ export const listarCasos = async (req, res) => {
     if (cpf) {
       const cpfLimpo = cpf.replace(/\D/g, "");
       const cpfFormatado = cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-      
+
       const cpfQuery = [
         { protocolo: cpf },
         { partes: { cpf_assistido: cpf } },
@@ -2270,7 +2267,7 @@ export const obterDetalhesCaso = async (req, res) => {
     if (!isAdmin && !data.defensor_id && !data.servidor_id && !isShared) {
       const updateData = {};
       const isDefensor = req.user.cargo.toLowerCase().includes("defensor");
-      
+
       if (isDefensor) {
         updateData.defensor_id = req.user.id;
         updateData.defensor_at = new Date();
@@ -2906,14 +2903,14 @@ export const buscarPorCpf = async (req, res) => {
                 path: ["representante_cpf"],
                 equals: cpfLimpo,
               },
-          },
-        },
-        {
-          ia: {
-            dados_extraidos: {
-              path: ["representante_cpf"],
-              equals: cpfFormatado,
             },
+          },
+          {
+            ia: {
+              dados_extraidos: {
+                path: ["representante_cpf"],
+                equals: cpfFormatado,
+              },
             },
           },
           {
@@ -2930,14 +2927,14 @@ export const buscarPorCpf = async (req, res) => {
                 path: ["cpf"],
                 equals: cpfLimpo,
               },
-          },
-        },
-        {
-          ia: {
-            dados_extraidos: {
-              path: ["cpf"],
-              equals: cpfFormatado,
             },
+          },
+          {
+            ia: {
+              dados_extraidos: {
+                path: ["cpf"],
+                equals: cpfFormatado,
+              },
             },
           },
         ],
@@ -3539,12 +3536,12 @@ export const reprocessarCaso = async (req, res) => {
     }
 
     // Adaptando para o novo Schema:
-    const dados_extraidos = typeof casoRaw.ia?.dados_extraidos === 'string' 
-      ? JSON.parse(casoRaw.ia.dados_extraidos) 
+    const dados_extraidos = typeof casoRaw.ia?.dados_extraidos === 'string'
+      ? JSON.parse(casoRaw.ia.dados_extraidos)
       : (casoRaw.ia?.dados_extraidos || {});
-      
-    const docsExtraidos = casoRaw.documentos 
-      ? casoRaw.documentos.map(d => d.storage_path) 
+
+    const docsExtraidos = casoRaw.documentos
+      ? casoRaw.documentos.map(d => d.storage_path)
       : [];
 
     // Responde imediatamente para a interface não travar
@@ -3798,11 +3795,11 @@ export const responderAssistencia = async (req, res) => {
   try {
     const assistencia = await prisma.assistencia_casos.findUnique({
       where: { id: assistencia_id },
-      include: { 
-        caso: { 
-          include: { unidade: true } 
+      include: {
+        caso: {
+          include: { unidade: true }
         },
-        remetente: true 
+        remetente: true
       },
     });
 
