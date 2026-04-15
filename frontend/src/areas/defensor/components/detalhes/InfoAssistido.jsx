@@ -30,6 +30,16 @@ const formatDateDisplay = (dateString) => {
   return `${day}/${month}/${year}`;
 };
 
+const formatVara = (val) => {
+  let v = String(val || "").trim().toUpperCase();
+  if (!v || v === "______" || v === "NÃO INFORMADO") return v;
+  // Se começar com número e não tiver o símbolo ordinal (ª ou º), adiciona ª
+  if (/^\d+/.test(v) && !/^\d+[ªº]/.test(v)) {
+    v = v.replace(/^(\d+)/, "$1ª");
+  }
+  return v;
+};
+
 // Busca o primeiro valor não vazio dentre os argumentos
 const pickFirst = (...values) => values.find((v) => v !== undefined && v !== null && String(v).trim() !== "");
 
@@ -67,7 +77,9 @@ export const InfoAssistido = ({ caso }) => {
     ? pickFirst(dados.NOME, caso.nome_assistido)
     : pickFirst(dados.REPRESENTANTE_NOME, caso.nome_assistido);
     
-  const cpfPrincipal = pickFirst(dados.representante_cpf, caso.cpf_assistido);
+  const cpfPrincipal = isRepresentacao 
+    ? pickFirst(dados.cpf_assistido, dados.cpf)
+    : pickFirst(dados.representante_cpf, caso.cpf_assistido, dados.cpf);
   const telefonePrincipal = pickFirst(dados.requerente_telefone, caso.telefone_assistido);
 
   return (
@@ -195,11 +207,11 @@ export const InfoAssistido = ({ caso }) => {
               <div className="space-y-4 pt-4 border-t border-soft">
                 <h3 className="heading-3 text-primary">Dados da Execução e Título Judicial</h3>
                 <div className="grid gap-4 md:grid-cols-2">
-                  {renderDataField("Vara da Petição Atual", dados.VARA)}
+                  {renderDataField("Vara da Petição Atual", formatVara(dados.VARA))}
                   {renderDataField("Percentual do salário mínimo (%)", dados.percentual_salario_minimo)}
                   {renderDataField("Número do Processo Originário", dados.processoOrigemNumero)}
                   {renderDataField("Cidade onde tramitou", dados.cidadeOriginaria)}
-                  {renderDataField("Vara onde tramitou", dados.varaOriginaria)}
+                  {renderDataField("Vara onde tramitou", formatVara(dados.varaOriginaria))}
                   {renderDataField("Tipo de Decisão", dados.tipo_decisao)}
                   {renderDataField("Dia de Pagamento fixado", dados.dia_pagamento)}
                   {renderDataField("Período do Débito", dados.periodo_meses_ano)}

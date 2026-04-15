@@ -34,11 +34,18 @@ export const scannerUpload = async (req, res) => {
         .json({ error: "Caso não encontrado para este protocolo." });
     }
 
+    const { tipos: tiposRaw } = req.body;
+    // Normaliza tipos para array, tratando caso de formulário com um único campo
+    const tiposArray = Array.isArray(tiposRaw) ? tiposRaw : [tiposRaw];
+
     const urls_documentos = [];
     const documentosCriados = [];
 
     // 2. Processa os uploads
-    for (const file of req.files) {
+    for (let i = 0; i < req.files.length; i++) {
+      const file = req.files[i];
+      const tipoArquivo = tiposArray[i] || "outro";
+      
       const safeOriginalName = path.basename(file.originalname);
       const filePath = `${protocolo}/${Date.now()}_${safeOriginalName}`;
 
@@ -65,13 +72,13 @@ export const scannerUpload = async (req, res) => {
         urls_documentos.push(filePath);
       }
 
-      // 3. Registra na tabela de documentos
+      // 3. Registra na tabela de documentos com o tipo correto
       const docRecord = await prisma.documentos.create({
         data: {
           caso_id: caso.id,
           storage_path: filePath,
           nome_original: safeOriginalName,
-          tipo: "outro", // Pode ser refinado depois pela IA
+          tipo: tipoArquivo,
           tamanho_bytes: BigInt(file.size),
         },
       });
@@ -114,6 +121,30 @@ export const scannerUpload = async (req, res) => {
       } catch (qstashError) {
         logger.error(`[QStash] Erro ao disparar job: ${qstashError.message}`);
       }
+    } else if (caso.status === "aguardando_documentos" || caso.status === "erro_processamento" || caso.status === "documentacao_completa") {
+      logger.info(
+        `[Scanner Fallback Local] API_BASE_URL (QStash) ausente. Disparando processamento local em background para ${protocolo}.`,
+      );
+      
+      const { processarCasoEmBackground } = await import("./casosController.js");
+      
+      const dados_extraidos = typeof caso.ia?.dados_extraidos === 'string'
+          ? JSON.parse(caso.ia.dados_extraidos) 
+          : (caso.ia?.dados_extraidos || {});
+
+      setImmediate(async () => {
+        try {
+          await processarCasoEmBackground(
+            protocolo,
+            dados_extraidos,
+            urls_documentos,
+            null,
+            null
+          );
+        } catch (e) {
+          logger.error(`[Scanner Fallback Local] Erro fatal no processamento: ${e.message}`);
+        }
+      });
     }
 
     res.status(200).json({

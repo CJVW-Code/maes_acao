@@ -11,38 +11,63 @@ export const lockCaso = async (req, res) => {
   const cargo = req.user.cargo.toLowerCase();
 
   try {
-    const caso = await prisma.casos.findUnique({
-      where: { id: BigInt(id) },
-      include: { defensor: true, servidor: true }
-    });
-
-    if (!caso) return res.status(404).json({ error: "Caso não encontrado." });
-
-    // Verifica se já está bloqueado por outro
-    const isLockedByOther = (caso.defensor_id && caso.defensor_id !== userId) || 
-                            (caso.servidor_id && caso.servidor_id !== userId);
-    
-    if (isLockedByOther && req.user.cargo.toLowerCase() !== 'admin') {
-      const holder = caso.defensor?.nome || caso.servidor?.nome || "outro usuário";
-      return res.status(423).json({ 
-        error: "Caso bloqueado", 
-        message: `Este caso já está sendo atendido por ${holder}.`,
-        holder
-      });
-    }
+    const isAdmin = cargo === 'admin';
+    const isDefensor = cargo.includes("defensor");
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
 
     const updateData = {};
-    if (cargo.includes("defensor")) {
+    const whereClause = { id: BigInt(id) };
+
+    if (isDefensor) {
       updateData.defensor_id = userId;
       updateData.defensor_at = new Date();
+      if (!isAdmin) {
+        whereClause.OR = [
+          { defensor_id: null },
+          { defensor_id: userId }
+        ];
+      }
     } else {
       updateData.servidor_id = userId;
       updateData.servidor_at = new Date();
+      if (!isAdmin) {
+        whereClause.OR = [
+          { servidor_id: null },
+          { servidor_id: userId },
+          { servidor_at: { lt: thirtyMinutesAgo } },
+        ];
+      }
     }
 
-    const casoAtualizado = await prisma.casos.update({
+    // Tenta executar o update atômico e condicional
+    const { count } = await prisma.casos.updateMany({
+      where: whereClause,
+      data: updateData,
+    });
+
+    if (count === 0) {
+      // Falha atômica: ou não existe ou outro usuário pegou a trava primeiro
+      const casoCheck = await prisma.casos.findUnique({
+        where: { id: BigInt(id) },
+        include: { defensor: true, servidor: true },
+      });
+
+      if (!casoCheck) return res.status(404).json({ error: "Caso não encontrado." });
+
+      const holder = isDefensor
+        ? casoCheck.defensor?.nome
+        : casoCheck.servidor?.nome;
+
+      return res.status(423).json({
+        error: "Caso bloqueado",
+        message: `Este caso já está em uso por ${holder || "outro colega"}.`,
+        holder: holder || "outro colega",
+      });
+    }
+
+    // Como usamos updateMany, recuperamos o caso com relacionamentos para retornar os dados completos
+    const casoAtualizado = await prisma.casos.findUnique({
       where: { id: BigInt(id) },
-      data: updateData
     });
 
     res.status(200).json({ message: "Caso bloqueado com sucesso.", caso: casoAtualizado });

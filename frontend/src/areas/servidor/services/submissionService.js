@@ -214,6 +214,9 @@ export const processSubmission = async ({
     }
   });
 
+  // [EIXO 3] Garante que enviarDocumentosDepois é SEMPRE enviado, mesmo que false
+  formData.append('enviar_documentos_depois', String(formState.enviarDocumentosDepois ?? false));
+
   // 2. Correção Crítica: Formatar Tipo de Ação para o Backend
   // O backend espera "Area - Ação" para saber qual template DOCX usar
   if (!configAcao) {

@@ -165,7 +165,7 @@ export const LayoutCidadao = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-5xl sm:text-5xl font-sans font-bold tracking-tight uppercase mt-2"
           >
-            Def Sul - <span className="text-muted">BAHIA</span>
+            Mães em Ação - <span className="text-muted">BAHIA</span>
           </motion.h1>
 
           {/* Subtítulo */}

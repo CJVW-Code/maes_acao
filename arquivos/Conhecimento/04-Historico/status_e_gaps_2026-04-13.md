@@ -71,9 +71,9 @@ if (mesesDebito >= 3 && tipoAcao.includes("exec")) {
 
 ---
 
-### 2.3 Código Fantasma — Portal do Cidadão (Legado Def Sul)
+### 2.3 Código Fantasma — Portal do Cidadão (Legado Mães em Ação anterior)
 
-**Problema:** Existem componentes e referências remanescentes do sistema "Def Sul Bahia" anterior que não se encaixam na dinâmica do mutirão presencial.
+**Problema:** Existem componentes e referências remanescentes do sistema anterior que não se encaixam na dinâmica do mutirão presencial.
 
 **O que precisa ser removido/ajustado:**
 

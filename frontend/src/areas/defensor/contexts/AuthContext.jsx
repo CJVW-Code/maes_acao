@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, useRef, useCallback } from "react";
 import { API_BASE, authFetch } from "../../../utils/apiBase";
+import { jwtDecode } from "jwt-decode";
 
 const AuthContext = createContext();
 
@@ -33,11 +34,23 @@ export const AuthProvider = ({ children }) => {
     const storedUser = localStorage.getItem("defensorUser");
 
     if (storedToken && storedUser) {
-      setToken(storedToken);
       try {
-        setUser(JSON.parse(storedUser));
+        // Validação prévia do token (expiração)
+        const decoded = jwtDecode(storedToken);
+        const agora = Date.now() / 1000;
+
+        if (decoded.exp && decoded.exp < agora) {
+          console.warn("🔐 Token expirado detectado na inicialização. Limpando...");
+          localStorage.removeItem("defensorToken");
+          localStorage.removeItem("defensorUser");
+        } else {
+          setToken(storedToken);
+          setUser(JSON.parse(storedUser));
+        }
       } catch (e) {
-        console.error("Erro ao parsear usuário logado", e);
+        console.error("Erro ao validar token/usuário no carregamento", e);
+        localStorage.removeItem("defensorToken");
+        localStorage.removeItem("defensorUser");
       }
     }
     setLoading(false);
@@ -75,9 +88,19 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ email, senha: password }),
       });
 
+      // Se der erro de roteamento (ex: 404 no backend), não tenta parsear como JSON
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Falha na autenticação.");
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Falha na autenticação.");
+        } else {
+          // Erro genérico de servidor (HTML ou texto)
+          if (response.status === 404) {
+            throw new Error("Servidor não encontrou a rota de login. Verifique se o backend está rodando.");
+          }
+          throw new Error(`Erro no servidor (${response.status}). Tente novamente.`);
+        }
       }
 
       const { token: receivedToken, defensor } = await response.json();
@@ -91,17 +114,26 @@ export const AuthProvider = ({ children }) => {
       return true;
     } catch (error) {
       console.error("Erro no login:", error);
+      // Tratamento especial para falha de conexão (fetch falha sem status)
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        throw new Error("Não foi possível conectar ao servidor. Verifique sua conexão ou se o backend está ligado.");
+      }
       throw error;
     }
   };
 
-  const logout = async () => {
+  const logout = useCallback(() => {
+    console.log("Deslogando usuário...");
     setToken(null);
     setUser(null);
     localStorage.removeItem("defensorToken");
     localStorage.removeItem("defensorUser");
-    window.location.href = "/painel/login";
-  };
+    
+    // Redireciona para o login (hard redirect para limpar qualquer estado residual)
+    if (window.location.pathname !== "/painel/login") {
+      window.location.href = "/painel/login";
+    }
+  }, []);
 
   const marcarNotificacaoLida = async (id) => {
     try {

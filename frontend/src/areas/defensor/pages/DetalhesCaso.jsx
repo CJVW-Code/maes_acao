@@ -206,13 +206,19 @@ export const DetalhesCaso = () => {
       // Polling Automático: Se for 'processando', atualiza a cada 5s. Senão, para (0).
       refreshInterval: (data) => (data?.status === "processando" ? 5000 : 0),
       onError: (err) => {
-        // Se der erro 401, o SWR chama o logout!
-        if (err.message.includes("401") || err.status === 401) {
-          logout();
+        // Se der erro 401 ou sessão expirada, o context deve assumir
+        if (err.message === "Sessão expirada" || err.status === 401) {
+          console.warn("Sessão expirada detectada em DetalhesCaso SWR");
+          // O logout será disparado pelo apiBase + AuthContext
         }
       },
     },
   );
+
+  const isColaborador = caso && user && 
+    String(caso.servidor_id) !== String(user.id) && 
+    String(caso.defensor_id) !== String(user.id) && 
+    user.cargo !== "admin";
 
   // 2. Preenchimento de datas e formulários após o caso carregar
   useEffect(() => {
@@ -368,9 +374,13 @@ export const DetalhesCaso = () => {
       );
     }
 
+    if (error?.status === 401 || error?.message === "Sessão expirada") {
+      return null; // O context vai redirecionar
+    }
+
     return (
       <div className="card border-l-4 border-l-red-500 text-red-600">
-        {error?.info?.error || "Caso não encontrado ou erro de permissão."}
+        {error?.info?.error || error?.message || "Caso não encontrado ou erro de permissão."}
       </div>
     );
   }
@@ -970,17 +980,19 @@ export const DetalhesCaso = () => {
           <Scale size={18} />
           Minuta
         </button>
-        <button
-          onClick={() => setActiveTab("relacionados")}
-          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${
-            activeTab === "relacionados"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted hover:text-primary hover:border-primary/30"
-          }`}
-        >
-          <History size={18} />
-          Casos Relacionados
-        </button>
+        {!isColaborador && (
+          <button
+            onClick={() => setActiveTab("relacionados")}
+            className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${
+              activeTab === "relacionados"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted hover:text-primary hover:border-primary/30"
+            }`}
+          >
+            <History size={18} />
+            Casos Relacionados
+          </button>
+        )}
         <button
           onClick={() => setActiveTab("gestao")}
           className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${
@@ -997,7 +1009,7 @@ export const DetalhesCaso = () => {
       {/* --- CONTEÚDO DAS ABAS --- */}
       <div className="min-h-[500px]">
         {/* ABA: CASOS RELACIONADOS */}
-        {activeTab === "relacionados" && (
+        {activeTab === "relacionados" && !isColaborador && (
           <div className="space-y-6 animate-fade-in">
             <div className="card space-y-4">
               <h2 className="heading-2 border-soft pb-2 border-b">
@@ -1054,37 +1066,31 @@ export const DetalhesCaso = () => {
                     </a>
                   )}
                 </div>
+                {/* Botões de Regeneração (Admin) */}
+                {user?.cargo === "admin" && (
+                  <div className="flex flex-wrap gap-2 pt-2 border-t border-primary/10">
+                    <button
+                      onClick={handleRegenerateMinuta}
+                      disabled={isRegeneratingMinuta}
+                      className="btn btn-ghost border border-soft text-xs flex items-center gap-1"
+                    >
+                      <RefreshCw size={14} className={isRegeneratingMinuta ? "animate-spin" : ""} />
+                      {isRegeneratingMinuta ? "Regerando..." : "Regerar Minuta"}
+                    </button>
+                    <button
+                      onClick={handleGenerateTermo}
+                      disabled={isGeneratingTermo}
+                      className="btn btn-ghost border border-soft text-xs flex items-center gap-1"
+                    >
+                      <RefreshCw size={14} className={isGeneratingTermo ? "animate-spin" : ""} />
+                      {isGeneratingTermo ? (caso.url_termo_declaracao ? "Regerando..." : "Gerando...") : (caso.url_termo_declaracao ? "Regerar Termo" : "Gerar Termo de Declaração")}
+                    </button>
+                  </div>
+                )}
               </section>
             )}
 
-            {/* SEÇÃO DE FEEDBACK / ANOTAÇÕES */}
-            <section className="card space-y-4">
-              <div className="flex items-center gap-3">
-                <MessageSquare className="text-primary" />
-                <h2 className="heading-2">Anotações / Feedback</h2>
-              </div>
-              <p className="text-sm text-muted">
-                Espaço para observações internas sobre o caso ou ajustes
-                necessários na minuta.
-              </p>
-              <textarea
-                className="input min-h-[120px] resize-y font-sans"
-                placeholder="Digite suas observações aqui..."
-                value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
-              />
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleSaveFeedback}
-                  disabled={savingFeedback}
-                  className="btn btn-primary flex items-center gap-2"
-                >
-                  <Save size={18} />
-                  {savingFeedback ? "Salvando..." : "Salvar Anotações"}
-                </button>
-              </div>
-            </section>
+
             {/* DOCUMENTOS (Movido para Visão Geral) */}
             <PainelDocumentos
               caso={caso}
@@ -1228,6 +1234,35 @@ export const DetalhesCaso = () => {
         {/* ABA 3: GESTÃO E FINALIZAÇÃO */}
         {activeTab === "gestao" && (
           <div className="space-y-6 animate-fade-in">
+            {/* SEÇÃO DE FEEDBACK / ANOTAÇÕES (movida da Visão Geral) */}
+            <section className="card space-y-4">
+              <div className="flex items-center gap-3">
+                <MessageSquare className="text-primary" />
+                <h2 className="heading-2">Anotações / Feedback</h2>
+              </div>
+              <p className="text-sm text-muted">
+                Espaço para observações internas sobre o caso ou ajustes
+                necessários na minuta.
+              </p>
+              <textarea
+                className="input min-h-[120px] resize-y font-sans"
+                placeholder="Digite suas observações aqui..."
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+              />
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleSaveFeedback}
+                  disabled={savingFeedback}
+                  className="btn btn-primary flex items-center gap-2"
+                >
+                  <Save size={18} />
+                  {savingFeedback ? "Salvando..." : "Salvar Anotações"}
+                </button>
+              </div>
+            </section>
+
             <div className="card space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted">Status atual</p>

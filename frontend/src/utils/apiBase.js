@@ -1,43 +1,39 @@
 export function getApiBase() {
   // 1. A variável de ambiente é a fonte da verdade.
-  // Ela DEVE estar configurada em produção (Vercel).
   let envUrl =
     (typeof import.meta !== "undefined" && import.meta?.env?.VITE_API_URL) ||
     "";
 
   if (envUrl) {
-    // Normaliza a URL: remove barra no final primeiro
     envUrl = envUrl.replace(/\/$/, "");
-
-    // Se a URL não terminar com /api, nós adicionamos para evitar erros de rota
     if (!envUrl.endsWith("/api")) {
       envUrl = `${envUrl}/api`;
     }
-
     return envUrl;
   }
 
-  // 2. Se a variável não existe, verificamos se estamos em desenvolvimento.
-  // O Vite injeta `import.meta.env.DEV` como `true` ao rodar `npm run dev`.
-  const isDev =
+  // 2. Detecção de Desenvolvimento robusta
+  const isLocalhost = 
+    typeof window !== "undefined" && 
+    (window.location.hostname === "localhost" || 
+     window.location.hostname === "127.0.0.1" ||
+     window.location.hostname.startsWith("192.168."));
+  
+  const isDevMode =
     (typeof import.meta !== "undefined" && import.meta?.env?.DEV) || false;
 
-  if (isDev) {
+  if (isLocalhost || isDevMode) {
     console.warn(
-      "Atenção: VITE_API_URL não definida. Usando fallback para desenvolvimento local: http://localhost:8000/api",
+      `Modo de desenvolvimento detectado (Host: ${typeof window !== "undefined" ? window.location.hostname : 'N/A'}). Usando API: http://localhost:8000/api`,
     );
-    // O guia de desenvolvimento menciona a porta 8001 para Docker, mas o código original usa 8000. Mantendo 8000.
     return "http://localhost:8000/api";
   }
 
-  // 3. Se chegou aqui em produção, é um erro de configuração.
-  // Logamos um erro claro e retornamos a própria origem para que o erro 405 aconteça,
-  // tornando o problema de configuração óbvio, como aconteceu com você.
+  // 3. Produção sem variável de ambiente
   console.error(
-    "ERRO CRÍTICO DE CONFIGURAÇÃO: A variável de ambiente VITE_API_URL não foi encontrada no ambiente de produção (Vercel). As chamadas à API irão falhar.",
+    "ERRO CRÍTICO: VITE_API_URL não definida em produção. As chamadas irão falhar.",
   );
 
-  // Fallback final, improvável de ser alcançado em um navegador.
   return "";
 }
 
@@ -69,15 +65,17 @@ export const authFetch = async (endpoint, options = {}) => {
 
   // 5. DETECTA SESSÃO EXPIRADA
   if (response.status === 401) {
-    // Dispara o evento que o AuthContext vai escutar de forma ultra-resiliente
+    // 1. Limpa imediatamente o storage para evitar loops
+    localStorage.removeItem("defensorToken");
+    localStorage.removeItem("defensorUser");
+
+    // 2. Dispara o evento que o AuthContext vai escutar para redirecionar
     try {
       if (typeof window !== "undefined") {
-        // Tenta o método moderno primeiro
         let event;
         try {
           event = new CustomEvent("auth:session-expired");
         } catch (e) {
-          // Fallback para navegadores/ambientes com restrição de constructor
           event = document.createEvent("Event");
           event.initEvent("auth:session-expired", true, true);
         }
@@ -86,6 +84,8 @@ export const authFetch = async (endpoint, options = {}) => {
     } catch (e) {
       console.warn("Falha crítica ao disparar evento de expiração:", e);
     }
+
+    // 3. Lança erro padronizado
     throw new Error("Sessão expirada");
   }
 

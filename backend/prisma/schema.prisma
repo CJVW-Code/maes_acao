@@ -139,6 +139,7 @@ model casos_partes {
   emissor_rg_assistido   String?
   estado_civil           String?
   profissao              String?
+  nacionalidade          String?
   nome_mae_assistido     String?
   nome_pai_assistido          String?
   cpf_representante           String?

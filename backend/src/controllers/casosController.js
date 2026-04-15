@@ -121,9 +121,16 @@ const mapCasoRelations = (caso) => {
 
   // Populate urls_documentos for attachSignedUrls
   if (caso.documentos && Array.isArray(caso.documentos)) {
+    enriched.documentos_originais = caso.documentos.map((doc) => ({
+      storage_path: doc.storage_path,
+      tipo: doc.tipo,
+      nome_original: doc.nome_original,
+      tamanho_bytes: doc.tamanho_bytes ? String(doc.tamanho_bytes) : null
+    }));
     enriched.urls_documentos = caso.documentos.map((doc) => doc.storage_path);
   } else if (!enriched.urls_documentos) {
     enriched.urls_documentos = [];
+    enriched.documentos_originais = [];
   }
 
   return enriched;
@@ -394,8 +401,11 @@ const attachSignedUrls = async (caso) => {
     ? caso.casos_ia[0]
     : caso.casos_ia || caso.ia;
   const iaPenhoraUrl =
-    caso.url_peticao_penhora || ia?.url_peticao_penhora || null;
-  const iaPrisaoUrl = caso.url_peticao_prisao || ia?.url_peticao_prisao || null;
+    caso.url_peticao_penhora || ia?.url_peticao_penhora ||
+    ia?.dados_extraidos?.url_peticao_penhora || null;
+  const iaPrisaoUrl =
+    caso.url_peticao_prisao || ia?.url_peticao_prisao ||
+    ia?.dados_extraidos?.url_peticao_prisao || null;
 
   const [docGerado, audio, peticao, termoDeclaracao, docPenhora, docPrisao] =
     await Promise.all([
@@ -412,14 +422,18 @@ const attachSignedUrls = async (caso) => {
   enriched.url_termo_declaracao = termoDeclaracao;
   if (docPenhora) enriched.url_peticao_penhora = docPenhora;
   if (docPrisao) enriched.url_peticao_prisao = docPrisao;
-  if (Array.isArray(caso.urls_documentos) && caso.urls_documentos.length) {
+  if (Array.isArray(caso.documentos_originais) && caso.documentos_originais.length) {
     const signedDocs = await Promise.all(
-      caso.urls_documentos.map((value) =>
-        buildSignedUrl(storageBuckets.documentos, value),
-      ),
+      caso.documentos_originais.map(async (doc) => {
+        const url = await buildSignedUrl(storageBuckets.documentos, doc.storage_path);
+        return url ? { ...doc, url } : null;
+      }),
     );
-    enriched.urls_documentos = signedDocs.filter(Boolean);
+    enriched.documentos_detalhes = signedDocs.filter(Boolean);
+    // Mantém compatibilidade com legado
+    enriched.urls_documentos = enriched.documentos_detalhes.map(d => d.url);
   } else {
+    enriched.documentos_detalhes = [];
     enriched.urls_documentos = [];
   }
   return enriched;
@@ -486,6 +500,16 @@ const formatCurrencyBr = (value) => {
       maximumFractionDigits: 2,
     })
     .replace(/\u00A0/g, " ");
+};
+
+const formatVara = (val) => {
+  let v = String(val || "").trim().toUpperCase();
+  if (!v || v === "______") return "______";
+  // Se começar com número e não tiver o símbolo ordinal (ª ou º), adiciona ª
+  if (/^\d+/.test(v) && !/^\d+[ªº]/.test(v)) {
+    v = v.replace(/^(\d+)/, "$1ª");
+  }
+  return v;
 };
 
 // --- UTILS DE LÓGICA DE NEGÓCIO (Extraídos) ---
@@ -636,8 +660,8 @@ const processarDadosFilhosParaPeticao = (
 
   const filhoPrincipal = {
     nome: ensureText(
-      baseData.nome ||
-        baseData.nome_assistido ||
+      baseData.NOME ||
+        baseData.nome ||
         normalizedData.requerente_nome,
     ),
     cpf: ensureText(
@@ -775,7 +799,7 @@ const buildDocxTemplatePayload = (
     termo_representacao,
 
     // --- TAGS GERAIS E EXECUÇÃO (CAIXA ALTA OBRIGATÓRIA) ---
-    VARA: String(baseData.VARA || baseData.vara || baseData.numero_vara || normalizedData.numero_vara || "______").toUpperCase(),
+    VARA: formatVara(baseData.VARA || baseData.vara || baseData.numero_vara || normalizedData.numero_vara || "______"),
     CIDADEASSINATURA: String(baseData.CIDADEASSINATURA || baseData.cidade_assinatura || normalizedData.comarca || "______").toUpperCase(),
     REPRESENTANTE_NOME: String(baseData.REPRESENTANTE_NOME || baseData.representante_nome || baseData.nome_assistido || "______").toUpperCase(),
     REQUERIDO_NOME: String(baseData.REQUERIDO_NOME || baseData.nome_requerido || "______").toUpperCase(),
@@ -811,7 +835,7 @@ const buildDocxTemplatePayload = (
     dos_fatos: ensureText(dosFatosTexto, "[DESCREVER OS FATOS]") || "[DESCREVER OS FATOS]",
 
     // --- ALIASES EXATOS PARA O TEMPLATE XML (Fixação, Divórcio, etc) ---
-    vara: String(baseData.VARA || baseData.vara || baseData.numero_vara || "______").toUpperCase(),
+    vara: formatVara(baseData.VARA || baseData.vara || baseData.numero_vara || "______"),
     comarca: String(baseData.CIDADEASSINATURA || baseData.cidade_assinatura || normalizedData.comarca || "______").toUpperCase(),
     triagemNumero: baseData.protocolo || normalizedData.triagemNumero || "______",
 
@@ -941,7 +965,7 @@ const gerarTextoCompletoPeticao = (payload) => {
 };
 
 // --- WORKER EM BACKGROUND ---
-export async function processarCasoEmBackground(
+export const processarCasoEmBackground = async (
   protocolo,
   dados_formulario,
   urls_documentos,
@@ -949,6 +973,19 @@ export async function processarCasoEmBackground(
   url_peticao,
 ) {
   try {
+    // [EIXO 3] Guarda: verificar se o caso tem documentos antes de processar
+    const casoAtual = await prisma.casos.findUnique({
+      where: { protocolo },
+      select: { status: true, documentos: { select: { id: true } } }
+    });
+
+    if (
+      casoAtual?.status === 'aguardando_documentos' ||
+      (casoAtual?.documentos?.length === 0 && !urls_documentos?.length)
+    ) {
+      logger.warn(`[Background] Caso ${protocolo} sem documentos. Processamento abortado.`);
+      return; // Mantém status aguardando_documentos
+    }
     // Extrair a chave do dicionário enviada pelo frontend
     let acaoRaw =
       dados_formulario.acaoEspecifica ||
@@ -996,93 +1033,17 @@ export async function processarCasoEmBackground(
     let resumo_ia = null;
     let dosFatosTexto = "";
 
-    // Verificação se deve ignorar leitura de documentos (OCR)
-    let deveIgnorarIA =
-      configAcao.ignorarDosFatos === true && configAcao.promptIA === null;
-    let deveIgnorarOCR = configAcao.ignorarOCR === true;
-
-    if (acaoKey === "execucao_alimentos") {
-      deveIgnorarIA = true;
-      deveIgnorarOCR = true;
-      logger.info("[Background] Execução: Forçando desativação total de IA/OCR.");
-    }
+    // Desativação total de OCR para ganho de performance e privacidade no mutirão
+    // Como os documentos agora são etiquetados manualmente no scanner, o OCR não é essencial 
+    // para a identificação do tipo de arquivo.
+    const deveIgnorarIA = true;
+    const deveIgnorarOCR = true;
 
     if (!deveIgnorarIA && !deveIgnorarOCR) {
-      for (const docPath of urls_documentos) {
-        // Processa imagens e PDFs
-        if (docPath.match(/\.(jpg|jpeg|png|pdf)$/i)) {
-          logger.info(`[OCR] Processando arquivo: ${docPath}`);
-          try {
-            // 1. Baixar o arquivo do Supabase Storage
-            if (!isSupabaseConfigured)
-              throw new Error("Supabase inativo. Impossível baixar arquivo.");
-
-            const { data: blob, error: downloadError } = await supabase.storage
-              .from(storageBuckets.documentos)
-              .download(docPath);
-
-            if (downloadError) {
-              throw new Error(
-                `Erro no download do arquivo ${docPath}: ${downloadError.message}`,
-              );
-            }
-
-            // 2. Converter o Blob para Buffer
-            const buffer = Buffer.from(await blob.arrayBuffer());
-
-            // 3. Extrair texto (IA com Fallback para Tesseract em imagens)
-            let textoExtraido = "";
-            const lowerPath = docPath.toLowerCase();
-            // Define o tipo correto para a IA (PDF ou Imagem)
-            let mimeType = lowerPath.endsWith(".pdf")
-              ? "application/pdf"
-              : lowerPath.endsWith(".png")
-                ? "image/png"
-                : "image/jpeg";
-
-            try {
-              textoExtraido = await visionOCR(
-                buffer,
-                mimeType,
-                "Transcreva todo o texto deste documento fielmente.",
-              );
-            } catch (aiError) {
-              logger.warn(
-                `[OCR IA] Falha ao processar ${docPath}: ${aiError.message}`,
-              );
-              // Fallback: Tesseract (Apenas para imagens, pois Tesseract puro não lê PDF binário)
-              if (mimeType !== "application/pdf") {
-                textoExtraido = await extractTextFromImage(buffer);
-                logger.info(`[OCR Fallback] Sucesso com Tesseract.`);
-              } else {
-                throw aiError; // Se for PDF e a IA falhar, repassa o erro
-              }
-            }
-
-            if (textoExtraido) {
-              textoCompleto += `\n\n--- TEXTO EXTRAÍDO (${docPath}) ---\n${textoExtraido}`;
-            }
-
-            // Delay entre documentos para evitar rate limit (429) do Gemini
-            if (urls_documentos.indexOf(docPath) < urls_documentos.length - 1) {
-              logger.info(`[OCR] Aguardando 6s antes do próximo documento...`);
-              await new Promise((r) => setTimeout(r, 6000));
-            }
-          } catch (ocrError) {
-            logger.warn(`Falha no OCR para ${docPath}: ${ocrError.message}`);
-          }
-        } else {
-          logger.info(
-            `[OCR] Pulando arquivo (formato não suportado): ${docPath}`,
-          );
-        }
-      }
-
-      // IA: Resumo desativado pela arquitetura relacional
-      resumo_ia = null;
+      // Loop de OCR removido para otimização do mutirão
     } else {
       logger.info(
-        `[Background] IA ignorada pela configuração da ação ${acaoKey}.`,
+        `[Background] OCR desativado para garantir privacidade absoluta. Processando apenas metadados.`,
       );
     }
 
@@ -1473,8 +1434,12 @@ export const criarNovoCaso = async (req, res) => {
       dados_formulario;
 
     // Extração mapeada forçadamente para o dicionário padrão (Sem Aliases)
-    const nome =
-      dados_formulario.REPRESENTANTE_NOME || dados_formulario.nome || "";
+    // [EIXO 6] Incapaz: assistido = filho (tag NOME), representante = mãe (tag REPRESENTANTE_NOME)
+    // Adulto: assistido = a própria autora (tag REPRESENTANTE_NOME)
+    const ehIncapaz = dados_formulario.assistidoEhIncapaz === "sim";
+    const nome = ehIncapaz
+      ? (dados_formulario.NOME || dados_formulario.nome || "")
+      : (dados_formulario.REPRESENTANTE_NOME || dados_formulario.nome || "");
     let cpf = dados_formulario.representante_cpf || dados_formulario.cpf || "";
     cpf = cpf.replace(/\D/g, ""); // Remove pontuações para não bugar a busca depois
     const cpf_requerido_limpo = (
@@ -1482,7 +1447,7 @@ export const criarNovoCaso = async (req, res) => {
     ).replace(/\D/g, "");
     const telefone = dados_formulario.requerente_telefone || "";
     const cpf_requerido = dados_formulario.executado_cpf || "";
-    const detalhes_filhos = dados_formulario.lista_filhos || "";
+    const detalhes_filhos = dados_formulario.outros_filhos_detalhes || dados_formulario.lista_filhos || "";
 
     const documentosInformadosArray = safeJsonParse(documentos_informados, []);
 
@@ -1651,10 +1616,18 @@ export const criarNovoCaso = async (req, res) => {
 
     // Busca a unidade pela cidade_assinatura informada no formulário
     const cidadeFormulario =
+      dados_formulario.CIDADEASSINATURA ||
       dados_formulario.cidade_assinatura ||
       dados_formulario.cidadeAssinatura ||
       "";
     let unidadeDb = null;
+
+    // [EIXO 4] Normalização de comarca: remove acentos e sufixos como /BA
+    const normalizeComarca = (s) =>
+      (s || "")
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove acentos
+        .replace(/\/[A-Z]{2}$/, "")                        // remove /BA, /SP, etc.
+        .toLowerCase().trim();
 
     if (cidadeFormulario) {
       // Busca case-insensitive pela comarca
@@ -1662,10 +1635,16 @@ export const criarNovoCaso = async (req, res) => {
         where: { ativo: true },
       });
       unidadeDb = todasUnidades.find(
-        (u) =>
-          u.comarca.toLowerCase().trim() ===
-          cidadeFormulario.toLowerCase().trim(),
+        (u) => normalizeComarca(u.comarca) === normalizeComarca(cidadeFormulario)
       );
+
+      if (!unidadeDb) {
+        logger.warn(`[Unidade] Nenhuma match exato para "${cidadeFormulario}". Tentando match parcial...`);
+        unidadeDb = todasUnidades.find(
+          (u) => normalizeComarca(u.comarca).includes(normalizeComarca(cidadeFormulario).split(" ")[0])
+        );
+      }
+
       if (!unidadeDb) {
         logger.warn(
           `Nenhuma unidade encontrada para a comarca "${cidadeFormulario}". Usando a primeira unidade disponível.`,
@@ -1711,6 +1690,33 @@ export const criarNovoCaso = async (req, res) => {
       ? "aguardando_documentos"
       : "documentacao_completa";
 
+    // Busca se a mesma mãe/assistido já tem um caso vinculado a um Defensor para unificar
+    let inheritedDefensorId = null;
+    if (cpf) {
+      const orConditions = [
+        { cpf_assistido: cpf },
+        { cpf_representante: cpf }
+      ];
+      const relatedCases = await prisma.casos_partes.findMany({
+        where: { OR: orConditions },
+        select: { caso_id: true }
+      });
+
+      if (relatedCases.length > 0) {
+        const caseIds = relatedCases.map((c) => c.caso_id);
+        const lockedCase = await prisma.casos.findFirst({
+           where: {
+             id: { in: caseIds },
+             defensor_id: { not: null }
+           },
+           orderBy: { defensor_at: 'desc' }
+        });
+        if (lockedCase) {
+           inheritedDefensorId = lockedCase.defensor_id;
+        }
+      }
+    }
+
     // Tenta salvar via Prisma de preferência (Normalizado v1.0)
     await prisma.casos.create({
       data: {
@@ -1718,6 +1724,8 @@ export const criarNovoCaso = async (req, res) => {
         unidade_id: unidadeDb.id,
         tipo_acao: tipoAcaoPrisma,
         status: statusInicial,
+        defensor_id: inheritedDefensorId,
+        defensor_at: inheritedDefensorId ? new Date() : null,
         created_at: new Date(),
         partes: {
           create: {
@@ -2237,8 +2245,10 @@ export const obterDetalhesCaso = async (req, res) => {
 
     // --- Lógica de Travamento (Locking) e Vínculo Automático ---
     const isAdmin = req.user.cargo.toLowerCase() === "admin";
+    // [EIXO 1] BigInt vs String — Prisma retorna BigInt, JWT tem string
     const isOwner =
-      data.defensor_id === req.user.id || data.servidor_id === req.user.id;
+      String(data.defensor_id) === String(req.user.id)
+      || String(data.servidor_id) === String(req.user.id);
     const isShared = (data.assistencia_casos || []).length > 0;
 
     if (
@@ -3506,26 +3516,36 @@ export const deletarCaso = async (req, res) => {
 export const reprocessarCaso = async (req, res) => {
   const { id } = req.params;
   try {
-    // Busca os dados originais do caso
-    let caso;
+    // Busca os dados originais do caso do schema novo
+    let casoRaw;
     if (isSupabaseConfigured) {
       const { data, error } = await supabase
         .from("casos")
-        .select("*")
+        .select("*, ia:casos_ia(*), documentos(*)")
         .eq("id", id)
         .single();
       if (error || !data) {
         return res.status(404).json({ error: "Caso não encontrado." });
       }
-      caso = data;
+      casoRaw = data;
     } else {
-      caso = await prisma.casos.findUnique({
+      casoRaw = await prisma.casos.findUnique({
         where: { id: BigInt(id) },
+        include: { ia: true, documentos: true }
       });
-      if (!caso) {
+      if (!casoRaw) {
         return res.status(404).json({ error: "Caso não encontrado." });
       }
     }
+
+    // Adaptando para o novo Schema:
+    const dados_extraidos = typeof casoRaw.ia?.dados_extraidos === 'string' 
+      ? JSON.parse(casoRaw.ia.dados_extraidos) 
+      : (casoRaw.ia?.dados_extraidos || {});
+      
+    const docsExtraidos = casoRaw.documentos 
+      ? casoRaw.documentos.map(d => d.storage_path) 
+      : [];
 
     // Responde imediatamente para a interface não travar
     res
@@ -3536,11 +3556,11 @@ export const reprocessarCaso = async (req, res) => {
     setImmediate(async () => {
       try {
         await processarCasoEmBackground(
-          caso.protocolo,
-          caso.dados_formulario,
-          caso.urls_documentos || [],
-          caso.url_audio,
-          caso.url_peticao,
+          casoRaw.protocolo,
+          dados_extraidos,
+          docsExtraidos,
+          null, // url áudio deprecated/não usado no mutirão
+          null  // url_petição base null, vai regenerar e sobrescrever
         );
       } catch (err) {
         logger.error(`Erro ao reprocessar caso ${id}: ${err.message}`);

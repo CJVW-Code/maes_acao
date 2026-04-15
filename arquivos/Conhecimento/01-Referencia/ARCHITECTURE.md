@@ -9,7 +9,7 @@
 
 O **Mães em Ação** é um sistema Full Stack desenvolvido para apoiar o mutirão estadual da Defensoria Pública da Bahia, cobrindo **35 a 52 sedes simultaneamente** durante **~5 dias úteis**. O sistema automatiza triagem, processamento de documentos via IA e geração de petições de Direito de Família para mães solo e em situação de vulnerabilidade.
 
-**Diferença crítica:** Projetado para escalar de ~17 casos (Def Sul Bahia) para centenas de casos em poucos minutos, exigindo arquitetura robusta e processamento assíncrono.
+**Diferença crítica:** Projetado para escalar de ~17 casos (versão anterior) para centenas de casos em poucos minutos, exigindo arquitetura robusta e processamento assíncrono.
 
 ---
 
@@ -28,7 +28,7 @@ O **Mães em Ação** é um sistema Full Stack desenvolvido para apoiar o mutir�
 - **Multer** → Upload de arquivos
 
 ### Banco de Dados
-- **Supabase Pro** (PostgreSQL, sa-east-1) — projeto ISOLADO do Def Sul
+- **Supabase Pro** (PostgreSQL, sa-east-1) — projeto ISOLADO da versão anterior
 - **Schema v1.0** → 11+ tabelas normalizadas (incluindo `assistencia_casos`, `notificacoes`)
 - **Índices estratégicos** → CPF, protocolo, status, unidade
 

@@ -74,7 +74,7 @@ export const Casos = () => {
   }
 
   if (error) {
-    if (error.message === "Sessão expirada") {
+    if (error.message === "Sessão expirada" || error.status === 401) {
       return null; // O context vai redirecionar
     }
     return (
@@ -102,7 +102,7 @@ export const Casos = () => {
           <div className="flex-1">
             <h2 className="heading-2">Listagem oficial</h2>
             <p className="text-sm text-muted">
-              {casos?.length || 0} registros importados do Assistente Def Sul.
+              {casos?.length || 0} registros importados do Assistente Mães em Ação.
             </p>
           </div>
 

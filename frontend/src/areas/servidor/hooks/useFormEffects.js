@@ -60,12 +60,21 @@ export const useFormEffects = ({
       hasLoadedData.current = true;
       const repData = location.state.payload;
       const representativeKeys = [
-        "representante_nome", "representante_cpf", "representante_rg_numero",
-        "representante_rg_orgao", "representante_nacionalidade",
-        "representante_estado_civil", "representante_ocupacao",
-        "representante_endereco_residencial", "representante_endereco_profissional",
-        "representante_telefone", "representante_email", "nome_mae_representante",
-        "nome_pai_representante", "cidade_assinatura"
+        "REPRESENTANTE_NOME", 
+        "representante_cpf", 
+        "representante_data_nascimento",
+        "representante_rg",
+        "emissor_rg_exequente", 
+        "representante_nacionalidade",
+        "representante_estado_civil", 
+        "representante_ocupacao",
+        "requerente_endereco_residencial", 
+        "representante_endereco_profissional",
+        "requerente_telefone", 
+        "requerente_email", 
+        "nome_mae_representante",
+        "nome_pai_representante", 
+        "CIDADEASSINATURA"
       ];
 
       representativeKeys.forEach((key) => {

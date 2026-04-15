@@ -24,7 +24,7 @@
 
 ### O que foi criado
 
-Este commit representa a exportação inicial de um sistema já funcional derivado do "Def Sul Bahia". Foram incluídos **207 arquivos** (~40.000 linhas de código).
+Este commit representa a exportação inicial de um sistema já funcional derivado da versão anterior. Foram incluídos **207 arquivos** (~40.000 linhas de código).
 
 #### Infraestrutura
 - `docker-compose.yml` — Orquestra 3 serviços: `db` (PostgreSQL 17), `backend`, `frontend`

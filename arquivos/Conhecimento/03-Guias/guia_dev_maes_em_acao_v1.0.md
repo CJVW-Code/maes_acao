@@ -12,7 +12,7 @@
 
 ### 1.1 O que já existe e funciona (Evoluções Recentes)
 
-O projeto é um fork do **Def Sul Bahia**, adaptado para o mutirão estadual. A estrutura base está sólida e recebeu grandes refinamentos nas sessões recentes:
+O projeto é um fork do sistema anterior (**Mães em Ação**), adaptado para o mutirão estadual. A estrutura base está sólida e recebeu grandes refinamentos nas sessões recentes:
 
 - **Backend & Infra:** O backend já resolve o erro do `entrypoint.sh` do Docker. Temos o gerador local de `.docx` operando com graceful degradation (fallback para Prisma se o Supabase Storage falhar), prevenindo os antigos erros 500. O sistema central de templates mapeia tags corretamente e acomoda a multiplicidade de execuções (penhora, prisão).
 - **Formulários Otimizados:** O fluxo da "Execução de Alimentos" tornou-se cirúrgico (foram removidos "Dados Processuais", WhatsApp, "Despesas Extras" e a rigidez documental). Agora, o fluxo tem um "Enviar documentos depois" com o `DocumentUpload` nativo nas consultas. O "Tipo de Decisão" usa dropdowns e há busca assistida de emissores RG.
@@ -43,7 +43,7 @@ A decisão é **não reescrever o que funciona**. Prisma continua sendo usado pa
 ```
 Frontend:   React 18 + Vite → Vercel Free (SPA estática — sem serverless functions)
 Backend:    Node.js 18+ Express + ES Modules → Railway Pro ($20/mês mínimo)
-Banco:      Supabase Pro (PostgreSQL, sa-east-1) — projeto ISOLADO do Def Sul
+Banco:      Supabase Pro (PostgreSQL, sa-east-1) — projeto ISOLADO da versão anterior
 ORM:        Prisma para tabelas de usuários | Supabase JS para tabelas de casos
 Storage:    Supabase Storage — apenas signed URLs com expiração de 1h, NUNCA públicas
 Fila:       QStash (Upstash) Pay-as-you-go — US Region — mensagens ilimitadas
@@ -65,7 +65,7 @@ DATABASE_URL=postgresql://...      # porta 5432 agora, migrar para 6543 (PgBounc
 # IA
 OPENAI_API_KEY=sk-...              # GPT-4o-mini para OCR
 GROQ_API_KEY=gsk_...               # Llama 3.3 70B para redação
-GEMINI_API_KEY=AI...               # Fallback — manter do Def Sul
+GEMINI_API_KEY=AI...               # Fallback — manter da versão anterior
 
 # QStash
 QSTASH_URL=https://qstash.upstash.io/v2/publish/

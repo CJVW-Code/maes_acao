@@ -78,7 +78,8 @@ export const Dashboard = () => {
     error: resumoError,
     isLoading: resumoLoading,
   } = useSWR(token ? "/casos/resumo" : null, fetcherResumo, {
-    revalidateOnFocus: true,
+    revalidateOnFocus: false,
+    dedupingInterval: 10000, // 10 segundos
   });
 
   // Lista recente: apenas os últimos casos (id, nome, protocolo, status, data)
@@ -87,7 +88,8 @@ export const Dashboard = () => {
     token ? "/casos?limite=10" : null,
     fetcherCasos,
     {
-      revalidateOnFocus: true,
+      revalidateOnFocus: false,
+      dedupingInterval: 10000,
     },
   );
 
@@ -144,9 +146,16 @@ export const Dashboard = () => {
   };
 
   if (resumoError || casosError) {
-    if (resumoError?.message === "Sessão expirada" || casosError?.message === "Sessão expirada") {
+    const isAuthError = 
+      resumoError?.message === "Sessão expirada" || 
+      casosError?.message === "Sessão expirada" ||
+      resumoError?.status === 401 ||
+      casosError?.status === 401;
+
+    if (isAuthError) {
       return null; // O context vai redirecionar
     }
+
     return (
       <div className="card border-l-4 border-l-red-500 text-red-600">
         Erro ao carregar o painel. Tente recarregar a página.
@@ -170,7 +179,7 @@ export const Dashboard = () => {
               {user?.nome || "Usuário"}
             </h1>
             <p className="text-white/80 max-w-2xl mt-2">
-              Acompanhe os casos recebidos pelo Def Sul.
+              Acompanhe os casos recebidos pelo Mães em Ação.
             </p>
           </div>
           <Link
