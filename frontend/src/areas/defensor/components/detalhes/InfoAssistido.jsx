@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Eye } from "lucide-react";
+import { formatTipoAcaoLabel } from "../../../../utils/caseUtils";
 
 const formatValue = (value) => {
   if (value === null || value === undefined || value === "") {
@@ -95,7 +96,7 @@ export const InfoAssistido = ({ caso }) => {
         {renderDataField("CPF", cpfPrincipal)}
         {isRepresentacao && renderDataField("Genitora/Representante", dados.REPRESENTANTE_NOME)}
         {renderDataField("Telefone principal", telefonePrincipal)}
-        {renderDataField("Tipo de ação", caso.tipo_acao?.replace(/_/g, " "))}
+        {renderDataField("Tipo de ação", formatTipoAcaoLabel(caso.tipo_acao))}
         {renderDataField("Protocolo", caso.protocolo)}
       </div>
 
@@ -118,17 +119,17 @@ export const InfoAssistido = ({ caso }) => {
                   : "Dados do Autor da Ação"}
               </h3>
               <div className="grid gap-4 md:grid-cols-2">
-                {renderDataField("Nome completo", isRepresentacao ? pickFirst(dados.NOME, dados.nome) : pickFirst(dados.REPRESENTANTE_NOME, dados.requerente_nome))}
-                {renderDataField("CPF", isRepresentacao ? pickFirst(dados.cpf_assistido, dados.cpf) : pickFirst(dados.representante_cpf, dados.requerente_cpf))}
-                {renderDataField("Data de nascimento", formatDateDisplay(isRepresentacao ? pickFirst(dados.nascimento, dados.assistido_data_nascimento) : pickFirst(dados.representante_data_nascimento, dados.data_nascimento_assistido)))}
-                {renderDataField("Nacionalidade", isRepresentacao ? "Brasileira" : pickFirst(dados.representante_nacionalidade, dados.assistido_nacionalidade))}
-                {!isRepresentacao && renderDataField("Estado civil", pickFirst(dados.representante_estado_civil, dados.assistido_estado_civil))}
-                {!isRepresentacao && renderDataField("Profissão", pickFirst(dados.representante_ocupacao, dados.assistido_ocupacao))}
-                {renderDataField("Endereço residencial", pickFirst(dados.requerente_endereco_residencial, dados.endereco_assistido))}
+                {renderDataField("Nome completo", isRepresentacao ? pickFirst(dados.NOME, dados.nome, caso.nome_assistido) : pickFirst(dados.REPRESENTANTE_NOME, dados.requerente_nome, caso.nome_assistido))}
+                {renderDataField("CPF", isRepresentacao ? pickFirst(dados.cpf_assistido, dados.cpf, caso.cpf_assistido) : pickFirst(dados.representante_cpf, dados.requerente_cpf, caso.cpf_assistido))}
+                {renderDataField("Data de nascimento", formatDateDisplay(isRepresentacao ? pickFirst(dados.nascimento, dados.assistido_data_nascimento, caso.assistido_data_nascimento) : pickFirst(dados.representante_data_nascimento, dados.data_nascimento_assistido, caso.assistido_data_nascimento)))}
+                {renderDataField("Nacionalidade", isRepresentacao ? "Brasileira" : pickFirst(dados.representante_nacionalidade, dados.assistido_nacionalidade, caso.assistido_nacionalidade))}
+                {!isRepresentacao && renderDataField("Estado civil", pickFirst(dados.representante_estado_civil, dados.assistido_estado_civil, caso.assistido_estado_civil))}
+                {!isRepresentacao && renderDataField("Profissão", pickFirst(dados.representante_ocupacao, dados.assistido_ocupacao, caso.assistido_ocupacao))}
+                {renderDataField("Endereço residencial", pickFirst(dados.requerente_endereco_residencial, dados.endereco_assistido, caso.endereco_assistido))}
                 {!isRepresentacao && renderDataField("Endereço profissional", pickFirst(dados.representante_endereco_profissional, dados.requerido_endereco_profissional))}
-                {renderDataField("E-mail", pickFirst(dados.requerente_email, dados.email_assistido))}
-                {renderDataField("Telefone", pickFirst(dados.requerente_telefone, dados.telefone_assistido))}
-                {renderDataField("RG", isRepresentacao ? "Não coletado" : `${pickFirst(dados.representante_rg, dados.assistido_rg_numero) || ""} ${pickFirst(dados.emissor_rg_exequente, dados.assistido_rg_orgao) || ""}`.trim())}
+                {renderDataField("E-mail", pickFirst(dados.requerente_email, dados.email_assistido, caso.email_assistido))}
+                {renderDataField("Telefone", pickFirst(dados.requerente_telefone, dados.telefone_assistido, caso.telefone_assistido))}
+                {renderDataField("RG", isRepresentacao ? "Não coletado" : `${pickFirst(dados.representante_rg, dados.assistido_rg_numero, caso.assistido_rg_numero) || ""} ${pickFirst(dados.emissor_rg_exequente, dados.assistido_rg_orgao, caso.assistido_rg_orgao) || ""}`.trim())}
               </div>
             </div>
 
@@ -175,10 +176,10 @@ export const InfoAssistido = ({ caso }) => {
             <div className="space-y-4 pt-4 border-t border-soft">
               <h3 className="heading-3 text-primary">Dados da Parte Contrária (Requerido)</h3>
               <div className="grid gap-4 md:grid-cols-2">
-                {renderDataField("Nome completo", pickFirst(dados.REQUERIDO_NOME, dados.nome_requerido))}
-                {renderDataField("CPF", pickFirst(dados.executado_cpf, dados.cpf_requerido))}
-                {renderDataField("Endereço conhecido", pickFirst(dados.executado_endereco_residencial, dados.endereco_requerido))}
-                {renderDataField("Telefone", pickFirst(dados.executado_telefone, dados.telefone_requerido))}
+                {renderDataField("Nome completo", pickFirst(dados.REQUERIDO_NOME, dados.nome_requerido, caso.nome_requerido))}
+                {renderDataField("CPF", pickFirst(dados.executado_cpf, dados.cpf_requerido, caso.cpf_requerido))}
+                {renderDataField("Endereço conhecido", pickFirst(dados.executado_endereco_residencial, dados.endereco_requerido, caso.endereco_requerido))}
+                {renderDataField("Telefone", pickFirst(dados.executado_telefone, dados.telefone_requerido, caso.telefone_requerido))}
                 {renderDataField("E-mail", pickFirst(dados.executado_email, dados.email_requerido))}
                 {renderDataField("Profissão", pickFirst(dados.executado_ocupacao, dados.profissao_requerido))}
                 {renderDataField("Endereço de trabalho", pickFirst(dados.executado_endereco_profissional, dados.requerido_endereco_profissional))}

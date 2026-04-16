@@ -149,6 +149,53 @@ export const ConsultaStatus = () => {
     }
   };
 
+  const handleSolicitarReagendamento = async () => {
+    if (!motivoReagendamento.trim()) {
+      toast.error("Por favor, informe o motivo do reagendamento.");
+      return;
+    }
+    
+    setEnviandoReagendamento(true);
+    
+    try {
+      const identificador = caso.id || caso.protocolo || 0;
+      // Podemos reaproveitar a rota de contato ou de upload enviando sem arquivos, 
+      // mas o mais seguro é simplesmente mandar uma string para o backend se tiver rota para isso.
+      // O backend não tem uma rota específica de "reagendar" ainda para a cidadã, então vamos anexar nas anotações
+      // da mesma forma que os documentos anexos, chamaremos upload-complementar com texto.
+      const formData = new FormData();
+      formData.append("representante_cpf", cpf.replace(/\D/g, ""));
+      formData.append(
+        "nomes_arquivos", 
+        JSON.stringify({ "*reagendamento*": "Solicitação de Reagendamento" })
+      );
+      
+      // Cria um arquivo txt virtual (gambiarra do bem) para não criar rota nova nas vésperas do mutirão
+      const blob = new Blob([`SOLICITAÇÃO DE REAGENDAMENTO\n\nMotivo: ${motivoReagendamento}\nSugestão de data: ${dataSugerida || "Não informou"}`], { type: 'text/plain' });
+      formData.append("documentos", blob, "solicitacao_reagendamento.txt");
+
+      const response = await fetch(
+        `${API_BASE}/casos/${identificador}/upload-complementar?cpf=${cpf.replace(/\D/g, "")}`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!response.ok) throw new Error("Erro ao enviar solicitação.");
+
+      toast.success("Solicitação enviada. A Defensoria analisará seu pedido.");
+      setIsReagendando(false);
+      setMotivoReagendamento('');
+      setDataSugerida('');
+      consultarPorCpf(cpf); // Recarrega tela
+    } catch (err) {
+      toast.error("Falha ao solicitar reagendamento.");
+    } finally {
+      setEnviandoReagendamento(false);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}

@@ -29,6 +29,7 @@ import {
   Paperclip,
 } from "lucide-react";
 import { API_BASE } from "../../../utils/apiBase";
+import { formatTipoAcaoLabel } from "../../../utils/caseUtils";
 import { useToast } from "../../../contexts/ToastContext";
 import { useConfirm } from "../../../contexts/ConfirmContext";
 import { TimelineAuditoria } from "../components/TimelineAuditoria";
@@ -848,7 +849,7 @@ export const DetalhesCaso = () => {
           <h1 className="heading-1 mt-3">{caso.nome_assistido}</h1>
           <div className="flex flex-wrap items-center gap-4 mt-2">
             <p className="text-muted text-sm">
-              Protocolo {caso.protocolo} • {caso.tipo_acao}
+              Protocolo {caso.protocolo} • {formatTipoAcaoLabel(caso.tipo_acao)}
             </p>
             <div className="flex items-center gap-2 bg-surface border border-soft rounded-md px-3 py-1.5 shadow-sm">
               <label
@@ -1268,7 +1269,7 @@ export const DetalhesCaso = () => {
                 <p className="text-sm text-muted">Status atual</p>
                 <div className="relative flex items-center gap-2 z-10">
                   <button
-                    onClick={() => fetchDetalhes(true)}
+                    onClick={() => mutate()}
                     className="text-muted hover:text-primary transition-colors p-1"
                     title="Atualizar status"
                   >

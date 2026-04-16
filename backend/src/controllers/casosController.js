@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { supabase, isSupabaseConfigured } from "../config/supabase.js";
 import { prisma } from "../config/prisma.js";
 import path from "path";
@@ -72,9 +73,9 @@ const mapCasoRelations = (caso) => {
     enriched.assistido_ocupacao = partes.profissao;
 
     // Mapeamento para tags oficiais do dicionarioTags.js
-    enriched.REPRESENTANTE_NOME = partes.nome_assistido;
-    enriched.nome_representante = partes.nome_assistido; // Alias compatibilidade
-    enriched.representante_cpf = partes.cpf_assistido;
+    enriched.REPRESENTANTE_NOME = partes.nome_representante || partes.nome_assistido;
+    enriched.nome_representante = partes.nome_representante || partes.nome_assistido; // Alias compatibilidade
+    enriched.representante_cpf = partes.cpf_representante || partes.cpf_assistido;
     enriched.nome_mae_representante = partes.nome_mae_representante;
     enriched.nome_pai_representante = partes.nome_pai_representante;
 
@@ -100,9 +101,12 @@ const mapCasoRelations = (caso) => {
     enriched.casos_ia = ia;
     enriched.ia = ia;
     // [FIX] O dados_formulario agora abraça o próprio payload JSONB extraído com integridade
-    enriched.dados_formulario = extras;
+    enriched.dados_formulario = {
+      ...buildDadosFormularioFallback(enriched),
+      ...extras,
+    };
   } else {
-    enriched.dados_formulario = {};
+    enriched.dados_formulario = buildDadosFormularioFallback(enriched);
   }
 
   if (partes) {
@@ -135,6 +139,68 @@ const mapCasoRelations = (caso) => {
 
   return enriched;
 };
+
+const buildDadosFormularioFallback = (caso = {}) => ({
+  tipoAcao: caso.tipo_acao || caso.tipoAcao || "",
+  acaoEspecifica:
+    caso.acao_especifica ||
+    caso.acaoEspecifica ||
+    (String(caso.tipo_acao || caso.tipoAcao || "").split(" - ")[1] || "").trim(),
+  NOME: caso.nome_assistido || caso.REPRESENTANTE_NOME || caso.nome || "",
+  nome: caso.nome_assistido || caso.nome || caso.REPRESENTANTE_NOME || "",
+  cpf: caso.cpf_assistido || caso.cpf || "",
+  telefone: caso.telefone_assistido || caso.telefone || "",
+  email_assistido: caso.email_assistido || caso.email || "",
+  endereco_assistido:
+    caso.endereco_assistido || caso.requerente_endereco_residencial || "",
+  assistido_data_nascimento:
+    caso.assistido_data_nascimento || caso.data_nascimento_assistido || "",
+  assistido_nacionalidade: caso.assistido_nacionalidade || "",
+  assistido_estado_civil: caso.assistido_estado_civil || "",
+  assistido_ocupacao: caso.assistido_ocupacao || "",
+  REPRESENTANTE_NOME:
+    caso.REPRESENTANTE_NOME || caso.nome_representante || caso.nome_assistido || "",
+  representante_nome: caso.representante_nome || caso.nome_representante || "",
+  representante_cpf: caso.representante_cpf || caso.cpf_representante || "",
+  representante_endereco_residencial:
+    caso.representante_endereco_residencial || "",
+  representante_endereco_profissional:
+    caso.representante_endereco_profissional || "",
+  representante_email: caso.representante_email || "",
+  representante_telefone: caso.representante_telefone || "",
+  representante_rg_numero:
+    caso.representante_rg_numero || caso.representante_rg || "",
+  representante_rg_orgao:
+    caso.representante_rg_orgao || caso.emissor_rg_exequente || "",
+  nome_requerido: caso.nome_requerido || "",
+  cpf_requerido: caso.cpf_requerido || "",
+  endereco_requerido: caso.endereco_requerido || "",
+  telefone_requerido: caso.telefone_requerido || "",
+  email_requerido: caso.email_requerido || "",
+  requerido_rg_numero:
+    caso.requerido_rg_numero || caso.rg_executado || "",
+  requerido_rg_orgao:
+    caso.requerido_rg_orgao || caso.emissor_rg_executado || "",
+  dados_adicionais_requerido: caso.dados_adicionais_requerido || "",
+  dados_bancarios_deposito:
+    caso.dados_bancarios_deposito || caso.dados_bancarios_exequente || "",
+  valor_mensal_pensao:
+    caso.valor_mensal_pensao || caso.valor_pensao || "",
+  valor_total_debito_execucao:
+    caso.valor_total_debito_execucao || caso.valor_debito || "",
+  percentual_salario_minimo: caso.percentual_salario_minimo || "",
+  dia_pagamento: caso.dia_pagamento || caso.dia_pagamento_fixado || "",
+  periodo_meses_ano:
+    caso.periodo_meses_ano || caso.periodo_debito_execucao || caso.periodo_debito || "",
+  tipo_decisao: caso.tipo_decisao || "",
+  processoOrigemNumero:
+    caso.processoOrigemNumero || caso.numero_processo_originario || "",
+  cidadeOriginaria: caso.cidadeOriginaria || caso.cidade_originaria || "",
+  varaOriginaria: caso.varaOriginaria || caso.vara_originaria || "",
+  CIDADEASSINATURA: caso.CIDADEASSINATURA || caso.cidade_assinatura || "",
+  cidade_assinatura: caso.cidade_assinatura || "",
+  outros_filhos_detalhes: caso.outros_filhos_detalhes || caso.filhos_info || "",
+});
 
 // Tempo de expiração (em segundos) para URLs assinadas do Supabase
 const signedExpires = Number.parseInt(
@@ -806,10 +872,6 @@ const buildDocxTemplatePayload = (
     requerente_telefone: baseData.requerente_telefone || baseData.telefone_assistido || baseData.representante_telefone || "não informado",
     requerente_email: baseData.requerente_email || baseData.email_assistido || baseData.representante_email || "não informado",
 
-    executado_endereco_residencial: baseData.executado_endereco_residencial || baseData.endereco_requerido || "não informado",
-    executado_telefone: baseData.executado_telefone || baseData.telefone_requerido || "não informado",
-    executado_email: baseData.executado_email || baseData.email_requerido || "não informado",
-
     representante_rg: baseData.representante_rg || baseData.assistido_rg_numero || baseData.representante_rg_numero || "não informado",
     emissor_rg_exequente: baseData.emissor_rg_exequente || baseData.assistido_rg_orgao || baseData.representante_rg_orgao || "não informado",
     nome_mae_representante: baseData.nome_mae_representante || baseData.representante_nome_mae || "não informado",
@@ -828,8 +890,10 @@ const buildDocxTemplatePayload = (
     valor_debito: baseData.valor_debito || baseData.valor_total_debito_execucao || (debitoCalculado > 0 ? formatCurrencyBr(debitoCalculado) : "______"),
     valor_debito_extenso: baseData.valor_debito_extenso || debitoCalculadoExtenso || "______",
     data_atual: baseData.data_atual || dataAtualTexto,
+    DATA_ATUAL: baseData.data_atual || dataAtualTexto,
     defensoraNome: baseData.defensoraNome || normalizedData.defensoraNome || "DEFENSOR(A) PÚBLICO(A)",
     dos_fatos: ensureText(dosFatosTexto, "[DESCREVER OS FATOS]") || "[DESCREVER OS FATOS]",
+    dos_fatos_gerado: ensureText(dosFatosTexto, "[DESCREVER OS FATOS]") || "[DESCREVER OS FATOS]",
 
     // --- ALIASES EXATOS PARA O TEMPLATE XML (Fixação, Divórcio, etc) ---
     vara: formatVara(baseData.VARA || baseData.vara || baseData.numero_vara || "______"),
@@ -869,7 +933,9 @@ const buildDocxTemplatePayload = (
     // PEDIDOS E VALORES
     filhos_info: baseData.filhos_info || "______",
     percentual_provisorio_salario_min: baseData.percentual_salario_minimo || "______",
+    percentual_salario_minimo: baseData.percentual_salario_minimo || "______",
     valor_provisorio_referencia: baseData.valor_pensao || "______",
+    valor_pensao: baseData.valor_pensao || "______",
     percentual_despesas_extras: baseData.percentual_definitivo_extras || "50",
     dia_pagamento: baseData.dia_pagamento || baseData.dia_pagamento_fixado || baseData.dia_pagamento_requerido || "10",
     dados_bancarios_requerente: baseData.dados_bancarios_exequente || baseData.dados_bancarios_deposito || "______",
@@ -999,8 +1065,8 @@ export const processarCasoEmBackground = async (
 
     // Mapeamento manual para casos comuns
     if (
-      acaoKey.includes("execucao") &&
-      (acaoKey.includes("penhora") || acaoKey.includes("prisao"))
+      (acaoKey.includes("execucao") && (acaoKey.includes("penhora") || acaoKey.includes("prisao"))) ||
+      ['exec_cumulado', 'exec_penhora', 'exec_prisao'].includes(acaoKey)
     ) {
       acaoKey = "execucao_alimentos";
     }
@@ -1198,6 +1264,7 @@ export const processarCasoEmBackground = async (
         dados_formulario.periodo_debito_execucao ||
         dados_formulario.periodo_debito,
       periodo_debito:
+        dados_formulario.periodo_meses_ano ||
         dados_formulario.periodo_debito ||
         dados_formulario.periodo_debito_execucao,
       valor_total_debito_execucao: formattedValorTotalDebitoExecucao,
@@ -1252,6 +1319,7 @@ export const processarCasoEmBackground = async (
 
       if (configAcao.gerarMultiplos) {
         const periodoParaCalculo =
+          caseDataForPetition.periodo_meses_ano ||
           caseDataForPetition.periodo_debito_execucao ||
           caseDataForPetition.periodo_debito ||
           "";
@@ -2506,7 +2574,28 @@ export const regenerarDosFatos = async (req, res) => {
     const dados = caso.dados_formulario || caso;
     if (!dados.relato_texto && caso.relato_texto)
       dados.relato_texto = caso.relato_texto;
-    const dosFatosTexto = await generateDosFatos(dados);
+
+    let acaoRaw =
+      dados.acaoEspecifica ||
+      (dados.tipoAcao || "").split(" - ")[1]?.trim() ||
+      (dados.tipoAcao || "").trim() ||
+      caso.tipo_acao ||
+      "";
+
+    let acaoKey = acaoRaw
+      .toLowerCase()
+      .replace(/\s+/g, "_")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    if (
+      (acaoKey.includes("execucao") && (acaoKey.includes("penhora") || acaoKey.includes("prisao"))) ||
+      ['exec_cumulado', 'exec_penhora', 'exec_prisao'].includes(acaoKey)
+    ) {
+      acaoKey = "execucao_alimentos";
+    }
+
+    const dosFatosTexto = await generateDosFatos(dados, acaoKey);
 
     let casoAtualizado;
 
@@ -2723,8 +2812,8 @@ export const regerarMinuta = async (req, res) => {
 
     // Mapeamento manual para casos comuns que podem vir do PDF/Formulário
     if (
-      acaoKey.includes("execucao") &&
-      (acaoKey.includes("penhora") || acaoKey.includes("prisao"))
+      (acaoKey.includes("execucao") && (acaoKey.includes("penhora") || acaoKey.includes("prisao"))) ||
+      ['exec_cumulado', 'exec_penhora', 'exec_prisao'].includes(acaoKey)
     ) {
       acaoKey = "execucao_alimentos";
     }
@@ -3536,9 +3625,20 @@ export const reprocessarCaso = async (req, res) => {
     }
 
     // Adaptando para o novo Schema:
-    const dados_extraidos = typeof casoRaw.ia?.dados_extraidos === 'string'
+    const baseExtraidos = typeof casoRaw.ia?.dados_extraidos === 'string'
       ? JSON.parse(casoRaw.ia.dados_extraidos)
       : (casoRaw.ia?.dados_extraidos || {});
+
+    const fallbackDadosFormulario = buildDadosFormularioFallback(casoRaw);
+    const dados_extraidos = {
+      ...fallbackDadosFormulario,
+      ...(typeof casoRaw.dados_formulario === 'object' ? casoRaw.dados_formulario : {}),
+      ...baseExtraidos,
+      tipoAcao:
+        casoRaw.tipo_acao ||
+        baseExtraidos.tipoAcao ||
+        fallbackDadosFormulario.tipoAcao,
+    };
 
     const docsExtraidos = casoRaw.documentos
       ? casoRaw.documentos.map(d => d.storage_path)

@@ -12,9 +12,12 @@ export const TAGS_OFICIAIS = [
   'varaOriginaria',
   'cidadeOriginaria',
   'data_atual',
+  'DATA_ATUAL',
   'defensoraNome',
   
   'REPRESENTANTE_NOME',
+  'representante_nacionalidade',
+  'representante_estado_civil',
   'representante_ocupacao',
   'representante_rg',
   'emissor_rg_exequente',
@@ -27,6 +30,8 @@ export const TAGS_OFICIAIS = [
   'dados_bancarios_exequente',
   
   'REQUERIDO_NOME',
+  'executado_nacionalidade',
+  'executado_estado_civil',
   'executado_ocupacao',
   'nome_mae_executado',
   'nome_pai_executado',
@@ -34,12 +39,18 @@ export const TAGS_OFICIAIS = [
   'emissor_rg_executado',
   'executado_cpf',
   'executado_endereco_residencial',
+  'executado_endereco_profissional',
   'executado_telefone',
   'executado_email',
   'empregador_nome',
   
   'NOME', // Nome do(s) filho(s)
+  'nacionalidade', // Dentro do loop
   'nascimento', // Nascimento do(s) filho(s)
+  'cpf', // Dentro do loop
+  'rg', // Dentro do loop
+  'qualificacao_incapacidade', // Dentro do loop
+  'separador', // Dentro do loop
   'guarda',
   'situacao_financeira',
   'valor_pensao',
@@ -55,7 +66,9 @@ export const TAGS_OFICIAIS = [
   'valor_honorarios',
   'data_inicio_debito',
   'data_fim_debito',
-  'bens_partilha'
+  'bens_partilha',
+  'dos_fatos',
+  'termo_representacao'
 ];
 
 export const isValidTag = (tag) => TAGS_OFICIAIS.includes(tag);

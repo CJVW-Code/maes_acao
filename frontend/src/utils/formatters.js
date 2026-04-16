@@ -133,3 +133,30 @@ export const validateCpfAlgorithm = (cpf) => {
 
   return true;
 };
+
+export const validateBrDate = (brDate = "") => {
+  if (!brDate || typeof brDate !== "string") return false;
+  
+  // Verifica formato exato DD/MM/AAAA
+  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(brDate)) return false;
+  
+  const [dayStr, monthStr, yearStr] = brDate.split("/");
+  const day = parseInt(dayStr, 10);
+  const month = parseInt(monthStr, 10);
+  const year = parseInt(yearStr, 10);
+  
+  // Limites básicos (não aceita antes de 1900 ou depois do ano atual + 1 por segurança na conversão de timezones)
+  const currentYear = new Date().getFullYear();
+  if (year < 1900 || year > currentYear) return false;
+  if (month < 1 || month > 12) return false;
+  
+  // Dias por mês (considerando bissexto correto)
+  const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+  const daysInMonth = [
+    31, isLeapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+  ];
+  
+  if (day < 1 || day > daysInMonth[month - 1]) return false;
+  
+  return true;
+};
