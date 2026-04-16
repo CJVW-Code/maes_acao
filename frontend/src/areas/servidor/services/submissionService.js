@@ -1,4 +1,4 @@
-import { fieldMapping, digitsOnlyFields, dateFields, currencyFields } from '../../../utils/formConstants.js';
+import { digitsOnlyFields, dateFields, currencyFields } from '../utils/formConstants.js';
 import { validateBrDate } from '../../../utils/formatters.js';
 
 export const processSubmission = async ({
