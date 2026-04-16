@@ -1,4 +1,4 @@
-import { supabase } from "../config/supabase.js"; 
+import { prisma } from "../config/prisma.js";
 
 export async function registrarLog(
   usuarioId,
@@ -8,23 +8,30 @@ export async function registrarLog(
   detalhes = {},
 ) {
   try {
-    const { error } = await supabase.from("logs_auditoria").insert([
-      {
-        usuario_id: usuarioId,
+    // Caso o registroId seja um protocolo (string), tentamos encontrar o caso_id (BigInt)
+    let caso_id = null;
+    if (entidade === 'casos' && registroId) {
+      const caso = await prisma.casos.findFirst({
+        where: { protocolo: String(registroId) },
+        select: { id: true }
+      });
+      if (caso) caso_id = caso.id;
+    }
+
+    await prisma.logs_auditoria.create({
+      data: {
+        usuario_id: usuarioId || null,
+        caso_id: caso_id,
         acao: acao,
         entidade: entidade,
         registro_id: registroId !== undefined && registroId !== null ? String(registroId) : null,
-        detalhes: detalhes,
-        criado_em: new Date().toISOString(),
+        detalhes: detalhes || {},
+        criado_em: new Date(),
       },
-    ]);
+    });
 
-    if (error) {
-      console.error("❌ Falha ao inserir log no Supabase:", error.message);
-    } else {
-      console.log(`✅ Log registrado: ${acao}`);
-    }
+    console.log(`✅ Log registrado (Prisma): ${acao}`);
   } catch (err) {
-    console.error("⚠️ Erro crítico no loggerService:", err);
+    console.error("⚠️ Erro crítico no loggerService (Prisma):", err);
   }
 }

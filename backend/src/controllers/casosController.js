@@ -58,6 +58,7 @@ const mapCasoRelations = (caso) => {
   const juridico = resolveRel(caso.casos_juridico || caso.juridico);
 
   const enriched = { ...caso };
+  enriched.assistido_eh_incapaz = partes?.assistido_eh_incapaz || "não";
 
   if (partes) {
     enriched.nome_assistido = partes.nome_assistido;
@@ -76,12 +77,32 @@ const mapCasoRelations = (caso) => {
     enriched.REPRESENTANTE_NOME = partes.nome_representante || partes.nome_assistido;
     enriched.nome_representante = partes.nome_representante || partes.nome_assistido; // Alias compatibilidade
     enriched.representante_cpf = partes.cpf_representante || partes.cpf_assistido;
+    enriched.representante_nacionalidade = partes.nacionalidade_representante;
+    enriched.representante_estado_civil = partes.estado_civil_representante;
+    enriched.representante_ocupacao = partes.profissao_representante;
+    enriched.representante_rg_numero = partes.rg_representante || partes.rg_assistido;
+    enriched.representante_rg_orgao = partes.emissor_rg_representante || partes.emissor_rg_assistido;
+    enriched.emissor_rg_exequente = partes.emissor_rg_representante || partes.emissor_rg_assistido;
     enriched.nome_mae_representante = partes.nome_mae_representante;
     enriched.nome_pai_representante = partes.nome_pai_representante;
 
+    enriched.REQUERIDO_NOME = partes.nome_requerido;
     enriched.nome_requerido = partes.nome_requerido;
     enriched.cpf_requerido = partes.cpf_requerido;
+    enriched.executado_cpf = partes.cpf_requerido;
+    enriched.rg_executado = partes.rg_requerido;
+    enriched.emissor_rg_executado = partes.emissor_rg_requerido;
+    enriched.executado_nacionalidade = partes.nacionalidade_requerido || "brasileiro(a)";
+    enriched.executado_estado_civil = partes.estado_civil_requerido || "solteiro(a)";
+    enriched.executado_ocupacao = partes.profissao_requerido;
+    enriched.nome_mae_executado = partes.nome_mae_requerido;
+    enriched.nome_pai_executado = partes.nome_pai_requerido;
     enriched.endereco_requerido = partes.endereco_requerido;
+    enriched.executado_endereco_residencial = partes.endereco_requerido;
+    enriched.telefone_requerido = partes.telefone_requerido;
+    enriched.executado_telefone = partes.telefone_requerido;
+    enriched.email_requerido = partes.email_requerido;
+    enriched.executado_email = partes.email_requerido;
   }
 
   if (ia) {
@@ -118,8 +139,33 @@ const mapCasoRelations = (caso) => {
 
   if (juridico) {
     enriched.numero_processo_originario = juridico.numero_processo_titulo;
+    enriched.processoOrigemNumero = juridico.numero_processo_titulo;
     enriched.percentual_salario_minimo = juridico.percentual_salario;
     enriched.dia_pagamento_fixado = juridico.vencimento_dia;
+    enriched.dia_pagamento = juridico.vencimento_dia;
+    enriched.tipo_decisao = juridico.tipo_decisao;
+    enriched.vara_originaria = juridico.vara_originaria;
+    enriched.varaOriginaria = juridico.vara_originaria;
+    enriched.cidade_originaria = juridico.cidade_originaria;
+    enriched.cidadeOriginaria = juridico.cidade_originaria;
+    enriched.periodo_meses_ano = juridico.periodo_inadimplencia;
+    enriched.periodo_debito_execucao = juridico.periodo_inadimplencia;
+    enriched.valor_debito = juridico.debito_valor;
+    enriched.valor_debito_extenso = juridico.debito_extenso;
+    enriched.valor_total_debito_execucao = juridico.debito_valor;
+    
+    // Dados Bancários
+    enriched.banco_deposito = juridico.conta_banco;
+    enriched.agencia_deposito = juridico.conta_agencia;
+    enriched.conta_deposito = juridico.conta_numero;
+    enriched.dados_bancarios_exequente = juridico.conta_banco ? `Banco: ${juridico.conta_banco}, Agência: ${juridico.conta_agencia}, Conta: ${juridico.conta_numero}` : null;
+    
+    // Empregador
+    enriched.empregador_nome = juridico.empregador_nome;
+    enriched.empregador_requerido_nome = juridico.empregador_nome;
+    enriched.empregador_endereco = juridico.empregador_endereco;
+    enriched.empregador_requerido_endereco = juridico.empregador_endereco;
+
     enriched.juridico = juridico;
   }
 
@@ -162,32 +208,55 @@ const buildDadosFormularioFallback = (caso = {}) => ({
     caso.REPRESENTANTE_NOME || caso.nome_representante || caso.nome_assistido || "",
   representante_nome: caso.representante_nome || caso.nome_representante || "",
   representante_cpf: caso.representante_cpf || caso.cpf_representante || "",
+  representante_nacionalidade: caso.representante_nacionalidade || "",
+  representante_estado_civil: caso.representante_estado_civil || "",
+  representante_ocupacao: caso.representante_ocupacao || "",
   representante_endereco_residencial:
-    caso.representante_endereco_residencial || "",
+    caso.representante_endereco_residencial || caso.endereco_assistido || "",
   representante_endereco_profissional:
     caso.representante_endereco_profissional || "",
-  representante_email: caso.representante_email || "",
-  representante_telefone: caso.representante_telefone || "",
+  representante_email: caso.representante_email || caso.email_assistido || "",
+  representante_telefone: caso.representante_telefone || caso.telefone_assistido || "",
+  representante_rg: caso.representante_rg_numero || caso.representante_rg || "",
   representante_rg_numero:
     caso.representante_rg_numero || caso.representante_rg || "",
   representante_rg_orgao:
     caso.representante_rg_orgao || caso.emissor_rg_exequente || "",
+  emissor_rg_exequente: caso.emissor_rg_exequente || caso.representante_rg_orgao || "",
+  nome_mae_representante: caso.nome_mae_representante || "",
+  nome_pai_representante: caso.nome_pai_representante || "",
+  REQUERIDO_NOME: caso.REQUERIDO_NOME || caso.nome_requerido || "",
   nome_requerido: caso.nome_requerido || "",
-  cpf_requerido: caso.cpf_requerido || "",
-  endereco_requerido: caso.endereco_requerido || "",
-  telefone_requerido: caso.telefone_requerido || "",
-  email_requerido: caso.email_requerido || "",
+  cpf_requerido: caso.cpf_requerido || caso.executado_cpf || "",
+  executado_cpf: caso.executado_cpf || caso.cpf_requerido || "",
+  endereco_requerido: caso.endereco_requerido || caso.executado_endereco_residencial || "",
+  executado_endereco_residencial: caso.executado_endereco_residencial || caso.endereco_requerido || "",
+  telefone_requerido: caso.telefone_requerido || caso.executado_telefone || "",
+  executado_telefone: caso.executado_telefone || caso.telefone_requerido || "",
+  email_requerido: caso.email_requerido || caso.executado_email || "",
+  executado_email: caso.executado_email || caso.email_requerido || "",
   requerido_rg_numero:
     caso.requerido_rg_numero || caso.rg_executado || "",
+  rg_executado: caso.rg_executado || caso.requerido_rg_numero || "",
   requerido_rg_orgao:
     caso.requerido_rg_orgao || caso.emissor_rg_executado || "",
+  emissor_rg_executado: caso.emissor_rg_executado || caso.requerido_rg_orgao || "",
+  executado_nacionalidade: caso.executado_nacionalidade || "",
+  executado_estado_civil: caso.executado_estado_civil || "",
+  executado_ocupacao: caso.executado_ocupacao || "",
+  nome_mae_executado: caso.nome_mae_executado || "",
+  nome_pai_executado: caso.nome_pai_executado || "",
   dados_adicionais_requerido: caso.dados_adicionais_requerido || "",
+  
+  dados_bancarios_exequente: caso.dados_bancarios_exequente || "",
   dados_bancarios_deposito:
     caso.dados_bancarios_deposito || caso.dados_bancarios_exequente || "",
   valor_mensal_pensao:
     caso.valor_mensal_pensao || caso.valor_pensao || "",
+  valor_pensao: caso.valor_pensao || caso.valor_mensal_pensao || "",
   valor_total_debito_execucao:
     caso.valor_total_debito_execucao || caso.valor_debito || "",
+  valor_debito: caso.valor_debito || caso.valor_total_debito_execucao || "",
   percentual_salario_minimo: caso.percentual_salario_minimo || "",
   dia_pagamento: caso.dia_pagamento || caso.dia_pagamento_fixado || "",
   periodo_meses_ano:
@@ -816,144 +885,88 @@ const processarDadosFilhosParaPeticao = (
     lista_filhos,
     rotulo_qualificacao,
     termo_representacao,
-    assistidoNome,
-    assistidoCpf,
-    dataNascimentoAssistidoBr,
   };
 };
 
 const buildDocxTemplatePayload = (
-  normalizedData, // No longer using mapping, but keep parameter for backwards compatibility
+  normalizedData, 
   dosFatosTexto,
   baseData = {},
   acaoKey = "",
 ) => {
-  // A lógica do '#lista_filhos' ainda precisa processar idades e formatação de datas
   const { lista_filhos, rotulo_qualificacao, termo_representacao } =
     processarDadosFilhosParaPeticao(baseData, normalizedData);
 
   const hoje = new Date();
-  const mesesExtenso = [
-    "janeiro",
-    "fevereiro",
-    "março",
-    "abril",
-    "maio",
-    "junho",
-    "julho",
-    "agosto",
-    "setembro",
-    "outubro",
-    "novembro",
-    "dezembro",
-  ];
+  const mesesExtenso = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
   const dataAtualTexto = `${hoje.getDate()} de ${mesesExtenso[hoje.getMonth()]} de ${hoje.getFullYear()}`;
 
-  const debitoCalculado = parseCurrencyToNumber(
-    baseData.valor_debito || baseData.valor_total_debito_execucao || "0",
-  );
-  const debitoCalculadoExtenso =
-    debitoCalculado > 0 ? numeroParaExtenso(debitoCalculado) : "";
+  const debitoCalculado = parseCurrencyToNumber(baseData.valor_debito || "0");
+  const debitoCalculadoExtenso = debitoCalculado > 0 ? numeroParaExtenso(debitoCalculado) : "";
 
+  // 1:1 Mapeamento Total focado estritamente no TAGS_OFICIAIS.js
   const payload = {
-    ...baseData, // 1:1 Injeção Direta
-    lista_filhos,
-    rotulo_qualificacao,
-    termo_representacao,
-
-    // --- TAGS GERAIS E EXECUÇÃO (CAIXA ALTA OBRIGATÓRIA) ---
-    VARA: formatVara(baseData.VARA || baseData.vara || baseData.numero_vara || normalizedData.numero_vara || "______"),
-    CIDADEASSINATURA: String(baseData.CIDADEASSINATURA || baseData.cidade_assinatura || normalizedData.comarca || "______").toUpperCase(),
-    REPRESENTANTE_NOME: String(baseData.REPRESENTANTE_NOME || baseData.representante_nome || baseData.nome_assistido || "______").toUpperCase(),
-    REQUERIDO_NOME: String(baseData.REQUERIDO_NOME || baseData.nome_requerido || "______").toUpperCase(),
-
-    // RECUPERAÇÃO DE CONTATOS E ENDEREÇOS (Evita sumiços nas minutas)
-    requerente_endereco_residencial: baseData.requerente_endereco_residencial || baseData.endereco_assistido || baseData.representante_endereco_residencial || "não informado",
-    requerente_telefone: baseData.requerente_telefone || baseData.telefone_assistido || baseData.representante_telefone || "não informado",
-    requerente_email: baseData.requerente_email || baseData.email_assistido || baseData.representante_email || "não informado",
-
-    representante_rg: baseData.representante_rg || baseData.assistido_rg_numero || baseData.representante_rg_numero || "não informado",
-    emissor_rg_exequente: baseData.emissor_rg_exequente || baseData.assistido_rg_orgao || baseData.representante_rg_orgao || "não informado",
-    nome_mae_representante: baseData.nome_mae_representante || baseData.representante_nome_mae || "não informado",
-    nome_pai_representante: baseData.nome_pai_representante || baseData.representante_nome_pai || "não informado",
-
-    rg_executado: baseData.rg_executado || baseData.requerido_rg_numero || "não informado",
-    emissor_rg_executado: baseData.emissor_rg_executado || baseData.requerido_rg_orgao || "não informado",
-    nome_mae_executado: baseData.nome_mae_executado || baseData.requerido_nome_mae || "não informado",
-    nome_pai_executado: baseData.nome_pai_executado || baseData.requerido_nome_pai || "não informado",
-
-    cidadeOriginaria: baseData.cidadeOriginaria || baseData.cidade_originaria || "______",
-    varaOriginaria: baseData.varaOriginaria || baseData.vara_originaria || "______",
-    processoOrigemNumero: baseData.processoOrigemNumero || baseData.numero_processo_originario || "______",
+    // Globais
+    VARA: formatVara(baseData.VARA || baseData.varaOriginaria || "______"),
+    CIDADEASSINATURA: String(baseData.CIDADEASSINATURA || baseData.cidade_assinatura || "______").toUpperCase(),
     tipo_decisao: baseData.tipo_decisao || "Sentença/Acordo",
-    periodo_meses_ano: baseData.periodo_meses_ano || baseData.periodo_debito_execucao || baseData.periodo_debito || "______",
-    valor_debito: baseData.valor_debito || baseData.valor_total_debito_execucao || (debitoCalculado > 0 ? formatCurrencyBr(debitoCalculado) : "______"),
-    valor_debito_extenso: baseData.valor_debito_extenso || debitoCalculadoExtenso || "______",
+    processoOrigemNumero: baseData.processoOrigemNumero || "______",
+    varaOriginaria: formatVara(baseData.varaOriginaria || "______"),
+    cidadeOriginaria: baseData.cidadeOriginaria || "______",
     data_atual: baseData.data_atual || dataAtualTexto,
     DATA_ATUAL: baseData.data_atual || dataAtualTexto,
-    defensoraNome: baseData.defensoraNome || normalizedData.defensoraNome || "DEFENSOR(A) PÚBLICO(A)",
-    dos_fatos: ensureText(dosFatosTexto, "[DESCREVER OS FATOS]") || "[DESCREVER OS FATOS]",
-    dos_fatos_gerado: ensureText(dosFatosTexto, "[DESCREVER OS FATOS]") || "[DESCREVER OS FATOS]",
+    defensoraNome: baseData.defensoraNome || "DEFENSOR(A) PÚBLICO(A)",
+    termo_representacao,
+    dos_fatos: ensureText(dosFatosTexto, "[DESCREVER OS FATOS]"),
 
-    // --- ALIASES EXATOS PARA O TEMPLATE XML (Fixação, Divórcio, etc) ---
-    vara: formatVara(baseData.VARA || baseData.vara || baseData.numero_vara || "______"),
-    comarca: String(baseData.CIDADEASSINATURA || baseData.cidade_assinatura || normalizedData.comarca || "______").toUpperCase(),
-    triagemNumero: baseData.protocolo || normalizedData.triagemNumero || "______",
-
-    // REQUERENTE = Criança (Titular do direito)
-    requerente_nome: String(lista_filhos[0]?.nome || baseData.NOME || baseData.nome_assistido || "______").toUpperCase(),
-    requerente_data_nascimento: lista_filhos[0]?.nascimento || baseData.nascimento || baseData.assistido_data_nascimento || "______",
-    requerente_cpf: lista_filhos[0]?.cpf || baseData.cpf_assistido || "______",
-    dados_adicionais_requerente: baseData.dados_adicionais_requerente || "______",
-
-    // REPRESENTANTE = Mãe (Assina pelo incapaz)
-    representante_nome: String(baseData.REPRESENTANTE_NOME || baseData.representante_nome || "______").toUpperCase(),
+    // Representante (Genitora)
+    REPRESENTANTE_NOME: String(baseData.REPRESENTANTE_NOME || "______").toUpperCase(),
     representante_nacionalidade: baseData.representante_nacionalidade || "brasileira",
     representante_estado_civil: baseData.representante_estado_civil || "solteira",
-    representante_ocupacao: baseData.representante_ocupacao || baseData.assistido_ocupacao || "______",
+    representante_ocupacao: baseData.representante_ocupacao || "______",
+    representante_rg: baseData.representante_rg || "não informado",
+    emissor_rg_exequente: baseData.emissor_rg_exequente || "não informado",
     representante_cpf: baseData.representante_cpf || "______",
-    representante_endereco_residencial: baseData.requerente_endereco_residencial || baseData.representante_endereco_residencial || baseData.endereco_assistido || "não informado",
-    representante_endereco_profissional: baseData.representante_endereco_profissional || "não informado",
-    representante_email: baseData.requerente_email || baseData.representante_email || baseData.email_assistido || "não informado",
-    representante_telefone: baseData.requerente_telefone || baseData.representante_telefone || baseData.telefone_assistido || "não informado",
+    nome_mae_representante: baseData.nome_mae_representante || "não informado",
+    nome_pai_representante: baseData.nome_pai_representante || "não informado",
+    requerente_endereco_residencial: baseData.requerente_endereco_residencial || baseData.endereco_assistido || "não informado",
+    requerente_telefone: baseData.requerente_telefone || "não informado",
+    requerente_email: baseData.requerente_email || "não informado",
+    dados_bancarios_exequente: baseData.dados_bancarios_exequente || "______",
 
-    // REQUERIDO / EXECUTADO = Pai
-    requerido_nome: String(baseData.REQUERIDO_NOME || baseData.nome_requerido || "______").toUpperCase(),
-    executado_nacionalidade: baseData.requerido_nacionalidade || "brasileiro(a)",
-    executado_estado_civil: baseData.requerido_estado_civil || "solteiro(a)",
-    executado_ocupacao: baseData.executado_ocupacao || baseData.requerido_ocupacao || "______",
-    requerido_cpf: baseData.executado_cpf || baseData.cpf_requerido || "______",
-    executado_cpf: baseData.executado_cpf || baseData.cpf_requerido || "______",
-    requerido_endereco_residencial: baseData.executado_endereco_residencial || baseData.endereco_requerido || "______",
-    executado_endereco_profissional: baseData.requerido_endereco_profissional || "não informado",
-    executado_email: baseData.executado_email || baseData.email_requerido || "não informado",
-    executado_telefone: baseData.executado_telefone || baseData.telefone_requerido || "não informado",
-    dados_adicionais_requerido: baseData.dados_adicionais_requerido || "______",
+    // Requerido (Pai)
+    REQUERIDO_NOME: String(baseData.REQUERIDO_NOME || "______").toUpperCase(),
+    executado_nacionalidade: baseData.executado_nacionalidade || "brasileiro(a)",
+    executado_estado_civil: baseData.executado_estado_civil || "solteiro(a)",
+    executado_ocupacao: baseData.executado_ocupacao || "______",
+    nome_mae_executado: baseData.nome_mae_executado || "não informado",
+    nome_pai_executado: baseData.nome_pai_executado || "não informado",
+    rg_executado: baseData.rg_executado || "não informado",
+    emissor_rg_executado: baseData.emissor_rg_executado || "não informado",
+    executado_cpf: baseData.executado_cpf || "______",
+    executado_endereco_residencial: baseData.executado_endereco_residencial || "______",
+    executado_endereco_profissional: baseData.executado_endereco_profissional || "não informado",
+    executado_telefone: baseData.executado_telefone || "não informado",
+    executado_email: baseData.executado_email || "não informado",
+    empregador_nome: baseData.empregador_nome || "______",
 
-    // PEDIDOS E VALORES
-    filhos_info: baseData.filhos_info || "______",
-    percentual_provisorio_salario_min: baseData.percentual_salario_minimo || "______",
-    percentual_salario_minimo: baseData.percentual_salario_minimo || "______",
-    valor_provisorio_referencia: baseData.valor_pensao || "______",
+    // Filhos / Assistidos
+    lista_filhos,
+    rotulo_qualificacao,
+    NOME: String(baseData.NOME || "______").toUpperCase(),
+    nascimento: baseData.nascimento || baseData.assistido_data_nascimento || "______",
+    cpf: baseData.cpf || baseData.cpf_assistido || "______",
+
+    // Valores e Prazos
     valor_pensao: baseData.valor_pensao || "______",
-    percentual_despesas_extras: baseData.percentual_definitivo_extras || "50",
-    dia_pagamento: baseData.dia_pagamento || baseData.dia_pagamento_fixado || baseData.dia_pagamento_requerido || "10",
-    dados_bancarios_requerente: baseData.dados_bancarios_exequente || baseData.dados_bancarios_deposito || "______",
-    // Tag exata do template DOCX de execução
-    dados_bancarios_exequente: baseData.dados_bancarios_exequente || baseData.dados_bancarios_deposito || "______",
-
-    empregador_nome: baseData.empregador_nome || baseData.empregador_requerido_nome || "______",
-    empregador_endereco_profissional: baseData.empregador_requerido_endereco || "______",
-    empregador_email: baseData.empregador_email || "não informado",
-
-    percentual_definitivo_salario_min: baseData.percentual_definitivo_salario_min || baseData.percentual_salario_minimo || "______",
-
-    valor_causa: baseData.valor_debito || baseData.valor_total_debito_execucao || (debitoCalculado > 0 ? formatCurrencyBr(debitoCalculado) : "______"),
-    valor_causa_extenso: baseData.valor_debito_extenso || debitoCalculadoExtenso || "______",
-    cidade_data_assinatura: baseData.data_atual || dataAtualTexto,
+    percentual_salario_minimo: baseData.percentual_salario_minimo || "______",
+    dia_pagamento: baseData.dia_pagamento || "______",
+    periodo_meses_ano: baseData.periodo_meses_ano || "______",
+    valor_debito: baseData.valor_debito || (debitoCalculado > 0 ? formatCurrencyBr(debitoCalculado) : "______"),
+    valor_debito_extenso: baseData.valor_debito_extenso || debitoCalculadoExtenso || "______",
   };
 
-  // Limpa 'undefined' ou 'null' para garantir que não sujem o Docx final
+  // Limpa 'undefined' ou 'null'
   Object.keys(payload).forEach((key) => {
     if (payload[key] === undefined || payload[key] === null) {
       payload[key] = "";
@@ -2514,27 +2527,10 @@ export const salvarFeedback = async (req, res) => {
   try {
     let casoEncontrado;
 
-    if (isSupabaseConfigured) {
-      const { error: updateError } = await supabase
-        .from("casos")
-        .update({ feedback })
-        .eq("id", id);
-      if (updateError) throw updateError;
-
-      const { data, error: fetchError } = await supabase
-        .from("casos")
-        .select("*")
-        .eq("id", id)
-        .single();
-      if (fetchError) throw fetchError;
-      casoEncontrado = data;
-    } else {
-      // Fallback Prisma
-      casoEncontrado = await prisma.casos.update({
-        where: { id: BigInt(id) },
-        data: { feedback },
-      });
-    }
+    const casoEncontrado = await prisma.casos.update({
+      where: { id: BigInt(id) },
+      data: { feedback },
+    });
 
     const casoComUrls = await attachSignedUrls(casoEncontrado);
     res.status(200).json(stringifyBigInts(casoComUrls));
@@ -2887,7 +2883,10 @@ export const regerarMinuta = async (req, res) => {
       };
 
       if (isSupabaseConfigured) {
-        await supabase.from("casos_ia").update(iaUpdateData).eq("caso_id", id);
+        await prisma.casos_ia.update({
+          where: { caso_id: BigInt(id) },
+          data: iaUpdateData
+        });
       } else {
         await prisma.casos_ia.update({
           where: { caso_id: BigInt(id) },
@@ -3475,7 +3474,16 @@ export const receberDocumentosComplementares = async (req, res) => {
     };
 
     if (isSupabaseConfigured) {
-      await supabase.from("notificacoes").insert(notifData);
+      await prisma.notificacoes.create({
+        data: {
+          caso_id: BigInt(id),
+          usuario_id: notifData.usuario_id,
+          titulo: notifData.titulo,
+          mensagem: notifData.mensagem,
+          tipo: notifData.tipo,
+          lida: false
+        }
+      });
     } else {
       // Opcional: Se houver model de notificações no Prisma
       // await prisma.notificacoes.create({ data: notifData });
@@ -3732,43 +3740,30 @@ export const solicitarReagendamento = async (req, res) => {
       return res.status(403).json({ error: "Chave de acesso inválida." });
     }
 
-    // 3. Salvar histórico se houver agendamento anterior ativo
-    if (caso.agendamento_data) {
-      const tipoReuniao = caso.status.includes("presencial")
-        ? "presencial"
-        : "online";
+    // 3. Salvar histórico removido (conforme solicitação - não haverá agendamento online)
 
-      await supabase.from("historico_agendamentos").insert({
-        caso_id: id,
-        data_agendamento: caso.agendamento_data,
-        link_ou_local: caso.agendamento_link,
-        tipo: tipoReuniao,
-        status: "reagendado",
-      });
-    }
 
     // 4. Atualiza o status e salva nas colunas específicas
-    const { error: updateError } = await supabase
-      .from("casos")
-      .update({
+    await prisma.casos.update({
+      where: { id: BigInt(id) },
+      data: {
         status: "reagendamento_solicitado",
         motivo_reagendamento: motivo,
         data_sugerida_reagendamento: data_sugerida,
         agendamento_data: null, // Libera a agenda
         agendamento_link: null,
         updated_at: new Date(),
-      })
-      .eq("id", id);
-
-    if (updateError) throw updateError;
+      }
+    });
 
     // [NOTIFICAÇÃO] Alerta o defensor sobre solicitação de reagendamento
-    const { error: notifError } = await supabase.from("notificacoes").insert({
-      caso_id: id,
-      mensagem: `Solicitação de reagendamento para o caso ${caso.nome_assistido || "Assistido"}.`,
-      tipo: "reagendamento",
-      lida: false,
-      created_at: new Date().toISOString(),
+    await prisma.notificacoes.create({
+      data: {
+        caso_id: BigInt(id),
+        mensagem: `Solicitação de reagendamento para o caso ${caso.nome_assistido || "Assistido"}.`,
+        tipo: "reagendamento",
+        lida: false,
+      }
     });
 
     if (notifError) {
