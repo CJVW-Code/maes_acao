@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FilePlus, Search, ArrowRight, Check, Loader2 } from "lucide-react";
+// eslint-disable-next-line no-unused-vars
 import { motion } from "motion/react";
 import { API_BASE } from "../../../utils/apiBase";
 
@@ -60,13 +61,13 @@ export const HomeCidadao = () => {
         } else {
           setCaseFound(data);
         }
-      } catch (err) {
+      } catch {
         setError("Erro ao consultar CPF. Tente novamente.");
       } finally {
         setLoading(false);
       }
     },
-    [navigate],
+    [],
   );
 
   // Debounce effect

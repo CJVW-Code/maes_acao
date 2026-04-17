@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useState, useContext, useEffect, useRef, useCallback } from "react";
 import { API_BASE, authFetch } from "../../../utils/apiBase";
 import { jwtDecode } from "jwt-decode";
@@ -47,13 +48,25 @@ export const AuthProvider = ({ children }) => {
           setToken(storedToken);
           setUser(JSON.parse(storedUser));
         }
-      } catch (e) {
-        console.error("Erro ao validar token/usuário no carregamento", e);
+      } catch (error) {
+        console.error("Erro ao validar token/usuário no carregamento", error);
         localStorage.removeItem("defensorToken");
         localStorage.removeItem("defensorUser");
       }
     }
     setLoading(false);
+  }, []);
+
+  const logout = useCallback(() => {
+    console.log("Deslogando usuário...");
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem("defensorToken");
+    localStorage.removeItem("defensorUser");
+    
+    if (window.location.pathname !== "/painel/login") {
+      window.location.href = "/painel/login";
+    }
   }, []);
 
   // Escuta evento global de sessão expirada
@@ -67,7 +80,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       window.removeEventListener("auth:session-expired", handleExpired);
     };
-  }, []);
+  }, [logout]);
 
   // Polling de Notificações
   useEffect(() => {
@@ -121,19 +134,6 @@ export const AuthProvider = ({ children }) => {
       throw error;
     }
   };
-
-  const logout = useCallback(() => {
-    console.log("Deslogando usuário...");
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem("defensorToken");
-    localStorage.removeItem("defensorUser");
-    
-    // Redireciona para o login (hard redirect para limpar qualquer estado residual)
-    if (window.location.pathname !== "/painel/login") {
-      window.location.href = "/painel/login";
-    }
-  }, []);
 
   const marcarNotificacaoLida = async (id) => {
     try {

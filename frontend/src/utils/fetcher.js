@@ -11,7 +11,7 @@ export const fetcher = async (url) => {
       if (errData.error || errData.message) {
         errorMsg = errData.error || errData.message;
       }
-    } catch (e) {
+    } catch {
       // Ignora erro de parse se não for JSON
     }
     throw new Error(errorMsg);

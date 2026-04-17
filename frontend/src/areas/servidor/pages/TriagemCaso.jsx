@@ -1,4 +1,5 @@
 import React, { useReducer } from "react";
+// eslint-disable-next-line no-unused-vars
 import { motion } from "motion/react";
 import { Upload, AlertTriangle } from "lucide-react";
 
@@ -65,7 +66,6 @@ export const FormularioSubmissao = () => {
     mostrarSugestoes,
     setMostrarSugestoes,
     sugestoesCidades,
-    setSugestoesCidades,
     handleFieldChange,
     handleCidadeChange,
     handleSelecionaCidade,
@@ -75,7 +75,6 @@ export const FormularioSubmissao = () => {
     handleMonthYearChange,
     handleRgChange,
     toggleRequeridoDetalhe,
-    handleDecimalFieldChange,
     handleCurrencyChange,
     handleDayInputChange,
     handleFilesChange,
@@ -226,7 +225,6 @@ export const FormularioSubmissao = () => {
               setFormErrors={setFormErrors}
               forcaRepresentacao={forcaRepresentacao}
               isRepresentacao={isRepresentacao}
-              today={today}
               labelAutor={labelAutor}
               configAcao={configAcao}
             />
@@ -241,7 +239,6 @@ export const FormularioSubmissao = () => {
                 handleDateChange={handleDateChange}
                 toggleRequeridoDetalhe={toggleRequeridoDetalhe}
                 formErrors={formErrors}
-                today={today}
               />
             )}
 

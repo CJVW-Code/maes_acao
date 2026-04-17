@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { useConfirm } from "../../../contexts/ConfirmContext";
 import { AlertCircle, FileText } from "lucide-react";
 import { DocumentUpload } from "../../../components/DocumentUpload";

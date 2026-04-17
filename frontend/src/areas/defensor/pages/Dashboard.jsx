@@ -17,7 +17,6 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { jwtDecode } from "jwt-decode";
 import { authFetch } from "../../../utils/apiBase";
 import useSWR from "swr";
 
@@ -27,8 +26,8 @@ const fetcherResumo = async (url) => {
     const response = await authFetch(url);
     if (!response.ok) throw new Error("Erro ao buscar dados do resumo.");
     return await response.json();
-  } catch (err) {
-    throw new Error(err.message || String(err));
+  } catch (error) {
+    throw new Error(error.message || String(error));
   }
 };
 
@@ -37,8 +36,8 @@ const fetcherCasos = async (url) => {
     const response = await authFetch(url);
     if (!response.ok) throw new Error("Erro ao buscar lista de casos.");
     return await response.json();
-  } catch (err) {
-    throw new Error(err.message || String(err));
+  } catch (error) {
+    throw new Error(error.message || String(error));
   }
 };
 
@@ -241,7 +240,7 @@ export const Dashboard = () => {
             icon: CheckCircle2,
             accent: "text-emerald-500",
           },
-        ].map(({ key, label, value, helper, icon: Icon, accent }) => {
+        ].map(({ key, label, value, helper, icon, accent }) => {
           const active = statusFilter === key;
           return (
             <button
@@ -266,7 +265,7 @@ export const Dashboard = () => {
                     )}
                   </p>
                 </div>
-                <Icon className={accent} />
+                {React.createElement(icon, { className: accent })}
               </div>
               <p className="text-sm text-muted mt-2">{helper}</p>
               <span

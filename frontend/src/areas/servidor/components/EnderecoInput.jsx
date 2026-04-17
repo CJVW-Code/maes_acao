@@ -8,6 +8,7 @@ export const EnderecoInput = ({
   className = "",
   placeholder = "Ex: Rua, Número, Bairro, Cidade, CEP"
 }) => {
+  void placeholder;
   // Try to parse the value if it's already a JSON or formatted string
   const [address, setAddress] = useState({
     rua: "",

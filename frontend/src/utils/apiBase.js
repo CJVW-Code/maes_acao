@@ -75,7 +75,7 @@ export const authFetch = async (endpoint, options = {}) => {
         let event;
         try {
           event = new CustomEvent("auth:session-expired");
-        } catch (e) {
+        } catch {
           event = document.createEvent("Event");
           event.initEvent("auth:session-expired", true, true);
         }

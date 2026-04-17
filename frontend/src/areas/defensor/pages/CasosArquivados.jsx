@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { Eye, Search, Archive, ArchiveRestore } from "lucide-react";
@@ -77,7 +77,7 @@ export const CasosArquivados = () => {
         if (!response.ok) throw new Error("Erro ao restaurar.");
         toast.success("Caso restaurado com sucesso!");
         mutate(casos.filter((c) => c.id !== casoId), false);
-      } catch (err) {
+      } catch {
         toast.error("Erro ao restaurar caso.");
       }
     }

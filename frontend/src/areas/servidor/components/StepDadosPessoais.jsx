@@ -1,13 +1,13 @@
 import React from "react";
+// eslint-disable-next-line no-unused-vars
 import { motion } from "motion/react";
-import { User, X, Plus, Phone, Search } from "lucide-react";
+import { User, X, Plus, Phone } from "lucide-react";
 import { SearchableSelect } from "../../../components/ui/SearchableSelect";
 import { EnderecoInput } from "./EnderecoInput";
 import {
   formatCpf,
   stripNonDigits,
   validateCpfAlgorithm,
-  formatRgNumber,
   formatDateMask,
 } from "../../../utils/formatters";
 import {
@@ -29,7 +29,6 @@ export const StepDadosPessoais = ({
   setFormErrors, // Precisamos disso para os CPFs dos filhos extras
   forcaRepresentacao,
   isRepresentacao,
-  today,
   labelAutor,
   configAcao,
 }) => {

@@ -15,10 +15,6 @@ import {
 export const PainelDocumentos = ({
   caso,
   user,
-  handleRegenerateMinuta,
-  isRegeneratingMinuta,
-  handleGenerateTermo,
-  isGeneratingTermo,
   editingFile,
   setEditingFile,
   handleSaveRename,

@@ -1,6 +1,7 @@
 import React from "react";
-import { Routes, Route, Link, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { ThemeToggle } from "../../../components/ThemeToggle";
+// eslint-disable-next-line no-unused-vars
 import { motion } from "motion/react";
 
 import { LogIn, ArrowLeft } from "lucide-react";

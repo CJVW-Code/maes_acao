@@ -114,8 +114,32 @@ const mapCasoRelations = (caso) => {
     enriched.url_documento_gerado = ia.url_peticao;
     enriched.peticao_inicial_rascunho = ia.peticao_inicial_rascunho || extras.peticao_inicial_rascunho || null;
     enriched.peticao_completa_texto = ia.peticao_completa_texto;
-    enriched.url_peticao_penhora = ia.url_peticao_penhora || extras.url_peticao_penhora || null;
-    enriched.url_peticao_prisao = ia.url_peticao_prisao || extras.url_peticao_prisao || null;
+    enriched.url_peticao_penhora =
+      extras.url_peticao_execucao_penhora ||
+      ia.url_peticao_penhora ||
+      extras.url_peticao_penhora ||
+      null;
+    enriched.url_peticao_prisao =
+      extras.url_peticao_execucao_prisao ||
+      ia.url_peticao_prisao ||
+      extras.url_peticao_prisao ||
+      null;
+    enriched.url_peticao_cumulado =
+      extras.url_peticao_execucao_cumulado ||
+      extras.url_peticao_cumulado ||
+      null;
+    enriched.url_peticao_execucao_cumulado =
+      extras.url_peticao_execucao_cumulado || null;
+    enriched.url_peticao_execucao_penhora =
+      extras.url_peticao_execucao_penhora || null;
+    enriched.url_peticao_execucao_prisao =
+      extras.url_peticao_execucao_prisao || null;
+    enriched.url_peticao_cumprimento_cumulado =
+      extras.url_peticao_cumprimento_cumulado || null;
+    enriched.url_peticao_cumprimento_penhora =
+      extras.url_peticao_cumprimento_penhora || null;
+    enriched.url_peticao_cumprimento_prisao =
+      extras.url_peticao_cumprimento_prisao || null;
     enriched.url_termo_declaracao = ia.url_termo_declaracao || extras.url_termo_declaracao || null;
 
     // Alias para attachSignedUrls
@@ -152,6 +176,10 @@ const mapCasoRelations = (caso) => {
     enriched.periodo_debito_execucao = juridico.periodo_inadimplencia;
     enriched.valor_debito = juridico.debito_valor;
     enriched.valor_debito_extenso = juridico.debito_extenso;
+    enriched.valor_debito_penhora = juridico.debito_penhora_valor;
+    enriched.valor_debito_penhora_extenso = juridico.debito_penhora_extenso;
+    enriched.valor_debito_prisao = juridico.debito_prisao_valor;
+    enriched.valor_debito_prisao_extenso = juridico.debito_prisao_extenso;
     enriched.valor_total_debito_execucao = juridico.debito_valor;
     
     // Dados Bancários
@@ -185,6 +213,64 @@ const mapCasoRelations = (caso) => {
 
   return enriched;
 };
+
+const normalizeAcaoKey = (acaoRaw = "") => {
+  const normalized = String(acaoRaw || "")
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  if (!normalized) return normalized;
+
+  const aliases = {
+    exec_cumulado: "execucao_alimentos",
+    exec_penhora: "execucao_alimentos",
+    exec_prisao: "execucao_alimentos",
+    execucao_cumulado: "execucao_alimentos",
+    execucao_penhora: "execucao_alimentos",
+    execucao_prisao: "execucao_alimentos",
+    def_cumulado: "execucao_alimentos",
+    def_penhora: "execucao_alimentos",
+    def_prisao: "execucao_alimentos",
+    cumprimento_cumulado: "execucao_alimentos",
+    cumprimento_penhora: "execucao_alimentos",
+    cumprimento_prisao: "execucao_alimentos",
+  };
+
+  if (aliases[normalized]) return aliases[normalized];
+
+  // Compatibilidade para casos legados onde o texto da acao veio "sujo" do PDF.
+  if (
+    normalized.includes("execucao") &&
+    (normalized.includes("penhora") || normalized.includes("prisao"))
+  ) {
+    return "execucao_alimentos";
+  }
+
+  return normalized;
+};
+
+const DOC_URL_KEY_BY_TIPO = {
+  execucao_cumulado: "url_peticao_execucao_cumulado",
+  execucao_penhora: "url_peticao_execucao_penhora",
+  execucao_prisao: "url_peticao_execucao_prisao",
+  cumprimento_cumulado: "url_peticao_cumprimento_cumulado",
+  cumprimento_penhora: "url_peticao_cumprimento_penhora",
+  cumprimento_prisao: "url_peticao_cumprimento_prisao",
+  cumulado: "url_peticao_execucao_cumulado",
+  penhora: "url_peticao_execucao_penhora",
+  prisao: "url_peticao_execucao_prisao",
+};
+
+const URL_KEYS_DOCUMENTOS_GERADOS = [
+  "url_peticao_execucao_cumulado",
+  "url_peticao_execucao_penhora",
+  "url_peticao_execucao_prisao",
+  "url_peticao_cumprimento_cumulado",
+  "url_peticao_cumprimento_penhora",
+  "url_peticao_cumprimento_prisao",
+];
 
 const buildDadosFormularioFallback = (caso = {}) => ({
   tipoAcao: caso.tipo_acao || caso.tipoAcao || "",
@@ -541,8 +627,24 @@ const attachSignedUrls = async (caso) => {
   const iaPrisaoUrl =
     caso.url_peticao_prisao || ia?.url_peticao_prisao ||
     ia?.dados_extraidos?.url_peticao_prisao || null;
+  const iaCumuladoUrl =
+    caso.url_peticao_cumulado ||
+    ia?.dados_extraidos?.url_peticao_cumulado || null;
+  const docKeysExtras = URL_KEYS_DOCUMENTOS_GERADOS.map((key) => ({
+    key,
+    value: caso[key] || ia?.dados_extraidos?.[key] || null,
+  }));
 
-  const [docGerado, audio, peticao, termoDeclaracao, docPenhora, docPrisao] =
+  const [
+    docGerado,
+    audio,
+    peticao,
+    termoDeclaracao,
+    docPenhora,
+    docPrisao,
+    docCumulado,
+    ...docsExtras
+  ] =
     await Promise.all([
       buildSignedUrl(storageBuckets.peticoes, caso.url_documento_gerado),
       buildSignedUrl(storageBuckets.audios, caso.url_audio),
@@ -550,6 +652,10 @@ const attachSignedUrls = async (caso) => {
       buildSignedUrl(storageBuckets.peticoes, caso.url_termo_declaracao),
       buildSignedUrl(storageBuckets.peticoes, iaPenhoraUrl),
       buildSignedUrl(storageBuckets.peticoes, iaPrisaoUrl),
+      buildSignedUrl(storageBuckets.peticoes, iaCumuladoUrl),
+      ...docKeysExtras.map((entry) =>
+        buildSignedUrl(storageBuckets.peticoes, entry.value),
+      ),
     ]);
   enriched.url_documento_gerado = docGerado;
   enriched.url_audio = audio;
@@ -557,6 +663,10 @@ const attachSignedUrls = async (caso) => {
   enriched.url_termo_declaracao = termoDeclaracao;
   if (docPenhora) enriched.url_peticao_penhora = docPenhora;
   if (docPrisao) enriched.url_peticao_prisao = docPrisao;
+  if (docCumulado) enriched.url_peticao_cumulado = docCumulado;
+  docKeysExtras.forEach((entry, index) => {
+    if (docsExtras[index]) enriched[entry.key] = docsExtras[index];
+  });
   if (Array.isArray(caso.documentos_originais) && caso.documentos_originais.length) {
     const signedDocs = await Promise.all(
       caso.documentos_originais.map(async (doc) => {
@@ -903,9 +1013,27 @@ const buildDocxTemplatePayload = (
 
   const debitoCalculado = parseCurrencyToNumber(baseData.valor_debito || "0");
   const debitoCalculadoExtenso = debitoCalculado > 0 ? numeroParaExtenso(debitoCalculado) : "";
+  const debitoPenhoraCalculado = parseCurrencyToNumber(
+    baseData.valor_debito_penhora || baseData.debito_penhora_valor || "0",
+  );
+  const debitoPrisaoCalculado = parseCurrencyToNumber(
+    baseData.valor_debito_prisao || baseData.debito_prisao_valor || "0",
+  );
+  const debitoPenhoraExtenso = debitoPenhoraCalculado > 0
+    ? numeroParaExtenso(debitoPenhoraCalculado)
+    : "";
+  const debitoPrisaoExtenso = debitoPrisaoCalculado > 0
+    ? numeroParaExtenso(debitoPrisaoCalculado)
+    : "";
 
   // 1:1 Mapeamento Total focado estritamente no TAGS_OFICIAIS.js
   const payload = {
+    protocolo:
+      baseData.protocolo ||
+      normalizedData.triagemNumero ||
+      normalizedData.protocolo ||
+      "",
+
     // Globais
     VARA: formatVara(baseData.VARA || baseData.varaOriginaria || "______"),
     CIDADEASSINATURA: String(baseData.CIDADEASSINATURA || baseData.cidade_assinatura || "______").toUpperCase(),
@@ -964,6 +1092,24 @@ const buildDocxTemplatePayload = (
     periodo_meses_ano: baseData.periodo_meses_ano || "______",
     valor_debito: baseData.valor_debito || (debitoCalculado > 0 ? formatCurrencyBr(debitoCalculado) : "______"),
     valor_debito_extenso: baseData.valor_debito_extenso || debitoCalculadoExtenso || "______",
+    valor_debito_penhora:
+      baseData.valor_debito_penhora ||
+      baseData.debito_penhora_valor ||
+      (debitoPenhoraCalculado > 0 ? formatCurrencyBr(debitoPenhoraCalculado) : "______"),
+    valor_debito_penhora_extenso:
+      baseData.valor_debito_penhora_extenso ||
+      baseData.debito_penhora_extenso ||
+      debitoPenhoraExtenso ||
+      "______",
+    valor_debito_prisao:
+      baseData.valor_debito_prisao ||
+      baseData.debito_prisao_valor ||
+      (debitoPrisaoCalculado > 0 ? formatCurrencyBr(debitoPrisaoCalculado) : "______"),
+    valor_debito_prisao_extenso:
+      baseData.valor_debito_prisao_extenso ||
+      baseData.debito_prisao_extenso ||
+      debitoPrisaoExtenso ||
+      "______",
   };
 
   // Limpa 'undefined' ou 'null'
@@ -1070,19 +1216,7 @@ export const processarCasoEmBackground = async (
       "";
 
     // Normalização básica: converte para snake_case se vier com espaços ou camelCase
-    let acaoKey = acaoRaw
-      .toLowerCase()
-      .replace(/\s+/g, "_")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-
-    // Mapeamento manual para casos comuns
-    if (
-      (acaoKey.includes("execucao") && (acaoKey.includes("penhora") || acaoKey.includes("prisao"))) ||
-      ['exec_cumulado', 'exec_penhora', 'exec_prisao'].includes(acaoKey)
-    ) {
-      acaoKey = "execucao_alimentos";
-    }
+    const acaoKey = normalizeAcaoKey(acaoRaw);
     logger.info(
       `[Background] Processando protocolo=${protocolo} | acaoKey="${acaoKey}"`,
     );
@@ -1243,6 +1377,10 @@ export const processarCasoEmBackground = async (
       cidadeDataAssinatura: dados_formulario.cidade_assinatura,
       valor_total_extenso: dados_formulario.valor_total_extenso,
       valor_debito_extenso: dados_formulario.valor_debito_extenso,
+      valor_debito_penhora: dados_formulario.debito_penhora_valor,
+      valor_debito_penhora_extenso: dados_formulario.debito_penhora_extenso,
+      valor_debito_prisao: dados_formulario.debito_prisao_valor,
+      valor_debito_prisao_extenso: dados_formulario.debito_prisao_extenso,
       percentual_definitivo_salario_min:
         dados_formulario.percentual_definitivo_salario_min,
       percentual_definitivo_extras:
@@ -1308,6 +1446,8 @@ export const processarCasoEmBackground = async (
     let url_documento_gerado = null;
     let url_peticao_penhora = null;
     let url_peticao_prisao = null;
+    let url_peticao_cumulado = null;
+    const urlsDocumentosGerados = {};
 
     const normalizedData = {
       comarca:
@@ -1356,8 +1496,14 @@ export const processarCasoEmBackground = async (
               });
 
             if (!uploadDocxErr) {
-              if (doc.tipo === "penhora") url_peticao_penhora = docxPath;
-              if (doc.tipo === "prisao") url_peticao_prisao = docxPath;
+              const extraKey = DOC_URL_KEY_BY_TIPO[doc.tipo];
+              if (extraKey) urlsDocumentosGerados[extraKey] = docxPath;
+              if (doc.tipo === "execucao_penhora" || doc.tipo === "penhora")
+                url_peticao_penhora = docxPath;
+              if (doc.tipo === "execucao_prisao" || doc.tipo === "prisao")
+                url_peticao_prisao = docxPath;
+              if (doc.tipo === "execucao_cumulado" || doc.tipo === "cumulado")
+                url_peticao_cumulado = docxPath;
             } else {
               logger.error(
                 `[Supabase] Erro ao fazer upload da minuta ${doc.tipo}: ${uploadDocxErr.message}`,
@@ -1365,8 +1511,14 @@ export const processarCasoEmBackground = async (
               const localDir = path.resolve("uploads", "peticoes", protocolo);
               await fs.mkdir(localDir, { recursive: true });
               await fs.writeFile(path.join(localDir, doc.filename), doc.buffer);
-              if (doc.tipo === "penhora") url_peticao_penhora = docxPath;
-              if (doc.tipo === "prisao") url_peticao_prisao = docxPath;
+              const extraKey = DOC_URL_KEY_BY_TIPO[doc.tipo];
+              if (extraKey) urlsDocumentosGerados[extraKey] = docxPath;
+              if (doc.tipo === "execucao_penhora" || doc.tipo === "penhora")
+                url_peticao_penhora = docxPath;
+              if (doc.tipo === "execucao_prisao" || doc.tipo === "prisao")
+                url_peticao_prisao = docxPath;
+              if (doc.tipo === "execucao_cumulado" || doc.tipo === "cumulado")
+                url_peticao_cumulado = docxPath;
               logger.info(
                 `[Local Fallback] DOCX ${doc.tipo} salvo em ${localDir}/${doc.filename}`,
               );
@@ -1376,15 +1528,22 @@ export const processarCasoEmBackground = async (
             const localDir = path.resolve("uploads", "peticoes", protocolo);
             await fs.mkdir(localDir, { recursive: true });
             await fs.writeFile(path.join(localDir, doc.filename), doc.buffer);
-            if (doc.tipo === "penhora") url_peticao_penhora = docxPath;
-            if (doc.tipo === "prisao") url_peticao_prisao = docxPath;
+            const extraKey = DOC_URL_KEY_BY_TIPO[doc.tipo];
+            if (extraKey) urlsDocumentosGerados[extraKey] = docxPath;
+            if (doc.tipo === "execucao_penhora" || doc.tipo === "penhora")
+              url_peticao_penhora = docxPath;
+            if (doc.tipo === "execucao_prisao" || doc.tipo === "prisao")
+              url_peticao_prisao = docxPath;
+            if (doc.tipo === "execucao_cumulado" || doc.tipo === "cumulado")
+              url_peticao_cumulado = docxPath;
             logger.info(
               `[Local] DOCX ${doc.tipo} salvo em ${localDir}/${doc.filename}`,
             );
           }
         }
-        // The main url gets the penhora as fallback
-        url_documento_gerado = url_peticao_penhora;
+        // URL principal: prioriza o rito cumulado de execucao.
+        url_documento_gerado =
+          url_peticao_cumulado || url_peticao_penhora || url_peticao_prisao;
       } else {
         const docxBuffer = await generateDocx(docxData, acaoKey);
         const docxPath = `${protocolo}/peticao_inicial_${protocolo}.docx`;
@@ -1446,8 +1605,10 @@ export const processarCasoEmBackground = async (
       ...caseDataForPetition,
       resumo_ia,
       peticao_inicial_rascunho: `DOS FATOS\n\n${dosFatosTexto || ""}`,
+      ...urlsDocumentosGerados,
       url_peticao_penhora,
       url_peticao_prisao,
+      url_peticao_cumulado,
     };
 
     // Finalizar processamento - Atualiza Status no Caso e Dados na IA
@@ -2525,8 +2686,6 @@ export const salvarFeedback = async (req, res) => {
   const { id } = req.params;
   const { feedback } = req.body;
   try {
-    let casoEncontrado;
-
     const casoEncontrado = await prisma.casos.update({
       where: { id: BigInt(id) },
       data: { feedback },
@@ -2578,18 +2737,7 @@ export const regenerarDosFatos = async (req, res) => {
       caso.tipo_acao ||
       "";
 
-    let acaoKey = acaoRaw
-      .toLowerCase()
-      .replace(/\s+/g, "_")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-
-    if (
-      (acaoKey.includes("execucao") && (acaoKey.includes("penhora") || acaoKey.includes("prisao"))) ||
-      ['exec_cumulado', 'exec_penhora', 'exec_prisao'].includes(acaoKey)
-    ) {
-      acaoKey = "execucao_alimentos";
-    }
+    const acaoKey = normalizeAcaoKey(acaoRaw);
 
     const dosFatosTexto = await generateDosFatos(dados, acaoKey);
 
@@ -2800,19 +2948,7 @@ export const regerarMinuta = async (req, res) => {
       (caso.tipo_acao || "").trim();
 
     // Normalização básica: converte para snake_case se vier com espaços ou camelCase
-    let acaoKey = acaoRaw
-      .toLowerCase()
-      .replace(/\s+/g, "_")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-
-    // Mapeamento manual para casos comuns que podem vir do PDF/Formulário
-    if (
-      (acaoKey.includes("execucao") && (acaoKey.includes("penhora") || acaoKey.includes("prisao"))) ||
-      ['exec_cumulado', 'exec_penhora', 'exec_prisao'].includes(acaoKey)
-    ) {
-      acaoKey = "execucao_alimentos";
-    }
+    const acaoKey = normalizeAcaoKey(acaoRaw);
 
     // 3. Gera o novo payload e o buffer do Word
     const payload = buildDocxTemplatePayload(
@@ -2841,6 +2977,8 @@ export const regerarMinuta = async (req, res) => {
 
       let url_peticao_penhora = null;
       let url_peticao_prisao = null;
+      let url_peticao_cumulado = null;
+      const urlsDocumentosGerados = {};
 
       for (const doc of docs) {
         const pathMultiplo = `${caso.protocolo}/${doc.filename}`;
@@ -2862,11 +3000,17 @@ export const regerarMinuta = async (req, res) => {
           logger.info(`[Local] Minuta (${doc.tipo}) regerada em ${localDir}`);
         }
 
-        if (doc.tipo === "penhora") url_peticao_penhora = pathMultiplo;
-        if (doc.tipo === "prisao") url_peticao_prisao = pathMultiplo;
+        const extraKey = DOC_URL_KEY_BY_TIPO[doc.tipo];
+        if (extraKey) urlsDocumentosGerados[extraKey] = pathMultiplo;
+        if (doc.tipo === "execucao_penhora" || doc.tipo === "penhora")
+          url_peticao_penhora = pathMultiplo;
+        if (doc.tipo === "execucao_prisao" || doc.tipo === "prisao")
+          url_peticao_prisao = pathMultiplo;
+        if (doc.tipo === "execucao_cumulado" || doc.tipo === "cumulado")
+          url_peticao_cumulado = pathMultiplo;
       }
 
-      docxPath = url_peticao_penhora;
+      docxPath = url_peticao_cumulado || url_peticao_penhora || url_peticao_prisao;
 
       // 5. Atualiza a IA com as novas URLs múltiplas via JSONB flexível
       const currentExtra = safeJsonParse(caso.ia?.dados_extraidos, {});
@@ -2874,6 +3018,9 @@ export const regerarMinuta = async (req, res) => {
         currentExtra.url_peticao_penhora = url_peticao_penhora;
       if (url_peticao_prisao)
         currentExtra.url_peticao_prisao = url_peticao_prisao;
+      if (url_peticao_cumulado)
+        currentExtra.url_peticao_cumulado = url_peticao_cumulado;
+      Object.assign(currentExtra, urlsDocumentosGerados);
 
       let iaUpdateData = {
         url_peticao: docxPath,
@@ -2925,12 +3072,20 @@ export const regerarMinuta = async (req, res) => {
       if (isSupabaseConfigured) {
         await supabase
           .from("casos_ia")
-          .update({ url_peticao: docxPath, url_peticao_penhora: docxPath, dados_extraidos: currentExtra })
+          .update({
+            url_peticao: docxPath,
+            url_peticao_penhora: docxPath,
+            dados_extraidos: currentExtra,
+          })
           .eq("caso_id", id);
       } else {
         await prisma.casos_ia.update({
           where: { caso_id: BigInt(id) },
-          data: { url_peticao: docxPath, url_peticao_penhora: docxPath, dados_extraidos: currentExtra },
+          data: {
+            url_peticao: docxPath,
+            url_peticao_penhora: docxPath,
+            dados_extraidos: currentExtra,
+          },
         });
       }
     }
@@ -3563,6 +3718,9 @@ export const deletarCaso = async (req, res) => {
       addFile(storageBuckets.peticoes, caso.url_peticao);
       addFile(storageBuckets.peticoes, caso.url_documento_gerado);
       addFile(storageBuckets.peticoes, caso.url_termo_declaracao);
+      URL_KEYS_DOCUMENTOS_GERADOS.forEach((key) =>
+        addFile(storageBuckets.peticoes, caso[key]),
+      );
       addFile(storageBuckets.documentos, caso.url_capa_processual);
 
       if (Array.isArray(caso.urls_documentos)) {

@@ -7,6 +7,7 @@ import {
   Info,
   AlertOctagon,
 } from "lucide-react";
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "motion/react";
 
 const icons = {

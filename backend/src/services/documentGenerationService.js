@@ -194,13 +194,42 @@ export const generateMultiplosDocx = async (
 ) => {
   const config = getConfigAcaoBackend(acaoKey);
   const documentos = [];
+  const protocoloArquivo =
+    data?.protocolo || data?.triagemNumero || data?.numeroProtocolo || "sem_protocolo";
 
-  // Sempre gera a Penhora
+  const docsConfig = Array.isArray(config.documentosGerados)
+    ? config.documentosGerados
+    : [];
+
+  if (docsConfig.length > 0) {
+    const meses = extractMonthsFromPeriod(periodoInadimplencia);
+    logger.info(
+      `[DOCX Multi] Meses de inadimplencia detectados: ${meses}. Gerando conjunto completo da execucao.`,
+    );
+    if (meses > 0 && meses < 3) {
+      logger.warn(
+        `[DOCX Multi] Inadimplencia < 3 meses (${meses}). Minutas de prisao serao mantidas para analise do defensor.`,
+      );
+    }
+
+    for (const docConfig of docsConfig) {
+      const buffer = await generateDocx(data, acaoKey, docConfig.template);
+      documentos.push({
+        tipo: docConfig.tipo,
+        buffer,
+        filename: `${docConfig.filename}_${protocoloArquivo}.docx`,
+      });
+    }
+
+    return documentos;
+  }
+
+  // Fallback legado para configuracoes antigas.
   const penhoraBuffer = await generateDocx(data, acaoKey);
   documentos.push({
     tipo: "penhora",
     buffer: penhoraBuffer,
-    filename: `execucao_penhora_${data.protocolo}.docx`,
+    filename: `execucao_penhora_${protocoloArquivo}.docx`,
   });
 
   // Gera a Prisão se a configuração indicar documentos múltiplos
@@ -225,7 +254,7 @@ export const generateMultiplosDocx = async (
     documentos.push({
       tipo: "prisao",
       buffer: prisaoBuffer,
-      filename: `execucao_prisao_${data.protocolo}.docx`,
+      filename: `execucao_prisao_${protocoloArquivo}.docx`,
     });
   }
 

@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React from "react";
 
 export const SecaoProcessoOriginal = ({
@@ -10,8 +11,6 @@ export const SecaoProcessoOriginal = ({
   formErrors = {},
 }) => {
   const isCustomDecision = !['', 'Sentença', 'Interlocutória', 'Acordo homologado'].includes(formState.tipo_decisao);
-  const selectedDecision = isCustomDecision && formState.tipo_decisao ? 'Outros' : formState.tipo_decisao;
-
   return (
     <div className="space-y-4 pt-4 border-t border-soft">
       <h4 className="font-semibold text-primary">

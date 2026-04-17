@@ -63,7 +63,7 @@ const AdminRoute = ({ children }) => {
 
 // 4. Protege rotas de DEFENSOR/ESTAGIÁRIO
 const DefensorRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
 
   if (loading) return null;
 

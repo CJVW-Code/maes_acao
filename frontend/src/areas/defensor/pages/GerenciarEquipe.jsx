@@ -103,7 +103,7 @@ export const GerenciarEquipe = () => {
       );
       setEditingUser(null);
       toast.success("Dados do usuário atualizados com sucesso!");
-    } catch (error) {
+    } catch {
       toast.error("Erro ao atualizar usuário.");
     } finally {
       setLoadingUpdate(false);
@@ -129,7 +129,7 @@ export const GerenciarEquipe = () => {
       toast.success(`Senha de ${userToReset.nome} alterada com sucesso!`);
       setUserToReset(null);
       setNovaSenhaManual("");
-    } catch (error) {
+    } catch {
       toast.error("Erro ao resetar senha.");
     }
   };
@@ -144,7 +144,7 @@ export const GerenciarEquipe = () => {
         if (!response.ok) throw new Error("Erro ao excluir");
         setUsuarios(usuarios.filter((u) => u.id !== user.id));
         toast.success("Usuário excluído com sucesso.");
-      } catch (error) {
+      } catch {
         toast.error("Erro ao excluir usuário.");
       }
     }

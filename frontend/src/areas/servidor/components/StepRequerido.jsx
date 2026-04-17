@@ -1,4 +1,4 @@
-import { Users, Search } from "lucide-react";
+import { Users } from "lucide-react";
 import { SearchableSelect } from "../../../components/ui/SearchableSelect";
 import { EnderecoInput } from "./EnderecoInput";
 import {
@@ -17,7 +17,6 @@ export const StepRequerido = ({
   handleDateChange,
   toggleRequeridoDetalhe,
   formErrors,
-  today,
 }) => {
   return (
     <section className="card space-y-4 border-l-4 border-l-red-500">

@@ -15,6 +15,7 @@ jest.unstable_mockModule("../src/utils/logger.js", () => ({
 const { generateDocx, generateTermoDeclaracao } = await import(
   "../src/services/documentGenerationService.js"
 );
+const { getConfigAcaoBackend } = await import("../src/config/dicionarioAcoes.js");
 const logger = (await import("../src/utils/logger.js")).default;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -56,9 +57,23 @@ describe("documentGenerationService", () => {
       );
     });
 
-    it("deve logar template correto para execucao_alimentos_prisao", async () => {
+    it("deve logar template base correto para execucao_alimentos", async () => {
       try {
-        await generateDocx({}, "execucao_alimentos_prisao");
+        await generateDocx({}, "execucao_alimentos");
+      } catch (e) { /* template error esperado */ }
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('template="executacao_alimentos_cumulado.docx"')
+      );
+    });
+
+    it("deve usar o template de prisão quando houver override", async () => {
+      const config = getConfigAcaoBackend("execucao_alimentos");
+      const templatePrisao = config.documentosGerados.find(
+        (doc) => doc.tipo === "execucao_prisao",
+      )?.template;
+
+      try {
+        await generateDocx({}, "execucao_alimentos", templatePrisao);
       } catch (e) { /* template error esperado */ }
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('template="executacao_alimentos_prisao.docx"')
