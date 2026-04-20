@@ -26,6 +26,7 @@ Planos de evolução, diagnósticos e estratégias de adaptação.
 - **[diagnostico_estrategia_v2_detalhado.md](./02-Estrategia/diagnostico_estrategia_v2_detalhado.md)**: Alinhamento entre o código e a estratégia v2.0.
 - **[plano_adaptacao_execucao_alimentos.md](./02-Estrategia/plano_adaptacao_execucao_alimentos.md)**: Estratégia para o fluxo de execução de alimentos.
 - **[plano.md](./02-Estrategia/plano.md)**: Planos gerais de desenvolvimento (inclui modularização TriagemCaso, BuscaCentral).
+- **[plano_testes_carga_confiabilidade.md](./02-Estrategia/plano_testes_carga_confiabilidade.md)**: Plano operacional de carga, soak e resiliência para o mutirão.
 
 ### [03-Guias](./03-Guias/)
 

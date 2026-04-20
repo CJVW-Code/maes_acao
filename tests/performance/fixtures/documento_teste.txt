@@ -1,0 +1,2 @@
+Documento simples para testes de carga, estabilidade e confiabilidade.
+Este arquivo existe apenas para exercitar upload multipart no ambiente local ou de homologacao.

@@ -1,7 +1,10 @@
 {
   "type": "module",
   "scripts": {
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "perf:load": "k6 run tests/performance/load_100_usuarios.js",
+    "perf:soak": "k6 run tests/performance/estabilidade_soak.js",
+    "perf:reliability": "k6 run tests/performance/confiabilidade_resiliencia.js"
   },
   "dependencies": {
     "@logtail/node": "^0.5.6",
