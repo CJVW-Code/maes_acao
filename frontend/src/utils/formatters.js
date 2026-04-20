@@ -160,3 +160,73 @@ export const validateBrDate = (brDate = "") => {
   
   return true;
 };
+
+export const numeroParaExtenso = (valor) => {
+  if (valor === null || valor === undefined || valor === "") return "";
+  const v = typeof valor === "string" ? parseFloat(valor.replace(/\./g, "").replace(",", ".")) : valor;
+  if (isNaN(v)) return "";
+  
+  const unidades = ["zero", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"];
+  const especiais = ["dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
+  const dezenas = ["", "dez", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
+  const centenas = ["", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos"];
+  const qualificadores = [
+    { singular: "", plural: "" },
+    { singular: "mil", plural: "mil" },
+    { singular: "milhão", plural: "milhões" },
+    { singular: "bilhão", plural: "bilhões" },
+  ];
+
+  const inteiro = Math.floor(Math.abs(v));
+  const centavos = Math.round((Math.abs(v) - inteiro) * 100);
+
+  if (inteiro === 0 && centavos === 0) return "zero real";
+
+  const numeroParaTextoAte999 = (numero) => {
+    if (numero === 0) return "";
+    if (numero === 100) return "cem";
+    const c = Math.floor(numero / 100);
+    const d = Math.floor((numero % 100) / 10);
+    const u = numero % 10;
+    const partes = [];
+    if (c) partes.push(centenas[c]);
+    if (d === 1) {
+      partes.push(especiais[u]);
+    } else {
+      if (d) partes.push(dezenas[d]);
+      if (u) partes.push(unidades[u]);
+    }
+    return partes.join(" e ");
+  };
+
+  const grupos = [];
+  let numeroRestante = inteiro;
+  while (numeroRestante > 0) {
+    grupos.push(numeroRestante % 1000);
+    numeroRestante = Math.floor(numeroRestante / 1000);
+  }
+
+  const partesInteiras = grupos
+    .map((grupo, index) => {
+      if (!grupo) return null;
+      const texto = numeroParaTextoAte999(grupo);
+      if (!texto) return null;
+      const qualificador = qualificadores[index];
+      const ehSingular = grupo === 1 && index > 0;
+      const sufixo = index === 0 ? "" : ` ${ehSingular ? qualificador.singular : qualificador.plural}`;
+      return `${texto}${sufixo}`;
+    })
+    .filter(Boolean)
+    .reverse();
+
+  const inteiroExtenso = partesInteiras.join(" e ") || "zero";
+  const rotuloInteiro = inteiro === 1 ? "real" : "reais";
+
+  let resultado = `${inteiroExtenso} ${rotuloInteiro}`;
+  if (centavos > 0) {
+    const centavosExtenso = numeroParaTextoAte999(centavos) || "zero";
+    const rotuloCentavos = centavos === 1 ? "centavo" : "centavos";
+    resultado += ` e ${centavosExtenso} ${rotuloCentavos}`;
+  }
+  return resultado;
+};

@@ -17,44 +17,44 @@ Não use listas ou tópicos na resposta final. Escreva apenas parágrafos coesos
   },
 
   execucao_alimentos: {
-    templateDocx: "executacao_alimentos_penhora.docx",
-    templateDocxPrisao: "executacao_alimentos_prisao.docx",
+    templateDocx: "executacao_alimentos_cumulado.docx",
     ignorarDosFatos: true,
     ignorarOCR: true,
     promptIA: null,
     gerarMultiplos: true,
+    documentosGerados: [
+      {
+        tipo: "execucao_cumulado",
+        template: "executacao_alimentos_cumulado.docx",
+        filename: "execucao_cumulado",
+      },
+      {
+        tipo: "execucao_penhora",
+        template: "executacao_alimentos_penhora.docx",
+        filename: "execucao_penhora",
+      },
+      {
+        tipo: "execucao_prisao",
+        template: "executacao_alimentos_prisao.docx",
+        filename: "execucao_prisao",
+      },
+      {
+        tipo: "cumprimento_cumulado",
+        template: "cumprimento_cumulado.docx",
+        filename: "cumprimento_cumulado",
+      },
+      {
+        tipo: "cumprimento_penhora",
+        template: "cumprimento_penhora.docx",
+        filename: "cumprimento_penhora",
+      },
+      {
+        tipo: "cumprimento_prisao",
+        template: "cumprimento_prisao.docx",
+        filename: "cumprimento_prisao",
+      },
+    ],
   },
-
-  execucao_alimentos_prisao: {
-    templateDocx: "executacao_alimentos_prisao.docx",
-    promptIA: null,
-  },
-
-  execucao_alimentos_penhora: {
-    templateDocx: "executacao_alimentos_penhora.docx",
-    promptIA: null,
-  },
-
-  def_cumulado: {
-    templateDocx: "cumprimento_penhora.docx",
-    templateDocxPrisao: "cumprimento_prisao.docx",
-    ignorarDosFatos: true,
-    ignorarOCR: true,
-    promptIA: null,
-    gerarMultiplos: true,
-  },
-
-  def_penhora: {
-    templateDocx: "cumprimento_penhora.docx",
-    promptIA: null,
-  },
-
-  def_prisao: {
-    templateDocx: "cumprimento_prisao.docx",
-    promptIA: null,
-  },
-
-
 
   termo_declaracao: {
     templateDocx: "termo_declaracao.docx",

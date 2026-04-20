@@ -19,11 +19,6 @@ describe("DICIONARIO_ACOES_BACKEND", () => {
     const chavesEsperadas = [
       "fixacao_alimentos",
       "execucao_alimentos",
-      "execucao_alimentos_prisao",
-      "execucao_alimentos_penhora",
-      "divorcio",
-      "guarda",
-      "alvara",
       "termo_declaracao",
       "default",
     ];
@@ -50,10 +45,31 @@ describe("DICIONARIO_ACOES_BACKEND", () => {
   });
 
   it("ações scaffold devem ter promptIA null", () => {
-    const scaffolds = ["execucao_alimentos", "divorcio", "guarda", "alvara"];
+    const scaffolds = ["execucao_alimentos", "termo_declaracao", "default"];
     scaffolds.forEach((key) => {
       expect(DICIONARIO_ACOES_BACKEND[key].promptIA).toBeNull();
     });
+  });
+
+  it("execucao_alimentos deve declarar os documentos gerados", () => {
+    const config = DICIONARIO_ACOES_BACKEND.execucao_alimentos;
+    expect(config.gerarMultiplos).toBe(true);
+    expect(config.documentosGerados).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          tipo: "execucao_cumulado",
+          template: "executacao_alimentos_cumulado.docx",
+        }),
+        expect.objectContaining({
+          tipo: "execucao_penhora",
+          template: "executacao_alimentos_penhora.docx",
+        }),
+        expect.objectContaining({
+          tipo: "execucao_prisao",
+          template: "executacao_alimentos_prisao.docx",
+        }),
+      ]),
+    );
   });
 });
 
@@ -68,9 +84,10 @@ describe("getConfigAcaoBackend", () => {
     expect(config.promptIA).toBeDefined();
   });
 
-  it("deve retornar config para execução penhora", () => {
-    const config = getConfigAcaoBackend("execucao_alimentos_penhora");
-    expect(config.templateDocx).toBe("executacao_alimentos_penhora.docx");
+  it("deve retornar config para execução de alimentos", () => {
+    const config = getConfigAcaoBackend("execucao_alimentos");
+    expect(config.templateDocx).toBe("executacao_alimentos_cumulado.docx");
+    expect(config.gerarMultiplos).toBe(true);
   });
 
   it("deve retornar default para chave inexistente", () => {

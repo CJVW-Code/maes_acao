@@ -1,4 +1,5 @@
 import React, { useReducer } from "react";
+// eslint-disable-next-line no-unused-vars
 import { motion } from "motion/react";
 import { Upload, AlertTriangle } from "lucide-react";
 
@@ -65,7 +66,6 @@ export const FormularioSubmissao = () => {
     mostrarSugestoes,
     setMostrarSugestoes,
     sugestoesCidades,
-    setSugestoesCidades,
     handleFieldChange,
     handleCidadeChange,
     handleSelecionaCidade,
@@ -75,7 +75,6 @@ export const FormularioSubmissao = () => {
     handleMonthYearChange,
     handleRgChange,
     toggleRequeridoDetalhe,
-    handleDecimalFieldChange,
     handleCurrencyChange,
     handleDayInputChange,
     handleFilesChange,
@@ -101,96 +100,87 @@ export const FormularioSubmissao = () => {
   if (generatedCredentials) {
     return (
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="card text-center p-8"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="max-w-2xl mx-auto p-4 py-10 text-center"
       >
-        <h3 className="text-2xl font-bold text-muted mb-4">
-          Cadastro Realizado!
-        </h3>
-        <div className="bg-surface border border-soft p-4 rounded-xl mb-4 text-left space-y-3">
-          <div>
-            <p className="text-xs text-muted uppercase font-bold">
-              {isRepresentacao ? "CPF do Responsável (Identificação)" : "CPF (Identificação)"}
-            </p>
-            <p className="text-xl font-mono text-primary-600">
-              {isRepresentacao ? formState.representante_cpf : formState.representante_cpf}
-            </p>
+        <div className="glass-panel p-8 rounded-[2.5rem] shadow-2xl border border-white/20 overflow-hidden relative">
+          {/* Decoração sutil */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -mr-16 -mt-16" />
+          
+          <div className="relative z-10">
+            <h3 className="text-3xl font-serif font-bold text-special mb-6">
+              Atendimento Registrado!
+            </h3>
+            
+            <div className="bg-white/80 dark:bg-black/40 backdrop-blur-md border border-white/30 dark:border-white/10 p-6 rounded-3xl mb-6 text-left space-y-4 shadow-inner">
+              <div>
+                <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary mb-1">
+                  {isRepresentacao ? "Identificação da Representante" : "Identificação do Autor"}
+                </p>
+                <p className="text-2xl font-mono text-primary-600 font-bold">
+                  {formState.representante_cpf}
+                </p>
+              </div>
+              
+              <div className="pt-4 border-t border-primary/10">
+                <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-muted mb-1">
+                  Número do Protocolo
+                </p>
+                <p className="text-xl font-mono text-special font-bold bg-special/5 inline-block px-3 py-1 rounded-lg">
+                  {generatedCredentials.protocolo}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-amber-100/80 dark:bg-amber-900/40 p-4 rounded-2xl border border-amber-200/50 text-amber-900 dark:text-amber-200 text-sm text-left flex gap-3 shadow-sm">
+              <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600" />
+              <p className="leading-relaxed">
+                <span className="font-bold">Atenção!</span> Tire um print desta tela. Você precisará {isRepresentacao ? "do CPF da representante" : "do seu CPF"} e do protocolo para consultar o andamento.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 mt-8">
+              {isRepresentacao && (
+                <button
+                  onClick={() => {
+                    const repFields = [
+                      "REPRESENTANTE_NOME", "representante_cpf", "requerente_telefone",
+                      "requerente_email", "requerente_endereco_residencial",
+                      "representante_estado_civil", "representante_nacionalidade",
+                      "representante_ocupacao", "representante_rg", "emissor_rg_exequente",
+                      "representante_data_nascimento", "nome_mae_representante",
+                      "nome_pai_representante", "representante_endereco_profissional"
+                    ];
+                    const repData = {};
+                    repFields.forEach(f => { if (formState[f]) repData[f] = formState[f]; });
+                    
+                    dispatch({ 
+                      type: "LOAD_RASCUNHO", 
+                      payload: { ...initialState, ...repData, assistidoEhIncapaz: "sim" } 
+                    });
+                    setGeneratedCredentials(null);
+                    setFormErrors({});
+                    toast.info("Dados mantidos. Novo caso para a mesma representante.");
+                  }}
+                  className="btn btn-primary w-full py-4 text-base shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  Novo Caso P/ Mesma Representante
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  dispatch({ type: "RESET_FORM" });
+                  setGeneratedCredentials(null);
+                  setFormErrors({});
+                }}
+                className="btn btn-secondary w-full py-3"
+              >
+                Novo Atendimento do Zero
+              </button>
+            </div>
           </div>
-          <div className="pt-2 border-t border-soft/50">
-            <p className="text-x text-muted">
-              Protocolo do sistema:{" "}
-              <span className="font-mono text-primary-600">
-                {generatedCredentials.protocolo}
-              </span>
-            </p>
-          </div>
-        </div>
-        <div className="bg-border/10 p-3 rounded border border-border/30 text-error text-sm text-left flex gap-2">
-          <AlertTriangle className="w-5 h-5 shrink-0" />
-          <p>
-            Tire um print da tela! Você precisará {isRepresentacao ? "deste CPF (do responsável)" : "do seu CPF"} para consultar o andamento deste protocolo (status atual).
-          </p>
-        </div>
-        <div className="flex flex-col gap-3 mt-6">
-          <button
-            onClick={() => {
-              dispatch({ type: "RESET_FORM" });
-              setGeneratedCredentials(null);
-              setFormErrors({});
-            }}
-            className="btn btn-secondary w-full"
-          >
-            Novo Atendimento do Zero
-          </button>
-
-          {isRepresentacao && (
-            <button
-              onClick={() => {
-                const repFields = [
-                  "REPRESENTANTE_NOME",
-                  "representante_cpf",
-                  "requerente_telefone",
-                  "requerente_email",
-                  "requerente_endereco_residencial",
-                  "representante_estado_civil",
-                  "representante_nacionalidade",
-                  "representante_ocupacao",
-                  "representante_rg",
-                  "emissor_rg_exequente",
-                  "representante_data_nascimento",
-                  "nome_mae_representante",
-                  "nome_pai_representante",
-                  "representante_endereco_profissional"
-                ];
-
-                // Preparamos o objeto com os dados que queremos MANTER
-                const repData = {};
-                repFields.forEach((f) => {
-                  if (formState[f]) {
-                    repData[f] = formState[f];
-                  }
-                });
-                
-                // Realizamos uma atualização ATÔMICA: Reinicia o form MAS já injeta os dados da representante
-                dispatch({ 
-                  type: "LOAD_RASCUNHO", 
-                  payload: { 
-                    ...initialState, 
-                    ...repData, 
-                    assistidoEhIncapaz: "sim" // Garante que a seção de representante continue aberta
-                  } 
-                });
-
-                setGeneratedCredentials(null);
-                setFormErrors({});
-                toast.info("Dados da representante mantidos para o novo caso.");
-              }}
-              className="btn btn-primary w-full"
-            >
-              Novo Caso P/ Esta Representante
-            </button>
-          )}
         </div>
       </motion.div>
     );
@@ -205,7 +195,8 @@ export const FormularioSubmissao = () => {
     >
       <form onSubmit={handleSubmit} className="space-y-8" noValidate>
         <StepTipoAcao
-          formState={formState}
+          tipoAcao={formState.tipoAcao}
+          acaoEspecifica={formState.acaoEspecifica}
           dispatch={dispatch}
           handleFieldChange={handleFieldChange}
           validar={validar}
@@ -214,7 +205,26 @@ export const FormularioSubmissao = () => {
         {formState.acaoEspecifica && (
           <>
             <StepDadosPessoais
-              formState={formState}
+              assistidoEhIncapaz={formState.assistidoEhIncapaz}
+              assistidoNome={formState.NOME}
+              assistidoCpf={formState.cpf}
+              assistidoNascimento={formState.nascimento}
+              assistidoNacionalidade={formState.nacionalidade}
+              representanteNome={formState.REPRESENTANTE_NOME}
+              representanteCpf={formState.representante_cpf}
+              representanteNascimento={formState.representante_data_nascimento}
+              representanteNacionalidade={formState.representante_nacionalidade}
+              representanteEstadoCivil={formState.representante_estado_civil}
+              representanteOcupacao={formState.representante_ocupacao}
+              representanteEnderecoProfissional={formState.representante_endereco_profissional}
+              representanteRg={formState.representante_rg}
+              representanteEmissorRg={formState.emissor_rg_exequente}
+              requerenteEnderecoResidencial={formState.requerente_endereco_residencial}
+              requerenteEmail={formState.requerente_email}
+              requerenteTelefone={formState.requerente_telefone}
+              nomeMaeRepresentante={formState.nome_mae_representante}
+              nomePaiRepresentante={formState.nome_pai_representante}
+              outrosFilhos={formState.outrosFilhos}
               dispatch={dispatch}
               handleFieldChange={handleFieldChange}
               handleCpfChangeAndValidate={handleCpfChangeAndValidate}
@@ -226,27 +236,39 @@ export const FormularioSubmissao = () => {
               setFormErrors={setFormErrors}
               forcaRepresentacao={forcaRepresentacao}
               isRepresentacao={isRepresentacao}
-              today={today}
               labelAutor={labelAutor}
               configAcao={configAcao}
             />
 
             {!isAlvara && (
-              <StepRequerido
-                formState={formState}
-                handleFieldChange={handleFieldChange}
-                handleCpfChangeAndValidate={handleCpfChangeAndValidate}
-                handlePhoneChange={handlePhoneChange}
-                handleRgChange={handleRgChange}
-                handleDateChange={handleDateChange}
-                toggleRequeridoDetalhe={toggleRequeridoDetalhe}
-                formErrors={formErrors}
-                today={today}
-              />
+            <StepRequerido
+              requeridoNome={formState.REQUERIDO_NOME}
+              requeridoCpf={formState.executado_cpf}
+              requeridoNomeMae={formState.nome_mae_executado}
+              requeridoNomePai={formState.nome_pai_executado}
+              requeridoEnderecoResidencial={formState.executado_endereco_residencial}
+              requeridoTelefone={formState.executado_telefone}
+              requeridoEmail={formState.executado_email}
+              requeridoOcupacao={formState.executado_ocupacao}
+              requeridoNacionalidade={formState.executado_nacionalidade}
+              requeridoEstadoCivil={formState.executado_estado_civil}
+              requeridoEnderecoProfissional={formState.executado_endereco_profissional}
+              requeridoOutrosSelecionados={formState.requeridoOutrosSelecionados}
+              requeridoRg={formState.rg_executado}
+              requeridoEmissorRg={formState.emissor_rg_executado}
+              formState={formState}
+              handleFieldChange={handleFieldChange}
+              handleCpfChangeAndValidate={handleCpfChangeAndValidate}
+              handlePhoneChange={handlePhoneChange}
+              handleRgChange={handleRgChange}
+              handleDateChange={handleDateChange}
+              toggleRequeridoDetalhe={toggleRequeridoDetalhe}
+              formErrors={formErrors}
+            />
             )}
 
             <StepDadosProcessuais 
-               formState={formState}
+               CIDADEASSINATURA={formState.CIDADEASSINATURA}
                handleCidadeChange={handleCidadeChange}
                mostrarSugestoes={mostrarSugestoes}
                sugestoesCidades={sugestoesCidades}
@@ -268,7 +290,11 @@ export const FormularioSubmissao = () => {
 
 
             <StepRelatoDocs
-              formState={formState}
+              relato={formState.relato}
+              prefersAudio={formState.prefersAudio}
+              enviarDocumentosDepois={formState.enviarDocumentosDepois}
+              outrosFilhos={formState.outrosFilhos}
+              representanteNome={formState.REPRESENTANTE_NOME}
               handleFieldChange={handleFieldChange}
               formErrors={formErrors}
               isRecording={isRecording}
@@ -280,11 +306,11 @@ export const FormularioSubmissao = () => {
               configAcao={configAcao}
             />
 
-            <div className="pt-6">
+            <div className="pt-6 relative z-20">
               <button
                 type="submit"
                 disabled={loading}
-                className="btn btn-primary w-full py-4 text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1"
+                className="btn btn-primary w-full py-4 text-lg shadow-lg hover:shadow-xl transform-gpu translate-z-0 will-change-transform"
               >
                 {loading ? (
                   <span className="flex items-center gap-2">

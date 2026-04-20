@@ -58,7 +58,9 @@ export const visionOCR = async (
       }
 
       console.error("❌ Erro no OCR (Gemini):", error.message);
-      throw new Error("Falha ao ler o documento visualmente.");
+      throw new Error("Falha ao ler o documento visualmente.", {
+        cause: error,
+      });
     }
   }
 };
@@ -178,6 +180,7 @@ export const generateLegalText = async (
         console.error("❌ Erro na chamada Gemini:", geminiError.message);
         throw new Error(
           "Ambos os serviços de IA falharam ou excederam o tempo limite.",
+          { cause: geminiError },
         );
       }
     }
@@ -185,8 +188,10 @@ export const generateLegalText = async (
     console.error("❌ Erro Crítico IA:", error.message);
     throw new Error(
       "Serviço de Inteligência Artificial indisponível no momento.",
+      { cause: error },
     );
   }
+
 
   // --- ETAPA 3: DESANITIZAÇÃO (RESTAURAÇÃO) ---
   // Troca os placeholders de volta pelos dados reais no texto gerado pela IA

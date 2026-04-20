@@ -16,13 +16,14 @@ export const auditMiddleware = (req, res, next) => {
 
       // Define a entidade com base no baseUrl do roteador (ex: montado em /api/casos -> 'casos')
       // Fallback para originalUrl garantindo que ignora vazio ou 'api'
-      let entidade = "geral";
+      let entidade;
       if (req.baseUrl) {
         entidade = req.baseUrl.split("/").pop() || "geral";
       } else {
-        const parts = path.split("/").filter(p => p && p !== "api");
+        const parts = path.split("/").filter((p) => p && p !== "api");
         entidade = parts[0] || "geral";
       }
+
 
       // Sanitização recursiva de dados sensíveis
       const sensitiveKeys = new Set(['senha', 'password', 'cpf', 'token', 'authorization']);

@@ -1,18 +1,15 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+// eslint-disable-next-line no-unused-vars
 import { motion } from "motion/react";
 import {
   Search,
   Hash,
-  KeyRound,
   CheckCircle,
   FileText,
   Clock,
   Video,
-  HelpCircle,
   AlertTriangle,
-  Upload,
-  X,
   CalendarX,
 } from "lucide-react";
 import { API_BASE } from "../../../utils/apiBase";
@@ -27,13 +24,8 @@ export const ConsultaStatus = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Barreira visual consultar casos
-  const [mostrarConsulta, setMostrarConsulta] = useState(false);
-
-  // Estados para Upload Complementar
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef(null);
 
   // Estados para Reagendamento
   const [isReagendando, setIsReagendando] = useState(false);
@@ -80,30 +72,6 @@ export const ConsultaStatus = () => {
     e.preventDefault();
     consultarPorCpf(cpf);
   };
-  const handleFileSelect = (e) => {
-    const newFiles = Array.from(e.target.files);
-    // Filtra duplicatas baseadas no nome do arquivo
-    const uniqueFiles = newFiles.filter(
-      (newFile) =>
-        !files.some((existing) => existing.file.name === newFile.name),
-    );
-    const mappedFiles = uniqueFiles.map((file) => ({
-      file,
-      customName: file.name,
-    }));
-    setFiles([...files, ...mappedFiles]);
-  };
-
-  const handleNameChange = (index, newName) => {
-    const newFiles = [...files];
-    newFiles[index].customName = newName;
-    setFiles(newFiles);
-  };
-
-  const removeFile = (index) => {
-    setFiles(files.filter((_, i) => i !== index));
-  };
-
   const handleUploadComplementar = async () => {
     if (files.length === 0) return;
     setUploading(true);
@@ -142,7 +110,7 @@ export const ConsultaStatus = () => {
       setFiles([]);
       // Recarrega status
       consultarPorCpf(cpf);
-    } catch (err) {
+    } catch {
       toast.error("Falha ao enviar documentos.");
     } finally {
       setUploading(false);
@@ -189,7 +157,7 @@ export const ConsultaStatus = () => {
       setMotivoReagendamento('');
       setDataSugerida('');
       consultarPorCpf(cpf); // Recarrega tela
-    } catch (err) {
+    } catch {
       toast.error("Falha ao solicitar reagendamento.");
     } finally {
       setEnviandoReagendamento(false);

@@ -1,5 +1,6 @@
 import React from "react";
 import { useConfirm } from "../../contexts/ConfirmContext";
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "motion/react";
 import { AlertTriangle } from "lucide-react";
 

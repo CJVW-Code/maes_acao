@@ -50,6 +50,7 @@ export const transcribeAudio = async (audioPath) => {
     return transcription.text;
   } catch (error) {
     console.error("Erro na transcrição (após todas as tentativas):", error);
-    throw new Error("Falha ao transcrever áudio");
+    throw new Error("Falha ao transcrever áudio", { cause: error });
+
   }
 };

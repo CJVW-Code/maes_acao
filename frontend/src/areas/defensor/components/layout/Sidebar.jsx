@@ -1,20 +1,17 @@
 import React from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import {
   LayoutDashboard,
   FolderKanban,
   UserPlus,
-  Search,
   Archive,
-  Scale,
   ChevronLeft,
   ChevronRight,
   LogOut
 } from "lucide-react";
 
 export const Sidebar = ({ isExpanded, setIsExpanded }) => {
-  const location = useLocation();
   const auth = useAuth();
   const { logout, user } = auth || {};
 

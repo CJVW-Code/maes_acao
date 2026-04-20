@@ -11,13 +11,11 @@ import {
   resetarChaveAcesso,
   atualizarStatusCaso,
   deletarCaso,
-  agendarReuniao,
   gerarTermoDeclaracao,
   regerarMinuta,
   receberDocumentosComplementares,
   reprocessarCaso,
   renomearDocumento,
-  solicitarReagendamento,
   alternarArquivamento,
   salvarFeedback,
   salvarDadosJuridicos,
@@ -26,8 +24,11 @@ import {
   solicitarAssistencia,
   responderAssistencia,
 } from "../controllers/casosController.js";
+
+import { searchLimiter, creationLimiter } from "../middleware/rateLimiter.js";
 import { lockCaso, unlockCaso } from "../controllers/lockController.js";
 import { obterHistoricoCaso } from "../controllers/consultaAuditoria.js";
+
 import { authMiddleware } from "../middleware/auth.js";
 import { auditMiddleware } from "../middleware/auditMiddleware.js";
 import { upload } from "../middleware/upload.js"; 
@@ -42,14 +43,15 @@ const uploadCriacao = upload.fields([
 ]);
 
 // Rotas Públicas
-router.post("/novo", uploadCriacao, criarNovoCaso);
-router.get("/buscar-cpf", buscarPorCpf);
+router.post("/novo", creationLimiter, uploadCriacao, criarNovoCaso);
+router.get("/buscar-cpf", searchLimiter, buscarPorCpf);
 router.post(
   "/:id/upload-complementar",
+  creationLimiter,
   upload.fields([{ name: "documentos" }]),
   receberDocumentosComplementares,
 );
-router.post("/:id/reagendar", solicitarReagendamento);
+
 
 // FILTRO DE SEGURANÇA E AUDITORIA 
 router.use(authMiddleware);
@@ -68,10 +70,10 @@ router.post("/:id/gerar-termo", gerarTermoDeclaracao);
 router.post("/:id/finalizar", upload.single("capa"), finalizarCasoSolar);
 router.post("/:id/reverter-finalizacao", reverterFinalizacao);
 router.post("/:id/resetar-chave", resetarChaveAcesso);
-router.patch("/:id/status", atualizarStatusCaso);
 router.delete("/:id", deletarCaso);
 router.patch("/:id/feedback", salvarFeedback);
-router.patch("/:id/agendar", agendarReuniao);
+router.post("/:id/regerar-minuta", regerarMinuta);
+
 router.post("/:id/regerar-minuta", regerarMinuta);
 router.post("/:id/reprocessar", reprocessarCaso);
 router.patch("/:id/documento/renomear", renomearDocumento);

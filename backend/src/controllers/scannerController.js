@@ -96,56 +96,46 @@ export const scannerUpload = async (req, res) => {
       );
     }
 
-    // 5. Opcional: Disparar reprocessamento se o caso estiver pendente ou com erro
+    // 5. Disparar reprocessamento se o caso estiver pendente ou com erro
     const qstashToken = process.env.QSTASH_TOKEN;
     const apiBaseUrl = process.env.API_BASE_URL;
 
-    if (
-      qstashToken &&
-      apiBaseUrl &&
-      (caso.status === "aguardando_documentos" ||
-        caso.status === "erro_processamento")
-    ) {
+    if (qstashToken && apiBaseUrl) {
       const qstashClient = new Client({ token: qstashToken });
       try {
+        const jobUrl = `${apiBaseUrl.replace(/\/$/, "")}/api/jobs/process`;
+        logger.info(`[QStash] Tentando disparar job para ${protocolo} em ${jobUrl}`);
+
         await qstashClient.publishJSON({
-          url: `${apiBaseUrl.replace(/\/$/, "")}/api/jobs/process`,
-          body: {
-            protocolo,
-            // Re-enviar dados se necessário para o pipeline
-          },
+          url: jobUrl,
+          body: { protocolo },
         });
-        logger.info(
-          `[QStash] Job de reprocessamento enviado para ${protocolo}`,
-        );
+
+        logger.info(`[QStash] ✅ Job de reprocessamento enviado com sucesso para ${protocolo}`);
       } catch (qstashError) {
-        logger.error(`[QStash] Erro ao disparar job: ${qstashError.message}`);
+        logger.error(`[QStash] ❌ Erro ao disparar job para ${protocolo}: ${qstashError.message}`);
       }
-    } else if (caso.status === "aguardando_documentos" || caso.status === "erro_processamento" || caso.status === "documentacao_completa") {
-      logger.info(
-        `[Scanner Fallback Local] API_BASE_URL (QStash) ausente. Disparando processamento local em background para ${protocolo}.`,
+    } else {
+      logger.warn(
+        `[Scanner Fallback] QStash não configurado (Falta TOKEN ou URL). Disparando processamento local para ${protocolo}. URL: ${apiBaseUrl ? "OK" : "MISSING"}, Token: ${qstashToken ? "OK" : "MISSING"}`,
       );
-      
+
       const { processarCasoEmBackground } = await import("./casosController.js");
-      
-      const dados_extraidos = typeof caso.ia?.dados_extraidos === 'string'
-          ? JSON.parse(caso.ia.dados_extraidos) 
-          : (caso.ia?.dados_extraidos || {});
+
+      const dados_extraidos =
+        typeof caso.ia?.dados_extraidos === "string"
+          ? JSON.parse(caso.ia.dados_extraidos)
+          : caso.ia?.dados_extraidos || {};
 
       setImmediate(async () => {
         try {
-          await processarCasoEmBackground(
-            protocolo,
-            dados_extraidos,
-            urls_documentos,
-            null,
-            null
-          );
+          await processarCasoEmBackground(protocolo, dados_extraidos, urls_documentos, null, null);
         } catch (e) {
           logger.error(`[Scanner Fallback Local] Erro fatal no processamento: ${e.message}`);
         }
       });
     }
+
 
     res.status(200).json({
       message: "Documentos recebidos com sucesso!",
@@ -161,7 +151,10 @@ export const scannerUpload = async (req, res) => {
       for (const file of req.files) {
         try {
           await fs.unlink(file.path);
-        } catch (e) {}
+        } catch (e) {
+          // Ignora erro na limpeza de temporários
+        }
+
       }
     }
   }

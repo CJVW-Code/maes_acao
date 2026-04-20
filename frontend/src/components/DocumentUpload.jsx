@@ -1,20 +1,16 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   Camera,
   Image as ImageIcon,
   FileText,
   Trash2,
-  CheckCircle2,
-  AlertCircle,
   Plus,
   X,
   Loader2,
-  Eye,
 } from "lucide-react";
 import imageCompression from "browser-image-compression";
 import heic2any from "heic2any";
 import { useToast } from "../contexts/ToastContext";
-import { useConfirm } from "../contexts/ConfirmContext";
 // --- CONFIGURAÇÃO DOS SLOTS (GAVETAS) ---
 const SLOTS_CONFIG = {
   crianca: [
@@ -91,7 +87,6 @@ export const DocumentUpload = ({
   onFilesChange, // Callback (files[], namesMap{})
 }) => {
   const { toast } = useToast();
-  const { confirm } = useConfirm();
   // Estado principal: Armazena os arquivos por Slot ID
   const [slotFiles, setSlotFiles] = useState({});
   // Estado para documentos extras (lista dinâmica)
@@ -100,7 +95,6 @@ export const DocumentUpload = ({
   const [previewUrls, setPreviewUrls] = useState({});
   // Estados de controle
   const [processing, setProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
 
   // Modal de nomeação para extras
   const [modalOpen, setModalOpen] = useState(false);
@@ -167,6 +161,19 @@ export const DocumentUpload = ({
   });
 
   // Limpeza de slots órfãos (ex: quando um filho é removido)
+  const getAllSlots = useCallback(() => {
+    return [
+      ...(isRepresentacao ? SLOTS_CONFIG.crianca : []),
+      ...SLOTS_CONFIG.responsavel,
+      ...extraSlots,
+    ];
+  }, [isRepresentacao, extraSlots]);
+
+  const getSlotLabel = useCallback((slotId) => {
+    const slot = getAllSlots().find((s) => s.id === slotId);
+    return slot ? slot.label : "Documento";
+  }, [getAllSlots]);
+
   useEffect(() => {
     const currentSlots = getAllSlots();
     const currentSlotIds = new Set(currentSlots.map((s) => s.id));
@@ -195,7 +202,7 @@ export const DocumentUpload = ({
       });
       return changed ? next : prev;
     });
-  }, [outrosFilhos, isRepresentacao]);
+  }, [getAllSlots]);
 
   // Notifica o componente pai sempre que houver mudanças
   useEffect(() => {
@@ -217,25 +224,11 @@ export const DocumentUpload = ({
 
       onFilesChangeRef.current(allFiles, namesMap);
     }
-  }, [slotFiles, extraFiles]);
-
-  const getAllSlots = () => {
-    return [
-      ...(isRepresentacao ? SLOTS_CONFIG.crianca : []),
-      ...SLOTS_CONFIG.responsavel,
-      ...extraSlots,
-    ];
-  };
-
-  const getSlotLabel = (slotId) => {
-    const slot = getAllSlots().find((s) => s.id === slotId);
-    return slot ? slot.label : "Documento";
-  };
+  }, [slotFiles, extraFiles, getSlotLabel]);
 
   // --- LÓGICA DE PROCESSAMENTO DE IMAGEM ---
   const processFile = async (file, slotId = null, customName = null) => {
     setProcessing(true);
-    setProgress(0);
 
     try {
       // 1. Validação de Tamanho Mínimo (Filtro de "Lixo")
@@ -280,7 +273,6 @@ export const DocumentUpload = ({
             useWebWorker: true,
             fileType: "image/jpeg",
             initialQuality: isMobile ? 0.7 : 0.8,
-            onProgress: (p) => setProgress(p),
           };
           try {
             const compressedBlob = await imageCompression(finalFile, options);
@@ -364,7 +356,6 @@ export const DocumentUpload = ({
       return null;
     } finally {
       setProcessing(false);
-      setProgress(0);
     }
   };
 
@@ -422,14 +413,6 @@ export const DocumentUpload = ({
       setTempExtraFile(null);
     }
   };
-  const handleCliqueResidencia = async (e, slotId) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (fileInputRefs.current[slotId]) {
-      fileInputRefs.current[slotId].click();
-    }
-  };
   const removeExtra = (index) => {
     const fileToRemove = extraFiles[index].file;
     if (fileToRemove.previewUrl) URL.revokeObjectURL(fileToRemove.previewUrl);
@@ -459,7 +442,7 @@ export const DocumentUpload = ({
           <>
             <button
               type="button"
-              onClick={(e) => {
+              onClick={() => {
                 fileInputRefs.current[slot.id].click();
               }}
               className={`w-full h-32 p-4 rounded-xl border-2 border-dashed transition-all flex flex-col items-center justify-center text-center cursor-pointer appearance-none bg-app/30 outline-none

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FilePlus, Search, ArrowRight, Check, Loader2 } from "lucide-react";
+// eslint-disable-next-line no-unused-vars
 import { motion } from "motion/react";
 import { API_BASE } from "../../../utils/apiBase";
 
@@ -60,13 +61,13 @@ export const HomeCidadao = () => {
         } else {
           setCaseFound(data);
         }
-      } catch (err) {
+      } catch {
         setError("Erro ao consultar CPF. Tente novamente.");
       } finally {
         setLoading(false);
       }
     },
-    [navigate],
+    [],
   );
 
   // Debounce effect
@@ -97,8 +98,9 @@ export const HomeCidadao = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
-          className="bg-surface border-2 border-soft rounded-2xl p-8 sm:p-10 shadow-sm hover:border-special/40 hover:shadow-lg relative overflow-hidden flex flex-col group hover:-translate-y-2 transition-all duration-300"
+          className="glass-panel p-2 rounded-[2.5rem]"
         >
+          <div className="bg-surface dark:bg-surface/90 rounded-[2.2rem] p-8 sm:p-10 shadow-inner space-y-8">
           <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary mb-4">
             Busca Central
           </p>
@@ -133,7 +135,7 @@ export const HomeCidadao = () => {
               <div className="bg-highlight/10 border border-highlight text-highlight p-4 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-4">
                 <p>Nenhum atendimento encontrado para esta Assistida.</p>
                 <button
-                  onClick={() => navigate("/novo-pedido")}
+                  onClick={() => navigate("/novo-pedido", { state: { initialCpf: cpfInput } })}
                   className="btn btn-primary whitespace-nowrap"
                 >
                   <FilePlus size={18} className="mr-2" />
@@ -156,12 +158,13 @@ export const HomeCidadao = () => {
                   </div>
                   <button
                     onClick={() => {
-                      // Pega os dados da representante do primeiro caso (se existir)
-                      const repData = caseFound[0]?.dados_formulario || {};
+                      // Passamos apenas o protocolo para o prefill seguro no formulário
+                      const protocoloRef = caseFound[0]?.protocolo_referencia;
                       navigate("/novo-pedido", {
                         state: {
                           action: "PREFILL_REPRESENTATIVE_DATA",
-                          payload: repData,
+                          protocolo_origem: protocoloRef,
+                          initialCpf: cpfInput,
                         },
                       });
                     }}
@@ -219,6 +222,7 @@ export const HomeCidadao = () => {
                 ))}
               </div>
             )}
+          </div>
           </div>
         </motion.div>
       </div>

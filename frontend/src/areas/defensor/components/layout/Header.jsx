@@ -1,6 +1,5 @@
 import React from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import { jwtDecode } from "jwt-decode";
 import { Link, useNavigate } from "react-router-dom";
 import { ExternalLink, LogOut, ChevronLeft } from "lucide-react";
 import { ThemeToggle } from "../../../../components/ThemeToggle";

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -34,7 +34,8 @@ import { useToast } from "../../../contexts/ToastContext";
 import { useConfirm } from "../../../contexts/ConfirmContext";
 import { TimelineAuditoria } from "../components/TimelineAuditoria";
 import useSWR from "swr";
-import { authFetch } from "../../../utils/apiBase"; // Ajuste o caminho conforme o arquivo
+import { authFetch } from "../../../utils/apiBase";
+import { formatCurrencyMask, numeroParaExtenso } from "../../../utils/formatters";
 //compenetes detalhes
 import { InfoAssistido } from "../components/detalhes/InfoAssistido";
 import { PainelDocumentos } from "../components/detalhes/PainelDocumentos";
@@ -50,7 +51,7 @@ const fetcher = async (url) => {
         const body = await response.json();
         errorInfo = body.error || body.message || errorInfo;
         extraData = body;
-      } catch (e) {
+      } catch {
         /* corpo vazio */
       }
 
@@ -71,11 +72,13 @@ const fetcher = async (url) => {
 const manualStatusOptions = [
   { value: "aguardando_documentos", label: "Aguardando Documentos" },
   { value: "documentacao_completa", label: "Documentação Completa" },
+  { value: "pronto_para_analise", label: "Pronto para Análise" },
   { value: "em_atendimento", label: "Em Atendimento" },
   { value: "liberado_para_protocolo", label: "Liberado para Protocolo" },
   { value: "em_protocolo", label: "Em Protocolo" },
   { value: "protocolado", label: "Protocolado" },
 ];
+
 
 const statusBadges = {
   aguardando_documentos: "bg-amber-100 text-amber-800 border-amber-200",
@@ -153,7 +156,7 @@ const CollapsibleText = ({
 
 export const DetalhesCaso = () => {
   const { id } = useParams();
-  const { token, user, logout } = useAuth();
+  const { token, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { confirm } = useConfirm();
@@ -161,8 +164,6 @@ export const DetalhesCaso = () => {
   const [feedback, setFeedback] = useState("");
   const [savingFeedback, setSavingFeedback] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [showReview, setShowReview] = useState(false);
-  const [showFullPetition, setShowFullPetition] = useState(false);
   const [numSolar, setNumSolar] = useState("");
   const [numProcesso, setNumProcesso] = useState("");
   const [arquivoCapa, setArquivoCapa] = useState(null);
@@ -189,6 +190,14 @@ export const DetalhesCaso = () => {
   const [isSharing, setIsSharing] = useState(false);
   const [minutaPreview, setMinutaPreview] = useState("penhora");
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
+  const [autosType, setAutosType] = useState(null); // 'apartados' ou 'proprios_autos'
+  const [autosSubtype, setAutosSubtype] = useState(null); // 'provisorio' ou 'definitivo'
+
+  // Novos campos financeiros para rito cumulado
+  const [debitoPenhoraValor, setDebitoPenhoraValor] = useState("");
+  const [debitoPenhoraExtenso, setDebitoPenhoraExtenso] = useState("");
+  const [debitoPrisaoValor, setDebitoPrisaoValor] = useState("");
+  const [debitoPrisaoExtenso, setDebitoPrisaoExtenso] = useState("");
 
   // 1. O SWR substitui o estado do caso, o fetchDetalhes, e o polling!
   const {
@@ -204,8 +213,10 @@ export const DetalhesCaso = () => {
     {
       revalidateOnFocus: false,
       dedupingInterval: 600000,
-      // Polling Automático: Se for 'processando', atualiza a cada 5s. Senão, para (0).
-      refreshInterval: (data) => (data?.status === "processando" ? 5000 : 0),
+      // Polling Automático: Se for 'processando' ou 'documentacao_completa', atualiza a cada 5s.
+      refreshInterval: (data) =>
+        data?.status === "processando_ia" || data?.status === "documentacao_completa" ? 5000 : 0,
+
       onError: (err) => {
         // Se der erro 401 ou sessão expirada, o context deve assumir
         if (err.message === "Sessão expirada" || err.status === 401) {
@@ -216,10 +227,148 @@ export const DetalhesCaso = () => {
     },
   );
 
-  const isColaborador = caso && user && 
-    String(caso.servidor_id) !== String(user.id) && 
-    String(caso.defensor_id) !== String(user.id) && 
+  const isColaborador = caso && user &&
+    String(caso.servidor_id) !== String(user.id) &&
+    String(caso.defensor_id) !== String(user.id) &&
     user.cargo !== "admin";
+
+  const todosDocumentosGerados = useMemo(() => {
+    if (!caso) return [];
+
+    const docs = [];
+    if (caso.url_peticao_execucao_cumulado || caso.url_peticao_cumulado) {
+      docs.push({
+        key: "execucao_cumulado",
+        label: "Execucao - Rito Cumulado",
+        url: caso.url_peticao_execucao_cumulado || caso.url_peticao_cumulado,
+        grupo: "provisorio",
+        previewClass: "border-success bg-success/10",
+        defaultClass: "border-border bg-surface hover:border-success",
+        textClass: "text-success",
+        downloadHoverClass: "hover:text-success",
+      });
+    }
+    if (
+      caso.url_peticao_execucao_penhora ||
+      caso.url_peticao_penhora ||
+      (!caso.url_peticao_execucao_prisao &&
+        !caso.url_peticao_prisao &&
+        !caso.url_peticao_execucao_cumulado &&
+        !caso.url_peticao_cumulado &&
+        caso.url_documento_gerado)
+    ) {
+      docs.push({
+        key: "execucao_penhora",
+        label: caso.url_peticao_prisao ? "Rito da Penhora" : "Petição Inicial",
+        url:
+          caso.url_peticao_execucao_penhora ||
+          caso.url_peticao_penhora ||
+          caso.url_documento_gerado,
+        grupo: "provisorio",
+        previewClass: "border-primary bg-primary/10",
+        defaultClass: "border-border bg-surface hover:border-primary",
+        textClass: "text-primary",
+        downloadHoverClass: "hover:text-primary",
+      });
+    }
+    if (caso.url_peticao_execucao_prisao || caso.url_peticao_prisao) {
+      docs.push({
+        key: "execucao_prisao",
+        label: "Rito da Prisão (3+ meses)",
+        url: caso.url_peticao_execucao_prisao || caso.url_peticao_prisao,
+        grupo: "provisorio",
+        previewClass: "border-error bg-error/10",
+        defaultClass: "border-border bg-surface hover:border-error",
+        textClass: "text-error",
+        downloadHoverClass: "hover:text-error",
+      });
+    }
+    if (caso.url_peticao_cumprimento_cumulado) {
+      docs.push({
+        key: "cumprimento_cumulado",
+        label: "Cumprimento - Rito Cumulado",
+        url: caso.url_peticao_cumprimento_cumulado,
+        grupo: "definitivo",
+        previewClass: "border-success bg-success/10",
+        defaultClass: "border-border bg-surface hover:border-success",
+        textClass: "text-success",
+        downloadHoverClass: "hover:text-success",
+      });
+    }
+    if (caso.url_peticao_cumprimento_penhora) {
+      docs.push({
+        key: "cumprimento_penhora",
+        label: "Cumprimento - Rito da Penhora",
+        url: caso.url_peticao_cumprimento_penhora,
+        grupo: "definitivo",
+        previewClass: "border-primary bg-primary/10",
+        defaultClass: "border-border bg-surface hover:border-primary",
+        textClass: "text-primary",
+        downloadHoverClass: "hover:text-primary",
+      });
+    }
+    if (caso.url_peticao_cumprimento_prisao) {
+      docs.push({
+        key: "cumprimento_prisao",
+        label: "Cumprimento - Rito da Prisao",
+        url: caso.url_peticao_cumprimento_prisao,
+        grupo: "definitivo",
+        previewClass: "border-error bg-error/10",
+        defaultClass: "border-border bg-surface hover:border-error",
+        textClass: "text-error",
+        downloadHoverClass: "hover:text-error",
+      });
+    }
+    if (caso.url_termo_declaracao) {
+      docs.push({
+        key: "termo",
+        label: "Termo de Declaração",
+        url: caso.url_termo_declaracao,
+        grupo: "auxiliar",
+        previewClass: "border-highlight bg-highlight/10",
+        defaultClass: "border-border bg-surface hover:border-highlight",
+        textClass: "text-highlight",
+        downloadHoverClass: "hover:text-highlight",
+      });
+    }
+    return docs;
+  }, [caso]);
+
+  const podeExibirDocumentos =
+    autosType === "proprios_autos" ||
+    (autosType === "apartados" && Boolean(autosSubtype));
+  const documentosNoFluxo = useMemo(
+    () => {
+      if (!podeExibirDocumentos) return [];
+      
+      // Se for "Nos próprios autos", atualmente não temos modelos específicos (mostramos a mensagem no render)
+      if (autosType === "proprios_autos") return [];
+
+      return todosDocumentosGerados.filter((doc) => {
+        if (doc.grupo === "auxiliar") return true;
+        if (autosType === "apartados" && autosSubtype === "provisorio") {
+          return doc.grupo === "provisorio";
+        }
+        if (autosType === "apartados" && autosSubtype === "definitivo") {
+          return doc.grupo === "definitivo";
+        }
+        return false;
+      });
+    },
+    [podeExibirDocumentos, todosDocumentosGerados, autosType, autosSubtype],
+  );
+
+  const documentoPreviewSelecionado =
+    documentosNoFluxo.find((doc) => doc.key === minutaPreview) ||
+    documentosNoFluxo[0] ||
+    null;
+  const previewUrl = documentoPreviewSelecionado?.url || null;
+  useEffect(() => {
+    if (!documentosNoFluxo.length) return;
+    if (!documentosNoFluxo.some((doc) => doc.key === minutaPreview)) {
+      setMinutaPreview(documentosNoFluxo[0].key);
+    }
+  }, [documentosNoFluxo, minutaPreview]);
 
   // 2. Preenchimento de datas e formulários após o caso carregar
   useEffect(() => {
@@ -229,6 +378,10 @@ export const DetalhesCaso = () => {
         setPendenciaTexto(caso.descricao_pendencia || "");
         setNumSolar(caso.numero_solar || "");
         setMemoriaCalculo(caso.juridico?.memoria_calculo || "");
+        setDebitoPenhoraValor(caso.juridico?.debito_penhora_valor || "");
+        setDebitoPenhoraExtenso(caso.juridico?.debito_penhora_extenso || "");
+        setDebitoPrisaoValor(caso.juridico?.debito_prisao_valor || "");
+        setDebitoPrisaoExtenso(caso.juridico?.debito_prisao_extenso || "");
         setFeedbackInitialized(true);
       }
     }
@@ -555,7 +708,7 @@ export const DetalhesCaso = () => {
             const errorData = await response.json();
             errorMessage =
               errorData.message || errorData.error || response.statusText;
-          } catch (e) {
+          } catch {
             errorMessage = response.statusText || errorMessage;
           }
           throw new Error(errorMessage);
@@ -592,8 +745,8 @@ export const DetalhesCaso = () => {
       } else {
         throw new Error("Falha ao liberar.");
       }
-    } catch (err) {
-      toast.error(err.message);
+    } catch (error) {
+      toast.error(error.message);
     } finally {
       setIsUpdating(false);
     }
@@ -607,7 +760,7 @@ export const DetalhesCaso = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setColegas(await res.json());
-    } catch (err) {
+    } catch {
       toast.error("Erro ao carregar colegas.");
     } finally {
       setIsLoadingColegas(false);
@@ -632,8 +785,8 @@ export const DetalhesCaso = () => {
       } else {
         throw new Error("Falha ao enviar.");
       }
-    } catch (err) {
-      toast.error(err.message);
+    } catch (error) {
+      toast.error(error.message);
     } finally {
       setIsSharing(false);
     }
@@ -648,14 +801,22 @@ export const DetalhesCaso = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ memoria_calculo: memoriaCalculo }),
+        body: JSON.stringify({ 
+          memoria_calculo: memoriaCalculo,
+          debito_penhora_valor: debitoPenhoraValor,
+          debito_penhora_extenso: debitoPenhoraExtenso,
+          debito_prisao_valor: debitoPrisaoValor,
+          debito_prisao_extenso: debitoPrisaoExtenso
+        }),
       });
       if (res.ok) {
         toast.success("Dados jurídicos salvos!");
         mutate();
       }
-    } catch (err) {
+    } catch {
       toast.error("Erro ao salvar dados jurídicos.");
+    } finally {
+      setIsSavingJuridico(false);
     }
   };
 
@@ -739,15 +900,6 @@ export const DetalhesCaso = () => {
     }
   };
 
-  const confirmArchive = async () => {
-    if (archiveReason.trim().length < 5) {
-      toast.error("Por favor, informe um motivo válido (mín. 5 caracteres).");
-      return;
-    }
-    await processarArquivamento(true, archiveReason);
-    setArchiveModalOpen(false);
-  };
-
   const processarArquivamento = async (novoEstado, motivo) => {
     try {
       const response = await fetch(`${API_BASE}/casos/${id}/arquivar`, {
@@ -766,8 +918,8 @@ export const DetalhesCaso = () => {
 
       toast.success(novoEstado ? "Caso arquivado!" : "Caso restaurado!");
       navigate(novoEstado ? "/painel/casos/arquivados" : "/painel/casos");
-    } catch (err) {
-      toast.error(err.message);
+    } catch (error) {
+      toast.error(error.message);
     }
   };
 
@@ -882,37 +1034,37 @@ export const DetalhesCaso = () => {
               </button>
             </div>
           </div>
-          
+
           {caso.assistencia_casos && caso.assistencia_casos.length > 0 && (
-             <div className="mt-4 flex flex-wrap items-center gap-2">
-               <span className="text-xs font-bold text-indigo-700/70 uppercase tracking-wider bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
-                 Colaboradores envolvidos:
-               </span>
-               {Array.from(new Map(caso.assistencia_casos.map(a => [a.remetente_id === user?.id ? a.destinatario_id : a.remetente_id, a])).values()).map((a, i) => {
-                 const isMine = a.remetente_id === user?.id;
-                 const targetName = isMine ? a.destinatario?.nome : a.remetente?.nome;
-                 if (!targetName) return null;
-                 
-                 return (
-                   <div 
-                     key={i} 
-                     className="flex items-center gap-1.5 px-3 py-1 bg-white border border-indigo-100 rounded-full text-xs text-indigo-900 shadow-sm transition-all hover:border-indigo-300 hover:shadow"
-                     title={isMine ? `Aguardando ${targetName} aceitar` : `${targetName} compartilhou com você`}
-                   >
-                     <div className="bg-indigo-100 w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] text-indigo-700">
-                       {targetName.charAt(0).toUpperCase()}
-                     </div>
-                     <span className="font-medium">{targetName.split(' ')[0]}</span>
-                     {a.status === 'pendente' && (
-                       <span className="w-2 h-2 rounded-full bg-amber-400 ml-1" title="Pendente"></span>
-                     )}
-                     {a.status === 'aceito' && (
-                       <span className="w-2 h-2 rounded-full bg-green-500 ml-1" title="Aceito"></span>
-                     )}
-                   </div>
-                 );
-               })}
-             </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-indigo-700/70 uppercase tracking-wider bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
+                Colaboradores envolvidos:
+              </span>
+              {Array.from(new Map(caso.assistencia_casos.map(a => [a.remetente_id === user?.id ? a.destinatario_id : a.remetente_id, a])).values()).map((a, i) => {
+                const isMine = a.remetente_id === user?.id;
+                const targetName = isMine ? a.destinatario?.nome : a.remetente?.nome;
+                if (!targetName) return null;
+
+                return (
+                  <div
+                    key={i}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-white border border-indigo-100 rounded-full text-xs text-indigo-900 shadow-sm transition-all hover:border-indigo-300 hover:shadow"
+                    title={isMine ? `Aguardando ${targetName} aceitar` : `${targetName} compartilhou com você`}
+                  >
+                    <div className="bg-indigo-100 w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] text-indigo-700">
+                      {targetName.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="font-medium">{targetName.split(' ')[0]}</span>
+                    {a.status === 'pendente' && (
+                      <span className="w-2 h-2 rounded-full bg-amber-400 ml-1" title="Pendente"></span>
+                    )}
+                    {a.status === 'aceito' && (
+                      <span className="w-2 h-2 rounded-full bg-green-500 ml-1" title="Aceito"></span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
         <div className="flex flex-col md:items-end gap-2">
@@ -961,22 +1113,20 @@ export const DetalhesCaso = () => {
       <div className="flex items-center gap-1 border-b border-soft mb-6 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab("visao_geral")}
-          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${
-            activeTab === "visao_geral"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted hover:text-primary hover:border-primary/30"
-          }`}
+          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === "visao_geral"
+            ? "border-primary text-primary"
+            : "border-transparent text-muted hover:text-primary hover:border-primary/30"
+            }`}
         >
           <LayoutDashboard size={18} />
           Visão Geral & Documentos
         </button>
         <button
           onClick={() => setActiveTab("minuta")}
-          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${
-            activeTab === "minuta"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted hover:text-primary hover:border-primary/30"
-          }`}
+          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === "minuta"
+            ? "border-primary text-primary"
+            : "border-transparent text-muted hover:text-primary hover:border-primary/30"
+            }`}
         >
           <Scale size={18} />
           Minuta
@@ -984,11 +1134,10 @@ export const DetalhesCaso = () => {
         {!isColaborador && (
           <button
             onClick={() => setActiveTab("relacionados")}
-            className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${
-              activeTab === "relacionados"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted hover:text-primary hover:border-primary/30"
-            }`}
+            className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === "relacionados"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted hover:text-primary hover:border-primary/30"
+              }`}
           >
             <History size={18} />
             Casos Relacionados
@@ -996,11 +1145,10 @@ export const DetalhesCaso = () => {
         )}
         <button
           onClick={() => setActiveTab("gestao")}
-          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${
-            activeTab === "gestao"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted hover:text-primary hover:border-primary/30"
-          }`}
+          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === "gestao"
+            ? "border-primary text-primary"
+            : "border-transparent text-muted hover:text-primary hover:border-primary/30"
+            }`}
         >
           <CheckCircle size={18} />
           Gestão & Finalização
@@ -1030,62 +1178,122 @@ export const DetalhesCaso = () => {
         {activeTab === "visao_geral" && (
           <div className="space-y-6 animate-fade-in">
             <InfoAssistido caso={caso} />
-            
-            {/* NOVA SESSÃO: MINUTAS E DOCUMENTOS GERADOS NA VISÃO GERAL */}
-            {(caso.url_peticao_penhora || caso.url_peticao_prisao || caso.url_termo_declaracao || caso.url_documento_gerado) && (
-              <section className="card space-y-4 border-l-4 border-l-primary/50 bg-primary/5">
-                <div className="flex items-center gap-2">
-                  <Scale className="text-primary" size={20} />
-                  <h2 className="heading-2">Minutas e Documentos Gerados</h2>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  {(caso.url_peticao_penhora || (!caso.url_peticao_prisao && caso.url_documento_gerado)) && (
-                    <a
-                      href={caso.url_peticao_penhora || caso.url_documento_gerado}
-                      target="_blank" rel="noopener noreferrer" download
-                      className="btn btn-primary text-sm flex items-center gap-2"
-                    >
-                      <Download size={16} /> Baixar {caso.url_peticao_prisao ? "Rito da Penhora" : "Petição Inicial"}
-                    </a>
-                  )}
-                  {caso.url_peticao_prisao && (
-                    <a
-                      href={caso.url_peticao_prisao}
-                      target="_blank" rel="noopener noreferrer" download
-                      className="btn btn-secondary text-sm flex items-center gap-2 text-error border-error/30 hover:bg-error/10"
-                    >
-                      <Download size={16} /> Baixar Rito da Prisão
-                    </a>
-                  )}
-                  {caso.url_termo_declaracao && (
-                    <a
-                      href={caso.url_termo_declaracao}
-                      target="_blank" rel="noopener noreferrer" download
-                      className="btn btn-secondary text-sm flex items-center gap-2 text-purple-600 border-purple-300 hover:bg-purple-50"
-                    >
-                      <Download size={16} /> Baixar Termo de Declaração
-                    </a>
-                  )}
-                </div>
-                {/* Botões de Regeneração (Admin) */}
-                {user?.cargo === "admin" && (
-                  <div className="flex flex-wrap gap-2 pt-2 border-t border-primary/10">
+
+            {/* NOVA SESSÃO: MINUTAS E DOCUMENTOS GERADOS NA VISÃO GERAL - COM MESMO FLUXO DA ABA 2 */}
+            {todosDocumentosGerados.length > 0 && (
+              <section className="space-y-6">
+                {/* SELETOR DE TIPO DE AUTOS */}
+                <div className="card space-y-4">
+                  <h3 className="heading-3 border-b border-border pb-2">Tipo de Petição</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <button
-                      onClick={handleRegenerateMinuta}
-                      disabled={isRegeneratingMinuta}
-                      className="btn btn-ghost border border-soft text-xs flex items-center gap-1"
+                      onClick={() => {
+                        setAutosType("apartados");
+                        setAutosSubtype(null);
+                      }}
+                      className={`p-4 border-2 rounded-lg transition-all ${autosType === "apartados"
+                          ? "border-primary bg-primary/10"
+                          : "border-border bg-surface hover:border-primary"
+                        }`}
                     >
-                      <RefreshCw size={14} className={isRegeneratingMinuta ? "animate-spin" : ""} />
-                      {isRegeneratingMinuta ? "Regerando..." : "Regerar Minuta"}
+                      <div className="font-bold text-primary">📎 AUTOS APARTADOS</div>
+                      <p className="text-xs text-muted mt-1">Petição em separado</p>
                     </button>
                     <button
-                      onClick={handleGenerateTermo}
-                      disabled={isGeneratingTermo}
-                      className="btn btn-ghost border border-soft text-xs flex items-center gap-1"
+                      onClick={() => {
+                        setAutosType("proprios_autos");
+                        setAutosSubtype("definitivo");
+                      }}
+                      className={`p-4 border-2 rounded-lg transition-all ${autosType === "proprios_autos"
+                          ? "border-primary bg-primary/10"
+                          : "border-border bg-surface hover:border-primary"
+                        }`}
                     >
-                      <RefreshCw size={14} className={isGeneratingTermo ? "animate-spin" : ""} />
-                      {isGeneratingTermo ? (caso.url_termo_declaracao ? "Regerando..." : "Gerando...") : (caso.url_termo_declaracao ? "Regerar Termo" : "Gerar Termo de Declaração")}
+                      <div className="font-bold text-primary">📄 NOS PROPRIOS AUTOS</div>
+                      <p className="text-xs text-muted mt-1">Petição nos mesmos autos</p>
                     </button>
+                  </div>
+
+                  {/* Subopções para AUTOS APARTADOS */}
+                  {autosType === "apartados" && (
+                    <div className="space-y-3 pt-4 border-t border-border">
+                      <p className="text-sm font-medium text-muted">Selecione o tipo:</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <button
+                          onClick={() => setAutosSubtype("provisorio")}
+                          className={`p-3 border rounded-lg transition-all text-sm font-bold ${autosSubtype === "provisorio"
+                              ? "border-secondary bg-secondary/10 text-main"
+                              : "border-border bg-surface hover:border-secondary/50"
+                            }`}
+                        >
+                          ⏳ PROVISÓRIO
+                        </button>
+                        <button
+                          onClick={() => setAutosSubtype("definitivo")}
+                          className={`p-3 border rounded-lg transition-all text-sm font-bold ${autosSubtype === "definitivo"
+                              ? "border-success bg-success/10 text-main"
+                              : "border-border bg-surface hover:border-success/50"
+                            }`}
+                        >
+                          ✓ DEFINITIVO
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* BOTÕES DE DOWNLOAD - SÓ APARECEM APÓS SELEÇÃO */}
+                {podeExibirDocumentos && (
+                  <div className="card space-y-4 border-l-4 border-l-primary/50 bg-primary/10">
+                    <div className="flex items-center gap-2">
+                      <Scale className="text-primary" size={20} />
+                      <h2 className="heading-2">📥 Documentos para Download</h2>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {documentosNoFluxo.map((doc) => (
+                        <a
+                          key={doc.key}
+                          href={doc.url}
+                          target="_blank" rel="noopener noreferrer" download
+                          className={`btn btn-secondary text-sm flex items-center gap-2 border-border ${doc.textClass} ${doc.downloadHoverClass}`}
+                        >
+                          <Download size={16} /> {doc.label}
+                        </a>
+                      ))}
+                    </div>
+                    {/* Botões de Regeneração (Admin) */}
+                    {user?.cargo === "admin" && (
+                      <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                        <button
+                          onClick={handleRegenerateMinuta}
+                          disabled={isRegeneratingMinuta}
+                          className="btn btn-ghost border border-border text-xs flex items-center gap-1"
+                        >
+                          <RefreshCw size={14} className={isRegeneratingMinuta ? "animate-spin" : ""} />
+                          {isRegeneratingMinuta ? "Regerando..." : "Regerar Minuta"}
+                        </button>
+                        <button
+                          onClick={handleGenerateTermo}
+                          disabled={isGeneratingTermo}
+                          className="btn btn-ghost border border-border text-xs flex items-center gap-1"
+                        >
+                          <RefreshCw size={14} className={isGeneratingTermo ? "animate-spin" : ""} />
+                          {isGeneratingTermo ? (caso.url_termo_declaracao ? "Regerando..." : "Gerando...") : (caso.url_termo_declaracao ? "Regerar Termo" : "Gerar Termo de Declaração")}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* MENSAGEM QUANDO NENHUM TIPO FOI SELECIONADO */}
+                {!autosType && (
+                  <div className="card border-2 border-dashed border-border text-center p-8">
+                    <p className="text-muted text-sm">📋 Selecione o tipo de petição acima para visualizar os documentos disponíveis.</p>
+                  </div>
+                )}
+                {autosType === "apartados" && !autosSubtype && (
+                  <div className="card border-2 border-dashed border-border text-center p-8">
+                    <p className="text-muted text-sm">📋 Em Autos Apartados, selecione Provisório ou Definitivo para liberar os documentos.</p>
                   </div>
                 )}
               </section>
@@ -1122,113 +1330,156 @@ export const DetalhesCaso = () => {
 
         {/* ABA 2: MINUTA E REVISÃO */}
         {activeTab === "minuta" && (
-          <div className="flex flex-col lg:flex-row gap-6 animate-fade-in">
-            
-            {/* SIDEBAR LATERA - GESTÃO E DOWNLOADS DAS MINUTAS */}
-            <div className="lg:w-1/3 flex flex-col gap-4">
-              <div className="card space-y-4">
-                <div className="flex items-center justify-between border-b border-soft pb-2">
-                  <h3 className="heading-3">Arquivos Gerados</h3>
-                  {user?.cargo === "admin" && (
-                    <button
-                      onClick={handleGenerateFatos}
-                      disabled={isGenerating || caso.status === "processando"}
-                      className="text-primary hover:bg-primary/10 p-1 rounded transition-colors"
-                      title="Regerar texto dos fatos com IA"
-                    >
-                      <RefreshCw size={16} className={isGenerating ? "animate-spin" : ""} />
-                    </button>
-                  )}
-                </div>
-                
-                <p className="text-sm text-muted">
-                  Selecione um arquivo para pré-visualizar ao lado, ou clique no ícone de download.
-                </p>
-
-                <div className="space-y-3">
-                  {/* Minuta Principal / Penhora */}
-                  {(caso.url_peticao_penhora || caso.url_documento_gerado) && (
-                    <div className={`flex items-center justify-between p-3 border rounded-lg transition-colors cursor-pointer ${minutaPreview === "penhora" ? "border-primary bg-primary/5" : "border-soft bg-surface hover:border-primary/30"}`}>
-                      <button onClick={() => setMinutaPreview("penhora")} className="flex-1 text-left font-bold text-sm text-primary">
-                        {caso.url_peticao_prisao ? "Rito da Penhora" : "Petição Inicial"}
-                      </button>
-                      <a href={caso.url_peticao_penhora || caso.url_documento_gerado} download className="p-2 text-muted hover:text-primary transition-colors" title="Fazer Download">
-                        <Download size={18} />
-                      </a>
-                    </div>
-                  )}
-
-                  {/* Minuta Prisão */}
-                  {caso.url_peticao_prisao && (
-                    <div className={`flex items-center justify-between p-3 border rounded-lg transition-colors cursor-pointer ${minutaPreview === "prisao" ? "border-error bg-error/5" : "border-soft bg-surface hover:border-error/30"}`}>
-                      <button onClick={() => setMinutaPreview("prisao")} className="flex-1 text-left font-bold text-sm text-error">
-                        Rito da Prisão (3+ meses)
-                      </button>
-                      <a href={caso.url_peticao_prisao} download className="p-2 text-muted hover:text-error transition-colors" title="Fazer Download">
-                        <Download size={18} />
-                      </a>
-                    </div>
-                  )}
-
-                  {/* Termo de Declaração */}
-                  {caso.url_termo_declaracao && (
-                    <div className={`flex items-center justify-between p-3 border rounded-lg transition-colors cursor-pointer ${minutaPreview === "termo" ? "border-purple-500 bg-purple-500/5" : "border-soft bg-surface hover:border-purple-500/30"}`}>
-                      <button onClick={() => setMinutaPreview("termo")} className="flex-1 text-left font-bold text-sm text-purple-600">
-                        Termo de Declaração
-                      </button>
-                      <a href={caso.url_termo_declaracao} download className="p-2 text-muted hover:text-purple-600 transition-colors" title="Fazer Download">
-                        <Download size={18} />
-                      </a>
-                    </div>
-                  )}
-                  
-                  {!caso.url_peticao_penhora && !caso.url_peticao_prisao && !caso.url_documento_gerado && !caso.url_termo_declaracao && (
-                    <div className="text-sm font-medium text-muted p-4 border border-dashed border-soft rounded-lg text-center">
-                      Nenhum documento gerado ainda.
-                    </div>
-                  )}
-                </div>
+          <div className="space-y-6 animate-fade-in">
+            {/* SELETOR DE FLUXO - AUTOS APARTADOS vs NOS PROPRIOS AUTOS */}
+            <div className="card space-y-4">
+              <h3 className="heading-3 border-b border-border pb-2">Tipo de Petição</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  onClick={() => {
+                    setAutosType("apartados");
+                    setAutosSubtype(null);
+                  }}
+                  className={`p-4 border-2 rounded-lg transition-all ${autosType === "apartados"
+                    ? "border-primary bg-primary/10"
+                    : "border-border bg-surface hover:border-primary"
+                    }`}
+                >
+                  <div className="font-bold text-primary">AUTOS APARTADOS</div>
+                  <p className="text-xs text-muted mt-1"></p>
+                </button>
+                <button
+                  onClick={() => {
+                    setAutosType("proprios_autos");
+                    setAutosSubtype("definitivo");
+                  }}
+                  className={`p-4 border-2 rounded-lg transition-all ${autosType === "proprios_autos"
+                    ? "border-primary bg-primary/10"
+                    : "border-border bg-surface hover:border-primary"
+                    }`}
+                >
+                  <div className="font-bold text-primary">NOS PROPRIOS AUTOS</div>
+                  <p className="text-xs text-muted mt-1">Petição nos mesmos autos</p>
+                </button>
               </div>
-            </div>
 
-            {/* ÁREA PRINCIPAL - PRÉ-VISUALIZAÇÃO (IFRAME) */}
-            <div className="lg:w-2/3">
-              <div className="card h-full p-0 overflow-hidden border-2 border-soft">
-                {/* Header do Preview */}
-                <div className="bg-surface-alt p-3 border-b border-soft flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-muted font-medium text-sm">
-                    <Eye size={16} />
-                    Pré-visualização: <span className="text-primary uppercase tracking-wider">{minutaPreview}</span>
+              {/* Subopções para AUTOS APARTADOS */}
+              {autosType === "apartados" && (
+                <div className="space-y-3 pt-4 border-t border-border">
+                  <p className="text-sm font-medium text-muted">Selecione o tipo:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setAutosSubtype("provisorio")}
+                      className={`p-3 border rounded-lg transition-all text-sm ${autosSubtype === "provisorio"
+                        ? "border-secondary bg-secondary/10 text-main font-bold"
+                        : "border-border bg-surface hover:border-secondary/50"
+                        }`}
+                    >
+                      PROVISÓRIO
+                    </button>
+                    <button
+                      onClick={() => setAutosSubtype("definitivo")}
+                      className={`p-3 border rounded-lg transition-all text-sm ${autosSubtype === "definitivo"
+                        ? "border-success bg-success/10 text-main font-bold"
+                        : "border-border bg-surface hover:border-success/50"
+                        }`}
+                    >
+                      DEFINITIVO
+                    </button>
                   </div>
                 </div>
-                
-              {/* Visualização DOCX via Microsoft Viewer */}
-              {caso.url_documento_gerado ? (
-                <div className="w-full h-[800px] bg-white">
-                  <iframe
-                    src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
-                      minutaPreview === "prisao" && caso.url_peticao_prisao
-                        ? caso.url_peticao_prisao
-                        : minutaPreview === "termo" && caso.url_termo_declaracao
-                          ? caso.url_termo_declaracao
-                          : caso.url_peticao_penhora ||
-                            caso.url_documento_gerado,
-                    )}`}
-                    className="w-full h-full"
-                    frameBorder="0"
-                    title="Visualização da Minuta"
-                    loading="lazy"
-                  />
-                </div>
-              ) : (
-                <div className="bg-white text-slate-900 p-8 rounded shadow-sm border border-soft font-serif whitespace-pre-wrap text-justify leading-relaxed min-h-[400px]">
-                  {caso.peticao_completa_texto ||
-                    caso.peticao_inicial_rascunho ||
-                    "A minuta ainda não foi gerada. Aguarde o processamento."}
-                </div>
               )}
-              </div>
             </div>
+
+            {/* LAYOUT PRINCIPAL - QUANDO TIPO FOI SELECIONADO */}
+            {podeExibirDocumentos && (
+              <div className="flex flex-col lg:flex-row gap-6">
+                {/* SIDEBAR LATERA - GESTÃO E DOWNLOADS DAS MINUTAS */}
+                <div className="lg:w-1/3 flex flex-col gap-4">
+                  <div className="card space-y-4">
+                    <div className="flex items-center justify-between border-b border-border pb-2">
+                      <h3 className="heading-3">📂 Arquivos Gerados</h3>
+                      {user?.cargo === "admin" && (
+                        <button
+                          onClick={handleGenerateFatos}
+                          disabled={isGenerating || caso.status === "processando"}
+                          className="text-primary hover:bg-primary/10 p-1 rounded transition-colors"
+                          title="Regenerar texto dos fatos com IA"
+                        >
+                          <RefreshCw size={16} className={isGenerating ? "animate-spin" : ""} />
+                        </button>
+                      )}
+                    </div>
+
+                    <p className="text-sm text-muted">
+                      Selecione um arquivo para pré-visualizar ao lado, ou clique no ícone de download.
+                    </p>
+
+                    <div className="space-y-3">
+                      {documentosNoFluxo.map((doc) => (
+                        <div key={doc.key} className={`flex items-center justify-between p-3 border rounded-lg transition-colors cursor-pointer ${minutaPreview === doc.key ? doc.previewClass : doc.defaultClass}`}>
+                          <button onClick={() => setMinutaPreview(doc.key)} className={`flex-1 text-left font-bold text-sm ${doc.textClass}`}>
+                            {doc.label}
+                          </button>
+                          <a href={doc.url} download className={`p-2 text-muted ${doc.downloadHoverClass} transition-colors`} title="Fazer Download">
+                            <Download size={18} />
+                          </a>
+                        </div>
+                      ))}
+
+                      {!documentosNoFluxo.length && (
+                        <div className="text-sm font-medium text-muted p-4 border border-dashed border-border rounded-lg text-center">
+                          Nenhum documento gerado ainda.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ÁREA PRINCIPAL - PRÉ-VISUALIZAÇÃO (IFRAME) */}
+                <div className="lg:w-2/3">
+                  <div className="card h-full p-0 overflow-hidden border-2 border-border">
+                    {/* Header do Preview */}
+                    <div className="bg-app p-3 border-b border-border flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-muted font-medium text-sm">
+                        <Eye size={16} />
+                        👁️ Pré-visualização: <span className="text-primary uppercase tracking-wider">{documentoPreviewSelecionado?.label || minutaPreview}</span>
+                      </div>
+                    </div>
+
+                    {/* Visualização DOCX via Microsoft Viewer */}
+                    {previewUrl ? (
+                      <div className="w-full h-[800px] bg-white">
+                        <iframe
+                          src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(previewUrl)}`}
+                          className="w-full h-full"
+                          frameBorder="0"
+                          title="Visualizacao da Minuta"
+                          loading="lazy"
+                        />
+                      </div>
+                    ) : (
+                      <div className="bg-white text-slate-900 p-8 rounded shadow-sm border border-border font-serif whitespace-pre-wrap text-justify leading-relaxed min-h-[400px]">
+                        {caso.peticao_completa_texto ||
+                          caso.peticao_inicial_rascunho ||
+                          "A minuta ainda não foi gerada. Aguarde o processamento."}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {autosType === "proprios_autos" && (
+              <div className="card border-2 border-dashed border-primary/30 text-center p-8 bg-primary/5">
+                <AlertTriangle className="mx-auto text-primary mb-3" size={32} />
+                <h3 className="text-lg font-bold text-primary">Modelos em Desenvolvimento</h3>
+                <p className="text-muted text-sm mt-2">
+                  Atualmente, os modelos para peticionamento <b>Nos Próprios Autos</b> ainda estão sendo integrados ao sistema.
+                  <br />Por favor, utilize as minutas de <b>Autos Apartados</b> como base se necessário.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -1305,22 +1556,26 @@ export const DetalhesCaso = () => {
                 </div>
               </div>
 
-              {/* BOTÃO DE REPROCESSAMENTO (Aparece em caso de ERRO ou para ADMIN) */}
-              {(statusKey === "erro" || user?.cargo === "admin") && (
+              {/* BOTÃO DE REPROCESSAMENTO (Aparece em caso de ERRO ou para ADMIN ou para o DONO do caso) */}
+              {(statusKey === "erro_processamento" ||
+                statusKey === "erro" ||
+                user?.cargo === "admin" ||
+                (user?.id &&
+                  (String(caso.defensor_id) === String(user.id) ||
+                    String(caso.servidor_id) === String(user.id)))) && (
                 <button
                   onClick={handleReprocessar}
-                  disabled={isReprocessing || caso.status === "processando"}
+                  disabled={isReprocessing || caso.status === "processando_ia"}
                   className="btn btn-ghost border border-red-200 bg-red-50 text-red-700 w-full flex items-center justify-center gap-2 hover:bg-red-100"
                 >
                   <RefreshCw
                     size={16}
                     className={isReprocessing ? "animate-spin" : ""}
                   />
-                  {isReprocessing
-                    ? "Reiniciando..."
-                    : "Reprocessar Caso (OCR + IA)"}
+                  {isReprocessing ? "Reiniciando..." : "Reprocessar Caso (IA + Documentos)"}
                 </button>
               )}
+
 
               {/* ÁREA DE PENDÊNCIA (Só aparece se selecionar aguardando_documentos) */}
               {statusKey === "aguardando_documentos" && (
@@ -1397,34 +1652,103 @@ export const DetalhesCaso = () => {
             </div>
 
             {/* --- SEÇÃO: CÁLCULO E DADOS JURÍDICOS --- */}
-            <div className="card space-y-4 border-l-4 border-l-primary">
-              <div className="flex items-center gap-3">
-                <Mic className="text-primary" />
-                <h2 className="heading-2">
-                  Memória de Cálculo / Dados Jurídicos
-                </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Memória de Cálculo */}
+              <div className="card space-y-4 border-l-4 border-l-primary">
+                <div className="flex items-center gap-3">
+                  <Mic className="text-primary" />
+                  <h2 className="heading-2">Memória de Cálculo</h2>
+                </div>
+                <textarea
+                  className="input min-h-[200px] font-mono text-sm bg-bg/30"
+                  placeholder="Ex: Ref jan/24 a mar/24 + multa 10%... "
+                  value={memoriaCalculo}
+                  onChange={(e) => setMemoriaCalculo(e.target.value)}
+                />
               </div>
-              <p className="text-sm text-muted">
-                Campo exclusivo para o defensor/servidor registrar como chegou
-                ao valor do débito ou outras anotações técnicas.
-                <span className="font-bold text-primary"> (Uso interno)</span>
-              </p>
-              <textarea
-                className="input min-h-[150px] font-mono text-sm bg-bg/30"
-                placeholder="Ex: Ref jan/24 a mar/24 + multa 10%... "
-                value={memoriaCalculo}
-                onChange={(e) => setMemoriaCalculo(e.target.value)}
-              />
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleSaveJuridico}
-                  disabled={isSavingJuridico}
-                  className="btn btn-primary btn-sm flex items-center gap-2"
-                >
-                  <Save size={16} />
-                  {isSavingJuridico ? "Salvando..." : "Salvar Dados de Cálculo"}
-                </button>
+
+              {/* Informações Financeiras (Cumulado) */}
+              <div className="card space-y-4 border-l-4 border-l-secondary">
+                <div className="flex items-center gap-3">
+                  <Scale className="text-secondary" />
+                  <h2 className="heading-2 font-bold">Informações Financeiras (Cumulado)</h2>
+                </div>
+                
+                <div className="space-y-4 p-4 bg-secondary/5 rounded-xl border border-secondary/10">
+                  {/* Penhora */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-secondary uppercase tracking-wider">Débito Rito Penhora</label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <input
+                        type="text"
+                        placeholder="R$ 0,00"
+                        className="input font-mono"
+                        value={debitoPenhoraValor}
+                        onChange={(e) => {
+                          const val = formatCurrencyMask(e.target.value);
+                          setDebitoPenhoraValor(val);
+                          setDebitoPenhoraExtenso(numeroParaExtenso(val));
+                        }}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Valor por extenso..."
+                        className="input md:col-span-2 text-xs"
+                        value={debitoPenhoraExtenso}
+                        onChange={(e) => setDebitoPenhoraExtenso(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Prisão */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-secondary uppercase tracking-wider">Débito Rito Prisão</label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <input
+                        type="text"
+                        placeholder="R$ 0,00"
+                        className="input font-mono"
+                        value={debitoPrisaoValor}
+                        onChange={(e) => {
+                          const val = formatCurrencyMask(e.target.value);
+                          setDebitoPrisaoValor(val);
+                          setDebitoPrisaoExtenso(numeroParaExtenso(val));
+                        }}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Valor por extenso..."
+                        className="input md:col-span-2 text-xs"
+                        value={debitoPrisaoExtenso}
+                        onChange={(e) => setDebitoPrisaoExtenso(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-secondary/20 mt-2">
+                    <div className="flex justify-between items-center bg-secondary/10 p-3 rounded-lg">
+                      <span className="text-sm font-bold text-secondary">VALOR TOTAL DA CAUSA:</span>
+                      <span className="text-lg font-mono font-black text-secondary">
+                        {formatCurrencyMask((
+                          (parseFloat(debitoPenhoraValor.replace(/\./g, '').replace(',', '.') || 0) + 
+                           parseFloat(debitoPrisaoValor.replace(/\./g, '').replace(',', '.') || 0)) * 100
+                        ).toFixed(0))}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveJuridico}
+                    disabled={isSavingJuridico}
+                    className="btn btn-primary flex items-center gap-2"
+                  >
+                    <Save size={18} />
+                    {isSavingJuridico ? "Salvando..." : "Salvar Dados Jurídicos"}
+                  </button>
+                </div>
               </div>
             </div>
             {/* --- ZONA DE FINALIZAÇÃO DO ESTAGIÁRIO --- */}
@@ -1550,11 +1874,10 @@ export const DetalhesCaso = () => {
             {/* Botão de Arquivar (Movido para Gestão) */}
             <button
               onClick={handleArquivarClick}
-              className={`btn w-full justify-center ${
-                caso.arquivado
-                  ? "btn-primary"
-                  : "bg-slate-200 hover:bg-slate-300 text-slate-700 border-transparent"
-              }`}
+              className={`btn w-full justify-center ${caso.arquivado
+                ? "btn-primary"
+                : "bg-slate-200 hover:bg-slate-300 text-slate-700 border-transparent"
+                }`}
             >
               {caso.arquivado ? (
                 <ArchiveRestore size={18} />
@@ -1718,3 +2041,4 @@ export const DetalhesCaso = () => {
     </div>
   );
 };
+

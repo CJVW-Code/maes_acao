@@ -131,43 +131,47 @@ model casos {
 }
 
 model casos_partes {
-  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  caso_id                BigInt   @unique
-  nome_assistido         String
-  cpf_assistido          String
-  rg_assistido           String?
-  emissor_rg_assistido   String?
-  estado_civil           String?
-  profissao              String?
-  nacionalidade          String?
-  nome_mae_assistido     String?
-  nome_pai_assistido          String?
-  cpf_representante           String?
-  nome_representante          String?
-  rg_representante            String?
-  emissor_rg_representante    String?
-  nacionalidade_representante String?
-  estado_civil_representante  String?
-  profissao_representante     String?
-  nome_mae_representante      String?
-  nome_pai_representante      String?
-  endereco_assistido          String?
-  telefone_assistido     String?
-  email_assistido        String?
-  nome_requerido         String?
-  cpf_requerido          String?
-  rg_requerido           String?
-  emissor_rg_requerido   String?
-  profissao_requerido    String?
-  nome_mae_requerido     String?
-  nome_pai_requerido     String?
-  endereco_requerido     String?
-  telefone_requerido     String?
-  email_requerido        String?
-  exequentes             Json     @default("[]")
-  created_at             DateTime @default(now()) @db.Timestamptz(6)
-  updated_at             DateTime @default(now()) @updatedAt @db.Timestamptz(6)
-  caso                   casos    @relation(fields: [caso_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caso_id                       BigInt   @unique
+  nome_assistido                String
+  cpf_assistido                 String
+  rg_assistido                  String?
+  emissor_rg_assistido          String?
+  estado_civil                  String?
+  profissao                     String?
+  nacionalidade                 String?
+  assistido_eh_incapaz          String?
+  data_nascimento_assistido     String?
+  nome_mae_assistido            String?
+  nome_pai_assistido            String?
+  cpf_representante             String?
+  nome_representante            String?
+  rg_representante              String?
+  emissor_rg_representante      String?
+  nacionalidade_representante   String?
+  estado_civil_representante    String?
+  profissao_representante       String?
+  data_nascimento_representante String?
+  nome_mae_representante        String?
+  nome_pai_representante        String?
+  endereco_assistido            String?
+  telefone_assistido            String?
+  email_assistido               String?
+  nome_requerido                String?
+  cpf_requerido                 String?
+  rg_requerido                  String?
+  emissor_rg_requerido          String?
+  profissao_requerido           String?
+  data_nascimento_requerido     String?
+  nome_mae_requerido            String?
+  nome_pai_requerido            String?
+  endereco_requerido            String?
+  telefone_requerido            String?
+  email_requerido               String?
+  exequentes                    Json     @default("[]")
+  created_at                    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  caso                          casos    @relation(fields: [caso_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([cpf_assistido], map: "idx_casos_cpf")
   @@index([cpf_representante], map: "idx_casos_cpf_rep")

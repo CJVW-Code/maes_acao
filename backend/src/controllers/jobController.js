@@ -102,18 +102,35 @@ export const processJob = async (req, res) => {
         `🚀 [Background] Iniciando processamento pesado para o caso ${protocolo}...`,
       );
       try {
-        // [FIX] Priorizar dados vindos no corpo da requisição (QStash)
-        // Isso resolve o erro 'Cannot read properties of undefined (reading acaoEspecifica)'
-        // pois a tabela 'casos' não possui a coluna 'dados_formulario'
+        // [REFATORAÇÃO] Busca todos os documentos vinculados ao caso no banco
+        // Deixamos de depender apenas de 'urls_documentos' no payload ou na tabela casos
+        const { data: docsDb, error: docsError } = await supabase
+          .from("documentos")
+          .select("storage_path")
+          .eq("caso_id", caso.id);
+
+        if (docsError) {
+          logger.warn(`⚠️ Erro ao buscar documentos na tabela documentos: ${docsError.message}`);
+        }
+
+        const documentosUrls = [
+          ...(docsDb?.map((d) => d.storage_path) || []),
+          ...(req.body.urls_documentos || caso.urls_documentos || []),
+        ].filter(Boolean);
+
+        // Remove duplicados se houver
+        const uniqueDocUrls = [...new Set(documentosUrls)];
+
         const dadosFormulario = req.body.dados_formulario || caso.dados_formulario;
-        const documentosUrls = req.body.urls_documentos || caso.urls_documentos || [];
         const audioUrl = req.body.url_audio || caso.url_audio;
         const peticaoUrl = req.body.url_peticao || caso.url_peticao;
+
+        logger.info(`🔍 [Background] Total de documentos para processar: ${uniqueDocUrls.length}`);
 
         await processarCasoEmBackground(
           protocolo,
           dadosFormulario,
-          documentosUrls,
+          uniqueDocUrls,
           audioUrl,
           peticaoUrl,
         );
@@ -122,6 +139,7 @@ export const processJob = async (req, res) => {
           `✅ [Background] Processamento concluído com sucesso para ${protocolo} em ${duration}s`,
         );
       } catch (err) {
+
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         logger.error(
           `❌ [Background] Erro crítico após ${duration}s no caso ${protocolo}: ${err.message}`,
