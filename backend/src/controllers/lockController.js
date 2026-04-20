@@ -4,6 +4,7 @@ import logger from "../utils/logger.js";
 /**
  * Realiza o bloqueio manual de um caso para o usuário logado.
  * Nível 1: Servidor | Nível 2: Defensor
+ * Regra: O bloqueio é PERMANENTE até que um Administrador libere.
  */
 export const lockCaso = async (req, res) => {
   const { id } = req.params;
@@ -13,7 +14,6 @@ export const lockCaso = async (req, res) => {
   try {
     const isAdmin = cargo === 'admin';
     const isDefensor = cargo.includes("defensor");
-    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
 
     const updateData = {};
     const whereClause = { id: BigInt(id) };
@@ -33,20 +33,17 @@ export const lockCaso = async (req, res) => {
       if (!isAdmin) {
         whereClause.OR = [
           { servidor_id: null },
-          { servidor_id: userId },
-          { servidor_at: { lt: thirtyMinutesAgo } },
+          { servidor_id: userId }
         ];
       }
     }
 
-    // Tenta executar o update atômico e condicional
     const { count } = await prisma.casos.updateMany({
       where: whereClause,
       data: updateData,
     });
 
     if (count === 0) {
-      // Falha atômica: ou não existe ou outro usuário pegou a trava primeiro
       const casoCheck = await prisma.casos.findUnique({
         where: { id: BigInt(id) },
         include: { defensor: true, servidor: true },
@@ -60,12 +57,11 @@ export const lockCaso = async (req, res) => {
 
       return res.status(423).json({
         error: "Caso bloqueado",
-        message: `Este caso já está em uso por ${holder || "outro colega"}.`,
+        message: `Este caso já está vinculado ao profissional ${holder || "outro colega"}. Apenas o Administrador pode liberar este caso.`,
         holder: holder || "outro colega",
       });
     }
 
-    // Como usamos updateMany, recuperamos o caso com relacionamentos para retornar os dados completos
     const casoAtualizado = await prisma.casos.findUnique({
       where: { id: BigInt(id) },
     });
@@ -79,12 +75,18 @@ export const lockCaso = async (req, res) => {
 
 /**
  * Libera o bloqueio do caso.
- * Apenas o dono do lock ou admin podem liberar.
+ * REGRA: APENAS ADMINISTRADORES podem destravar/liberar um caso.
  */
 export const unlockCaso = async (req, res) => {
   const { id } = req.params;
-  const userId = req.user.id;
   const isAdmin = req.user.cargo.toLowerCase() === 'admin';
+
+  if (!isAdmin) {
+    return res.status(403).json({ 
+      error: "Acesso negado", 
+      message: "Apenas administradores podem liberar casos bloqueados." 
+    });
+  }
 
   try {
     const caso = await prisma.casos.findUnique({
@@ -92,12 +94,6 @@ export const unlockCaso = async (req, res) => {
     });
 
     if (!caso) return res.status(404).json({ error: "Caso não encontrado." });
-
-    const canUnlock = isAdmin || caso.defensor_id === userId || caso.servidor_id === userId;
-
-    if (!canUnlock) {
-      return res.status(403).json({ error: "Você não tem permissão para liberar este caso." });
-    }
 
     await prisma.casos.update({
       where: { id: BigInt(id) },
@@ -109,9 +105,10 @@ export const unlockCaso = async (req, res) => {
       }
     });
 
-    res.status(200).json({ message: "Caso liberado com sucesso." });
+    res.status(200).json({ message: "Caso liberado com sucesso pelo administrador." });
   } catch (error) {
     logger.error(`Erro ao destravar caso ${id}: ${error.message}`);
     res.status(500).json({ error: "Erro ao realizar liberação." });
   }
 };
+

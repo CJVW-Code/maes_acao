@@ -208,18 +208,18 @@ export const InfoAssistido = ({ caso }) => {
               <div className="space-y-4 pt-4 border-t border-soft">
                 <h3 className="heading-3 text-primary">Dados da Execução e Título Judicial</h3>
                 <div className="grid gap-4 md:grid-cols-2">
-                  {renderDataField("Vara da Petição Atual", formatVara(dados.VARA))}
-                  {renderDataField("Percentual do salário mínimo (%)", dados.percentual_salario_minimo)}
-                  {renderDataField("Número do Processo Originário", dados.processoOrigemNumero)}
-                  {renderDataField("Cidade onde tramitou", dados.cidadeOriginaria)}
-                  {renderDataField("Vara onde tramitou", formatVara(dados.varaOriginaria))}
-                  {renderDataField("Tipo de Decisão", dados.tipo_decisao)}
-                  {renderDataField("Dia de Pagamento fixado", dados.dia_pagamento)}
-                  {renderDataField("Período do Débito", dados.periodo_meses_ano)}
-                  {renderDataField("Valor Total do Débito", pickFirst(dados.valor_debito, dados.valorTotalDebitoExecucao))}
-                  {renderDataField("Multa (10%)", dados.valor_multa)}
-                  {renderDataField("Juros", dados.valor_juros)}
-                  {renderDataField("Honorários", dados.valor_honorarios)}
+                  {renderDataField("Vara da Petição Atual", formatVara(pickFirst(dados.VARA, caso.VARA)))}
+                  {renderDataField("Percentual do salário mínimo (%)", pickFirst(dados.percentual_salario_minimo, caso.percentual_salario_minimo))}
+                  {renderDataField("Número do Processo Originário", pickFirst(dados.processoOrigemNumero, caso.processoOrigemNumero, caso.numero_processo_originario))}
+                  {renderDataField("Cidade onde tramitou", pickFirst(dados.cidadeOriginaria, caso.cidadeOriginaria, caso.cidade_originaria))}
+                  {renderDataField("Vara onde tramitou", formatVara(pickFirst(dados.varaOriginaria, caso.varaOriginaria, caso.vara_originaria)))}
+                  {renderDataField("Tipo de Decisão", pickFirst(dados.tipo_decisao, caso.tipo_decisao))}
+                  {renderDataField("Dia de Pagamento fixado", pickFirst(dados.dia_pagamento, caso.dia_pagamento, caso.dia_pagamento_fixado))}
+                  {renderDataField("Período do Débito", pickFirst(dados.periodo_meses_ano, caso.periodo_meses_ano, caso.periodo_debito_execucao))}
+                  {renderDataField("Valor Total do Débito", pickFirst(dados.valor_debito, dados.valor_total_debito_execucao, caso.valor_debito, caso.valor_total_debito_execucao))}
+                  {renderDataField("Multa (10%)", pickFirst(dados.valor_multa, caso.valor_multa))}
+                  {renderDataField("Juros", pickFirst(dados.valor_juros, caso.valor_juros))}
+                  {renderDataField("Honorários", pickFirst(dados.valor_honorarios, caso.valor_honorarios))}
                 </div>
               </div>
             )}
@@ -233,10 +233,10 @@ export const InfoAssistido = ({ caso }) => {
                 {!isExecucao &&
                   renderDataField(
                     "Valor da Pensão Solicitado",
-                    pickFirst(dados.valor_pensao, dados.valor_pensao_atual),
+                    pickFirst(dados.valor_pensao, dados.valor_pensao_atual, caso.valor_pensao),
                   )}
-                {renderDataField("Dados Bancários para Depósito", pickFirst(dados.dados_bancarios_exequente, dados.dados_bancarios_deposito))}
-                {renderDataField("Cidade para assinatura", dados.CIDADEASSINATURA)}
+                {renderDataField("Dados Bancários para Depósito", pickFirst(dados.dados_bancarios_exequente, dados.dados_bancarios_deposito, caso.dados_bancarios_exequente))}
+                {renderDataField("Cidade para assinatura", pickFirst(dados.CIDADEASSINATURA, dados.cidade_assinatura, caso.cidade_assinatura, caso.CIDADEASSINATURA))}
               </div>
             </div>
           </div>

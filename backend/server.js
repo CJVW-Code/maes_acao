@@ -11,6 +11,9 @@ import debugRoutes from "./src/routes/debug.js";
 import jobsRoutes from "./src/routes/jobs.js";
 import unidadesRoutes from "./src/routes/unidades.js";
 import scannerRoutes from "./src/routes/scanner.js";
+import helmet from "helmet";
+import { globalLimiter } from "./src/middleware/rateLimiter.js";
+
 
 dotenv.config();
 
@@ -22,7 +25,13 @@ BigInt.prototype.toJSON = function () {
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+// Configurações Globais de Segurança
+app.set("trust proxy", 1); // Necessário para rate-limiting atrás de proxies (Vercel/Railway)
+app.use(helmet());
+app.use(globalLimiter);
+
 // 1. LOG DE DIAGNÓSTICO (O MAIS ALTO POSSÍVEL)
+
 app.use((req, res, next) => {
   if (process.env.NODE_ENV !== "test") {
     console.log(

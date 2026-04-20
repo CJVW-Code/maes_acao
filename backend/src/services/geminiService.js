@@ -151,10 +151,11 @@ const parseBankData = (raw) => {
 
   return {
     raw: text,
-    pix: match(/pix[:\-]?\s*([^\n|]+)/i),
-    banco: match(/banco[:\-]?\s*([^\n|]+)/i),
-    agencia: match(/ag[êe]ncia[:\-]?\s*([\w\-]+)/i),
-    conta: match(/conta[:\-]?\s*([\w\-]+)/i),
+    pix: match(/pix[:-]?\s*([^\n|]+)/i),
+    banco: match(/banco[:-]?\s*([^\n|]+)/i),
+    agencia: match(/ag[êe]ncia[:-]?\s*([\w-]+)/i),
+    conta: match(/conta[:-]?\s*([\w-]+)/i),
+
   };
 };
 

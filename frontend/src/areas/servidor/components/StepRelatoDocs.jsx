@@ -1,8 +1,13 @@
+import React from "react";
 import { useConfirm } from "../../../contexts/ConfirmContext";
 import { AlertCircle, FileText } from "lucide-react";
 import { DocumentUpload } from "../../../components/DocumentUpload";
-export const StepRelatoDocs = ({
-  formState,
+export const StepRelatoDocs = React.memo(({
+  relato,
+  prefersAudio,
+  enviarDocumentosDepois,
+  outrosFilhos,
+  representanteNome,
   handleFieldChange,
   formErrors,
   isRepresentacao,
@@ -12,9 +17,9 @@ export const StepRelatoDocs = ({
   const { confirm } = useConfirm();
 
   return (
-    <section className="card space-y-6 border-l-4 border-l-indigo-500">
-      <div className="flex items-center gap-2 border-b border-soft pb-2">
-        <FileText className="text-indigo-400" />
+    <section className="form-section">
+      <div className="flex items-center gap-3 border-b border-soft pb-4">
+        <FileText className="text-primary" size={24} />
         <h2 className="heading-2">5. Conte sua História e Anexe Provas</h2>
       </div>
 
@@ -28,11 +33,11 @@ export const StepRelatoDocs = ({
           <textarea
             id="relato"
             placeholder={
-              formState.prefersAudio
+              prefersAudio
                 ? "Se desejar, faça um breve resumo aqui (opcional)..."
                 : "Conte detalhadamente o que aconteceu, por que você precisa da justiça, como está a situação atual..."
             }
-            value={formState.relato}
+            value={relato}
             onChange={handleFieldChange}
             name="relato"
             rows="10"
@@ -40,7 +45,7 @@ export const StepRelatoDocs = ({
           ></textarea>
 
           {/* Barra de Progresso */}
-          {!formState.prefersAudio && (
+          {!prefersAudio && (
             <div className="w-full h-2 bg-app rounded-full mt-2 overflow-hidden border border-soft">
               <div
                 className={`h-full transition-all duration-500 ${
@@ -49,7 +54,7 @@ export const StepRelatoDocs = ({
                     : "bg-error"
                 }`}
                 style={{
-                  width: `${Math.min(((formState.relato || "").length / 250) * 100, 100)}%`,
+                  width: `${Math.min(((relato || "").length / 250) * 100, 100)}%`,
                 }}
               />
             </div>
@@ -59,11 +64,11 @@ export const StepRelatoDocs = ({
             <span className="text-xs text-error font-medium">
               {formErrors.relato}
             </span>
-            {!formState.prefersAudio && (
+            {!prefersAudio && (
               <span
                 className={`text-xs font-medium ${(formState.relato || "").length < 250 ? "text-error" : "text-success"}`}
               >
-                {(formState.relato || "").length} / 250 caracteres
+                {(relato || "").length} / 250 caracteres
               </span>
             )}
           </div>
@@ -76,7 +81,7 @@ export const StepRelatoDocs = ({
           <input
             type="checkbox"
             className="w-5 h-5 accent-amber-600"
-            checked={formState.enviarDocumentosDepois}
+            checked={enviarDocumentosDepois}
             onChange={async (e) => {
               const checked = e.target.checked;
               if (checked) {
@@ -109,25 +114,25 @@ export const StepRelatoDocs = ({
       </div>
 
       {/* COMPONENTE DE UPLOAD DE DOCUMENTOS */}
-      {!formState.enviarDocumentosDepois && (
+      {!enviarDocumentosDepois && (
         <div
           id="documents-upload-section"
           className={`${formErrors.documentos ? "border border-error rounded-xl p-1" : ""}`}
         >
           <DocumentUpload
             isRepresentacao={isRepresentacao}
-            outrosFilhos={formState.outrosFilhos}
+            outrosFilhos={outrosFilhos}
             nomes={{
-              assistido: formState.REPRESENTANTE_NOME,
-              responsavel: formState.REPRESENTANTE_NOME,
-              crianca: isRepresentacao ? formState.REPRESENTANTE_NOME : null,
+              assistido: representanteNome,
+              responsavel: representanteNome,
+              crianca: isRepresentacao ? representanteNome : null,
             }}
             onFilesChange={handleFilesChange}
           />
         </div>
       )}
 
-      {formState.enviarDocumentosDepois && (
+      {enviarDocumentosDepois && (
         <div className="bg-surface p-6 rounded-xl border-2 border-dashed border-soft text-center space-y-2">
           <AlertCircle className="mx-auto text-muted" size={40} />
           <p className="text-sm text-muted font-medium">
@@ -154,4 +159,4 @@ export const StepRelatoDocs = ({
       )}
     </section>
   );
-};
+});

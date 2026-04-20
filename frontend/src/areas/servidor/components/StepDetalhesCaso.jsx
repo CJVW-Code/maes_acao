@@ -3,7 +3,7 @@ import { Briefcase } from "lucide-react";
 import { SecaoRenderer } from "./SecaoRenderer";
 import { SecaoCamposGeraisFamilia } from "./secoes/SecaoCamposGeraisFamilia";
 
-export const StepDetalhesCaso = ({
+export const StepDetalhesCaso = React.memo(({
   formState,
   handleFieldChange,
   handleCurrencyChange,
@@ -14,9 +14,9 @@ export const StepDetalhesCaso = ({
   formErrors = {},
 }) => {
   return (
-    <section className="card space-y-6 border-l-4 border-l-green-500">
-      <div className="flex items-center gap-2 border-b border-soft pb-2">
-        <Briefcase className="text-green-400" />
+    <section className="form-section">
+      <div className="flex items-center gap-3 border-b border-soft pb-4">
+        <Briefcase className="text-primary" size={24} />
         <h2 className="heading-2">4. Detalhes do Caso</h2>
       </div>
 
@@ -43,4 +43,4 @@ export const StepDetalhesCaso = ({
       />
     </section>
   );
-};
+});

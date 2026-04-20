@@ -1,1 +1,11 @@
-{ "compilerOptions": { "allowJs": true, "checkJs": true, "noEmit": true, "target": "es2022" }, "include": ["src/**/*.js"] }
+{
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ESNext",
+    "checkJs": false,
+    "allowJs": true,
+    "resolveJsonModule": true
+  },
+  "exclude": ["node_modules", "dist"]
+}

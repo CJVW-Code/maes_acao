@@ -34,7 +34,8 @@ import { useToast } from "../../../contexts/ToastContext";
 import { useConfirm } from "../../../contexts/ConfirmContext";
 import { TimelineAuditoria } from "../components/TimelineAuditoria";
 import useSWR from "swr";
-import { authFetch } from "../../../utils/apiBase"; // Ajuste o caminho conforme o arquivo
+import { authFetch } from "../../../utils/apiBase";
+import { formatCurrencyMask, numeroParaExtenso } from "../../../utils/formatters";
 //compenetes detalhes
 import { InfoAssistido } from "../components/detalhes/InfoAssistido";
 import { PainelDocumentos } from "../components/detalhes/PainelDocumentos";
@@ -71,11 +72,13 @@ const fetcher = async (url) => {
 const manualStatusOptions = [
   { value: "aguardando_documentos", label: "Aguardando Documentos" },
   { value: "documentacao_completa", label: "Documentação Completa" },
+  { value: "pronto_para_analise", label: "Pronto para Análise" },
   { value: "em_atendimento", label: "Em Atendimento" },
   { value: "liberado_para_protocolo", label: "Liberado para Protocolo" },
   { value: "em_protocolo", label: "Em Protocolo" },
   { value: "protocolado", label: "Protocolado" },
 ];
+
 
 const statusBadges = {
   aguardando_documentos: "bg-amber-100 text-amber-800 border-amber-200",
@@ -190,6 +193,12 @@ export const DetalhesCaso = () => {
   const [autosType, setAutosType] = useState(null); // 'apartados' ou 'proprios_autos'
   const [autosSubtype, setAutosSubtype] = useState(null); // 'provisorio' ou 'definitivo'
 
+  // Novos campos financeiros para rito cumulado
+  const [debitoPenhoraValor, setDebitoPenhoraValor] = useState("");
+  const [debitoPenhoraExtenso, setDebitoPenhoraExtenso] = useState("");
+  const [debitoPrisaoValor, setDebitoPrisaoValor] = useState("");
+  const [debitoPrisaoExtenso, setDebitoPrisaoExtenso] = useState("");
+
   // 1. O SWR substitui o estado do caso, o fetchDetalhes, e o polling!
   const {
     data: caso,
@@ -204,8 +213,10 @@ export const DetalhesCaso = () => {
     {
       revalidateOnFocus: false,
       dedupingInterval: 600000,
-      // Polling Automático: Se for 'processando', atualiza a cada 5s. Senão, para (0).
-      refreshInterval: (data) => (data?.status === "processando" ? 5000 : 0),
+      // Polling Automático: Se for 'processando' ou 'documentacao_completa', atualiza a cada 5s.
+      refreshInterval: (data) =>
+        data?.status === "processando_ia" || data?.status === "documentacao_completa" ? 5000 : 0,
+
       onError: (err) => {
         // Se der erro 401 ou sessão expirada, o context deve assumir
         if (err.message === "Sessão expirada" || err.status === 401) {
@@ -327,20 +338,23 @@ export const DetalhesCaso = () => {
     autosType === "proprios_autos" ||
     (autosType === "apartados" && Boolean(autosSubtype));
   const documentosNoFluxo = useMemo(
-    () =>
-      !podeExibirDocumentos
-        ? []
-        : todosDocumentosGerados.filter((doc) => {
-            if (doc.grupo === "auxiliar") return true;
-            if (autosType === "proprios_autos") return doc.grupo === "definitivo";
-            if (autosType === "apartados" && autosSubtype === "provisorio") {
-              return doc.grupo === "provisorio";
-            }
-            if (autosType === "apartados" && autosSubtype === "definitivo") {
-              return doc.grupo === "definitivo";
-            }
-            return false;
-          }),
+    () => {
+      if (!podeExibirDocumentos) return [];
+      
+      // Se for "Nos próprios autos", atualmente não temos modelos específicos (mostramos a mensagem no render)
+      if (autosType === "proprios_autos") return [];
+
+      return todosDocumentosGerados.filter((doc) => {
+        if (doc.grupo === "auxiliar") return true;
+        if (autosType === "apartados" && autosSubtype === "provisorio") {
+          return doc.grupo === "provisorio";
+        }
+        if (autosType === "apartados" && autosSubtype === "definitivo") {
+          return doc.grupo === "definitivo";
+        }
+        return false;
+      });
+    },
     [podeExibirDocumentos, todosDocumentosGerados, autosType, autosSubtype],
   );
 
@@ -364,6 +378,10 @@ export const DetalhesCaso = () => {
         setPendenciaTexto(caso.descricao_pendencia || "");
         setNumSolar(caso.numero_solar || "");
         setMemoriaCalculo(caso.juridico?.memoria_calculo || "");
+        setDebitoPenhoraValor(caso.juridico?.debito_penhora_valor || "");
+        setDebitoPenhoraExtenso(caso.juridico?.debito_penhora_extenso || "");
+        setDebitoPrisaoValor(caso.juridico?.debito_prisao_valor || "");
+        setDebitoPrisaoExtenso(caso.juridico?.debito_prisao_extenso || "");
         setFeedbackInitialized(true);
       }
     }
@@ -783,7 +801,13 @@ export const DetalhesCaso = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ memoria_calculo: memoriaCalculo }),
+        body: JSON.stringify({ 
+          memoria_calculo: memoriaCalculo,
+          debito_penhora_valor: debitoPenhoraValor,
+          debito_penhora_extenso: debitoPenhoraExtenso,
+          debito_prisao_valor: debitoPrisaoValor,
+          debito_prisao_extenso: debitoPrisaoExtenso
+        }),
       });
       if (res.ok) {
         toast.success("Dados jurídicos salvos!");
@@ -791,6 +815,8 @@ export const DetalhesCaso = () => {
       }
     } catch {
       toast.error("Erro ao salvar dados jurídicos.");
+    } finally {
+      setIsSavingJuridico(false);
     }
   };
 
@@ -1444,15 +1470,14 @@ export const DetalhesCaso = () => {
               </div>
             )}
 
-            {/* MENSAGEM QUANDO NENHUM TIPO FOI SELECIONADO */}
-            {!autosType && (
-              <div className="card border-2 border-dashed border-border text-center p-8">
-                <p className="text-muted text-sm">📋 Selecione o tipo de petição acima para visualizar e gerenciar os documentos.</p>
-              </div>
-            )}
-            {autosType === "apartados" && !autosSubtype && (
-              <div className="card border-2 border-dashed border-border text-center p-8">
-                <p className="text-muted text-sm">📋 Em Autos Apartados, selecione Provisório ou Definitivo para exibir os modelos corretos.</p>
+            {autosType === "proprios_autos" && (
+              <div className="card border-2 border-dashed border-primary/30 text-center p-8 bg-primary/5">
+                <AlertTriangle className="mx-auto text-primary mb-3" size={32} />
+                <h3 className="text-lg font-bold text-primary">Modelos em Desenvolvimento</h3>
+                <p className="text-muted text-sm mt-2">
+                  Atualmente, os modelos para peticionamento <b>Nos Próprios Autos</b> ainda estão sendo integrados ao sistema.
+                  <br />Por favor, utilize as minutas de <b>Autos Apartados</b> como base se necessário.
+                </p>
               </div>
             )}
           </div>
@@ -1531,22 +1556,26 @@ export const DetalhesCaso = () => {
                 </div>
               </div>
 
-              {/* BOTÃO DE REPROCESSAMENTO (Aparece em caso de ERRO ou para ADMIN) */}
-              {(statusKey === "erro" || user?.cargo === "admin") && (
+              {/* BOTÃO DE REPROCESSAMENTO (Aparece em caso de ERRO ou para ADMIN ou para o DONO do caso) */}
+              {(statusKey === "erro_processamento" ||
+                statusKey === "erro" ||
+                user?.cargo === "admin" ||
+                (user?.id &&
+                  (String(caso.defensor_id) === String(user.id) ||
+                    String(caso.servidor_id) === String(user.id)))) && (
                 <button
                   onClick={handleReprocessar}
-                  disabled={isReprocessing || caso.status === "processando"}
+                  disabled={isReprocessing || caso.status === "processando_ia"}
                   className="btn btn-ghost border border-red-200 bg-red-50 text-red-700 w-full flex items-center justify-center gap-2 hover:bg-red-100"
                 >
                   <RefreshCw
                     size={16}
                     className={isReprocessing ? "animate-spin" : ""}
                   />
-                  {isReprocessing
-                    ? "Reiniciando..."
-                    : "Reprocessar Caso (OCR + IA)"}
+                  {isReprocessing ? "Reiniciando..." : "Reprocessar Caso (IA + Documentos)"}
                 </button>
               )}
+
 
               {/* ÁREA DE PENDÊNCIA (Só aparece se selecionar aguardando_documentos) */}
               {statusKey === "aguardando_documentos" && (
@@ -1623,34 +1652,103 @@ export const DetalhesCaso = () => {
             </div>
 
             {/* --- SEÇÃO: CÁLCULO E DADOS JURÍDICOS --- */}
-            <div className="card space-y-4 border-l-4 border-l-primary">
-              <div className="flex items-center gap-3">
-                <Mic className="text-primary" />
-                <h2 className="heading-2">
-                  Memória de Cálculo / Dados Jurídicos
-                </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Memória de Cálculo */}
+              <div className="card space-y-4 border-l-4 border-l-primary">
+                <div className="flex items-center gap-3">
+                  <Mic className="text-primary" />
+                  <h2 className="heading-2">Memória de Cálculo</h2>
+                </div>
+                <textarea
+                  className="input min-h-[200px] font-mono text-sm bg-bg/30"
+                  placeholder="Ex: Ref jan/24 a mar/24 + multa 10%... "
+                  value={memoriaCalculo}
+                  onChange={(e) => setMemoriaCalculo(e.target.value)}
+                />
               </div>
-              <p className="text-sm text-muted">
-                Campo exclusivo para o defensor/servidor registrar como chegou
-                ao valor do débito ou outras anotações técnicas.
-                <span className="font-bold text-primary"> (Uso interno)</span>
-              </p>
-              <textarea
-                className="input min-h-[150px] font-mono text-sm bg-bg/30"
-                placeholder="Ex: Ref jan/24 a mar/24 + multa 10%... "
-                value={memoriaCalculo}
-                onChange={(e) => setMemoriaCalculo(e.target.value)}
-              />
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleSaveJuridico}
-                  disabled={isSavingJuridico}
-                  className="btn btn-primary btn-sm flex items-center gap-2"
-                >
-                  <Save size={16} />
-                  {isSavingJuridico ? "Salvando..." : "Salvar Dados de Cálculo"}
-                </button>
+
+              {/* Informações Financeiras (Cumulado) */}
+              <div className="card space-y-4 border-l-4 border-l-secondary">
+                <div className="flex items-center gap-3">
+                  <Scale className="text-secondary" />
+                  <h2 className="heading-2 font-bold">Informações Financeiras (Cumulado)</h2>
+                </div>
+                
+                <div className="space-y-4 p-4 bg-secondary/5 rounded-xl border border-secondary/10">
+                  {/* Penhora */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-secondary uppercase tracking-wider">Débito Rito Penhora</label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <input
+                        type="text"
+                        placeholder="R$ 0,00"
+                        className="input font-mono"
+                        value={debitoPenhoraValor}
+                        onChange={(e) => {
+                          const val = formatCurrencyMask(e.target.value);
+                          setDebitoPenhoraValor(val);
+                          setDebitoPenhoraExtenso(numeroParaExtenso(val));
+                        }}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Valor por extenso..."
+                        className="input md:col-span-2 text-xs"
+                        value={debitoPenhoraExtenso}
+                        onChange={(e) => setDebitoPenhoraExtenso(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Prisão */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-secondary uppercase tracking-wider">Débito Rito Prisão</label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <input
+                        type="text"
+                        placeholder="R$ 0,00"
+                        className="input font-mono"
+                        value={debitoPrisaoValor}
+                        onChange={(e) => {
+                          const val = formatCurrencyMask(e.target.value);
+                          setDebitoPrisaoValor(val);
+                          setDebitoPrisaoExtenso(numeroParaExtenso(val));
+                        }}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Valor por extenso..."
+                        className="input md:col-span-2 text-xs"
+                        value={debitoPrisaoExtenso}
+                        onChange={(e) => setDebitoPrisaoExtenso(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-secondary/20 mt-2">
+                    <div className="flex justify-between items-center bg-secondary/10 p-3 rounded-lg">
+                      <span className="text-sm font-bold text-secondary">VALOR TOTAL DA CAUSA:</span>
+                      <span className="text-lg font-mono font-black text-secondary">
+                        {formatCurrencyMask((
+                          (parseFloat(debitoPenhoraValor.replace(/\./g, '').replace(',', '.') || 0) + 
+                           parseFloat(debitoPrisaoValor.replace(/\./g, '').replace(',', '.') || 0)) * 100
+                        ).toFixed(0))}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveJuridico}
+                    disabled={isSavingJuridico}
+                    className="btn btn-primary flex items-center gap-2"
+                  >
+                    <Save size={18} />
+                    {isSavingJuridico ? "Salvando..." : "Salvar Dados Jurídicos"}
+                  </button>
+                </div>
               </div>
             </div>
             {/* --- ZONA DE FINALIZAÇÃO DO ESTAGIÁRIO --- */}

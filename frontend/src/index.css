@@ -7,34 +7,35 @@
    1) Tokens de cor (Light - "Royal Amethyst")
 ---------------------------------------------------------------- */
 :root {
-  /* Core - Tons de Roxo Vibrante */
-  --color-primary: #7c3aed;       /* Violet 600 - Roxo principal */
-  --color-primary-600: #6d28d9;   /* Violet 700 - Hover */
-  --color-secondary: #a78bfa;     /* Violet 400 - Lilás */
-  --color-secondary-600: #8b5cf6; /* Violet 500 - Lilás Hover */
-  --color-special: #4f46e5;       /* Indigo - Para contraste */
-  --color-laranja: #f59e0b;       /* Amber para alertas/atenção */
+  /* Core - Tons de Roxo Vibrante & Lilás (Mães em Ação Identity) */
+  --color-primary: #8b5cf6;       /* Violet 500 - Lilás Vibrante */
+  --color-primary-600: #7c3aed;   /* Violet 600 - Roxo Profundo */
+  --color-secondary: #c084fc;     /* Purple 400 - Lilás Suave */
+  --color-secondary-600: #a855f7; /* Purple 500 - Lilás Forte */
+  --color-special: #6366f1;       /* Indigo - Contraste */
+  --color-laranja: #f59e0b;       /* Alertas */
 
-  /* Surfaces & Text - Com leve nuance fria/lilás */
-  --color-bg: #fdfcff;            /* Fundo quase branco com toque lilás */
-  --color-surface: #ffffff;
-  --color-border: #e9e4ff;        /* Borda suave lilás */
+  /* Surfaces & Text */
+  --color-bg: #f8f7ff;            /* Lavanda Suave (Warm White) */
+  --color-surface: #fdfbff;       /* Lilás Perolado (Off-white para contrastar com bordas) */
+  --color-border: #ddd6fe;        
 
-  --color-text: #1e1b4b;          /* Roxo ultra escuro (quase preto) */
-  --color-text-muted: #6366f1;    /* Texto secundário indigo-soft */
-  --color-text-thirt: #7c3aed;
+  --color-text: #2e1065;          /* Roxo Imperial escuro */
+  --color-text-muted: #7c3aed;    
+  --color-text-thirt: #8b5cf6;
 
   /* Feedback */
   --color-success: #10b981;
   --color-error: #ef4444;
-  --color-highlight: #c084fc;     /* Roxo claro para destaques */
+  --color-highlight: #d8b4fe;
 
-  /* Acessibilidade */
-  --color-focus: #7c3aed;
+  /* Acessibilidade & Efeitos */
+  --color-focus: #8b5cf6;
   --ring-offset: 2px;
-  --radius: 0.75rem; 
-  --radius-sm: 0.5rem;
-  --shadow-soft: 0 10px 25px -5px rgba(124, 58, 237, 0.08); /* Sombra levemente roxa */
+  --radius: 1rem; 
+  --radius-sm: 0.6rem;
+  --shadow-soft: 0 20px 25px -5px rgba(139, 92, 246, 0.1), 0 10px 10px -5px rgba(139, 92, 246, 0.04);
+  --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.3);
   color-scheme: light;
 }
 
@@ -42,25 +43,25 @@
    2) Tema escuro (Dark - "Deep Midnight Purple")
 ---------------------------------------------------------------- */
 :root[data-theme="dark"] {
-  --color-primary: #a78bfa;       /* Lilás brilhante para Dark Mode */
-  --color-primary-600: #c4b5fd;
-  --color-secondary: #8b5cf6;
-  --color-secondary-600: #7c3aed;
+  --color-primary: #c084fc;       
+  --color-primary-600: #d8b4fe;
+  --color-secondary: #a855f7;
+  --color-secondary-600: #8b5cf6;
   --color-special: #818cf8;
   
-  --color-bg: #0d0d12;            /* Preto profundo neutro */
-  --color-surface: #1a1a24;       /* Superfície com tom roxo profundo */
-  --color-border: #312e3f;        /* Borda sutil */
+  --color-bg: #0f172a;            /* Navy Escuro para melhor contraste com roxo */
+  --color-surface: #1e1b4b;       
+  --color-border: #312e81;        
   
   --color-text: #f5f3ff;
-  --color-text-muted: #94a3b8;
+  --color-text-muted: #c084fc;
 
   --color-success: #34d399;
   --color-error: #f87171;
   --color-highlight: #e879f9; 
 
-  --color-focus: #a78bfa;
-  --shadow-soft: 0 12px 40px rgba(0, 0, 0, 0.5);
+  --color-focus: #c084fc;
+  --shadow-soft: 0 12px 40px rgba(0, 0, 0, 0.6);
   color-scheme: dark;
 }
 
@@ -128,33 +129,55 @@
 }
 
 @layer components {
-  /* Cards: Agora com bordas mais suaves e sombra lilás */
-  .card {
-    @apply p-6 rounded-2xl;
-    border: 1px solid var(--color-border);
-    background-color: var(--color-surface);
-    box-shadow: var(--shadow-soft);
+  /* Glassmorphism Hybrid Utility */
+  .glass-panel {
+    @apply backdrop-blur-xl bg-white/40 dark:bg-black/30 border border-white/30 dark:border-white/10 shadow-2xl;
+    box-shadow: 0 8px 32px 0 rgba(139, 92, 246, 0.15);
   }
 
-  /* Seções de Formulário: Borda lateral em Roxo para hierarquia */
+  .card-solid {
+    @apply bg-surface dark:bg-surface border border-border shadow-md rounded-xl;
+  }
+
+  /* Cards: Agora com suporte a Glassmorphism e toque lilás */
+  .card {
+     @apply p-8 rounded-[2rem] shadow-xl;
+     border: 1px solid var(--color-border);
+     background-color: var(--color-surface); /* Perlatto */
+     box-shadow: var(--shadow-soft);
+  }
+
+  :root[data-theme="dark"] .card {
+    background-color: #1a1a24;
+  }
+
+  /* Seções de Formulário */
   .form-section {
-    @apply p-6 rounded-2xl space-y-4 border-l-4;
+    @apply p-8 rounded-2xl space-y-6 border-l-8 shadow-xl relative;
     border: 1px solid var(--color-border);
     border-left-color: var(--color-primary);
     background-color: var(--color-surface);
   }
 
-  /* Inputs: Focus em Roxo */
-  .input {
-    @apply w-full px-4 py-3 rounded-xl text-sm transition;
-    background-color: var(--color-bg);
-    color: var(--color-text);
-    border: 1px solid var(--color-border);
+  :root[data-theme="dark"] .form-section {
+    background-color: #1e1b4b; /* Solid Dark Purple */
   }
+
+  /* Inputs mais robustos */
+  .input {
+    @apply w-full px-5 py-3.5 rounded-xl text-sm transition font-medium;
+    background-color: #ffffff; /* Solid White for clarity */
+    color: var(--color-text);
+    border: 1.5px solid var(--color-border);
+  }
+  
+  :root[data-theme="dark"] .input {
+    background-color: #1a1a2e;
+  }
+
   .input:focus {
-    @apply outline-none;
+    @apply outline-none ring-offset-2 ring-2 ring-primary/20;
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 20%, transparent);
   }
 
   /* Botões: O Roxo traz nobreza e ação */

@@ -146,7 +146,45 @@ export const useFormHandlers = ({ formState, dispatch, setFormErrors, toast }) =
     }
   }, [dispatch, setFormErrors]);
 
-  const handleMonthYearChange = useCallback((field) => handleMaskedChange(formatMonthYearMask, field), [handleMaskedChange]);
+  const handleMonthYearChange = useCallback((field) => (event) => {
+    const value = event.target.value;
+    const formattedValue = formatMonthYearMask(value);
+    
+    dispatch({ type: "UPDATE_FIELD", field, value: formattedValue });
+    clearFieldError(field);
+
+    // Validação de intervalo de datas (Execução) em tempo real
+    if (formattedValue.length === 7) { // MM/AAAA
+      const isInicio = field === "data_inicio_debito";
+      const isFim = field === "data_fim_debito";
+
+      if (isInicio || isFim) {
+        const outroField = isInicio ? "data_fim_debito" : "data_inicio_debito";
+        const outroValor = formState[outroField];
+
+        if (outroValor && outroValor.length === 7) {
+          const [m1, a1] = (isInicio ? formattedValue : outroValor).split("/").map(Number);
+          const [m2, a2] = (isFim ? formattedValue : outroValor).split("/").map(Number);
+          
+          const d1 = new Date(a1, m1 - 1);
+          const d2 = new Date(a2, m2 - 1);
+
+          if (d2 < d1) {
+            setFormErrors(prev => ({ 
+              ...prev, 
+              data_fim_debito: "A data final não pode ser anterior à data inicial." 
+            }));
+          } else {
+            setFormErrors(prev => {
+              const updated = { ...prev };
+              delete updated.data_fim_debito;
+              return updated;
+            });
+          }
+        }
+      }
+    }
+  }, [dispatch, clearFieldError, formState, setFormErrors]);
   
   const handleRgChange = useCallback((field) => (event) => {
     dispatch({
