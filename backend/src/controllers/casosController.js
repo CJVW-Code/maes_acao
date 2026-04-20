@@ -56,7 +56,7 @@ const mapCasoRelations = (caso) => {
   const juridico = resolveRel(caso.casos_juridico || caso.juridico);
 
   const enriched = { ...caso };
-  
+
   // Como `dados_formulario` foi descontinuado no Prisma, precisamos recuperar o formulário bruto da IA
   const parseIaDados = () => {
     if (ia?.dados_extraidos) {
@@ -64,10 +64,10 @@ const mapCasoRelations = (caso) => {
     }
     return {};
   };
-  
+
   const rawFormFallback = typeof caso.dados_formulario === "object" && caso.dados_formulario ? caso.dados_formulario : parseIaDados();
   const dadosFormulario = rawFormFallback || {};
-  
+
   enriched.assistido_eh_incapaz = partes?.assistido_eh_incapaz || dadosFormulario.assistido_eh_incapaz || "não";
 
   if (partes) {
@@ -76,10 +76,10 @@ const mapCasoRelations = (caso) => {
     enriched.telefone_assistido = partes.telefone_assistido || dadosFormulario.telefone_assistido || dadosFormulario.telefone || "";
     enriched.email_assistido = partes.email_assistido || dadosFormulario.email_assistido || dadosFormulario.email || "";
     enriched.endereco_assistido = partes.endereco_assistido || dadosFormulario.endereco_assistido || dadosFormulario.requerente_endereco_residencial || "";
-    
+
     // Datas de nascimento nativas do Prisma
     enriched.assistido_data_nascimento = partes.data_nascimento_assistido || dadosFormulario.data_nascimento_assistido || dadosFormulario.assistido_data_nascimento || dadosFormulario.nascimento || "";
-    
+
     enriched.assistido_rg_numero = partes.rg_assistido;
     enriched.assistido_rg_orgao = partes.emissor_rg_assistido;
     enriched.assistido_nacionalidade = partes.nacionalidade || dadosFormulario.assistido_nacionalidade || "brasileiro(a)";
@@ -154,7 +154,7 @@ const mapCasoRelations = (caso) => {
     enriched.valor_debito_penhora_extenso = juridico.debito_penhora_extenso || dadosFormulario.debito_penhora_extenso || dadosFormulario.valor_debito_penhora_extenso || "";
     enriched.valor_debito_prisao = juridico.debito_prisao_valor || dadosFormulario.debito_prisao_valor || dadosFormulario.valor_debito_prisao || "";
     enriched.valor_debito_prisao_extenso = juridico.debito_prisao_extenso || dadosFormulario.debito_prisao_extenso || dadosFormulario.valor_debito_prisao_extenso || "";
-    enriched.dados_bancarios_exequente = juridico.conta_numero ? `Banco: ${juridico.conta_banco || ""}, Agência: ${juridico.conta_agencia || ""}, Conta: ${juridico.conta_numero || ""}` : dadosFormulario.dados_bancarios_exequente || dadosFormulario.dados_bancarios_deposito || "";  
+    enriched.dados_bancarios_exequente = juridico.conta_numero ? `Banco: ${juridico.conta_banco || ""}, Agência: ${juridico.conta_agencia || ""}, Conta: ${juridico.conta_numero || ""}` : dadosFormulario.dados_bancarios_exequente || dadosFormulario.dados_bancarios_deposito || "";
     enriched.valor_total_debito_execucao = juridico.debito_valor;
 
     // Dados Bancários
@@ -231,6 +231,168 @@ const mapCasoRelations = (caso) => {
   }
 
   return enriched;
+};
+
+class HttpError extends Error {
+  constructor(statusCode, message, payload = {}) {
+    super(message);
+    this.statusCode = statusCode;
+    this.payload = payload;
+  }
+}
+
+const carregarCasoDetalhado = async (id, reqUser) => {
+  let data;
+
+  if (isSupabaseConfigured) {
+    const result = await supabase
+      .from("casos")
+      .select(
+        `
+        *,
+        ia:casos_ia(*),
+        partes:casos_partes(*),
+        juridico:casos_juridico(*),
+        documentos(*),
+        defensor:defensores!casos_defensor_id_fkey(nome),
+        servidor:defensores!casos_servidor_id_fkey(nome),
+        unidade:unidades(sistema),
+        assistencia_casos:assistencia_casos(
+          status,
+          destinatario_id,
+          remetente:defensores!remetente_id(nome),
+          destinatario:defensores!destinatario_id(nome)
+        )
+      `,
+      )
+      .eq("id", id)
+      .single();
+
+    if (result.error) {
+      logger.error(
+        `[Supabase Detail] Erro query para ID ${id}: ${result.error.message}`,
+        result.error,
+      );
+      if (result.error.code === "PGRST116") {
+        throw new HttpError(404, "Caso não encontrado.");
+      }
+      throw result.error;
+    }
+
+    data = result.data;
+  } else {
+    const dataRaw = await prisma.casos.findUnique({
+      where: { id: BigInt(id) },
+      include: {
+        partes: true,
+        ia: true,
+        juridico: true,
+        documentos: true,
+        defensor: { select: { nome: true } },
+        servidor: { select: { nome: true } },
+        unidade: { select: { sistema: true } },
+        assistencia_casos: {
+          where: {
+            OR: [{ destinatario_id: reqUser.id }, { remetente_id: reqUser.id }],
+            status: "aceito",
+          },
+          include: {
+            destinatario: { select: { nome: true } },
+            remetente: { select: { nome: true } },
+          },
+        },
+      },
+    });
+
+    if (!dataRaw) {
+      throw new HttpError(404, "Caso não encontrado.");
+    }
+
+    data = dataRaw;
+  }
+
+  data = mapCasoRelations(data);
+
+  const isAdmin = reqUser.cargo.toLowerCase() === "admin";
+  const isOwner =
+    String(data.defensor_id) === String(reqUser.id) ||
+    String(data.servidor_id) === String(reqUser.id);
+  const isShared = (data.assistencia_casos || []).length > 0;
+
+  if (!isAdmin && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
+    const holderName = data.defensor?.nome || data.servidor?.nome || "outro usuário";
+    throw new HttpError(423, "Caso bloqueado", {
+      message: `Este caso já está vinculado ao defensor(a) ${holderName}. Apenas o administrador pode liberar este caso.`,
+      holder: holderName,
+    });
+  }
+
+  if (!isAdmin && !data.defensor_id && !data.servidor_id && !isShared) {
+    const updateData = {};
+    const isDefensor = reqUser.cargo.toLowerCase().includes("defensor");
+
+    if (isDefensor) {
+      updateData.defensor_id = reqUser.id;
+      updateData.defensor_at = new Date();
+      data.defensor_id = reqUser.id;
+    } else {
+      updateData.servidor_id = reqUser.id;
+      updateData.servidor_at = new Date();
+      data.servidor_id = reqUser.id;
+    }
+
+    await prisma.casos.update({
+      where: { id: BigInt(id) },
+      data: updateData,
+    });
+
+    // Busca outros casos da mesma família (mesmo representante ou assistido)
+    const cpfRepresentante = data.representante_cpf || data.cpf_assistido;
+    if (cpfRepresentante) {
+      try {
+        const outrosCasos = await prisma.casos_partes.findMany({
+          where: {
+            OR: [
+              { cpf_representante: cpfRepresentante },
+              { cpf_assistido: cpfRepresentante },
+            ],
+          },
+          select: { caso_id: true },
+        });
+
+        const idsIrmaos = outrosCasos
+          .map((c) => c.caso_id)
+          .filter((cid) => cid.toString() !== id.toString());
+
+        if (idsIrmaos.length > 0) {
+          await prisma.casos.updateMany({
+            where: {
+              id: { in: idsIrmaos },
+              ...(isDefensor ? { defensor_id: null } : { servidor_id: null }),
+            },
+            data: updateData,
+          });
+          logger.info(
+            `Vinculado automaticamente ${idsIrmaos.length} caso(s) irmão(s) ao usuário ${reqUser.id}`,
+          );
+        }
+      } catch (err) {
+        logger.error(`Erro ao vincular casos familiares: ${err.message}`);
+      }
+    }
+  }
+
+  if (!data.dados_formulario) {
+    data.dados_formulario = {};
+  }
+  if (!data.dados_formulario.document_names) {
+    data.dados_formulario.document_names = {};
+  }
+  if (!data.dados_formulario.documentNames) {
+    data.dados_formulario.documentNames = data.dados_formulario.document_names;
+  }
+
+  return data;
 };
 
 const normalizeAcaoKey = (acaoRaw = "") => {
@@ -751,6 +913,78 @@ const formatCurrencyBr = (value) => {
     .replace(/\u00A0/g, " ");
 };
 
+const buildSolarExportPayload = (caso = {}) => {
+  const dados = caso.dados_formulario || {};
+
+  return {
+    cpf: caso.cpf_assistido || caso.cpf || dados.cpf || "",
+    NOME: caso.nome_assistido || caso.nome || dados.NOME || dados.nome || "",
+    nome_mae_representante:
+      caso.nome_mae_assistido ||
+      caso.nome_mae_representante ||
+      dados.nome_mae_representante ||
+      "",
+    nascimento:
+      caso.assistido_data_nascimento ||
+      caso.nascimento ||
+      formatDateBr(caso.partes?.data_nascimento_assistido) ||
+      "",
+    representante_estado_civil:
+      caso.assistido_estado_civil ||
+      caso.representante_estado_civil ||
+      dados.representante_estado_civil ||
+      "",
+    requerente_telefone:
+      caso.telefone_assistido || caso.requerente_telefone || dados.requerente_telefone || "",
+    requerente_email:
+      caso.email_assistido || caso.requerente_email || dados.requerente_email || "",
+    genero: dados.genero || dados.sexo || "",
+    rg_executado:
+      caso.assistido_rg ||
+      caso.representante_rg ||
+      dados.assistido_rg_numero ||
+      dados.representante_rg_numero ||
+      "",
+    emissor_rg_executado:
+      caso.emissor_rg_exequente ||
+      dados.assistido_rg_orgao ||
+      dados.representante_rg_orgao ||
+      "",
+    rg_data_expedicao: dados.rg_data_expedicao || "",
+    certidao_tipo: dados.certidao_tipo || "",
+    certidao_numero: dados.certidao_numero || "",
+    raca: dados.raca || "",
+    naturalidade: dados.naturalidade || "",
+    naturalidade_estado: dados.naturalidade_estado || "",
+    nacionalidade:
+      caso.assistido_nacionalidade ||
+      caso.representante_nacionalidade ||
+      dados.nacionalidade ||
+      dados.representante_nacionalidade ||
+      "",
+    naturalidade_pais: dados.naturalidade_pais || "",
+    escolaridade: dados.escolaridade || "",
+    tipo_trabalho: dados.tipo_trabalho || "",
+    representante_ocupacao:
+      caso.assistido_ocupacao ||
+      caso.representante_ocupacao ||
+      dados.assistido_ocupacao ||
+      dados.representante_ocupacao ||
+      "",
+    qtd_estado: dados.qtd_estado || "",
+    moradia_tipo: dados.moradia_tipo || "",
+    moradia_num_comodos: dados.moradia_num_comodos || "",
+    renda_numero_membros: dados.renda_numero_membros || "",
+    renda_numero_membros_economicamente_ativos:
+      dados.renda_numero_membros_economicamente_ativos || "",
+    renda_individual: dados.renda_individual || "",
+    renda_familiar: dados.renda_familiar || "",
+    tem_plano_saude: dados.tem_plano_saude || "",
+    isento_ir: dados.isento_ir || "",
+    previdencia: dados.previdencia || "",
+  };
+};
+
 const formatVara = (val) => {
   let v = String(val || "")
     .trim()
@@ -820,9 +1054,8 @@ const buildFallbackDosFatos = (caseData = {}) => {
   if (assistidoNome || representanteNome) {
     const sujeito =
       caseData.assistido_eh_incapaz === "sim" && representanteNome
-        ? `${representanteNome}, na qualidade de representante legal de ${
-            assistidoNome || "seu dependente"
-          }`
+        ? `${representanteNome}, na qualidade de representante legal de ${assistidoNome || "seu dependente"
+        }`
         : assistidoNome || representanteNome;
     const complemento = requeridoNome
       ? `relata que ${requeridoNome} não contribui de forma regular para o custeio das despesas básicas`
@@ -863,8 +1096,7 @@ const buildFallbackDosFatos = (caseData = {}) => {
     safe(caseData.dia_pagamento_requerido) || safe(caseData.dia_pagamento_fixado);
   if (valorPretendido || diaPagamento) {
     paragraphs.push(
-      `Diante desse contexto, requer-se a fixação de alimentos no valor de ${
-        valorPretendido || "[valor a ser definido]"
+      `Diante desse contexto, requer-se a fixação de alimentos no valor de ${valorPretendido || "[valor a ser definido]"
       }` + (diaPagamento ? `, com vencimento no dia ${diaPagamento} de cada mês.` : "."),
     );
   }
@@ -877,8 +1109,7 @@ const buildFallbackDosFatos = (caseData = {}) => {
   if (documentosInformados.length) {
     const resumoDocs = documentosInformados.slice(0, 3).join("; ");
     paragraphs.push(
-      `Os fatos narrados encontram respaldo nos documentos informados no formulário, tais como ${resumoDocs}${
-        documentosInformados.length > 3 ? ", entre outros" : ""
+      `Os fatos narrados encontram respaldo nos documentos informados no formulário, tais como ${resumoDocs}${documentosInformados.length > 3 ? ", entre outros" : ""
       }.`,
     );
   } else {
@@ -902,11 +1133,11 @@ const processarDadosFilhosParaPeticao = (baseData = {}, normalizedData = {}) => 
     cpf: ensureText(baseData.cpf || baseData.cpf_assistido || baseData.representante_cpf || normalizedData.requerente_cpf),
     nascimento: ensureText(
       baseData.nascimento ||
-        baseData.assistido_data_nascimento ||
-        formatDateBr(baseData.data_nascimento_assistido) ||
-        formatDateBr(baseData.dataNascimentoAssistido) ||
-        formatDateBr(baseData.dados_formulario?.assistido_data_nascimento) ||
-        formatDateBr(baseData.dados_formulario?.data_nascimento_assistido),
+      baseData.assistido_data_nascimento ||
+      formatDateBr(baseData.data_nascimento_assistido) ||
+      formatDateBr(baseData.dataNascimentoAssistido) ||
+      formatDateBr(baseData.dados_formulario?.assistido_data_nascimento) ||
+      formatDateBr(baseData.dados_formulario?.data_nascimento_assistido),
     ),
     rg: ensureText(
       (baseData.assistido_rg || baseData.assistido_rg_numero)
@@ -981,8 +1212,8 @@ const processarDadosFilhosParaPeticao = (baseData = {}, normalizedData = {}) => 
     lista_filhos.length > 0
       ? lista_filhos[0].nascimento
       : formatDateBr(
-          baseData.assistido_data_nascimento || normalizedData.requerente?.dataNascimento,
-        );
+        baseData.assistido_data_nascimento || normalizedData.requerente?.dataNascimento,
+      );
 
   return {
     lista_filhos,
@@ -1031,7 +1262,7 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
 
   // 1:1 Mapeamento Total focado estritamente no TAGS_OFICIAIS.js
   const payload = {};
-  
+
   // 1. Inicializa todas as tags oficiais com valor do banco ou fallback
   TAGS_OFICIAIS.forEach(tag => {
     payload[tag] = baseData[tag] ?? "______";
@@ -1449,9 +1680,9 @@ export const processarCasoEmBackground = async (
       where: { protocolo },
       include: { partes: true, ia: true, juridico: true, unidade: true }
     });
-    
+
     const enrichedCaso = mapCasoRelations(casoParaPayload);
-    
+
     // Atualizamos caseDataForPetition com os dados enriquecidos (oficiais)
     const officialBaseData = enrichedCaso.dados_formulario;
     const caseDataForPetition = sanitizeCaseDataInlineFields({
@@ -1681,7 +1912,10 @@ export const criarNovoCaso = async (req, res) => {
     const nome = ehIncapaz
       ? dados_formulario.NOME || dados_formulario.nome || ""
       : dados_formulario.REPRESENTANTE_NOME || dados_formulario.nome || "";
-    let cpf = dados_formulario.representante_cpf || dados_formulario.cpf || "";
+    // CORREÇÃO: Extrair CPF do assistido ANTES do representante
+    // Se incapaz: cpf_assistido = cpf do filho, cpf_representante = cpf da mãe
+    // Se adulto: cpf_assistido = cpf próprio, cpf_representante = pode ser diferente
+    let cpf = dados_formulario.cpf || dados_formulario.representante_cpf || "";
     cpf = cpf.replace(/\D/g, ""); // Remove pontuações para não bugar a busca depois
     const cpf_requerido_limpo = (
       dados_formulario.executado_cpf ||
@@ -2008,8 +2242,8 @@ export const criarNovoCaso = async (req, res) => {
             vencimento_dia:
               parseInt(
                 dados_formulario.dia_pagamento ||
-                  dados_formulario.dia_pagamento_fixado ||
-                  dados_formulario.dia_pagamento_requerido,
+                dados_formulario.dia_pagamento_fixado ||
+                dados_formulario.dia_pagamento_requerido,
               ) || null,
             periodo_inadimplencia:
               dados_formulario.periodo_meses_ano ||
@@ -2464,13 +2698,18 @@ export const obterDetalhesCaso = async (req, res) => {
         data: updateData,
       });
 
-      // NOVO: Vincular automaticamente todos os outros casos da mesma mãe (mesmo CPF)
+      // NOVO: Vincular automaticamente todos os outros casos da mesma família (mesmo representante)
       // Isso garante que o defensor assuma todos os processos/filhos daquela assistida
-      const cpfMae = data.cpf_assistido;
-      if (cpfMae) {
+      const cpfRepresentante = data.representante_cpf || data.cpf_assistido;
+      if (cpfRepresentante) {
         try {
           const outrosCasos = await prisma.casos_partes.findMany({
-            where: { cpf_assistido: cpfMae },
+            where: {
+              OR: [
+                { cpf_representante: cpfRepresentante },
+                { cpf_assistido: cpfRepresentante },
+              ],
+            },
             select: { caso_id: true },
           });
 
@@ -2531,6 +2770,41 @@ export const obterDetalhesCaso = async (req, res) => {
   } catch (error) {
     logger.error(`Erro ao obter detalhes do caso ${id}: ${error.message}`);
     res.status(500).json({ error: "Erro ao obter detalhes." });
+  }
+};
+
+export const exportarCasoSolar = async (req, res) => {
+  const { id } = req.params;
+
+  const isValidId =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || /^\d+$/.test(id);
+  if (!isValidId) {
+    return res.status(400).json({ error: "ID do caso inválido." });
+  }
+
+  try {
+    const data = await carregarCasoDetalhado(id, req.user);
+
+    res.status(200).json(
+      stringifyBigInts({
+        caso: {
+          id: data.id,
+          protocolo: data.protocolo,
+          tipo_acao: data.tipo_acao,
+          status: data.status,
+        },
+        solar: buildSolarExportPayload(data),
+      }),
+    );
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({
+        error: error.message,
+        ...error.payload,
+      });
+    }
+    logger.error(`Erro ao exportar caso ${id} para o SOLAR: ${error.message}`);
+    res.status(500).json({ error: "Erro ao exportar caso para o SOLAR." });
   }
 };
 
@@ -3064,43 +3338,96 @@ export const buscarPorCpf = async (req, res) => {
     const cpfLimpo = cpf.replace(/\D/g, "");
     const cpfFormatado = cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
 
-    const data = await prisma.casos.findMany({
-      where: {
-        OR: [
-          { protocolo: cpfLimpo },
-          { protocolo: cpf },
-          {
-            partes: {
-              OR: [
-                { cpf_assistido: cpfLimpo },
-                { cpf_assistido: cpf },
-                { cpf_assistido: cpfFormatado },
-                { cpf_representante: cpfLimpo },
-                { cpf_representante: cpf },
-                { cpf_representante: cpfFormatado },
-              ],
-            },
-          },
-        ],
-      },
-      include: {
-        partes: true,
-      },
-      orderBy: { created_at: "desc" },
-    });
+    let data;
+    if (isSupabaseConfigured) {
+      const cpfCandidates = [...new Set([cpfLimpo, cpf, cpfFormatado].filter(Boolean))];
 
-    const normalizedData = (data || []).map((casoRaw) => {
-      return {
-        id: casoRaw.id,
-        protocolo: casoRaw.protocolo,
-        status: casoRaw.status,
-        nome_assistido: casoRaw.partes?.nome_assistido || "Não informado",
-        nome_representante:
-          casoRaw.partes?.nome_representante || casoRaw.partes?.nome_assistido || "Não informado",
-        // partes: casoRaw.partes, // Removido por segurança (PII)
-        protocolo_referencia: casoRaw.protocolo, // Mantido para prefill seguro no formulário
-      };
-    });
+      const [protocolResult, assistidoResult, representanteResult] = await Promise.all([
+        supabase
+          .from("casos")
+          .select("id")
+          .in("protocolo", cpfCandidates),
+        supabase
+          .from("casos_partes")
+          .select("caso_id")
+          .in("cpf_assistido", cpfCandidates),
+        supabase
+          .from("casos_partes")
+          .select("caso_id")
+          .in("cpf_representante", cpfCandidates),
+      ]);
+
+      if (protocolResult.error) throw protocolResult.error;
+      if (assistidoResult.error) throw assistidoResult.error;
+      if (representanteResult.error) throw representanteResult.error;
+
+      const caseIds = [
+        ...(protocolResult.data || []).map((item) => item.id),
+        ...(assistidoResult.data || []).map((item) => item.caso_id),
+        ...(representanteResult.data || []).map((item) => item.caso_id),
+      ].filter(Boolean);
+
+      if (caseIds.length === 0) {
+        data = [];
+      } else {
+        const result = await supabase
+          .from("casos")
+          .select("*, partes:casos_partes(*)")
+          .in("id", [...new Set(caseIds)])
+          .order("created_at", { ascending: false });
+
+        if (result.error) throw result.error;
+        data = (result.data || []).map((item) => mapCasoRelations(item));
+      }
+    } else {
+      data = await prisma.casos.findMany({
+        where: {
+          OR: [
+            { protocolo: cpfLimpo },
+            { protocolo: cpf },
+            {
+              partes: {
+                OR: [
+                  { cpf_assistido: cpfLimpo },
+                  { cpf_assistido: cpf },
+                  { cpf_assistido: cpfFormatado },
+                  { cpf_representante: cpfLimpo },
+                  { cpf_representante: cpf },
+                  { cpf_representante: cpfFormatado },
+                ],
+              },
+            },
+          ],
+        },
+        include: {
+          partes: true,
+        },
+        orderBy: { created_at: "desc" },
+      });
+    }
+
+    const normalizedData = await Promise.all(
+      (data || []).map(async (casoRaw) => {
+        const urlCapaProcessual = casoRaw.url_capa_processual
+          ? await buildSignedUrl(storageBuckets.documentos, casoRaw.url_capa_processual)
+          : null;
+
+        return {
+          id: casoRaw.id,
+          protocolo: casoRaw.protocolo,
+          status: casoRaw.status,
+          nome_assistido: casoRaw.partes?.nome_assistido || "Não informado",
+          nome_representante:
+            casoRaw.partes?.nome_representante || casoRaw.partes?.nome_assistido || "Não informado",
+          descricao: casoRaw.descricao_pendencia || "",
+          numero_processo: casoRaw.numero_processo || null,
+          numero_solar: casoRaw.numero_solar || null,
+          url_capa_processual: urlCapaProcessual,
+          // partes: casoRaw.partes, // Removido por segurança (PII)
+          protocolo_referencia: casoRaw.protocolo, // Mantido para prefill seguro no formulário
+        };
+      }),
+    );
 
     res.status(200).json(stringifyBigInts(normalizedData));
   } catch (error) {
@@ -3300,19 +3627,47 @@ export const receberDocumentosComplementares = async (req, res) => {
       }
     }
 
-    // 2. Fallback: Se não achou pelo ID (ex: frontend enviou 0), tenta por CPF
+    // 2. Fallback: Se não achou pelo ID (ex: frontend enviou 0), tenta por CPF (ambos assistido e representante)
     if (!caso) {
       if (cpf) {
         if (isSupabaseConfigured) {
-          const { data } = await supabase
-            .from("casos")
-            .select("*")
-            .eq("cpf_assistido", cpf)
-            .single();
-          caso = data;
+          // Busca em ambos os campos: cpf_assistido e cpf_representante
+          const cpfLimpo = cpf.replace(/\D/g, "");
+          const [assistidoResult, representanteResult] = await Promise.all([
+            supabase
+              .from("casos_partes")
+              .select("caso_id")
+              .eq("cpf_assistido", cpfLimpo)
+              .limit(1),
+            supabase
+              .from("casos_partes")
+              .select("caso_id")
+              .eq("cpf_representante", cpfLimpo)
+              .limit(1),
+          ]);
+
+          let casoId = null;
+          if (assistidoResult.data?.length > 0) {
+            casoId = assistidoResult.data[0].caso_id;
+          } else if (representanteResult.data?.length > 0) {
+            casoId = representanteResult.data[0].caso_id;
+          }
+
+          if (casoId) {
+            const { data } = await supabase.from("casos").select("*").eq("id", casoId).single();
+            caso = data;
+          }
         } else {
+          // Prisma: busca em ambos cpf_assistido e cpf_representante
           caso = await prisma.casos.findFirst({
-            where: { partes: { cpf_assistido: cpf } },
+            where: {
+              partes: {
+                OR: [
+                  { cpf_assistido: cpf.replace(/\D/g, "") },
+                  { cpf_representante: cpf.replace(/\D/g, "") },
+                ],
+              },
+            },
           });
         }
       }
@@ -3829,3 +4184,4 @@ export const responderAssistencia = async (req, res) => {
     res.status(500).json({ error: "Erro ao processar resposta." });
   }
 };
+

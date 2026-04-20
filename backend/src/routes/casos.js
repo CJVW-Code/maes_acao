@@ -4,6 +4,7 @@ import {
   listarCasos,
   resumoCasos,
   obterDetalhesCaso,
+  exportarCasoSolar,
   finalizarCasoSolar,
   reverterFinalizacao,
   regenerarDosFatos,
@@ -63,6 +64,7 @@ router.get("/resumo", resumoCasos);
 router.get("/notificacoes", listarNotificacoes);
 router.patch("/notificacoes/:id/lida", marcarNotificacaoLida);
 
+router.get("/:id/exportar-solar", exportarCasoSolar);
 router.get("/:id", obterDetalhesCaso);
 router.use(requireWriteAccess);
 router.post("/:id/gerar-fatos", regenerarDosFatos);
@@ -71,6 +73,7 @@ router.post("/:id/finalizar", upload.single("capa"), finalizarCasoSolar);
 router.post("/:id/reverter-finalizacao", reverterFinalizacao);
 router.post("/:id/resetar-chave", resetarChaveAcesso);
 router.delete("/:id", deletarCaso);
+router.patch("/:id/status", atualizarStatusCaso);
 router.patch("/:id/feedback", salvarFeedback);
 router.post("/:id/regerar-minuta", regerarMinuta);
 

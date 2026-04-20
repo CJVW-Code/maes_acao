@@ -1,0 +1,105 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 420px;
+  max-width: 420px;
+  background: linear-gradient(180deg, #f6f1e8 0%, #fffaf2 100%);
+  color: #2b241c;
+  font: 14px/1.4 "Segoe UI", sans-serif;
+}
+
+.layout {
+  padding: 16px;
+}
+
+.hero h1,
+.panel h2 {
+  margin: 0;
+}
+
+.hero p {
+  margin: 6px 0 0;
+  color: #675846;
+}
+
+.panel {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #d8c7b1;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+input,
+textarea,
+button {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #b99b72;
+  font: inherit;
+}
+
+input,
+textarea {
+  padding: 10px;
+  background: #fffdf9;
+}
+
+textarea {
+  min-height: 220px;
+  resize: vertical;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+button {
+  padding: 10px 12px;
+  cursor: pointer;
+  background: #8b5e34;
+  color: #fffdf9;
+  font-weight: 600;
+}
+
+button.ghost {
+  background: #fffaf2;
+  color: #6a4a2a;
+}
+
+pre {
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+}
+
+#status {
+  color: #7a6245;
+  font-size: 12px;
+}

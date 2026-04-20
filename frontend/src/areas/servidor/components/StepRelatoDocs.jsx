@@ -49,7 +49,7 @@ export const StepRelatoDocs = React.memo(({
             <div className="w-full h-2 bg-app rounded-full mt-2 overflow-hidden border border-soft">
               <div
                 className={`h-full transition-all duration-500 ${
-                  (formState.relato || "").length >= 250
+                  (relato || "").length >= 250
                     ? "bg-success"
                     : "bg-error"
                 }`}
@@ -66,7 +66,7 @@ export const StepRelatoDocs = React.memo(({
             </span>
             {!prefersAudio && (
               <span
-                className={`text-xs font-medium ${(formState.relato || "").length < 250 ? "text-error" : "text-success"}`}
+                className={`text-xs font-medium ${(relato || "").length < 250 ? "text-error" : "text-success"}`}
               >
                 {(relato || "").length} / 250 caracteres
               </span>

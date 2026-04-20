@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Extrator Mães em Ação",
+  "version": "0.1.0",
+  "description": "Extrai dados de páginas externas e monta payload compatível com o domínio do projeto.",
+  "permissions": ["activeTab", "storage", "downloads", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "Extrator Mães em Ação",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["recipes.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

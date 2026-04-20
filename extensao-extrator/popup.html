@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Extrator Mães em Ação</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero">
+        <h1>Extrator</h1>
+        <p>Captura a página atual e monta JSON compatível com o domínio do sistema.</p>
+      </header>
+
+      <section class="panel">
+        <label for="endpoint">Webhook opcional</label>
+        <input id="endpoint" type="url" placeholder="https://sistema-externo.exemplo/api/importar" />
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Receita</h2>
+          <button id="resetRecipe" type="button" class="ghost">Restaurar padrão</button>
+        </div>
+        <textarea id="recipeEditor" spellcheck="false"></textarea>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>JSON de Entrada</h2>
+          <button id="sampleBtn" type="button" class="ghost">Exemplo</button>
+        </div>
+        <textarea id="inputJson" spellcheck="false" placeholder='Cole aqui o JSON vindo do banco'></textarea>
+      </section>
+
+      <section class="actions">
+        <button id="extractBtn" type="button">Extrair página atual</button>
+        <button id="fillBtn" type="button">Preencher SOLAR</button>
+        <button id="copyBtn" type="button" class="ghost">Copiar JSON</button>
+        <button id="downloadBtn" type="button" class="ghost">Baixar JSON</button>
+        <button id="sendBtn" type="button" class="ghost">Enviar webhook</button>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Resultado</h2>
+          <span id="status"></span>
+        </div>
+        <pre id="output">Nenhuma extração executada.</pre>
+      </section>
+    </main>
+
+    <script src="recipes.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

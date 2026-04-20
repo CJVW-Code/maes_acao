@@ -40,9 +40,9 @@ export const StepRequerido = React.memo(
           <Users className="text-primary" size={24} />
           <h2 className="heading-2">3. Contra quem é a ação? (Requerido)</h2>
         </div>
-        <p className="text-sm text-muted">Preencha com o máximo de informações que você souber.</p>
-        <p className="text-thirt text-sm">
-          Informando o Número para contato aumenta em 40% as chances do processo progredir mais
+        <p className="text-sm text">Preencha com o máximo de informações que você souber.</p>
+        <p className="text text-sm">
+          Informando o Número para contato aumenta em 40% as chances do processo andar mais
           rápido.
         </p>
 
@@ -147,7 +147,7 @@ export const StepRequerido = React.memo(
             <input
               id="emailRequerido"
               type="email"
-              placeholder="Email (pelo menos um contato é obrigatório) *"
+              placeholder="Email"
               name="executado_email"
               value={requeridoEmail}
               onChange={handleFieldChange}

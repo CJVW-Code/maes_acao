@@ -101,9 +101,9 @@ export const Dashboard = () => {
   const contagens = resumo?.contagens || {};
   const stats = resumo
     ? {
-        topTipos: resumo.topTipos || [],
-        representacao: resumo.representacao || { representacao: 0, proprio: 0 },
-      }
+      topTipos: resumo.topTipos || [],
+      representacao: resumo.representacao || { representacao: 0, proprio: 0 },
+    }
     : null;
 
   // Paginação da lista recente filtrada por status
@@ -145,8 +145,8 @@ export const Dashboard = () => {
   };
 
   if (resumoError || casosError) {
-    const isAuthError = 
-      resumoError?.message === "Sessão expirada" || 
+    const isAuthError =
+      resumoError?.message === "Sessão expirada" ||
       casosError?.message === "Sessão expirada" ||
       resumoError?.status === 401 ||
       casosError?.status === 401;
@@ -177,7 +177,7 @@ export const Dashboard = () => {
               Olá, {user?.cargo === "defensor" ? "Dr(a). " : ""}
               {user?.nome || "Usuário"}
             </h1>
-            <p className="text-white/80 max-w-2xl mt-2">
+            <p className="text-bg max-w-2xl mt-2">
               Acompanhe os casos recebidos pelo Mães em Ação.
             </p>
           </div>
@@ -248,11 +248,10 @@ export const Dashboard = () => {
               key={key}
               onClick={() => handleSummaryClick(key)}
               aria-pressed={active}
-              className={`card text-left transition-all border-l-4 ${
-                active
-                  ? "border-l-primary shadow-xl ring-2 ring-primary/30 -translate-y-0.5"
-                  : "border-l-transparent hover:border-l-primary/60"
-              }`}
+              className={`card text-left transition-all border-l-4 ${active
+                ? "border-l-primary shadow-xl ring-2 ring-primary/30 -translate-y-0.5"
+                : "border-l-transparent hover:border-l-primary/60"
+                }`}
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -269,9 +268,8 @@ export const Dashboard = () => {
               </div>
               <p className="text-sm text-muted mt-2">{helper}</p>
               <span
-                className={`mt-4 inline-flex items-center text-xs font-semibold ${
-                  active ? "text-primary" : "text-muted"
-                }`}
+                className={`mt-4 inline-flex items-center text-xs font-semibold ${active ? "text-primary" : "text-muted"
+                  }`}
               >
                 {active ? "Filtro aplicado" : "Clique para filtrar"}
               </span>
@@ -325,7 +323,7 @@ export const Dashboard = () => {
             </div>
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <p className="text-3xl font-bold text-white">
+                <p className="text-3xl font-bold text">
                   {contagens.colaboracao || 0}
                 </p>
                 <p className="text-xs text-muted uppercase mt-1">
@@ -344,7 +342,7 @@ export const Dashboard = () => {
             </div>
             <div className="flex items-center justify-center h-full gap-8">
               <div className="text-center">
-                <p className="text-3xl font-bold text-white">
+                <p className="text-3xl font-bold text">
                   {stats.representacao.representacao}
                 </p>
                 <p className="text-xs text-muted uppercase mt-1">
@@ -355,7 +353,7 @@ export const Dashboard = () => {
               </div>
               <div className="w-px h-12 bg-soft"></div>
               <div className="text-center">
-                <p className="text-3xl font-bold text-white">
+                <p className="text-3xl font-bold text">
                   {stats.representacao.proprio}
                 </p>
                 <p className="text-xs text-muted uppercase mt-1">
@@ -408,7 +406,7 @@ export const Dashboard = () => {
                 <li key={caso.id}>
                   <Link
                     to={`/painel/casos/${caso.id}`}
-                    className="block px-6 py-4 hover:bg-slate-100 dark:hover:bg-slate-900 transition"
+                    className="block px-6 py-4 hover:bg-primary/20 dark:hover:bg-slate-900 transition"
                   >
                     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                       <div className="flex items-start gap-4">
@@ -431,7 +429,7 @@ export const Dashboard = () => {
                           )}
                           {caso.assistencia_casos && caso.assistencia_casos.some(a => a.destinatario_id === user.id) && (
                             <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold uppercase tracking-wider mb-2 border border-purple-200">
-                               <Users size={10} /> Compartilhado com você
+                              <Users size={10} /> Compartilhado com você
                             </div>
                           )}
                           <p className="text-sm text-muted">
@@ -448,21 +446,20 @@ export const Dashboard = () => {
                         {/* Indicador de Responsável / Lock */}
                         {caso.defensor || caso.servidor ? (
                           <div
-                            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                              caso.defensor_id === user.id ||
+                            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${caso.defensor_id === user.id ||
                               caso.servidor_id === user.id
-                                ? "bg-green-100 text-green-700 border border-green-200"
-                                : "bg-amber-100 text-amber-700 border border-amber-200"
-                            }`}
+                              ? "bg-green-100 text-green-700 border border-green-200"
+                              : "bg-amber-100 text-amber-700 border border-amber-200"
+                              }`}
                           >
                             {caso.defensor_id === user.id ||
-                            caso.servidor_id === user.id ? (
+                              caso.servidor_id === user.id ? (
                               <User size={10} />
                             ) : (
                               <Lock size={10} />
                             )}
                             {caso.defensor_id === user.id ||
-                            caso.servidor_id === user.id
+                              caso.servidor_id === user.id
                               ? "Meu Atendimento"
                               : caso.defensor?.nome || caso.servidor?.nome}
                           </div>
@@ -478,14 +475,14 @@ export const Dashboard = () => {
                         <div className="flex items-center gap-2 text-sm text-muted">
                           <Clock size={16} />
                           {caso.created_at &&
-                          !isNaN(new Date(caso.created_at).getTime())
+                            !isNaN(new Date(caso.created_at).getTime())
                             ? new Date(caso.created_at).toLocaleDateString(
-                                "pt-BR",
-                                {
-                                  day: "2-digit",
-                                  month: "short",
-                                },
-                              )
+                              "pt-BR",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                              },
+                            )
                             : "Data indisponível"}
                         </div>
                       </div>

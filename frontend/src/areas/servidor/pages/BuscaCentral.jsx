@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FilePlus, Search, ArrowRight, Check, Loader2 } from "lucide-react";
+import { FilePlus, FileText, CheckCircle, Loader2 } from "lucide-react";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "motion/react";
 import { API_BASE } from "../../../utils/apiBase";
@@ -89,6 +89,18 @@ export const HomeCidadao = () => {
   const handleCpfChange = (e) => {
     const value = e.target.value;
     setCpfInput(formatCpf(value));
+  };
+
+  const isCasoConcluido = (status) =>
+    ["finalizado", "protocolado", "encaminhado_solar"].includes(status);
+
+  const handleCopyProcessNumber = async (numeroProcesso) => {
+    if (!numeroProcesso) return;
+    try {
+      await navigator.clipboard.writeText(numeroProcesso);
+    } catch {
+      // Falha silenciosa para nÃ£o interromper a tela.
+    }
   };
 
   return (
@@ -203,9 +215,11 @@ export const HomeCidadao = () => {
                           <strong>Status:</strong>{" "}
                           <span className="badge">{caso.status}</span>
                         </p>
-                        <p className="text-sm text-muted mt-2">
-                          {caso.descricao}
-                        </p>
+                        {caso.descricao && (
+                          <p className="text-sm text-muted mt-2">
+                            {caso.descricao}
+                          </p>
+                        )}
                       </div>
                       <div className="text-right">
                         {caso.status === "aguardando_documentos" && (
@@ -218,6 +232,70 @@ export const HomeCidadao = () => {
                         )}
                       </div>
                     </div>
+                    {isCasoConcluido(caso.status) && (
+                      <div className="bg-border/10 border border-border/30 rounded-xl p-4 mt-6">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="bg-primary/50 text-muted p-2 rounded-full">
+                            <CheckCircle size={20} />
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-bold text-muted">
+                              Atendimento Concluído!
+                            </h4>
+                            <p className="text-sm text-muted">
+                              O processo foi gerado e os dados estão disponiveis abaixo.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                          <div className="bg-surface border border-soft p-4 rounded-lg">
+                            <label className="text-xs text-muted uppercase font-bold tracking-wider">
+                              Número do Processo
+                            </label>
+                            <div className="flex items-center justify-between gap-3 mt-1">
+                              <span className="text-lg sm:text-xl font-mono text-primary break-all">
+                                {caso.numero_processo || "Número indisponível"}
+                              </span>
+                              {caso.numero_processo && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleCopyProcessNumber(caso.numero_processo)
+                                  }
+                                  className="text-primary hover:text-primary text-sm whitespace-nowrap"
+                                >
+                                  Copiar
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="bg-surface border border-soft p-4 rounded-lg">
+                            <label className="text-xs text-muted uppercase font-bold tracking-wider">
+                              Atendimento Solar
+                            </label>
+                            <div className="mt-1">
+                              <span className="text-lg sm:text-xl font-mono text-primary break-all">
+                                {caso.numero_solar || "N/A"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {caso.url_capa_processual && (
+                          <a
+                            href={caso.url_capa_processual}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-ghost border border-soft w-full flex items-center justify-center gap-2 py-3 hover:bg-surface"
+                          >
+                            <FileText size={20} />
+                            Baixar Capa do Processo
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </motion.div>
                 ))}
               </div>

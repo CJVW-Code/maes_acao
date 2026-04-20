@@ -109,13 +109,6 @@ export const Login = () => {
                     disabled={loading}
                     className="input pr-12"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-primary transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
                 </div>
               </div>
 
@@ -142,8 +135,8 @@ export const Login = () => {
               </button>
             </form>
 
-            <p className="text-center text-[10px] text-muted/60 uppercase tracking-widest pt-4">
-              &copy; {new Date().getFullYear()} DPE-BA | Def Sul
+            <p className="text-center text-[10px] text-muted uppercase tracking-widest pt-4">
+              &copy; {new Date().getFullYear()} DPE-BA
             </p>
           </div>
         </div>
