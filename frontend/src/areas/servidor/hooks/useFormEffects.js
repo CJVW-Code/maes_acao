@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { API_BASE } from "../../../utils/apiBase.js";
 import { formatCpf, formatPhone } from "../../../utils/formatters.js";
 
-export const useFormEffects = ({ dispatch, formState, location, toast, forcaRepresentacao }) => {
+export const useFormEffects = ({ dispatch, formState, location, toast, forcaRepresentacao, isSubmitted }) => {
   // 1. Health check da API no carregamento inicial
   useEffect(() => {
     fetch(`${API_BASE}/health`).catch(() => {});
@@ -115,13 +115,15 @@ export const useFormEffects = ({ dispatch, formState, location, toast, forcaRepr
     };
 
     loadData();
-  }, [location.state, dispatch, toast]);
+  }, [location.state, dispatch, toast, formState]);
 
   // 4. Auto-Save Debounced (Apenas se houver dados mínimos para salvar)
   useEffect(() => {
+    if (isSubmitted) return;
+
     // Usamos um timer maior e evitamos rodar a lógica pesada em cada respiro
     const timeoutId = setTimeout(() => {
-      const { documentFiles, audioBlob, ...rascunhoLimpo } = formState;
+      const { documentFiles: _documentFiles, audioBlob: _audioBlob, ...rascunhoLimpo } = formState;
 
       // Só salva se tiver algo relevante e se o rascunho for diferente do atual (evita ciclos)
       if (rascunhoLimpo.acaoEspecifica || rascunhoLimpo.REPRESENTANTE_NOME) {
@@ -135,5 +137,5 @@ export const useFormEffects = ({ dispatch, formState, location, toast, forcaRepr
       }
     }, 3000); // 3 segundos de inatividade
     return () => clearTimeout(timeoutId);
-  }, [formState]); // Agora depende do estado todo, mas o timeout protege a UI
+  }, [formState, isSubmitted]); // Agora depende do estado todo, mas o timeout protege a UI
 };

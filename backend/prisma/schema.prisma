@@ -79,6 +79,7 @@ model casos {
   servidor_at                 DateTime?           @db.Timestamptz(6)
   defensor_id                 String?             @db.Uuid
   defensor_at                 DateTime?           @db.Timestamptz(6)
+  numero_solar                String?
   numero_processo             String?
   url_capa                    String?
   protocolado_at              DateTime?           @db.Timestamptz(6)

@@ -1,6 +1,6 @@
 # GUIA COMPLETO DE DESENVOLVIMENTO — MÃES EM AÇÃO
 ## DPE-BA · Documento para Desenvolvimento Assistido por IA
-### Versão 1.1 · Atualizado com evoluções recentes
+### Versão 1.2 · Atualizado em 2026-04-22 (Downloads Seguros + Upload Minuta)
 
 ---
 
@@ -29,6 +29,10 @@ O ORM **Prisma** (para Servidores/Defensores) e **Supabase JS** (para dados esca
 **Falta 2 — Deploy & Pipeline de Fila IA:** [CONCLUÍDO ✅] A integridade do payload QStash foi resolvida com o hook `verify`. A esteira operacional está pronta para o mutirão.
 
 **Falta 3 — Scanner de Balcão:** [CONCLUÍDO ✅] Endpoint dedicado `/api/scanner/upload` criado e testado. Visualização dinâmica de múltiplas minutas integrada.
+
+**Falta 4 — Downloads Seguros (Ticket JWT):** [CONCLUÍDO ✅] Sistema de tickets de curta duração implementado. Endpoint `POST /:id/gerar-ticket-download` gera JWT com `purpose: "download"`. Rotas `GET /:id/download-zip` e `GET /:id/documento/download` validam o ticket via middleware `validateDownloadTicket` sem exigir o JWT principal na URL.
+
+**Falta 5 — Substituição Manual de Minutas:** [CONCLUÍDO ✅] Endpoint `POST /:id/upload-minuta` permite ao servidor jurídico fazer upload de `.docx` corrigido manualmente, substituindo a minuta gerada pela IA no Storage.
 
 ### 1.3 Decisão de ORM: manter Prisma para usuários, Supabase JS para casos
 

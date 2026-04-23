@@ -201,8 +201,8 @@ export const SecaoProcessoOriginal = ({
           )}
         </div>
         <div>
-          <label htmlFor="valorTotalDebitoExecucao" className="label">
-            Valor Total do Débito
+          <label htmlFor="valorTotalDebitoExecucao" className="label font-bold">
+            Valor Total do Débito *
           </label>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-semibold">
@@ -217,8 +217,41 @@ export const SecaoProcessoOriginal = ({
               value={formState.valor_debito}
               onChange={handleCurrencyChange("valor_debito")}
               className="input pl-12"
+              {...validar("Informe o valor total do débito.")}
             />
           </div>
+          {formErrors.valor_debito && (
+            <p className="text-xs text-error font-medium mt-1">
+              {formErrors.valor_debito}
+            </p>
+          )}
+        </div>
+        <div>
+          <label htmlFor="calculo_arquivo" className="label font-bold">
+            Anexar Documento do Cálculo *
+          </label>
+          <input
+            id="calculo_arquivo"
+            type="file"
+            accept=".pdf,.png,.jpg,.jpeg"
+            onChange={(e) => {
+               if(e.target.files && e.target.files[0]) {
+                 handleFieldChange({ target: { name: "calculo_arquivo", value: e.target.files[0] } });
+               }
+            }}
+            className="input py-2 text-sm"
+          />
+          {formErrors.calculo_arquivo && (
+            <p className="text-xs text-error font-medium mt-1">
+              {formErrors.calculo_arquivo}
+            </p>
+          )}
+        </div>
+        <div>
+          <label htmlFor="link_calculadora" className="label font-bold flex items-center justify-between">
+            <span>Link da Calculadora (Opcional)</span>
+            <a href="https://drcalc.net/calculos/pensao-alimenticia" target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">Abrir Dr. Calc</a>
+          </label>
         </div>
       </div>
     </div>

@@ -72,9 +72,19 @@ Exigem autenticação e permissão de modificação.
 | `PATCH`  | `/:id/feedback`             | Salva feedback do defensor sobre o caso.                               |
 | `PATCH`  | `/:id/agendar`              | Realiza o agendamento de uma reunião.                                  |
 | `POST`   | `/:id/regerar-minuta`       | Recria a minuta da petição via IA.                                     |
+| `POST`   | `/:id/upload-minuta`        | Substitui a minuta do caso por um arquivo `.docx` enviado manualmente. |
 | `POST`   | `/:id/reprocessar`          | Reprocessa arquivos do caso na fila.                                   |
 | `PATCH`  | `/:id/documento/renomear`   | Renomeia um documento específico do caso.                              |
 | `PATCH`  | `/:id/arquivar`             | Arquiva ou desarquiva um caso.                                         |
+
+### Rotas de Download Seguro (Ticket JWT)
+Um ticket de curta duração deve ser obtido via `POST /:id/gerar-ticket-download` e usado nas rotas abaixo. O ticket evita expor o JWT principal em URLs de download.
+
+| Método | Rota                         | Descrição                                                             |
+| :----- | :--------------------------- | :---------------------------------------------------------------------- |
+| `POST` | `/:id/gerar-ticket-download` | Gera ticket JWT `{ purpose: "download" }` para download autenticado.   |
+| `GET`  | `/:id/download-zip`          | Baixa todos os documentos do caso como `.zip` (usando `?ticket=`).     |
+| `GET`  | `/:id/documento/download`    | Baixa um documento individual (usando `?ticket=&path=`).               |
 
 ### Detalhamento das Rotas de Casos
 

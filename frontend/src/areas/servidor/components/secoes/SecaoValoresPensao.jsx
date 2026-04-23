@@ -23,7 +23,7 @@ export const SecaoValoresPensao = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label htmlFor="valorMensalPensao" className="label">
-              Valor Mensal da Pensao e Despesas Extras
+              Valor Mensal da Pensao
             </label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-semibold">

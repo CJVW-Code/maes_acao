@@ -1,6 +1,6 @@
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 2.1 · **Atualizado em:** 2026-04-13 (Correções Básicas + ScannerBalcao)
+> **Versão:** 2.2 · **Atualizado em:** 2026-04-22 (Downloads Seguros + Upload Minuta + UX Refinements)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
@@ -52,6 +52,7 @@ O **Mães em Ação** é um sistema Full Stack desenvolvido para apoiar o mutir�
 - **Payload:** `{ id, nome, email, cargo, unidade_id }`
 - **Expiração:** 12h (cobre um dia de mutirão)
 - **Servidores do balcão:** `X-API-Key` (string aleatória 64 chars)
+- **Download Ticket JWT:** token de curta duração com `purpose: "download"` — evita expor o JWT principal na URL dos downloads
 
 ---
 
@@ -257,13 +258,16 @@ CREATE INDEX idx_partes_representante_cpf ON casos_partes (representante_cpf);
 
 | Modelo | Uso | Campos Principais |
 |:-------|:---|:------------------|
-| `exec_penhora.docx` | Execução de Alimentos — Rito da Penhora | {NOME_EXEQUENTE}, {data_nascimento_exequente}, {emprego_exequente} |
-| `exec_prisao.docx` | Execução de Alimentos — Rito da Prisão | {NOME_EXECUTADO}, {emprego_executado}, {telefone_executado} |
-| `def_penhora.docx` | Cumprimento de Sentença — Rito da Penhora | {valor_causa}, {valor_causa_extenso}, {data_pagamento} |
-| `def_prisao.docx` | Cumprimento de Sentença — Rito da Prisão | {porcetagem_salario}, {data_inadimplencia}, {dados_conta} |
-| `fixacao_alimentos.docx` | Fixação de Alimentos | {nome_representacao}, {endereço_exequente}, {email_exequente} |
-| `prov_cumulado.docx` | Execução Cumulada (Prisão + Penhora) | Todos os campos combinados |
+| `executacao_alimentos_penhora.docx` | Execução de Alimentos — Rito da Penhora | {NOME_EXEQUENTE}, {data_nascimento_exequente}, {emprego_exequente} |
+| `executacao_alimentos_prisao.docx` | Execução de Alimentos — Rito da Prisão | {NOME_EXECUTADO}, {emprego_executado}, {telefone_executado} |
+| `executacao_alimentos_cumulado.docx` | Execução de Alimentos — Rito Cumulado | Todos os campos combinados |
+| `cumprimento_penhora.docx` | Cumprimento de Sentença — Rito da Penhora | {valor_causa}, {valor_causa_extenso}, {data_pagamento} |
+| `cumprimento_prisao.docx` | Cumprimento de Sentença — Rito da Prisão | {porcetagem_salario}, {data_inadimplencia}, {dados_conta} |
+| `cumprimento_cumulado.docx` | Cumprimento de Sentença — Rito Cumulado | Todos os campos combinados |
+| `fixacao_alimentos1.docx` | Fixação de Alimentos | {nome_representacao}, {endereço_exequente}, {email_exequente} |
 | `termo_declaracao.docx` | Termo de Declaração | {relato_texto}, {protocolo} |
+
+> **Nota:** Todos os templates foram revisados na sessão de 2026-04-22. Arquivos de lock temporários do LibreOffice (`.~lock.*.docx#`) foram removidos do repositório. A substituição manual de minutas via `POST /:id/upload-minuta` permite sobreescrever versões geradas pela IA.
 
 ---
 
@@ -314,6 +318,7 @@ sequenceDiagram
 - **Região:** sa-east-1 (Brasil) exclusivamente
 - **JWT:** gerado no backend com `jsonwebtoken`, secret no Railway, expiração 12h
 - **API Key servidores:** header `X-API-Key`, string aleatória 64 chars
+- **Download Ticket:** `POST /:id/gerar-ticket-download` gera JWT `{ purpose: "download", caso_id }` para downloads sem expor o token principal nas URLs de download direto
 
 ### Permissões por Cargo (RBAC)
 
@@ -405,10 +410,11 @@ frontend/src/areas/defensor/
 A pasta `frontend/src/config/formularios/acoes/` contém arquivos de configuração que determinam **quais campos** são exibidos, obrigatórios ou ocultados para cada tipo de ação. O formulário não possui lógica hardcoded — apenas consome a configuração.
 
 Flags chave:
-- `exigeDadosProcessoOriginal` — exibe campos do processo originário
+- `exigeDadosProcessoOriginal` — exibe campos do processo originário (e ativa validação de `valor_debito` + `calculo_arquivo`)
 - `ocultarDadosRequerido` — oculta seção da parte contrária
 - `isCpfRepresentanteOpcional` — torna CPF da mãe opcional
 - `labelAutor` — rótulo do autor (Mãe, Assistida, etc.)
+- `ocultarDetalhesGerais` — oculta seção de campos gerais redundantes (fixação de alimentos)
 
 ---
 

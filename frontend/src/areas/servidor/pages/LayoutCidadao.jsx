@@ -28,10 +28,10 @@ export const LayoutCidadao = () => {
           }}
         />
         {/* Atmospheric Glows optimized: Using CSS radial-gradient instead of heavy blur-[150px] to fix 3GB RAM leak */}
-        <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full z-[-1]" 
-             style={{ background: 'radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0) 70%)' }} />
-        <div className="absolute bottom-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full z-[-1]" 
-             style={{ background: 'radial-gradient(circle, rgba(236, 72, 153, 0.15) 0%, rgba(236, 72, 153, 0) 70%)' }} />
+        <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full z-[-1]"
+          style={{ background: 'radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0) 70%)' }} />
+        <div className="absolute bottom-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full z-[-1]"
+          style={{ background: 'radial-gradient(circle, rgba(236, 72, 153, 0.15) 0%, rgba(236, 72, 153, 0) 70%)' }} />
       </div>
 
       <header className="sticky top-0 z-50 w-full flex items-center justify-between md:justify-between p-2 md:p-4 md:px-8 gap-4 bg-primary/5 backdrop-blur-xl border-b border-white/5">
@@ -82,11 +82,14 @@ export const LayoutCidadao = () => {
       <footer className="w-full text-center p-8 mt-12 bg-black/20 backdrop-blur-md border-t border-white/10">
         <div className="max-w-4xl mx-auto space-y-6">
           <p className="text-xs font-medium text-white/60 tracking-wider">
-            &copy; {new Date().getFullYear()} DESENVOLVIDO PELA 14ª REGIONAL - TEIXEIRA DE FREITAS
+            &copy; {new Date().getFullYear()} DESENVOLVIDO POR WESLLEY COUTO - EMAIL: <a href="mailto:weslleyc.dev@gmail.com" className="text-white/80 hover:text-white underline">
+              WESLLEYC.DEV@GMAIL.COM
+            </a>
+
           </p>
           <Link
             to="/painel"
-            className="btn bg-white/5 border-white/10 text-white/80 hover:bg-white/10 hover:text-white px-6"
+            className="btn bg-app/80 border border-special text-primary hover:bg-white/10 hover:text-white px-6"
           >
             <LogIn size={14} className="mr-1" />
             Acesso Restrito

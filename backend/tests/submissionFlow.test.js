@@ -39,6 +39,10 @@ jest.unstable_mockModule("../src/config/prisma.js", () => ({
         relato_texto: "Relato de teste",
         dados_formulario: {},
       }),
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
+    casos_partes: {
+      findMany: jest.fn().mockResolvedValue([]),
     },
     casos_ia: {
       upsert: jest.fn().mockResolvedValue({}),

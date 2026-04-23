@@ -5,7 +5,7 @@ export const ACOES_FAMILIA = {
     status: "ativo",
 
     secoes: ["SecaoValoresPensao", "SecaoEmpregoRequerido"],
-    camposGerais: { mostrarBensPartilha: false },
+    camposGerais: { mostrarBensPartilha: false, ocultarDetalhesGerais: true },
     forcaRepresentacao: true, // assistidoEhIncapaz = "sim"
 
     templateWord: "template_fixacao_alimentos.docx",
