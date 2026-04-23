@@ -121,7 +121,10 @@ Procure por:
 2. Inconsistência de Padrão
    - O plano respeita a arquitetura atual?
      * ES Modules no backend (`import/export`, não `require`)
-     * Vanilla CSS no frontend (sem Tailwind)
+     * **Tailwind CSS v4** no frontend — classes utilitárias do Tailwind são permitidas
+       e esperadas. Novos estilos reutilizáveis devem ser adicionados como componentes
+       no bloco `@layer components` do `index.css`, usando `@apply` quando apropriado.
+       Estilo inline ad-hoc deve ser evitado.
      * Supabase JS Client para casos/IA, Prisma apenas para equipe/RBAC
      * `dados_formulario` é JSONB — não criar campos novos na tabela `casos`
        sem justificativa clara
@@ -184,10 +187,14 @@ contexto do projeto Mães em Ação (claude.md).
 Restrições INEGOCIÁVEIS:
 1. Não altere nada fora do escopo da Task (nenhum arquivo não listado)
 2. Use ES Modules no backend (`import`/`export`, NUNCA `require`)
-3. Siga o padrão de design existente no projeto (Vanilla CSS, não Tailwind)
+3. Frontend usa **Tailwind CSS v4** com design system de tokens em `index.css`:
+   - Classes utilitárias do Tailwind (`flex`, `gap-2`, `rounded-xl`, etc.) são esperadas
+   - Novos estilos reutilizáveis vão em `@layer components` no `index.css` usando `@apply`
+   - Tokens de cor via CSS vars (`var(--color-primary)`, etc.) para consistência de tema
+   - NUNCA usar estilo inline (`style={{...}}`) para layout/cores — use classes
 4. Supabase JS Client para casos/IA; Prisma apenas para equipe/RBAC
 5. LGPD: nunca logar CPF, nome ou dados pessoais — apenas `caso_id`, ação e timestamp
-6. Signed URLs: nunca retornar URLs de Storage sem expiração
+6. Signed URLs: nunca retornar URLs de Storage sem expiração (ticket JWT de curta duração via `POST /:id/gerar-ticket-download`)
 7. Se encontrar ambiguidade, PARE e liste as opções em vez de assumir
 
 [COLE A TASK AQUI]
@@ -202,16 +209,18 @@ Antes de aprovar qualquer código gerado por IA, cheque a lista abaixo:
 ### Backend
 
 - [ ] Nenhum `require()` — projeto usa ES Modules (`"type": "module"`)
-- [ ] Endpoints de escrita têm `requireAuth` + `requireWriteAccess` no middleware
-- [ ] Signed URLs geradas com `expiresIn: 3600` (1 hora)
+- [ ] Endpoints de escrita têm `authMiddleware` + `requireWriteAccess` no middleware
+- [ ] Downloads de arquivos usam ticket JWT de curta duração (`POST /:id/gerar-ticket-download`) — nunca expor URL do Storage diretamente
+- [ ] Signed URLs geradas com expiração de 1 hora via Supabase Storage
 - [ ] Logs de auditoria usam apenas `caso_id`, sem CPF/nome
 - [ ] Status de casos seguem a máquina de estados definida
 - [ ] Transições de status validadas antes de update
 
 ### Frontend
 
-- [ ] Nenhum `import` de biblioteca CSS externa (Tailwind, MUI, etc.)
-- [ ] Estilos via `className` referenciando classes do `index.css`
+- [ ] Estilos via classes Tailwind v4 e/ou componentes do `@layer components` em `index.css`
+- [ ] Novos componentes reutilizáveis definidos em `@layer components` com `@apply`, não inline
+- [ ] Tokens de cor via `var(--color-*)` para suporte a dark mode
 - [ ] `AuthContext` verificado antes de operações de escrita
 - [ ] Cargo `visualizador` não exibe botões de ação
 - [ ] Dados sensíveis não logados no `console.log`
@@ -227,18 +236,23 @@ Antes de aprovar qualquer código gerado por IA, cheque a lista abaixo:
 
 ## 📁 Referência Rápida — Arquivos Críticos
 
-| Arquivo                                                | Responsabilidade                     |
-| :----------------------------------------------------- | :----------------------------------- |
-| `backend/src/controllers/casosController.js`           | CRUD principal de casos, locking     |
-| `backend/src/services/documentGenerationService.js`    | Geração de DOCX via docxtemplater    |
-| `backend/src/services/pipelineService.js`              | Orquestração do pipeline de IA       |
-| `backend/src/middleware/auth.js`                       | JWT, RBAC,`requireWriteAccess`       |
-| `backend/src/routes/casos.js`                          | Roteamento + middleware por endpoint |
-| `frontend/src/areas/servidor/pages/TriagemCaso.jsx`    | Formulário multi-step                |
-| `frontend/src/areas/defensor/pages/DetalhesCaso.jsx`   | Detalhes + minutas + ações           |
-| `frontend/src/areas/defensor/contexts/AuthContext.jsx` | JWT, cargo, unidade                  |
-| `frontend/src/config/formularios/acoes/familia.js`     | Config declarativa de ações          |
-| `prisma/schema.prisma`                                 | Schema do banco de dados             |
+| Arquivo                                                | Responsabilidade                                          |
+| :----------------------------------------------------- | :-------------------------------------------------------- |
+| `backend/src/controllers/casosController.js`           | CRUD de casos, locking, geração DOCX, pipeline IA        |
+| `backend/src/config/dicionarioAcoes.js`                | Mapeamento acaoKey → template + config de geração        |
+| `backend/src/config/dicionarioTags.js`                 | Mapeamento de tags DOCX para docxtemplater               |
+| `backend/src/controllers/scannerController.js`         | Upload em lote via balcão (ScannerBalcao.jsx)            |
+| `backend/src/controllers/lockController.js`            | Lock/unlock de sessão (Níveis 1 e 2)                     |
+| `backend/src/middleware/auth.js`                       | JWT (`authMiddleware`), ticket download, RBAC            |
+| `backend/src/middleware/requireWriteAcess.js`          | Bloqueia `visualizador` de operações de escrita           |
+| `backend/src/routes/casos.js`                          | Roteamento + middleware por endpoint                     |
+| `frontend/src/index.css`                               | Design system: tokens, Tailwind v4, `@layer components`  |
+| `frontend/src/areas/servidor/pages/TriagemCaso.jsx`    | Formulário multi-step (triagem)                           |
+| `frontend/src/areas/servidor/pages/ScannerBalcao.jsx`  | Tela dedicada de scanner de documentos                   |
+| `frontend/src/areas/defensor/pages/DetalhesCaso.jsx`   | Detalhes + minutas + download seguro + ações             |
+| `frontend/src/areas/defensor/contexts/AuthContext.jsx` | JWT, cargo, unidade                                      |
+| `frontend/src/config/formularios/acoes/familia.js`     | Config declarativa de ações                               |
+| `prisma/schema.prisma`                                 | Schema do banco de dados                                  |
 
 ---
 
@@ -246,34 +260,56 @@ Antes de aprovar qualquer código gerado por IA, cheque a lista abaixo:
 
 ```
 aguardando_documentos
-    → documentacao_completa   (scanner finaliza upload)
-    → documentos_entregues    (upload complementar)
+    → documentacao_completa   (scanner finaliza upload via /api/scanner/upload)
+    → documentos_entregues    (assistido faz upload complementar)
+
+documentos_entregues
+    → documentacao_completa   (scanner processa os novos documentos)
 
 documentacao_completa
     → processando_ia          (QStash job inicia)
 
 processando_ia
     → pronto_para_analise     (pipeline IA concluído)
-    → erro_processamento      (após 3 retries)
+    → erro_processamento      (após 3 retries QStash)
 
 erro_processamento
-    → processando_ia          (reprocessamento manual)
+    → processando_ia          (reprocessamento manual via POST /:id/reprocessar)
 
 pronto_para_analise
-    → em_atendimento          (servidor trava caso)
+    → em_atendimento          (servidor trava caso via PATCH /:id/lock)
 
 em_atendimento
-    → liberado_para_protocolo (servidor libera)
+    → liberado_para_protocolo (servidor libera via PATCH /:id/status)
 
 liberado_para_protocolo
-    → em_protocolo            (defensor atribui)
+    → em_protocolo            (defensor atribui via PATCH /:id/lock)
 
 em_protocolo
-    → protocolado             (defensor finaliza)
+    → protocolado             (defensor finaliza via POST /:id/finalizar)
 ```
 
 > [!CAUTION]
 > **NUNCA** pule etapas da máquina de estados. A IA não pode propor um `status` que não esteja neste diagrama sem discussão explícita e atualização da documentação.
+
+---
+
+## 🔒 Downloads Seguros — Fluxo Obrigatório
+
+O sistema **não expõe URLs de Storage diretamente**. Todo download de documento ou minuta segue este fluxo:
+
+```
+1. Frontend chama  POST /:id/gerar-ticket-download  (JWT autenticado)
+2. Backend retorna { ticket: "<jwt_curta_duração>" }
+3. Frontend monta a URL:  GET /:id/download-zip?ticket=<jwt>
+   ou:                    GET /:id/documento/download?ticket=<jwt>&path=<path>
+4. Backend valida o ticket (purpose: "download", casoId binding) e serve o arquivo
+```
+
+**Regras para a IA:**
+- NUNCA gerar código que acesse `supabase.storage.createSignedUrl` diretamente no frontend
+- NUNCA retornar `url_peticao` ou `url_documento_gerado` como URL pública
+- Downloads de minuta usam `POST /:id/upload-minuta` para substituição (autenticado + `requireWriteAccess`)
 
 ---
 

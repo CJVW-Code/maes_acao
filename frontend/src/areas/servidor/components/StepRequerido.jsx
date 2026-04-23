@@ -115,7 +115,7 @@ export const StepRequerido = React.memo(
 
         <div>
           <EnderecoInput
-            label="Endereço Residencial do Requerido (Pelo menos um contato é obrigatório) *"
+            label="Endereço Residencial do Requerido (Pelo menos um endereço ou telefone é obrigatório) *"
             name="executado_endereco_residencial"
             value={requeridoEnderecoResidencial}
             onChange={handleFieldChange}
@@ -132,7 +132,7 @@ export const StepRequerido = React.memo(
               id="telefoneRequerido"
               type="text"
               inputMode="tel"
-              placeholder="Telefone (pelo menos um contato é obrigatório) *"
+              placeholder="Telefone (Endereço ou telefone é obrigatório) *"
               name="executado_telefone"
               value={requeridoTelefone}
               onChange={handlePhoneChange("executado_telefone")}

@@ -22,8 +22,8 @@ export const SecaoValoresPensao = ({
       {!isExecucaoAlimentos && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="valorMensalPensao" className="label">
-              Valor Mensal da Pensao
+            <label htmlFor="valor_pensao" className="label">
+              Valor Mensal da Pensão *
             </label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-semibold">
@@ -36,9 +36,9 @@ export const SecaoValoresPensao = ({
                 name="valor_pensao"
                 value={formState.valor_pensao}
                 onChange={handleCurrencyChange("valor_pensao")}
-                placeholder="0,00"
+                placeholder="0,00 *"
                 className="input pl-12"
-                {...validar("Informe o valor da pensao.")}
+                {...validar("Informe o valor da pensão.")}
               />
             </div>
           </div>

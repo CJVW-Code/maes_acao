@@ -241,7 +241,7 @@ export const DetalhesCaso = () => {
     const docs = [];
     if (caso.url_peticao_execucao_cumulado || caso.url_peticao_cumulado) {
       docs.push({
-        key: "execucao_cumulado",
+        key: "url_peticao_execucao_cumulado",
         label: "Execucao - Rito Cumulado",
         url: caso.url_peticao_execucao_cumulado || caso.url_peticao_cumulado,
         grupo: "provisorio",
@@ -261,7 +261,7 @@ export const DetalhesCaso = () => {
         caso.url_documento_gerado)
     ) {
       docs.push({
-        key: "execucao_penhora",
+        key: "url_peticao_execucao_penhora",
         label: caso.url_peticao_prisao ? "Rito da Penhora" : "Petição Inicial",
         url:
           caso.url_peticao_execucao_penhora ||
@@ -276,7 +276,7 @@ export const DetalhesCaso = () => {
     }
     if (caso.url_peticao_execucao_prisao || caso.url_peticao_prisao) {
       docs.push({
-        key: "execucao_prisao",
+        key: "url_peticao_execucao_prisao",
         label: "Rito da Prisão (3+ meses)",
         url: caso.url_peticao_execucao_prisao || caso.url_peticao_prisao,
         grupo: "provisorio",
@@ -288,7 +288,7 @@ export const DetalhesCaso = () => {
     }
     if (caso.url_peticao_cumprimento_cumulado) {
       docs.push({
-        key: "cumprimento_cumulado",
+        key: "url_peticao_cumprimento_cumulado",
         label: "Cumprimento - Rito Cumulado",
         url: caso.url_peticao_cumprimento_cumulado,
         grupo: "definitivo",
@@ -300,7 +300,7 @@ export const DetalhesCaso = () => {
     }
     if (caso.url_peticao_cumprimento_penhora) {
       docs.push({
-        key: "cumprimento_penhora",
+        key: "url_peticao_cumprimento_penhora",
         label: "Cumprimento - Rito da Penhora",
         url: caso.url_peticao_cumprimento_penhora,
         grupo: "definitivo",
@@ -312,7 +312,7 @@ export const DetalhesCaso = () => {
     }
     if (caso.url_peticao_cumprimento_prisao) {
       docs.push({
-        key: "cumprimento_prisao",
+        key: "url_peticao_cumprimento_prisao",
         label: "Cumprimento - Rito da Prisao",
         url: caso.url_peticao_cumprimento_prisao,
         grupo: "definitivo",
@@ -324,7 +324,7 @@ export const DetalhesCaso = () => {
     }
     if (caso.url_termo_declaracao) {
       docs.push({
-        key: "termo",
+        key: "url_termo_declaracao",
         label: "Termo de Declaração",
         url: caso.url_termo_declaracao,
         grupo: "auxiliar",
@@ -338,7 +338,7 @@ export const DetalhesCaso = () => {
   }, [caso]);
 
   const exibirPainelCumulado = useMemo(() => 
-    todosDocumentosGerados.some(doc => doc.key === "execucao_cumulado" || doc.key === "cumprimento_cumulado"),
+    todosDocumentosGerados.some(doc => doc.key === "url_peticao_execucao_cumulado" || doc.key === "url_peticao_cumprimento_cumulado"),
     [todosDocumentosGerados]
   );
 

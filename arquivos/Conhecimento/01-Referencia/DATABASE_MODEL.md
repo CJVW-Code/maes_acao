@@ -1,7 +1,7 @@
 # Modelo de Dados e Persistência Híbrida — Mães em Ação
 
-> **Versão:** 2.1 · **Atualizado em:** 2026-04-13
-> **Fonte:** `backend/prisma/schema.prisma` (commit `601877e`)
+> **Versão:** 3.0 · **Atualizado em:** 2026-04-23
+> **Fonte:** `backend/prisma/schema.prisma`
 
 O sistema utiliza uma abordagem híbrida para persistência, combinando o **Prisma ORM** (gestão de equipe e RBAC) com o **Supabase JS Client** (core dos casos e pipeline de IA).
 
@@ -146,6 +146,12 @@ CREATE INDEX idx_casos_protocolo ON casos (protocolo);
 -- Concorrência (Locking)
 CREATE INDEX idx_casos_lock_servidor ON casos (servidor_id);
 CREATE INDEX idx_casos_lock_defensor ON casos (defensor_id);
+
+-- BI e Performance (v3.0)
+CREATE INDEX idx_casos_bi_status ON casos (arquivado, status);
+CREATE INDEX idx_casos_bi_unidade_status ON casos (arquivado, unidade_id, status);
+CREATE INDEX idx_casos_bi_tipo ON casos (arquivado, tipo_acao);
+CREATE INDEX idx_casos_bi_processed_at ON casos (processed_at);
 ```
 
 ---

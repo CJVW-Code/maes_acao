@@ -7,8 +7,6 @@ import {
   Inbox,
   CheckCircle2,
   AlertTriangle,
-  BarChart3,
-  PieChart,
   Bell,
   Calendar,
   ChevronLeft,
@@ -101,12 +99,7 @@ export const Dashboard = () => {
   }, [statusFilter]);
 
   const contagens = resumo?.contagens || {};
-  const stats = resumo
-    ? {
-        topTipos: resumo.topTipos || [],
-        representacao: resumo.representacao || { representacao: 0, proprio: 0 },
-      }
-    : null;
+
 
   // Paginação da lista recente filtrada por status
   const [casosFiltered, totalPages] = useMemo(() => {
@@ -301,79 +294,6 @@ export const Dashboard = () => {
           );
         })}
       </section>
-
-      {/* --- SEÇÃO DE INTELIGÊNCIA DE DADOS --- */}
-      {/* Exibe apenas para ADMIN */}
-      {stats && user?.cargo === "admin" && (
-        <section className="grid gap-6 md:grid-cols-2">
-          <div className="card space-y-4 hover:scale-[1.02] transition-transform duration-300 cursor-default border-l-4 border-l-primary">
-            <div className="flex items-center gap-2 text-primary">
-              <BarChart3 size={20} />
-              <h3 className="font-bold uppercase tracking-wider text-xs">Demandas Recorrentes</h3>
-            </div>
-            <div className="space-y-3">
-              {stats.topTipos.map(({ tipo, qtd }, idx) => (
-                <div key={tipo} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-muted text-sm">0{idx + 1}</span>
-                    <span className="font-medium">{tipo}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 h-2 bg-soft rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary"
-                        style={{
-                          width: `${contagens.total ? (qtd / contagens.total) * 100 : 0}%`,
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-sm text-muted">{qtd}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="card space-y-4 hover:scale-[1.02] transition-transform duration-300 cursor-default border-l-4 border-l-purple-400 bg-surface/50">
-            <div className="flex items-center gap-2 text-purple-400">
-              <Users size={20} />
-              <h3 className="font-bold uppercase tracking-wider text-xs">Em Colaboração</h3>
-            </div>
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <p className="text-3xl font-bold text">{contagens.colaboracao || 0}</p>
-                <p className="text-xs text-muted uppercase mt-1">Casos Compartilhados</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="card space-y-4 hover:scale-[1.02] transition-transform duration-300 cursor-default border-l-4 border-l-purple-500">
-            <div className="flex items-center gap-2 text-purple-400">
-              <PieChart size={20} />
-              <h3 className="font-bold uppercase tracking-wider text-xs">Perfil do Atendimento</h3>
-            </div>
-            <div className="flex items-center justify-center h-full gap-8">
-              <div className="text-center">
-                <p className="text-3xl font-bold text">{stats.representacao.representacao}</p>
-                <p className="text-xs text-muted uppercase mt-1">
-                  Representando
-                  <br />
-                  Menores
-                </p>
-              </div>
-              <div className="w-px h-12 bg-soft"></div>
-              <div className="text-center">
-                <p className="text-3xl font-bold text">{stats.representacao.proprio}</p>
-                <p className="text-xs text-muted uppercase mt-1">
-                  Em causa
-                  <br />
-                  própria
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
 
       <section className="card p-0 overflow-hidden">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-soft px-6 py-4">

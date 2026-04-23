@@ -111,9 +111,7 @@ export const StepDadosPessoais = React.memo(({
             <input
               type="text"
               inputMode="numeric"
-              placeholder={
-                isRepresentacao || isCpfOpcional ? "CPF (Opcional)" : "CPF *"
-              }
+              placeholder="CPF *"
               name={isRepresentacao ? "cpf" : "representante_cpf"}
               value={
                 isRepresentacao ? assistidoCpf : representanteCpf
@@ -121,9 +119,7 @@ export const StepDadosPessoais = React.memo(({
               onChange={handleCpfChangeAndValidate(
                 isRepresentacao ? "cpf" : "representante_cpf",
               )}
-              {...(!isRepresentacao && !isCpfOpcional
-                ? validar("Informe o CPF.")
-                : {})}
+              {...validar("Informe o CPF.")}
               className={`input ${formErrors[isRepresentacao ? "cpf" : "representante_cpf"] ? "border-error ring-1 ring-error" : ""}`}
             />
             {formErrors[isRepresentacao ? "cpf" : "representante_cpf"] && (
@@ -448,14 +444,12 @@ export const StepDadosPessoais = React.memo(({
               <input
                 type="text"
                 inputMode="numeric"
-                placeholder={isCpfOpcional ? "Seu CPF (Opcional)" : "Seu CPF *"}
+                placeholder="Seu CPF *"
                 name="representante_cpf"
                 value={representanteCpf}
                 onChange={handleCpfChangeAndValidate("representante_cpf")}
                 className={`input ${formErrors.representante_cpf ? "border-error ring-1 ring-error" : ""}`}
-                {...(!isCpfOpcional
-                  ? validar("Informe o CPF do representante.")
-                  : {})}
+                {...validar("Informe o CPF do representante.")}
               />
               {formErrors.representante_cpf && (
                 <span className="text-xs text-error mt-1 ml-1">

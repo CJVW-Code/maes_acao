@@ -1,0 +1,342 @@
+# Plano de Implementação — Hardening de Downloads e Substituição de Minutas
+
+> **Auditado em:** 2026-04-23 contra o código real do repositório.
+
+Este plano foca em dois achados críticos no `casosController.js`:
+1. `baixarTodosDocumentosZip` — falta validação de ticket binding e resiliência por arquivo.
+2. `substituirMinuta` — ausência de autorização completa, allowlist de chaves, cleanup garantido e log LGPD-safe.
+
+---
+
+## 🔍 Auditoria do Plano Anterior
+
+### ❌ Gap 1 — Validação do Ticket: comparação sem coerção de tipo
+
+**Problema no plano anterior:** A trava `req.ticket.casoId === id` usava igualdade estrita (`===`) sem garantir que ambos os lados são strings. O `id` vem de `req.params.id` (sempre string), mas `req.ticket.casoId` vem do payload JWT como foi assinado pelo `gerarTicketDownload`, que passa `id` (parâmetro de rota, string) — então isso é seguro. **Porém**, a comparação deve ser explicitamente documentada como `String(req.ticket.casoId) !== String(id)` para blindar contra mutações futuras do payload onde `casoId` possa vir como número.
+
+**Correção:** Usar `String(req.ticket.casoId) !== String(id)` na guard.
+
+---
+
+### ❌ Gap 2 — `isShared` na `substituirMinuta` não consulta `assistencia_casos`
+
+**Problema no plano anterior:** O plano dizia "reutilizar a lógica de `isAdmin`, `isOwner` e `isShared`" de forma vaga. Analisando o código real:
+- `carregarCasoDetalhado` (lns 363–451) já calcula `isAdmin`, `isOwner` e `isShared` corretamente, incluindo a consulta a `assistencia_casos` com `status: "aceito"`.
+- `substituirMinuta` usa apenas `prisma.casos.findUnique` com `{ include: { ia: true } }` — sem incluir `assistencia_casos`.
+
+**Risco sem correção:** Se o plano delegar ao executor a implementação manual de `isShared`, ele provavelmente fará uma query separada com lógica diferente, quebrando o padrão.
+
+**Correção no plano:** Em vez de reimplementar a lógica de autorização, `substituirMinuta` deve chamar `carregarCasoDetalhado(id, req.user)` para obter o caso (que já lança `HttpError(423)` se o caso estiver bloqueado por outro usuário). A verificação de "não é admin, owner nem shared" é feita pelo próprio helper — o controller apenas precisa tratar o `HttpError` lançado.
+
+---
+
+### ❌ Gap 3 — Locking incompleto: `substituirMinuta` não cobre casos compartilhados
+
+**Problema:** O plano anterior afirmava que "nenhuma mudança adicional de locking é necessária". Isso está **incorreto**.
+
+**Análise do código real (lns 3726–3734):** A implementação atual usa `prisma.casos.findUnique` + verificação manual de `servidor_id`/`defensor_id`. Isso **ignora o lock derivado de `assistencia_casos`**: um colaborador aceito (`acao: "aceito"`) tem o mesmo direito de substituir minutas que o owner, mas a lógica atual o bloquearia erroneamente com 423.
+
+| Critério | `carregarCasoDetalhado` | Lógica atual em `substituirMinuta` |
+|:---------|:-----------------------|:----------------------------------|
+| Verifica `assistencia_casos` (shared) | ✅ Sim | ❌ Não |
+| Verifica `servidor_id` e `defensor_id` | ✅ Sim | ✅ Sim |
+| Lança `HttpError(423)` uniforme | ✅ Sim | Parcial (retorna 423 diretamente) |
+
+**Decisão arquitetural:** A mudança é obrigatória. Usar `carregarCasoDetalhado` cobre os três cenários (admin, owner, colaborador aceito) com código auditado e padronizado. A função deve substituir a query manual e o bloco de locking manual da função.
+
+---
+
+### ❌ Gap 4 — Allowlist vaga: quais são as chaves reais de `casos_ia`?
+
+**Problema no plano anterior:** O plano listava exemplos sem especificar a lista exata. Isso deixa o executor adivinhar.
+
+**Análise do código real:** O dicionário `DOC_URL_KEY_BY_TIPO` e os updates em `regerarMinuta` revelam as colunas reais de `casos_ia`:
+- `url_peticao` (coluna direta)
+- `url_peticao_penhora` (coluna direta)
+- `url_peticao_prisao` (coluna direta — via `iaUpdateData`)
+- `url_peticao_execucao_cumulado`, `url_peticao_execucao_penhora`, etc. (via JSONB `dados_extraidos`)
+- `url_termo_declaracao` (coluna direta)
+
+**Ponto crítico de sequência:** O frontend envia `documentKey` como chave curta (ex: `"penhora"`, `"prisao"`, `"cumulado"`), que é normalizada via `DOC_URL_KEY_BY_TIPO[rawDocumentKey]` na linha 3713. A allowlist **DEVE ser verificada APÓS essa normalização** — se verificada antes, bloqueará todas as chaves curtas legítimas.
+
+**Correção:** A allowlist deve distinguir entre **colunas diretas** e **chaves JSONB**. Para segurança máxima, a substituição deve sempre escrever *somente no JSONB* (`dados_extraidos`) — sem nunca usar `iaUpdateData[documentKey] = storagePath` dinamicamente. As colunas diretas são atualizadas com nomes explícitos apenas.
+
+---
+
+### ❌ Gap 5 — LGPD: o log de auditoria atual expõe o `nome` do arquivo
+
+**Código atual (lns 3809–3812):**
+```js
+await registrarLog(req.user.id, "substituir_minuta", "casos", id, {
+  documento: documentKey,
+  nome_arquivo: file.originalname, // ← PODE CONTER CPF NO NOME DO ARQUIVO
+});
+```
+
+**Risco:** O nome do arquivo enviado pelo usuário (`file.originalname`) pode conter CPF (ex: `peticao_12345678900.docx`). Isso viola LGPD ao gravar dados pessoais nos logs de auditoria.
+
+**Correção:** Logar apenas o `documentKey` e o `caso_id`, nunca o nome original do arquivo.
+
+---
+
+### ❌ Gap 6 (NOVO) — `fs.unlink` não executado quando upload falha
+
+**Bug não identificado no plano anterior.**
+
+**Código atual (lns 3744–3767):** O `fs.unlink` está posicionado **dentro** do `try` principal, **depois** do `if (uploadError) throw`. Se o Supabase retornar erro de upload, o `throw` pula direto para o `catch` externo — o arquivo temporário nunca é removido, causando vazamento de disco.
+
+```js
+// BUG: se throw ocorrer aqui...
+if (uploadError) throw new Error(`Erro no upload: ${uploadError.message}`);
+// ...este trecho NUNCA executa:
+try { await fs.unlink(file.path); } catch (e) { ... }
+```
+
+**Correção:** Mover o `unlink` para um bloco `finally` que envolva todo o `try/catch`:
+
+```js
+try {
+  // upload + prisma.casos_ia.update + registrarLog
+} catch (error) {
+  logger.error(`Erro ao substituir minuta do caso ${id}: ${error.message}`);
+  res.status(500).json({ error: "Erro interno ao substituir minuta." });
+} finally {
+  // Garante limpeza mesmo que upload ou DB falhem
+  try { await fs.unlink(file.path); }
+  catch (e) { logger.warn(`[substituirMinuta] Falha ao limpar temp: ${file.path}`); }
+}
+```
+
+---
+
+### ⚠️ Gap 7 — Stream vs. Memory no ZIP: SDK não suporta `.stream()` direto no Supabase JS v2
+
+**Plano anterior sugeria:** Usar `data.stream()` para economizar RAM.
+
+**Realidade do SDK:** O `supabase-js` v2 retorna um `Blob` no método `.download()`, não um `ReadableStream` de Node.js. Usar `data.stream()` produz um Web `ReadableStream`, não compatível diretamente com `archiver` sem `stream.Readable.fromWeb()`. Isso adicionaria complexidade desnecessária.
+
+**Decisão:** Manter `Buffer.from(await data.arrayBuffer())` — é correto e consistente com `baixarDocumentoIndividual`. Anotar como débito técnico para futura migração.
+
+---
+
+### ✅ O que estava correto no plano anterior
+- A ideia de `RELATORIO_ERROS.txt` no ZIP é boa e deve ser mantida.
+- O uso de `finally` para limpeza de temp files é correto (agora também aplicado à `substituirMinuta`).
+- A validação de MIME type e tamanho de arquivo é necessária.
+- Headers depois de `archive.pipe()` está correto.
+
+---
+
+## Proposed Changes (Reescritos)
+
+### 📦 `baixarTodosDocumentosZip` — Alterações Necessárias
+
+**Arquivo:** `backend/src/controllers/casosController.js` — função `baixarTodosDocumentosZip`
+
+1. **Ticket Binding Guard** (nova lógica, antes de `archiver(...)`):
+   ```js
+   // Após carregarCasoDetalhado:
+   if (req.ticket?.casoId && String(req.ticket.casoId) !== String(id)) {
+     return res.status(403).json({ error: "Ticket não autorizado para este caso." });
+   }
+   ```
+
+2. **Header Placement:** Mover ambos os `res.setHeader` para logo antes de `archive.pipe(res)`, após os handlers de evento já registrados. Não muda comportamento funcional mas evita headers enviados antes de erros de inicialização.
+
+3. **Loop com try/catch por arquivo:**
+   ```js
+   const arquivosFalharam = [];
+   for (const doc of caso.documentos) {
+     try {
+       // download e archive.append aqui
+     } catch (err) {
+       // LGPD: não logar nome/CPF do documento — apenas ID referencial
+       logger.error(`[ZIP] Falha no doc id=${doc.id}: ${err.message}`);
+       arquivosFalharam.push(doc.nome_original || `documento_${doc.id}`);
+     }
+   }
+   if (arquivosFalharam.length > 0) {
+     archive.append(
+       `Arquivos não incluídos neste ZIP:\n${arquivosFalharam.join('\n')}`,
+       { name: 'RELATORIO_ERROS.txt' }
+     );
+   }
+   ```
+
+---
+
+### 🛡️ `substituirMinuta` — Alterações Necessárias
+
+**Arquivo:** `backend/src/controllers/casosController.js` — função `substituirMinuta`
+
+1. **Allowlist de chaves (constante no escopo do módulo, antes da função):**
+   ```js
+   // Colunas diretas de casos_ia que podem ser substituídas por upload manual.
+   // Chaves JSONB (dados_extraidos) são espelhadas automaticamente.
+   const ALLOWED_MINUTA_KEYS = new Set([
+     "url_peticao",
+     "url_peticao_penhora",
+     "url_peticao_prisao",
+     "url_termo_declaracao",
+   ]);
+   ```
+
+2. **Validações de arquivo e allowlist — na sequência correta:**
+   ```js
+   // 1. Normaliza a chave (frontend envia chaves curtas como "penhora", "prisao")
+   let documentKey = DOC_URL_KEY_BY_TIPO[rawDocumentKey] || rawDocumentKey;
+   if (documentKey === "termo") documentKey = "url_termo_declaracao";
+
+   // 2. SÓ ENTÃO verifica a allowlist (após normalização)
+   const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+   const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+   if (file.mimetype !== DOCX_MIME || !file.originalname.toLowerCase().endsWith(".docx")) {
+     return res.status(400).json({ error: "Apenas arquivos .docx são aceitos." });
+   }
+   if (file.size > MAX_SIZE_BYTES) {
+     return res.status(400).json({ error: "Arquivo excede o tamanho máximo de 10MB." });
+   }
+   if (!ALLOWED_MINUTA_KEYS.has(documentKey)) {
+     return res.status(400).json({ error: "Chave de documento inválida." });
+   }
+   ```
+
+3. **Autorização via `carregarCasoDetalhado`:** Substituir o bloco `prisma.casos.findUnique` + verificação manual de locking (lns 3718–3734) por:
+   ```js
+   // Usa o helper que já implementa isAdmin/isOwner/isShared e lança HttpError(423)
+   // e também cobre casos compartilhados via assistencia_casos
+   const caso = await carregarCasoDetalhado(id, req.user);
+   // Agora 'caso' já está validado. Busca IA separadamente:
+   const ia = await prisma.casos_ia.findUnique({ where: { caso_id: BigInt(id) } });
+   const protocolo = caso.protocolo;
+   const extras = safeJsonParse(ia?.dados_extraidos, {});
+   ```
+   > **Nota:** O `try/catch` externo já capturará o `HttpError(423)` lançado pelo helper — nenhum tratamento adicional de locking é necessário.
+
+4. **Eliminação de escrita dinâmica de coluna:** Remover completamente:
+   ```js
+   // REMOVER:
+   if (ia && documentKey in ia) {
+     iaUpdateData[documentKey] = storagePath; // ← PERIGOSO: escrita dinâmica
+   }
+   ```
+   Substituir por escrita explícita e segura apenas no JSONB:
+   ```js
+   const iaUpdateData = { dados_extraidos: updatedExtras };
+   // Apenas colunas diretas conhecidas recebem update explícito:
+   if (documentKey === "url_peticao")        iaUpdateData.url_peticao = storagePath;
+   if (documentKey === "url_peticao_penhora") iaUpdateData.url_peticao_penhora = storagePath;
+   if (documentKey === "url_peticao_prisao")  iaUpdateData.url_peticao_prisao = storagePath;
+   if (documentKey === "url_termo_declaracao") iaUpdateData.url_termo_declaracao = storagePath;
+   ```
+
+5. **Cleanup garantido via `finally` (corrige bug de vazamento de temp files):**
+   ```js
+   try {
+     // upload + prisma.casos_ia.update + registrarLog
+   } catch (error) {
+     logger.error(`Erro ao substituir minuta do caso ${id}: ${error.message}`);
+     res.status(500).json({ error: "Erro interno ao substituir minuta." });
+   } finally {
+     // Garante limpeza mesmo que upload ou DB falhem
+     try { await fs.unlink(file.path); }
+     catch (e) { logger.warn(`[substituirMinuta] Falha ao limpar temp: ${file.path}`); }
+   }
+   ```
+
+6. **Log LGPD-safe** — substituir:
+   ```js
+   // ANTES (vaza nome original que pode conter CPF):
+   await registrarLog(req.user.id, "substituir_minuta", "casos", id, {
+     documento: documentKey,
+     nome_arquivo: file.originalname,
+   });
+
+   // DEPOIS (apenas IDs e chave técnica):
+   await registrarLog(req.user.id, "substituir_minuta", "casos", id, {
+     documento: documentKey,
+   });
+   ```
+
+---
+
+## Step-by-Step Strategy
+
+1. `casosController.js` — adicionar a constante `ALLOWED_MINUTA_KEYS` no escopo do módulo (antes das funções exportadas).
+2. `casosController.js` — refatorar `substituirMinuta`:
+   a. Mover normalização da `documentKey` para antes das validações.
+   b. Adicionar validações de arquivo e allowlist (na ordem: normalização → allowlist → MIME → tamanho).
+   c. Substituir `prisma.casos.findUnique` + bloco manual de locking por `carregarCasoDetalhado(id, req.user)`.
+   d. Reescrever o bloco de update para eliminar a escrita dinâmica (`documentKey in ia`).
+   e. Reestruturar `try/catch/finally` movendo `fs.unlink` para o `finally`.
+   f. Corrigir o `registrarLog` para não incluir `nome_arquivo`.
+3. `casosController.js` — refatorar `baixarTodosDocumentosZip`:
+   a. Adicionar a guard de ticket binding.
+   b. Mover `res.setHeader` para antes de `archive.pipe(res)`.
+   c. Envolver cada download em `try/catch` individual.
+   d. Adicionar `RELATORIO_ERROS.txt` ao ZIP se houver falhas.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+- Testar `baixarTodosDocumentosZip` com ticket de caso diferente → espera 403.
+- Testar `substituirMinuta` com `documentKey = "id"` (chave não permitida) → espera 400.
+- Testar `substituirMinuta` com `documentKey = "penhora"` (chave curta do frontend) → espera 200 (confirma que allowlist é aplicada após normalização).
+- Testar `substituirMinuta` com usuário sem vínculo com o caso → espera 423.
+- Testar `substituirMinuta` com colaborador aceito (`assistencia_casos.acao = "aceito"`) → espera 200 (confirma que `carregarCasoDetalhado` cobre shared).
+- Testar `substituirMinuta` com arquivo `.pdf` → espera 400.
+- Simular falha de upload ao Supabase → confirmar que temp file é removido mesmo assim.
+- Verificar que o log de auditoria NÃO contém `nome_arquivo`.
+
+### Manual Verification
+- Simular falha de Supabase em 1 de 3 documentos — ZIP deve conter os 2 restantes e o `RELATORIO_ERROS.txt`.
+- Verificar que arquivos temporários são removidos mesmo quando o upload ao Supabase falha.
+
+---
+
+## 🆕 Novas Correções (QStash e Persistência de Dados) — Mutirão 2026-04-23
+
+Estas correções visam estabilizar a fila de processamento assíncrono e corrigir a perda de dados de múltiplos filhos durante a regeneração de minutas.
+
+### ❌ Gap 9 — [QStash] API_BASE_URL ausente no .env
+**Problema:** O sistema falha ao validar a URL base do backend, impedindo que o QStash agende tarefas com webhook de retorno. Isso força o sistema a usar processamento local síncrono.
+**Correção:** Adicionar `API_BASE_URL` ao arquivo `.env` do backend.
+
+### ❌ Gap 10 — Perda de Array de Filhos na Regeneração (correção revisada)
+
+**Causa raiz identificada:** O problema não está em `mapCasoRelations` (que já constrói `dados_formulario` corretamente via merge interno). O problema está em `regerarMinuta` (ln 3528), onde `baseData` recebe apenas `caso.dados_formulario`, mas `buildDocxTemplatePayload` recebe o objeto completo `caso` (ln 3555). Campos como `outros_filhos_detalhes` existem em `caso.dados_formulario` como string JSON, mas podem não estar no nível raiz de `caso`.
+
+> [!CAUTION]
+> **NÃO aplicar** o flatten `{ ...enriched.dados_formulario, ...enriched }` em `mapCasoRelations`. Isso reverteria a normalização de `nome`, `cpf`, `NOME`, etc., causando regressão em todos os controllers que dependem da função.
+
+**Correção correta — em `regerarMinuta` (ln 3528), NÃO em `mapCasoRelations`:**
+```js
+// ANTES (ln 3528):
+const baseData = caso.dados_formulario || caso;
+
+// DEPOIS:
+// Garante que campos do JSONB bruto estejam disponíveis no nível raiz de baseData,
+// sem sobrescrever os campos já normalizados pelo mapCasoRelations.
+const baseData = {
+  ...(caso.dados_formulario || {}), // campos brutos do JSONB (preenche lacunas)
+  ...caso,                          // campos normalizados (prioridade alta — não pode ser sobrescrito)
+};
+```
+
+### 📦 Mudanças Propostas Adicionais
+
+#### [MODIFY] [.env](file:///c:/Users/weslley/Downloads/defensoria/maes%20em%20acao/defsul_maes/backend/.env)
+- Inserir `API_BASE_URL=http://localhost:8000/api` (ambiente local) ou a URL pública do Railway.
+
+#### [MODIFY] [casosController.js](file:///c:/Users/weslley/Downloads/defensoria/maes%20em%20acao/defsul_maes/backend/src/controllers/casosController.js)
+- Refatorar `regerarMinuta` (ln 3528) para garantir disponibilidade dos campos JSONB no nível raiz de `baseData`, conforme snippet acima.
+
+### 🛠️ Estratégia Passo a Passo (Atualizada)
+4. `backend/.env` — Adicionar `API_BASE_URL`.
+5. `casosController.js` — Corrigir `baseData` em `regerarMinuta` (ln 3528) conforme correção do Gap 10.
+
+### ✅ Plano de Verificação (Atualizado)
+- Testar "Regerar Minuta" em caso com 3 filhos → os 3 devem aparecer no documento final.
+- Verificar logs do backend após salvar um caso novo para confirmar que o aviso `[QStash] API_BASE_URL invalida` não aparece mais.

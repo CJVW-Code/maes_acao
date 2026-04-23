@@ -10,7 +10,7 @@ Este documento contém a compilação de todas as referências de arquitetura, r
 
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 2.2 · **Atualizado em:** 2026-04-22 (Downloads Seguros + Upload Minuta + UX Refinements)
+> **Versão:** 3.0 · **Atualizado em:** 2026-04-23 (Módulo BI + Índices Performance + Download Tickets)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
@@ -258,6 +258,12 @@ CREATE INDEX idx_casos_lock_defensor ON casos (defensor_id);
 -- Busca por CPF (query mais frequente)
 CREATE INDEX idx_partes_cpf_assistido ON casos_partes (cpf_assistido);
 CREATE INDEX idx_partes_representante_cpf ON casos_partes (representante_cpf);
+
+-- BI e Performance (v3.0)
+CREATE INDEX idx_casos_bi_status ON casos (arquivado, status);
+CREATE INDEX idx_casos_bi_unidade_status ON casos (arquivado, unidade_id, status);
+CREATE INDEX idx_casos_bi_tipo ON casos (arquivado, tipo_acao);
+CREATE INDEX idx_casos_bi_processed_at ON casos (processed_at);
 ```
 
 ---
@@ -504,7 +510,7 @@ VITE_API_URL=https://api.mutirao.dpe.ba.gov.br
 
 # Regras de Negócio — Mães em Ação · DPE-BA
 
-> **Versão:** 2.0 · **Atualizado em:** 2026-04-10 (Estabilização Mutirão)  
+> **Versão:** 2.2 · **Atualizado em:** 2026-04-23 (Módulo BI + LGPD Enforcement + Refinamentos UX)  
 > **Fonte:** Análise da codebase (controllers, services, middleware, config)  
 > **Propósito:** Referência canônica para treinamento de IAs e orientação de defensores
 
@@ -1134,6 +1140,24 @@ Para evitar que dois usuários editem o mesmo caso simultaneamente, o sistema ut
 ### 11.3 Liberação
 - O lock é liberado automaticamente após 30 minutos de inatividade ou manualmente pelo botão **Liberar Caso**.
 - **Administradores** possuem bypass e podem forçar o destravamento de qualquer sessão.
+
+---
+
+## 12. Inteligência de Dados (Módulo BI)
+
+O módulo de BI é restrito exclusivamente a administradores e foca em métricas de produtividade e throughput sem comprometer dados sensíveis.
+
+### 12.1 Princípios de LGPD no BI
+- **Zero PII (Personally Identifiable Information):** As queries de BI nunca acessam as tabelas `casos_partes` ou campos de qualificação.
+- **Agregação Obrigatória:** Dados são exibidos apenas em formatos agregados (contagens, médias, percentuais).
+- **Exportação Segura:** O arquivo XLSX gerado para download segue as mesmas restrições de vedação de dados pessoais.
+
+### 12.2 Métricas Monitoradas
+- **Throughput de Triagem:** Casos criados por dia/sede.
+- **Conversão de Protocolo:** Percentual de casos que chegam ao status `protocolado`.
+- **Eficiência da IA:** Tempo médio entre `processing_started_at` e `processed_at`.
+- **Motivos de Arquivamento:** Análise qualitativa de por que os casos estão sendo encerrados sem protocolo.
+- **Distribuição por Unidade:** Ranking de sedes com maior volume de atendimento.
 
 
 ---

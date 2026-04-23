@@ -1,0 +1,46 @@
+# Implementation Plan & Pre-Mortem (Corrigido)
+
+## Pre-Mortem: 5 Possíveis Falhas e Bugs (Análise de Risco)
+
+1. **Gaps de Lógica (Sobrescrita Silenciosa):** O problema central ocorre em `mapCasoRelations`. Ao clicar em "Salvar e Regerar" no painel Financeiro, a tabela `casos_juridico` é criada (Upsert). Quando o `regerarMinuta` roda, o código faz `enriched.empregador_nome = juridico.empregador_nome`. Como esse campo na tabela jurídica está vazio, ele sobrescreve com `null` o valor que a pessoa digitou na triagem (`dados_formulario`).
+2. **Inconsistência de Padrão:** Não é necessário adicionar campos no banco ou na UI do Defensor. O formulário de Triagem já captura o `empregador_nome` e a `cidade_assinatura`. Devemos respeitar a Fonte da Verdade original (`dados_formulario`), mantendo a arquitetura limpa.
+3. **Falta de Especificidade (Local Storage Bug):** O vazamento de dados de `localStorage` ocorre porque o `useFormEffects.js` possui um timer de *auto-save* de 3 segundos. Quando o caso é submetido, o cache é limpo, mas a tela transita para o "Sucesso" mantendo o React State preenchido. Segundos depois, o timer acorda e re-salva o state no localStorage, criando um "Rascunho Fantasma".
+4. **Segurança (LGPD):** Impediremos que o Rascunho Fantasma sobreviva, garantindo que o próximo atendente do balcão não abra a página e veja os dados da mãe anterior.
+5. **Máquina de Estados:** Regerar a minuta não alterará o status do caso. Apenas gerará novos arquivos `.docx` silenciosamente via I/O do Supabase, sem invocar a IA (Gemini).
+
+---
+
+## 1. Impact Analysis
+- **`backend/src/controllers/casosController.js`**: Alteração mínima no `mapCasoRelations`. Resolve o bug em que o `casos_juridico` anula os dados do formulário base.
+- **`frontend/src/areas/servidor/hooks/useFormEffects.js`**: Impede o auto-save de rodar após o envio bem-sucedido.
+- **`frontend/src/areas/servidor/components/secoes/SecaoProcessoOriginal.jsx`**: Transforma o campo "Link Calculadora" de um `input` para um `link` simples, limpando a interface.
+
+## 2. Technical Approach
+
+**A. Correção da Minuta (Sem Novos Inputs):**
+- No backend (`casosController.js`), modificaremos o `mapCasoRelations` para garantir que o fallback correto ocorra:
+  ```javascript
+  // Empregador: Pega do Jurídico, se não, cai pro formulário.
+  enriched.empregador_nome = juridico?.empregador_nome || dadosFormulario.empregador_nome || dadosFormulario.empregador_requerido_nome || "";
+  
+  // Cidade: Herda do formulário, com fallback final para a unidade.
+  enriched.CIDADEASSINATURA = juridico?.cidade_assinatura || dadosFormulario.CIDADEASSINATURA || dadosFormulario.cidade_assinatura || caso.unidade?.comarca || "";
+  enriched.cidade_assinatura = enriched.CIDADEASSINATURA;
+  ```
+
+**B. Correção do Cache (Local Storage):**
+- No `useFormEffects.js`, modificaremos a condição do timer do Auto-Save para ignorar a persistência caso a tela esteja no estado de sucesso (ex: verificando se um `isSubmitted` flag existe, ou se as credenciais foram geradas, ou simplesmente no `submissionService.js` forçar um disparo de `RESET_FORM` mascarado).
+
+**C. Link Calculadora:**
+- Em `SecaoProcessoOriginal.jsx`, removeremos as linhas do `input` chamado `link_calculadora`. O hyperlink existente (`<a href="...">Abrir Dr. Calc</a>`) já é suficiente e será mantido.
+
+## 3. Edge Case Mitigation
+- Se a Triagem não coletou o Empregador, o `{empregador_nome}` na minuta continuará como `"______"`.
+- Se a Unidade não estiver anexada na query do Prisma, a Cidade de Assinatura continuará dependendo puramente do que o cidadão digitou.
+- O compartilhamento de casos (`assistencia_casos`) permanece **intocado**.
+
+## 4. Step-by-Step Strategy
+1. **Backend:** Modificar o `mapCasoRelations` no `casosController.js` implementando o fallback (OR clauses) para o empregador e cidade.
+2. **Backend:** Ajustar a query `findUnique` do `regerarMinuta` para incluir `unidade: { select: { comarca: true } }` e garantir o fallback absoluto da comarca.
+3. **Frontend (Formulário):** Em `SecaoProcessoOriginal.jsx`, apagar o `input` desnecessário da calculadora.
+4. **Frontend (Cache):** Em `submissionService.js` ou `useFormEffects.js`, aplicar a interrupção de ciclo para estancar a gravação do Rascunho Fantasma.

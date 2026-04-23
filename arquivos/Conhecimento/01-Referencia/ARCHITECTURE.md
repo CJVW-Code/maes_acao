@@ -1,6 +1,6 @@
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 2.2 · **Atualizado em:** 2026-04-22 (Downloads Seguros + Upload Minuta + UX Refinements)
+> **Versão:** 3.0 · **Atualizado em:** 2026-04-23 (Módulo BI + Índices Performance + Download Tickets)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
@@ -248,6 +248,12 @@ CREATE INDEX idx_casos_lock_defensor ON casos (defensor_id);
 -- Busca por CPF (query mais frequente)
 CREATE INDEX idx_partes_cpf_assistido ON casos_partes (cpf_assistido);
 CREATE INDEX idx_partes_representante_cpf ON casos_partes (representante_cpf);
+
+-- BI e Performance (v3.0)
+CREATE INDEX idx_casos_bi_status ON casos (arquivado, status);
+CREATE INDEX idx_casos_bi_unidade_status ON casos (arquivado, unidade_id, status);
+CREATE INDEX idx_casos_bi_tipo ON casos (arquivado, tipo_acao);
+CREATE INDEX idx_casos_bi_processed_at ON casos (processed_at);
 ```
 
 ---

@@ -1,0 +1,109 @@
+- `[ ]` **Task 1**
+  - **ID:** 1
+  - **File Path:** `backend/src/controllers/casosController.js`
+  - **Context:** Gerencia lógica de detalhamento e travamento de casos Nível 1.
+  - **Action:** Desativar a trava temporal de 10 minutos (Nível 1) no método `carregarCasoDetalhado`.
+  - **Logic Details:** 
+    - Encontrar a lógica de timeout (`casoLiberadoPorTimeout = true`).
+    - Remover ou comentar a reatribuição de destravamento baseada em tempo para manter a trava perene até liberação manual.
+  - **Acceptance Criteria:** Acessar o mesmo caso após 10 minutos mantém o lock com o servidor atual.
+
+- `[ ]` **Task 2**
+  - **ID:** 2
+  - **File Path:** `backend/src/controllers/casosController.js`
+  - **Context:** Endpoint de atualização (`PATCH`) de status e dados parciais.
+  - **Action:** Injetar destravamento automático quando status é alterado para liberado.
+  - **Logic Details:**
+    - Na função de update (ex: `atualizarCaso`), checar se `req.body.status === 'liberado_para_protocolo'`.
+    - Se sim, forçar `servidor_id: null` e `servidor_at: null` no objeto `updateData`.
+  - **Acceptance Criteria:** Servidor salva e encaminha caso, este volta à fila global e o lock é removido.
+
+- `[ ]` **Task 3**
+  - **ID:** 3
+  - **File Path:** `backend/src/controllers/casosController.js`
+  - **Context:** Resumo numérico usado pelo Dashboard inicial.
+  - **Action:** Retornar flag de inatividade (`temCasoOcioso`) no endpoint `getResumoCasos`.
+  - **Logic Details:**
+    - Adicionar verificação não-bloqueante (`limit(1)`) onde `(servidor_id == req.user.id AND servidor_at < NOW() - 20m) OR (defensor_id == req.user.id AND defensor_at < NOW() - 20m)`.
+    - Adicionar propriedade `temCasoOcioso: boolean` no JSON de retorno.
+  - **Acceptance Criteria:** Rota `/casos/resumo` (ou equivalente) retorna a flag indicando se há casos "presos" com o usuário > 20min.
+
+- `[ ]` **Task 4**
+  - **ID:** 4
+  - **File Path:** `backend/src/controllers/casosController.js`
+  - **Context:** Endpoint principal de listagem.
+  - **Action:** Adicionar suporte a `?meusAtendimentos=true`.
+  - **Logic Details:**
+    - Se presente a querystring, modificar a query base do banco (via `.or` Supabase ou cláusula Prisma) para filtrar: `servidor_id = req.user.id OR defensor_id = req.user.id`.
+  - **Acceptance Criteria:** Rota `/casos` retorna estritamente os casos sob lock do requisitante.
+
+- `[ ]` **Task 5**
+  - **ID:** 5
+  - **File Path:** `frontend/src/index.css`
+  - **Context:** Arquivo global de estilizações Vanilla CSS.
+  - **Action:** Adicionar classes para grid compacta de cards e glow de compartilhamento.
+  - **Logic Details:**
+    - `.casos-grid-compact`: `display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;`
+    - `.card-compartilhado-highlight`: estilização destacada (borda/sombra) seguindo tema.
+  - **Acceptance Criteria:** Novas classes CSS estão disponíveis sem usar utilitários extras do Tailwind.
+
+- `[ ]` **Task 6**
+  - **ID:** 6
+  - **File Path:** `frontend/src/areas/defensor/pages/Casos.jsx`
+  - **Context:** Listagem principal de casos e abas de filtros.
+  - **Action:** Ajustar abas e chamadas de API.
+  - **Logic Details:**
+    - Remover filtro `"documentacao_completa"`.
+    - Adicionar aba `"Meus Atendimentos"`, disparando requisição na listagem com parâmetro `?meusAtendimentos=true`.
+  - **Acceptance Criteria:** Filtro novo busca os atendimentos travados pelo usuário.
+
+- `[ ]` **Task 7**
+  - **ID:** 7
+  - **File Path:** `frontend/src/areas/defensor/pages/Casos.jsx`
+  - **Context:** Renderização do layout dos casos.
+  - **Action:** Refatorar a UI dos cards para formato de grid minificado e destacar casos em colaboração.
+  - **Logic Details:**
+    - Substituir classes de layout flexivel dos cards por `.casos-grid-compact`.
+    - Renderização condicional: se `caso.compartilhado === true`, injetar classe `.card-compartilhado-highlight`.
+  - **Acceptance Criteria:** Lista exibe cards em miniatura e compartilahdos têm destaque visual.
+
+- `[ ]` **Task 8**
+  - **ID:** 8
+  - **File Path:** `frontend/src/areas/defensor/pages/Dashboard.jsx`
+  - **Context:** Visualização principal de métricas do defensor/servidor.
+  - **Action:** Implementar Banner de advertência sobre caso ocioso.
+  - **Logic Details:**
+    - Ler o novo valor `temCasoOcioso` provido pelo contexto/resumo.
+    - Se `true`, renderizar `<div className="banner-inatividade">...</div>` no topo recomendando liberação do atendimento.
+  - **Acceptance Criteria:** Banner exibido em vermelho/laranja amigável se houver lock >20min.
+
+- `[ ]` **Task 9**
+  - **ID:** 9
+  - **File Path:** `frontend/src/areas/defensor/pages/DetalhesCaso.jsx`
+  - **Context:** Tela de dados detalhados e fluxo de liberação/protocolo do caso.
+  - **Action:** Injetar input de "Número do Processo" no fluxo de status.
+  - **Logic Details:**
+    - Ao tentar avançar status para `protocolado`, se o sistema exigir, mostrar input para `numero_processo` (referente ao SOLAR/SIGAD).
+    - Enviar no payload para a coluna nativa `numero_processo`, evitando envio para o JSONB flexível.
+  - **Acceptance Criteria:** Finalização de caso demanda o ID do sistema jurídico respectivo persistido nativamente.
+
+- `[ ]` **Task 10**
+  - **ID:** 10
+  - **File Path:** `frontend/src/areas/servidor/pages/ScannerBalcao.jsx`
+  - **Context:** Drag & Drop de anexos no polo físico do mutirão.
+  - **Action:** Habilitar clique para upload nativo sem ferir UI/UX (Glassmorphism Dark).
+  - **Logic Details:**
+    - Emcapsular a UI de arrastar e soltar (Dropzone) dentro de `<label htmlFor="scanner-file-input">`.
+    - Adicionar input hidden `<input id="scanner-file-input" type="file" multiple ... />`.
+  - **Acceptance Criteria:** Clique em qualquer lugar tracejado aciona prompt de arquivos do SO.
+
+- `[ ]` **Task 11**
+  - **ID:** 11
+  - **File Path:** `Validação e Testes E2E (Manual)`
+  - **Context:** Validação do fluxo do mutirão de ponta-a-ponta.
+  - **Action:** Validar a implementação das novas regras.
+  - **Logic Details:**
+    - Garantir que não há quebras no build ou tela branca no React.
+    - Validar destravamento passando um caso via API de Nível 1 para `liberado_para_protocolo`.
+    - Validar funcionamento do clique no Scanner.
+  - **Acceptance Criteria:** Nenhuma regressão inserida nos pipelines normais de caso.
