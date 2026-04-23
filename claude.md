@@ -10,7 +10,7 @@ Este documento contém a compilação de todas as referências de arquitetura, r
 
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 3.0 · **Atualizado em:** 2026-04-23 (Módulo BI + Índices Performance + Download Tickets)
+> **Versão:** 3.1 · **Atualizado em:** 2026-04-23 (Dashboard Grid 3.0 + Fim do Polling + Hardening CPF)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
@@ -410,7 +410,7 @@ frontend/src/areas/servidor/
 ```
 frontend/src/areas/defensor/
 ├── pages/
-│   ├── Dashboard.jsx              ← Visão geral por status/unidade
+│   ├── Dashboard.jsx              ← Grid 3.0 (1fr 350px) + Sidebar de Alertas
 │   ├── Casos.jsx                  ← Listagem com filtros
 │   ├── DetalhesCaso.jsx           ← Detalhe completo + ações
 │   ├── GerenciarEquipe.jsx        ← CRUD membros + CRUD unidades
@@ -426,7 +426,6 @@ A pasta `frontend/src/config/formularios/acoes/` contém arquivos de configuraç
 Flags chave:
 - `exigeDadosProcessoOriginal` — exibe campos do processo originário (e ativa validação de `valor_debito` + `calculo_arquivo`)
 - `ocultarDadosRequerido` — oculta seção da parte contrária
-- `isCpfRepresentanteOpcional` — torna CPF da mãe opcional
 - `labelAutor` — rótulo do autor (Mãe, Assistida, etc.)
 - `ocultarDetalhesGerais` — oculta seção de campos gerais redundantes (fixação de alimentos)
 
@@ -510,7 +509,7 @@ VITE_API_URL=https://api.mutirao.dpe.ba.gov.br
 
 # Regras de Negócio — Mães em Ação · DPE-BA
 
-> **Versão:** 2.2 · **Atualizado em:** 2026-04-23 (Módulo BI + LGPD Enforcement + Refinamentos UX)  
+> **Versão:** 2.3 · **Atualizado em:** 2026-04-23 (Hardening CPF Representante + Fim do Polling)  
 > **Fonte:** Análise da codebase (controllers, services, middleware, config)  
 > **Propósito:** Referência canônica para treinamento de IAs e orientação de defensores
 
@@ -743,7 +742,7 @@ Para garantir que a busca seja resiliente a diferentes formatos de entrada, o si
 | **Normalização** | CPFs informados na busca são limpos (removendo `.` e `-`) antes da consulta. |
 | **Busca Resiliente** | O backend consulta simultaneamente o CPF "sujo" (como digitado) e o CPF "limpo" na tabela `casos_partes`. |
 | **Escopo de Busca** | A busca verifica os campos `cpf_assistido` e `representante_cpf` para garantir que o caso seja encontrado independente de quem iniciou o processo. |
-| **Validação** | CPF do assistido é **obrigatório e validado** algoritmicamente (Bloqueante). |
+| **Validação** | CPF do assistido e do representante são **obrigatórios e validados** algoritmicamente (Bloqueante). |
 
 ### 3.2 Unicidade de CPF e Arquitetura Multi-Casos
 

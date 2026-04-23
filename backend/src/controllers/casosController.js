@@ -41,6 +41,14 @@ import logger from "../utils/logger.js";
 import { Client } from "@upstash/qstash";
 import { TAGS_OFICIAIS } from "../config/dicionarioTags.js";
 
+// Colunas físicas da tabela casos_ia que podem ser atualizadas diretamente
+const DIRECT_COLUMN_KEYS = new Set([
+  "url_peticao",
+  "url_peticao_penhora",
+  "url_peticao_prisao",
+  "url_termo_declaracao",
+]);
+
 // --- UTILS DE NORMALIZAÇÃO ---
 const mapCasoRelations = (caso) => {
   if (!caso) return caso;
@@ -2095,6 +2103,24 @@ export const baixarDocumentoIndividual = async (req, res) => {
     if (objectPath.includes("peticoes") || storagePath.includes("peticoes")) bucket = "peticoes";
     if (objectPath.includes("audios") || storagePath.includes("audios")) bucket = "audios";
 
+    // [SEGURANÇA] Hardening: O Ticket deve estar vinculado ao mesmo caso e path (Task ID: 01)
+    if (req.ticket) {
+      if (String(req.ticket.casoId) !== String(id)) {
+        return res.status(403).json({ error: "Ticket não autorizado para este caso." });
+      }
+
+      // Valida se o path assinado bate com o requisitado (previne tampering)
+      if (req.ticket.path && req.ticket.path !== storagePath) {
+        logger.warn(`[Tampering Attempt] User ${req.user.id} tentou baixar path divergente do ticket.`);
+        return res.status(403).json({ error: "Ticket inválido: Divergência de arquivo." });
+      }
+
+      // Valida o bucket (opcional mas recomendado para consistência)
+      if (req.ticket.bucket && req.ticket.bucket !== bucket) {
+        return res.status(403).json({ error: "Ticket inválido: Divergência de categoria." });
+      }
+    }
+
     if (isSupabaseConfigured) {
       const { data, error } = await supabase.storage.from(bucket).download(objectPath);
       if (error) {
@@ -3794,7 +3820,7 @@ export const substituirMinuta = async (req, res) => {
   try {
     // 3. Autorização via carregarCasoDetalhado (já implementa isAdmin/isOwner/isShared e lança HttpError(423))
     const caso = await carregarCasoDetalhado(id, req.user);
-    const ia = await prisma.casos_ia.findUnique({ where: { caso_id: BigInt(id) } });
+    const ia = Array.isArray(caso.ia) ? caso.ia[0] : caso.ia; // Reuso da relação carregada
     const protocolo = caso.protocolo;
     const extras = safeJsonParse(ia?.dados_extraidos, {});
 
@@ -3840,18 +3866,8 @@ export const substituirMinuta = async (req, res) => {
       historico_versoes: historico,
     };
 
-    // Apenas colunas físicas da tabela casos_ia recebem update explícito.
-    // As demais (url_peticao_execucao_*, url_peticao_cumprimento_*) não existem no schema
-    // e devem ser salvas APENAS dentro do JSONB dados_extraidos.
-    const COLUNAS_FISICAS_CASOS_IA = new Set([
-      "url_peticao",
-      "url_peticao_penhora",
-      "url_peticao_prisao",
-      "url_termo_declaracao",
-    ]);
-
     const iaUpdateData = { dados_extraidos: updatedExtras };
-    if (COLUNAS_FISICAS_CASOS_IA.has(documentKey)) {
+    if (DIRECT_COLUMN_KEYS.has(documentKey)) {
       iaUpdateData[documentKey] = storagePath;
     }
 
@@ -4250,7 +4266,7 @@ export const receberDocumentosComplementares = async (req, res) => {
           await fs.mkdir(localDir, { recursive: true });
           const localPath = path.join(localDir, `complementar_${Date.now()}_${safeName}`);
           await fs.copyFile(docFile.path, localPath);
-          const relativePath = `documentos/${caso.protocolo}/${path.basename(localPath)}`;
+          const relativePath = `${caso.protocolo}/${path.basename(localPath)}`;
           novosUrls.push(relativePath);
 
           await prisma.documentos.create({

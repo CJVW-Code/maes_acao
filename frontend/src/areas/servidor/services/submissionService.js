@@ -259,6 +259,7 @@ export const processSubmission = async ({
     "audioBlob",
     "tipoAcao",
     "acaoEspecifica",
+    "enviarDocumentosDepois",
   ]);
 
   const valuesToSubmit = { ...formState };

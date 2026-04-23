@@ -92,6 +92,11 @@ export const validateDownloadTicket = async (req, res, next) => {
       casoUnidadeId: decoded.casoUnidadeId || null,
     };
 
+    // [FAIL-CLOSED] Exige que o ticket esteja vinculado a um caso específico
+    if (!req.ticket.casoId) {
+      return res.status(403).json({ error: "Ticket inválido: vínculo com caso ausente." });
+    }
+
     next();
   } catch (error) {
     logger.error(`[Download Ticket Error]: ${error.message}`);

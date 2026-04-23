@@ -59,10 +59,10 @@ export const StepRequerido = React.memo(
               value={requeridoNome}
               onChange={handleFieldChange}
               className="input"
-              aria-invalid={Boolean(formErrors.nomeRequerido)}
+              aria-invalid={Boolean(formErrors.REQUERIDO_NOME)}
             />
-            {formErrors.nomeRequerido && (
-              <p className="text-xs text-red-500 mt-1">{formErrors.nomeRequerido}</p>
+            {formErrors.REQUERIDO_NOME && (
+              <p className="text-xs text-red-500 mt-1">{formErrors.REQUERIDO_NOME}</p>
             )}
           </div>
           <div>

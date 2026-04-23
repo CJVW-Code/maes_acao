@@ -1,0 +1,1033 @@
+utside diff range comments (5)
+frontend/src/areas/defensor/contexts/AuthContext.jsx (1)
+85-94: ⚠️ Potential issue | 🟠 Major
+
+Polling desativado deixa notificações obsoletas até novo login/refresh.
+
+Com o setInterval comentado, fetchNotificacoes só executa uma vez quando o token é definido. Como o NotificacoesBell apenas consome o estado notificacoes do contexto e não faz refresh próprio, o sino ficará estagnado durante toda a sessão — convites de assistência e outras notificações novas não aparecerão até o usuário recarregar a página ou relogar. Isso é uma regressão funcional relevante, não apenas uma limpeza de logs.
+
+Justificativa do commit ("Desativado para limpar os logs") sugere que o objetivo real era reduzir ruído em console/rede, não remover a atualização periódica. Considere uma das alternativas abaixo em vez de desabilitar:
+
+Aumentar o intervalo (ex.: 5 → 15 min) e/ou silenciar apenas os logs de sucesso em fetchNotificacoes.
+Usar document.visibilityState === "visible" para só fazer polling quando a aba está ativa.
+Migrar para SSE/WebSocket se o backend já suportar push.
+Além disso, com o setInterval removido, intervalRef nunca é atribuído e o clearInterval no cleanup vira código morto — se a decisão for manter desativado permanentemente, remova também intervalRef e o cleanup para evitar confusão futura.
+
+♻️ Sugestão: reativar polling com guard de visibilidade e log condicional
+   // Polling de Notificações
+   useEffect(() => {
+-    if (token) {
+-      fetchNotificacoes(token);
+-      // intervalRef.current = setInterval(() => fetchNotificacoes(token), 300000); // Desativado para limpar os logs
+-    }
++    if (!token) return;
++    fetchNotificacoes(token);
++    intervalRef.current = setInterval(() => {
++      if (document.visibilityState === "visible") {
++        fetchNotificacoes(token);
++      }
++    }, 300000);
+     return () => {
+       if (intervalRef.current) clearInterval(intervalRef.current);
+     };
+   }, [token, fetchNotificacoes]);
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@frontend/src/areas/defensor/contexts/AuthContext.jsx` around lines 85 - 94,
+The polling was commented out causing notificacoes to stale; restore periodic
+polling in the useEffect that references token/fetchNotificacoes by re-enabling
+setInterval and assigning it to intervalRef.current, use a larger interval (e.g.
+15 minutes) and wrap each tick with a visibility check (document.visibilityState
+=== "visible") before calling fetchNotificacoes(token), and suppress or route
+successful fetch logs inside fetchNotificacoes so you don't spam the console;
+ensure the cleanup still clears intervalRef.current with
+clearInterval(intervalRef.current). If you intentionally keep polling disabled,
+instead remove intervalRef and the clearInterval cleanup to avoid dead code and
+update NotificacoesBell consumers accordingly.
+backend/src/controllers/casosController.js (1)
+2041-2059: ⚠️ Potential issue | 🔴 Critical
+
+O ticket ainda não está vinculado ao arquivo até o fim do fluxo.
+
+O payload agora carrega path/bucket, mas baixarDocumentoIndividual continua baixando a partir de req.query.path sem comparar com req.ticket. Isso ainda permite reutilizar um ticket válido com um path adulterado, então o hardening contra tampering ficou incompleto.
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@backend/src/controllers/casosController.js` around lines 2041 - 2059, The
+ticket payload sets path and bucket but the download handler still reads
+req.query.path, leaving tampering possible; update the baixarDocumentoIndividual
+handler to read and validate the download source from the verified ticket (e.g.,
+use req.ticket.path and req.ticket.bucket or compare req.query.path/bucket
+against req.ticket.path/bucket) and reject the request if they differ, and
+ensure jwt.sign usage that creates the ticket (payload and expiresIn) remains
+compatible with the verification code so the handler only accepts the
+path/bucket embedded in the token.
+frontend/src/areas/defensor/pages/DetalhesCaso.jsx (1)
+263-269: ⚠️ Potential issue | 🟠 Major
+
+Use url_peticao como chave no fallback de minuta única.
+
+Quando esse card cai no ramo de caso.url_documento_gerado, o arquivo exibido é a petição principal, mas o key enviado no upload virou url_peticao_execucao_penhora. No backend essa chave fica só no JSONB; a coluna canônica da minuta única continua sendo url_peticao. Isso deixa substituição, limpeza e leitura posteriores inconsistentes para casos sem múltiplos ritos.
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@frontend/src/areas/defensor/pages/DetalhesCaso.jsx` around lines 263 - 269,
+The docs.push entry currently always sets key to "url_peticao_execucao_penhora"
+even when the selected URL falls back to caso.url_documento_gerado (the
+single-minute file), causing inconsistent backend canonical column usage; update
+the logic in the docs.push call (the block building key/label/url) to set key to
+"url_peticao" when the resolved url is caso.url_documento_gerado (otherwise keep
+"url_peticao_execucao_penhora"), i.e., detect which source
+(caso.url_peticao_execucao_penhora | caso.url_peticao_penhora |
+caso.url_documento_gerado) was chosen and choose key "url_peticao" for the
+caso.url_documento_gerado branch so uploads map to the canonical column.
+frontend/src/areas/servidor/components/StepRequerido.jsx (1)
+62-66: ⚠️ Potential issue | 🟠 Major
+
+Chave de erro inconsistente com o submissionService — a mensagem nunca será exibida.
+
+Após a alteração em submissionService.js (linha 30), a validação passou a gravar o erro em validationErrors.REQUERIDO_NOME, mas este bloco continua lendo formErrors.nomeRequerido. Como o nome do campo (name="REQUERIDO_NOME") e a chave gravada na validação agora usam o formato em maiúsculas, o aria-invalid e o <p> com a mensagem "Informe o nome completo da outra parte." jamais serão ativados.
+
+Alinhe a leitura à chave efetivamente gravada:
+
+🛠️ Correção proposta
+-              aria-invalid={Boolean(formErrors.nomeRequerido)}
++              aria-invalid={Boolean(formErrors.REQUERIDO_NOME)}
+             />
+-            {formErrors.nomeRequerido && (
+-              <p className="text-xs text-red-500 mt-1">{formErrors.nomeRequerido}</p>
++            {formErrors.REQUERIDO_NOME && (
++              <p className="text-xs text-red-500 mt-1">{formErrors.REQUERIDO_NOME}</p>
+             )}
+Alternativa: manter nomeRequerido aqui e reverter a chave usada em submissionService.js para o mesmo nome — o importante é que a chave do lado da validação e a do lado da exibição coincidam.
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@frontend/src/areas/servidor/components/StepRequerido.jsx` around lines 62 -
+66, The UI currently checks formErrors.nomeRequerido but the validator writes
+validationErrors.REQUERIDO_NOME (and the input name is "REQUERIDO_NOME"), so
+update StepRequerido.jsx to read the correct key: replace usages of
+formErrors.nomeRequerido (including aria-invalid={Boolean(...)} and the <p>
+message) with formErrors.REQUERIDO_NOME so the aria-invalid and error message
+("Informe o nome completo da outra parte.") reflect the actual validation state;
+alternatively keep the UI key and change submissionService.js to write the same
+nomeRequerido key—ensure both sides use the identical key (e.g., REQUERIDO_NOME)
+so formErrors and validationErrors match.
+frontend/src/areas/servidor/components/StepDadosPessoais.jsx (1)
+53-53: ⚠️ Potential issue | 🟠 Major
+
+isCpfOpcional é dead code e silencia a flag isCpfRepresentanteOpcional de forma não intencional.
+
+A variável declarada na linha 53 nunca é consumida no componente. Além disso, a configuração isCpfRepresentanteOpcional é ainda ativa em ações como família (frontend/src/config/formularios/acoes/familia.js, linha 53), onde está explicitamente configurada como true com o comentário "CPF da mãe é opcional". Com esta mudança, o fluxo de família passa a exigir CPF do representante incondicionalmente, quebrando a regra de negócio documentada.
+
+Duas ações necessárias:
+
+Remover a declaração de isCpfOpcional da linha 53 — é código morto que confunde a intenção.
+Confirmar ou restaurar a lógica condicional para respeitar isCpfRepresentanteOpcional em ações como família. Se CPF deve ser sempre obrigatório, remova a flag de todas as configurações de ações; caso contrário, restaure o comportamento condicional.
+Remoção sugerida
+-  const isCpfOpcional = configAcao?.isCpfRepresentanteOpcional || false;
+-
+   return (
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@frontend/src/areas/servidor/components/StepDadosPessoais.jsx` at line 53, The
+declaration const isCpfOpcional = configAcao?.isCpfRepresentanteOpcional ||
+false in StepDadosPessoais.jsx is dead code and unintentionally silences the
+isCpfRepresentanteOpcional flag; remove this declaration and restore the
+conditional logic that actually checks configAcao.isCpfRepresentanteOpcional
+where the CPF-required behavior is decided (e.g., in the form validation/field
+rendering logic inside StepDadosPessoais.jsx), ensuring actions like família
+(configured in familia.js with isCpfRepresentanteOpcional: true) keep CPF
+optional unless you intentionally remove that flag from action configs.
+♻️ Duplicate comments (1)
+claude.md (1)
+1159-1159: ⚠️ Potential issue | 🟠 Major
+
+Risco LGPD repetido na métrica qualitativa de arquivamento.
+
+A análise qualitativa de texto livre pode carregar PII; mantenha BI em dados categorizados/sanitizados para preservar a regra de “Zero PII”.
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@claude.md` at line 1159, Replace the free-text qualitative metric "Motivos de
+Arquivamento: Análise qualitativa" with a sanitized/categorical field or ensure
+strict PII redaction before storage; specifically update the section heading
+"**Motivos de Arquivamento:**" and any references to "análise qualitativa" to
+use predefined categories or a sanitization pipeline that strips PII, so BI
+reports consume only non-PII categorical data.
+🧹 Nitpick comments (6)
+arquivos/Conhecimento/01-Referencia/ARCHITECTURE.md (1)
+3-3: Padronize “Performance” para “Desempenho” no cabeçalho.
+
+Na Line 3, sugiro trocar “Índices Performance” por “Índices de Desempenho” para manter consistência terminológica em PT-BR.
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@arquivos/Conhecimento/01-Referencia/ARCHITECTURE.md` at line 3, The header
+line contains mixed-language terminology — replace the phrase "Índices
+Performance" with the Portuguese-equivalent "Índices de Desempenho" so the
+header reads "**Versão:** 3.0 · **Atualizado em:** 2026-04-23 (Módulo BI +
+Índices de Desempenho + Download Tickets)"; update the exact string in
+ARCHITECTURE.md where the current header line contains "Índices Performance".
+claude.md (1)
+13-13: Padronize “Performance” para “Desempenho” também neste documento consolidado.
+
+Na Line 13, manter o mesmo termo em PT-BR evita divergência de linguagem entre documentos de referência.
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@claude.md` at line 13, No cabeçalho que contém "Versão: 3.0 · Atualizado em:
+2026-04-23 (Módulo BI + Índices Performance + Download Tickets)" substitua o
+termo "Performance" por "Desempenho" para padronizar o PT-BR; localize a string
+que contém "Índices Performance" (ou apenas "Performance") e altere para
+"Índices Desempenho" mantendo o restante do texto igual.
+arquivos/Conhecimento/04-Historico/feitos/.dockerignoreoff (1)
+8-9: Detalhe API_BASE_URL precisa explicitar cenário Docker vs execução direta.
+
+Hoje o texto pode induzir configuração incorreta entre ambientes. Sugiro documentar ambos os exemplos explicitamente para evitar fallback indevido no QStash.
+
+Also applies to: 22-22
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@arquivos/Conhecimento/04-Historico/feitos/.dockerignoreoff` around lines 8 -
+9, Clarify the API_BASE_URL guidance so it explicitly shows the two scenarios
+(local direct run vs Docker) and the production example: state that
+QStash/Upstash requires a public reachable URL, for direct local runs use
+http://localhost:8000, for Docker containers on macOS/Windows use
+http://host.docker.internal:8000 (or map ports) and for deployment use the
+Railway service URL (e.g. https://seu-backend.railway.app); update the paragraph
+referencing API_BASE_URL and QStash/Upstash to include both examples and a short
+note to set API_BASE_URL to the correct value for the environment to avoid
+fallback/misconfiguration.
+arquivos/Conhecimento/04-Historico/feitos/task_list_hardening.md (1)
+83-103: Task 04 fica frágil ao usar if em cascata — preferir um map literal para evitar drift com a allowlist.
+
+O bloco de 4 if (linhas 93–96) replica manualmente a allowlist da Task 02. Qualquer nova chave direta adicionada em ALLOWED_MINUTA_KEYS exige alteração em dois lugares, aumentando a chance de esquecer um dos pontos. Reduz para uma única fonte da verdade:
+
+✏️ Sugestão (reuso de `DIRECT_COLUMN_KEYS`)
+- if (documentKey === "url_peticao")          iaUpdateData.url_peticao = storagePath;
+- if (documentKey === "url_peticao_penhora")  iaUpdateData.url_peticao_penhora = storagePath;
+- if (documentKey === "url_peticao_prisao")   iaUpdateData.url_peticao_prisao = storagePath;
+- if (documentKey === "url_termo_declaracao") iaUpdateData.url_termo_declaracao = storagePath;
++ // DIRECT_COLUMN_KEYS é a única fonte da verdade sobre colunas diretas.
++ if (DIRECT_COLUMN_KEYS.has(documentKey)) {
++   iaUpdateData[documentKey] = storagePath;
++ }
+DIRECT_COLUMN_KEYS pode ser declarado junto de ALLOWED_MINUTA_KEYS (Task 02) como subset "colunas diretas conhecidas", mantendo as chaves estáticas e não-dinâmicas (o executor não está escrevendo iaUpdateData[userInput] — o has() já valida contra um Set fechado).
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@arquivos/Conhecimento/04-Historico/feitos/task_list_hardening.md` around
+lines 83 - 103, Replace the cascading ifs that write into iaUpdateData with a
+single, deterministic mapping driven by the existing allowlist subset: use the
+DIRECT_COLUMN_KEYS (declare it alongside ALLOWED_MINUTA_KEYS if not present) as
+the single source of truth for which direct columns may be set, iterate over
+DIRECT_COLUMN_KEYS to set iaUpdateData only for those known keys, and keep
+writing any other extracted keys into updatedExtras/dados_extraidos; ensure that
+updates to url_peticao_penhora update both casos_ia.url_peticao_penhora
+(iaUpdateData) and casos_ia.dados_extraidos (via updatedExtras) so no
+dynamic/user-derived keys are ever added to iaUpdateData.
+frontend/src/areas/servidor/services/submissionService.js (2)
+116-139: Validação por filho consistente, mas considere proteger contra estado residual.
+
+A exigência de filho.cpf por entrada faz sentido. Uma sugestão opcional: este bloco é executado mesmo quando assistidoEhIncapaz === "nao". Se o usuário adicionar filhos e depois voltar para "para mim mesmo", entradas residuais em outrosFilhos ainda serão validadas e bloquearão o envio com mensagens sobre "Filho(a) X". Envolver o forEach em if (formState.assistidoEhIncapaz === "sim") (como já é feito em 310/315) alinha o comportamento ao restante da função.
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@frontend/src/areas/servidor/services/submissionService.js` around lines 116 -
+139, The validation loop over formState.outrosFilhos currently runs
+unconditionally and can block submission when assistidoEhIncapaz === "nao";
+guard this block by checking formState.assistidoEhIncapaz === "sim" before
+iterating so the filho CPF and nascimento checks only run when the assisted is
+incapable (same behavior used elsewhere), i.e., wrap the existing forEach in an
+if (formState.assistidoEhIncapaz === "sim") conditional around the
+formState.outrosFilhos handling (references: formState.outrosFilhos,
+formState.assistidoEhIncapaz, validateCpfAlgorithm, validateBrDate,
+parseBrDateToIso).
+292-293: O backend realmente lê enviar_documentos_depois, mas o campo já está sendo enviado duas vezes.
+
+O controlador casosController.js (linhas 2464-2467) lê defensivamente ambas as formas:
+
+enviarDocumentosDepois (camelCase)
+enviar_documentos_depois (snake_case)
+Porém, o campo já é enviado camelCase pelo loop (linhas 266-290): valuesToSubmit = { ...formState } copia todo o estado e enviarDocumentosDepois não está em fieldsToIgnore. A linha 293 envia novamente em snake_case, criando redundância. O [EIXO 3] terá efeito, mas o desenvolvedor pode ter pressuposto erroneamente que o loop não itera formState camelCase. Considere remover a linha 293 ou adicionar enviarDocumentosDepois a fieldsToIgnore para manter apenas a forma snake_case explícita.
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@frontend/src/areas/servidor/services/submissionService.js` around lines 292 -
+293, The submission is sending the same flag twice: valuesToSubmit = {
+...formState } already includes the camelCase enviarDocumentosDepois (copied by
+the loop that builds formData), and then the code appends a second snake_case
+field via formData.append("enviar_documentos_depois", ...). Remove the
+redundancy by either deleting the explicit
+formData.append("enviar_documentos_depois", ...) line or add
+"enviarDocumentosDepois" to fieldsToIgnore so only the snake_case variant is
+appended; update the code near valuesToSubmit/fieldsToIgnore and the
+formData.append("enviar_documentos_depois", ...) call accordingly.
+🤖 Prompt for all review comments with AI agents
+Verify each finding against the current code and only fix it if needed.
+
+Inline comments:
+In `@AI_WORKFLOW.md`:
+- Around line 263-267: The diagram adds a state 'documentos_entregues' that the
+backend does not use: adjust the AI_WORKFLOW.md state machine to match the
+actual backend behavior by removing 'documentos_entregues' or updating its
+transitions so that receberDocumentosComplementares promotes the case directly
+to 'documentacao_completa' (i.e., change any transitions that route through
+'documentos_entregues' to instead go to 'documentacao_completa' and delete or
+mark 'documentos_entregues' as unused); ensure the terms 'documentos_entregues',
+'documentacao_completa', and 'receberDocumentosComplementares' in the document
+reflect the single canonical flow used by the backend.
+
+In `@arquivos/Conhecimento/01-Referencia/BUSINESS_RULES.md`:
+- Line 657: The free-text "Motivos de Arquivamento" qualitative analysis (Line
+657) can leak PII; change the process to require a controlled categorical field
+(e.g., motivos_de_arquivamento enum/taxonomy) instead of storing raw user text,
+and if free-text capture is necessary implement a sanitization/anonymization
+step in the ETL/BI ingestion pipeline (remove personal identifiers, hash or
+redact entities) before any BI use; update the BUSINESS_RULES.md entry to
+mandate the enum field and document the required anonymization pipeline for any
+legacy free-text data.
+
+In `@arquivos/Conhecimento/04-Historico/2026-04-23_mudancas.md`:
+- Line 15: Correct the spelling in the markdown heading/line that reads
+"Validação de Purpósito" to "Validação de Propósito"; locate the exact line
+containing the phrase and update the word "Purpósito" to "Propósito" while
+preserving the rest of the text (including the inline code tokens `casoId` and
+`download`) and punctuation.
+- Line 47: A entrada em 2026-04-23_mudancas.md declara "BUSINESS_RULES.md
+(v2.2)" e diverge do objetivo do PR que sobe ARCHITECTURE.md e DATABASE_MODEL.md
+para v3.0; se a intenção é atualizar BUSINESS_RULES para v3.0, altere essa
+menção para "BUSINESS_RULES.md (v3.0)" na linha correspondente e garanta que o
+título/resumo do PR e qualquer outro trecho do CHANGELOG também mencionem v3.0;
+se a decisão for manter BUSINESS_RULES em v2.2, ajuste o resumo do PR e o corpo
+do PR para refletir que apenas ARCHITECTURE.md e DATABASE_MODEL.md sobem para
+v3.0, mantendo BUSINESS_RULES em v2.2, para que todos os textos fiquem
+consistentes.
+
+In `@arquivos/Conhecimento/04-Historico/BI`:
+- Line 211: The document uses two different localStorage keys for the toolbar
+preferences—localStorage["bi_prefs"] (section/line referencing the toolbar) and
+localStorage["bi_prefs_v1"] (the hook/Etapa 4); pick a single canonical key
+(preferably the versioned "bi_prefs_v1") and update all references so they
+match, including the toolbar description and the hook that reads/writes prefs,
+to avoid dual persistence and ensure future schema invalidation works
+consistently.
+- Around line 134-144: The current baseWhere and arquivadosWhere objects always
+include created_at: dateRange / updated_at: dateRange which can insert
+created_at: undefined when periodo === "mutirao"; change them to conditionally
+spread those keys so they are omitted when periodo === "mutirao" (e.g. use the
+pattern ...(periodo !== "mutirao" && { created_at: dateRange }) for baseWhere
+and ...(periodo !== "mutirao" && { updated_at: dateRange }) for arquivadosWhere)
+and ensure the code that computes dateRange (e.g., buildDateRange) remains the
+source of truth for the value.
+- Around line 146-155: Q4 currently violates both the LGPD rule forbidding any
+BI queries touching casos_partes and the architectural rule that child tables of
+casos must be queried via Supabase JS (it proposes Prisma on casos_partes);
+resolve by either (A) changing the LGPD statement to permit aggregate-only reads
+from casos_partes and document that exception, or (B) denormalizing the needed
+flag into the casos table (e.g., add a tipo_parte_autora or is_representacao
+boolean on casos) so BI queries read only casos via Supabase JS; after choosing,
+update references to Q4 and remove any Prisma usage against casos_partes in
+biController.js so the BI implementation only queries the approved column via
+Supabase JS.
+
+In `@arquivos/Conhecimento/04-Historico/feitos/.dockerignoreoff`:
+- Around line 21-27: The documentation change uses absolute local file URLs
+(e.g., file:///c:/Users/...) which are non-portable; update the entries in the
+diff and any related docs to use repository-relative paths instead (for example
+replace file:///.../.env and file:///.../src/controllers/casosController.js with
+.env and backend/src/controllers/casosController.js) and ensure the noted change
+to the function mapCasoRelations in casosController.js is referenced by its
+relative path so future readers can locate it.
+
+In `@arquivos/Conhecimento/04-Historico/feitos/Plano` de Implementação — Hardening
+de Downloads e Substituição de Minutas:
+- Around line 149-164: The current loop avoids logging PII by using
+logger.error(... doc.id ...) but pushes doc.nome_original into arquivosFalharam
+which will be written into RELATORIO_ERROS.txt inside the ZIP; make explicit in
+the plan and code that including doc.nome_original in arquivosFalharam is an
+intentional, permitted choice because the ZIP is only delivered via a ticket
+linked to the assisted party (LGPD rationale), and add a short guard/comment
+around the push (or a conditional) stating that nome_original is only used when
+the ZIP is tied to a validated ticket; ensure archive.append still falls back to
+a safe identifier (documento_{doc.id}) if the ticket validation fails. Reference
+symbols: caso.documentos loop, logger.error, arquivosFalharam,
+doc.nome_original, archive.append and RELATORIO_ERROS.txt.
+- Around line 330-331: The API_BASE_URL value is inconsistent between this plan
+and task_list_hardening.md which will cause duplicated /api in webhooks; update
+the .env suggestion and this document to use the same canonical form (no
+trailing /api) and the correct local backend port
+(API_BASE_URL=http://localhost:8001) as described in task_list_hardening.md, and
+ensure any mentions of adding the /api suffix are removed or replaced with a
+note that the prefix is appended internally (affecting QStash callbacks and
+webhook URLs).
+
+In `@arquivos/Conhecimento/04-Historico/feitos/task_list_hardening.md`:
+- Around line 172-182: The guard currently lets requests through when
+req.ticket?.casoId is undefined; change it to fail-closed: in the
+middleware/handler that checks req.ticket?.casoId vs id (used on GET
+/:id/download-zip and populated by validateDownloadTicket), return a 401/403
+when req.ticket is missing or req.ticket.casoId is undefined and log a clear
+error mentioning missing casoId (include request id/params) so any regression in
+gerarTicketDownload is visible; update the acceptance criterion to require
+requests with no casoId to be blocked with 403.
+- Around line 17-23: Update the outdated "Plano de Implementação — Hardening…"
+entry (around the noted line) to match task_list_hardening.md: change the local
+API URL to use port 8001 and remove the trailing /api (i.e., use
+http://localhost:8001); mention that Dockerfile/docker-compose.yml expose port
+8001 and that casosController.js (which strips/reapplies /api) and
+buildSignedUrl consume API_BASE_URL without a trailing /api so the document must
+not add it.
+
+In `@arquivos/Conhecimento/04-Historico/task_BI`:
+- Around line 22-31: The review flags an LGPD/policy conflict for the refactor
+of resumoCasos: you must not blindly change in-memory loops to groupBy/Prisma
+queries that touch casos_partes; decide and document whether (a) move the
+"representacao vs proprio" indicator into a denormalized boolean on the casos
+table (e.g., tem_representacao) and update triage logic so resumoCasos only
+queries casos, or (b) explicitly allow read-only aggregated queries on
+casos_partes (using Supabase JS as required) with a written data-access
+exception; then implement the chosen approach in resumoCasos (replace
+findMany+in-memory counting with the appropriate groupBy/aggregate or use the
+denormalized field) and update references to casos_partes.count, ensuring
+response shape from resumoCasos remains exactly unchanged and the decision is
+recorded in the BI/LGPD plan.
+- Around line 44-51: Add the project's JWT auth middleware so it runs before the
+inline requireAdmin guard to avoid req.user being undefined: either call
+router.use(authMiddleware) at the top of bi.js or register the routes with
+app.use('/api/bi', authMiddleware, biRoutes) where biRoutes is the exported
+router; additionally harden the requireAdmin middleware (the function named
+requireAdmin) to first check if req.user exists and return 401/403 if not before
+inspecting req.user.cargo so the guard never throws when auth middleware is
+accidentally omitted.
+- Around line 100-106: The new BI route should be lazy-loaded and protected by
+the existing admin gate: add the dynamic import const Relatorios = lazy(() =>
+import('./areas/defensor/pages/Relatorios')) and register the route
+path="/painel/relatorios" with element={<AdminRoute><Relatorios /></AdminRoute>}
+(i.e. wrap the Relatorios element in AdminRoute following the established
+pattern) so the page shell won't render for non-admin users; update the route
+tree registration in App.jsx where other admin routes are declared to match the
+project's AdminRoute usage.
+- Around line 54-60: Replace the CommonJS require usage for the BI routes with
+an ESM import in server.js: remove or replace the line that uses
+require('./src/routes/bi.js') and instead import the module via an ESM import
+statement, then mount it with app.use('/api/bi', biRoutes) (ensure the imported
+name matches the exported router from src/routes/bi.js). Verify the import path
+and exported symbol from src/routes/bi.js and confirm the /api/bi/gerar endpoint
+becomes reachable by the frontend.
+
+In `@backend/src/controllers/casosController.js`:
+- Around line 291-296: The fallback uses caso.unidade?.comarca but the Supabase
+queries in carregarCasoDetalhado() and obterDetalhesCaso() only select
+unidade:unidades(sistema), so comarca is never fetched; update the Supabase
+select projections in both carregarCasoDetalhado() and obterDetalhesCaso() to
+include unidade.comarca (e.g., add comarca to the unidades(...) selection) so
+that enriched.CIDADEASSINATURA can fall back to caso.unidade?.comarca when
+juridico and form fields are absent.
+- Around line 4238-4246: O push para `novosUrls` ocorre antes de checar se
+`supabase.from("documentos").insert(...)` foi bem-sucedido; mude a ordem e só
+adicione `filePath` a `novosUrls` após o `await
+supabase.from("documentos").insert(...)` retornar sucesso, verificando
+explicitamente resultado/erro; em caso de falha no `insert` trate como
+`uploadError` (registre o erro, faça rollback do arquivo no storage se
+necessário) e impeça que o controller continue mudando status ou dispare
+processamento subsequente (referenciar `novosUrls`,
+`supabase.from("documentos").insert`, `docFile`, `uploadError`).
+- Around line 4253-4260: The local fallback is saving storage_path with a
+duplicated "documentos/" prefix (variable relativePath) which later causes
+buildSignedUrl("documentos", storage_path) to produce paths like
+/api/files/documentos/documentos/..., so update the assignment used before
+prisma.documentos.create to omit the leading "documentos/" (i.e., set
+relativePath to `${caso.protocolo}/${path.basename(localPath)}` or otherwise
+match the existing pattern `${protocolo}/arquivo.ext`) so that storage_path
+stored by prisma.documentos.create aligns with other code that expects paths
+relative to the bucket name.
+- Around line 3795-3799: Replace the redundant direct Prisma query
+prisma.casos_ia.findUnique(...) with the already-loaded relation on the returned
+object from carregarCasoDetalhado: use caso.ia (or caso.casos_ia /
+resolveRel(caso, 'casos_ia') if the relation is named differently) and pass its
+dados_extraidos into safeJsonParse instead of querying by BigInt(id); remove the
+prisma.casos_ia.findUnique call and any BigInt(id) conversion to avoid
+UUID/BigInt mismatches.
+
+---
+
+Outside diff comments:
+In `@backend/src/controllers/casosController.js`:
+- Around line 2041-2059: The ticket payload sets path and bucket but the
+download handler still reads req.query.path, leaving tampering possible; update
+the baixarDocumentoIndividual handler to read and validate the download source
+from the verified ticket (e.g., use req.ticket.path and req.ticket.bucket or
+compare req.query.path/bucket against req.ticket.path/bucket) and reject the
+request if they differ, and ensure jwt.sign usage that creates the ticket
+(payload and expiresIn) remains compatible with the verification code so the
+handler only accepts the path/bucket embedded in the token.
+
+In `@frontend/src/areas/defensor/contexts/AuthContext.jsx`:
+- Around line 85-94: The polling was commented out causing notificacoes to
+stale; restore periodic polling in the useEffect that references
+token/fetchNotificacoes by re-enabling setInterval and assigning it to
+intervalRef.current, use a larger interval (e.g. 15 minutes) and wrap each tick
+with a visibility check (document.visibilityState === "visible") before calling
+fetchNotificacoes(token), and suppress or route successful fetch logs inside
+fetchNotificacoes so you don't spam the console; ensure the cleanup still clears
+intervalRef.current with clearInterval(intervalRef.current). If you
+intentionally keep polling disabled, instead remove intervalRef and the
+clearInterval cleanup to avoid dead code and update NotificacoesBell consumers
+accordingly.
+
+In `@frontend/src/areas/defensor/pages/DetalhesCaso.jsx`:
+- Around line 263-269: The docs.push entry currently always sets key to
+"url_peticao_execucao_penhora" even when the selected URL falls back to
+caso.url_documento_gerado (the single-minute file), causing inconsistent backend
+canonical column usage; update the logic in the docs.push call (the block
+building key/label/url) to set key to "url_peticao" when the resolved url is
+caso.url_documento_gerado (otherwise keep "url_peticao_execucao_penhora"), i.e.,
+detect which source (caso.url_peticao_execucao_penhora |
+caso.url_peticao_penhora | caso.url_documento_gerado) was chosen and choose key
+"url_peticao" for the caso.url_documento_gerado branch so uploads map to the
+canonical column.
+
+In `@frontend/src/areas/servidor/components/StepDadosPessoais.jsx`:
+- Line 53: The declaration const isCpfOpcional =
+configAcao?.isCpfRepresentanteOpcional || false in StepDadosPessoais.jsx is dead
+code and unintentionally silences the isCpfRepresentanteOpcional flag; remove
+this declaration and restore the conditional logic that actually checks
+configAcao.isCpfRepresentanteOpcional where the CPF-required behavior is decided
+(e.g., in the form validation/field rendering logic inside
+StepDadosPessoais.jsx), ensuring actions like família (configured in familia.js
+with isCpfRepresentanteOpcional: true) keep CPF optional unless you
+intentionally remove that flag from action configs.
+
+In `@frontend/src/areas/servidor/components/StepRequerido.jsx`:
+- Around line 62-66: The UI currently checks formErrors.nomeRequerido but the
+validator writes validationErrors.REQUERIDO_NOME (and the input name is
+"REQUERIDO_NOME"), so update StepRequerido.jsx to read the correct key: replace
+usages of formErrors.nomeRequerido (including aria-invalid={Boolean(...)} and
+the <p> message) with formErrors.REQUERIDO_NOME so the aria-invalid and error
+message ("Informe o nome completo da outra parte.") reflect the actual
+validation state; alternatively keep the UI key and change submissionService.js
+to write the same nomeRequerido key—ensure both sides use the identical key
+(e.g., REQUERIDO_NOME) so formErrors and validationErrors match.
+
+---
+
+Duplicate comments:
+In `@claude.md`:
+- Line 1159: Replace the free-text qualitative metric "Motivos de Arquivamento:
+Análise qualitativa" with a sanitized/categorical field or ensure strict PII
+redaction before storage; specifically update the section heading "**Motivos de
+Arquivamento:**" and any references to "análise qualitativa" to use predefined
+categories or a sanitization pipeline that strips PII, so BI reports consume
+only non-PII categorical data.
+
+---
+
+Nitpick comments:
+In `@arquivos/Conhecimento/01-Referencia/ARCHITECTURE.md`:
+- Line 3: The header line contains mixed-language terminology — replace the
+phrase "Índices Performance" with the Portuguese-equivalent "Índices de
+Desempenho" so the header reads "**Versão:** 3.0 · **Atualizado em:** 2026-04-23
+(Módulo BI + Índices de Desempenho + Download Tickets)"; update the exact string
+in ARCHITECTURE.md where the current header line contains "Índices Performance".
+
+In `@arquivos/Conhecimento/04-Historico/feitos/.dockerignoreoff`:
+- Around line 8-9: Clarify the API_BASE_URL guidance so it explicitly shows the
+two scenarios (local direct run vs Docker) and the production example: state
+that QStash/Upstash requires a public reachable URL, for direct local runs use
+http://localhost:8000, for Docker containers on macOS/Windows use
+http://host.docker.internal:8000 (or map ports) and for deployment use the
+Railway service URL (e.g. https://seu-backend.railway.app); update the paragraph
+referencing API_BASE_URL and QStash/Upstash to include both examples and a short
+note to set API_BASE_URL to the correct value for the environment to avoid
+fallback/misconfiguration.
+
+In `@arquivos/Conhecimento/04-Historico/feitos/task_list_hardening.md`:
+- Around line 83-103: Replace the cascading ifs that write into iaUpdateData
+with a single, deterministic mapping driven by the existing allowlist subset:
+use the DIRECT_COLUMN_KEYS (declare it alongside ALLOWED_MINUTA_KEYS if not
+present) as the single source of truth for which direct columns may be set,
+iterate over DIRECT_COLUMN_KEYS to set iaUpdateData only for those known keys,
+and keep writing any other extracted keys into updatedExtras/dados_extraidos;
+ensure that updates to url_peticao_penhora update both
+casos_ia.url_peticao_penhora (iaUpdateData) and casos_ia.dados_extraidos (via
+updatedExtras) so no dynamic/user-derived keys are ever added to iaUpdateData.
+
+In `@claude.md`:
+- Line 13: No cabeçalho que contém "Versão: 3.0 · Atualizado em: 2026-04-23
+(Módulo BI + Índices Performance + Download Tickets)" substitua o termo
+"Performance" por "Desempenho" para padronizar o PT-BR; localize a string que
+contém "Índices Performance" (ou apenas "Performance") e altere para "Índices
+Desempenho" mantendo o restante do texto igual.
+
+In `@frontend/src/areas/servidor/services/submissionService.js`:
+- Around line 116-139: The validation loop over formState.outrosFilhos currently
+runs unconditionally and can block submission when assistidoEhIncapaz === "nao";
+guard this block by checking formState.assistidoEhIncapaz === "sim" before
+iterating so the filho CPF and nascimento checks only run when the assisted is
+incapable (same behavior used elsewhere), i.e., wrap the existing forEach in an
+if (formState.assistidoEhIncapaz === "sim") conditional around the
+formState.outrosFilhos handling (references: formState.outrosFilhos,
+formState.assistidoEhIncapaz, validateCpfAlgorithm, validateBrDate,
+parseBrDateToIso).
+- Around line 292-293: The submission is sending the same flag twice:
+valuesToSubmit = { ...formState } already includes the camelCase
+enviarDocumentosDepois (copied by the loop that builds formData), and then the
+code appends a second snake_case field via
+formData.append("enviar_documentos_depois", ...). Remove the redundancy by
+either deleting the explicit formData.append("enviar_documentos_depois", ...)
+line or add "enviarDocumentosDepois" to fieldsToIgnore so only the snake_case
+variant is appended; update the code near valuesToSubmit/fieldsToIgnore and the
+formData.append("enviar_documentos_depois", ...) call accordingly.
+🪄 Autofix (Beta)
+Fix all unresolved CodeRabbit comments on this PR:
+
+ Push a commit to this branch (recommended)
+ Create a new PR with the fixes
+ℹ️ Review info ⚙️ Run configuration
+💤 Files with no reviewable changes (1)
+frontend/src/areas/servidor/pages/EnvioDoc.jsx
+In AI_WORKFLOW.md:
+
+> +    → documentacao_completa   (scanner finaliza upload via /api/scanner/upload)
++    → documentos_entregues    (assistido faz upload complementar)
++
++documentos_entregues
++    → documentacao_completa   (scanner processa os novos documentos)
+⚠️ Potential issue | 🟡 Minor
+
+O diagrama agora documenta um status que o backend não usa.
+
+documentos_entregues entrou na máquina de estados, mas receberDocumentosComplementares continua promovendo o caso direto para documentacao_completa. Como este guia é usado como contexto-base para IA, essa divergência vai induzir planos e implementações errados.
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@AI_WORKFLOW.md` around lines 263 - 267, The diagram adds a state
+'documentos_entregues' that the backend does not use: adjust the AI_WORKFLOW.md
+state machine to match the actual backend behavior by removing
+'documentos_entregues' or updating its transitions so that
+receberDocumentosComplementares promotes the case directly to
+'documentacao_completa' (i.e., change any transitions that route through
+'documentos_entregues' to instead go to 'documentacao_completa' and delete or
+mark 'documentos_entregues' as unused); ensure the terms 'documentos_entregues',
+'documentacao_completa', and 'receberDocumentosComplementares' in the document
+reflect the single canonical flow used by the backend.
+In arquivos/Conhecimento/01-Referencia/BUSINESS_RULES.md:
+
+> +---
++
++## 12. Inteligência de Dados (Módulo BI)
++
++O módulo de BI é restrito exclusivamente a administradores e foca em métricas de produtividade e throughput sem comprometer dados sensíveis.
++
++### 12.1 Princípios de LGPD no BI
++- **Zero PII (Personally Identifiable Information):** As queries de BI nunca acessam as tabelas `casos_partes` ou campos de qualificação.
++- **Agregação Obrigatória:** Dados são exibidos apenas em formatos agregados (contagens, médias, percentuais).
++- **Exportação Segura:** O arquivo XLSX gerado para download segue as mesmas restrições de vedação de dados pessoais.
++
++### 12.2 Métricas Monitoradas
++- **Throughput de Triagem:** Casos criados por dia/sede.
++- **Conversão de Protocolo:** Percentual de casos que chegam ao status `protocolado`.
++- **Eficiência da IA:** Tempo médio entre `processing_started_at` e `processed_at`.
++- **Motivos de Arquivamento:** Análise qualitativa de por que os casos estão sendo encerrados sem protocolo.
+⚠️ Potential issue | 🟠 Major
+
+Risco LGPD na métrica qualitativa de motivos de arquivamento.
+
+Na Line 657, análise qualitativa de texto livre pode reintroduzir PII e conflitar com “Zero PII”. Recomendo exigir categorização controlada (enum/taxonomia) ou sanitização/anonymização antes de qualquer uso no BI.
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@arquivos/Conhecimento/01-Referencia/BUSINESS_RULES.md` at line 657, The
+free-text "Motivos de Arquivamento" qualitative analysis (Line 657) can leak
+PII; change the process to require a controlled categorical field (e.g.,
+motivos_de_arquivamento enum/taxonomy) instead of storing raw user text, and if
+free-text capture is necessary implement a sanitization/anonymization step in
+the ETL/BI ingestion pipeline (remove personal identifiers, hash or redact
+entities) before any BI use; update the BUSINESS_RULES.md entry to mandate the
+enum field and document the required anonymization pipeline for any legacy
+free-text data.
+In arquivos/Conhecimento/04-Historico/2026-04-23_mudancas.md:
+
+> @@ -0,0 +1,49 @@
++# Mudanças Realizadas — 23/04/2026
++### Mães em Ação · DPE-BA · v3.0 (Draft)
++
++Este documento resume as mudanças realizadas no ciclo de desenvolvimento de hoje, focadas em Segurança de Documentos, Refinamentos de Fluxo e Preparação para o Módulo de BI.
++
++---
++
++## 1. Segurança e Hardening de Downloads [CONCLUÍDO]
++
++Refatoração crítica do fluxo de acesso a documentos para conformidade com LGPD e prevenção de IDOR.
++
++- **Download Tickets (JWT):** Implementado endpoint `POST /:id/gerar-ticket-download` para gerar tokens de curta duração (10 min) específicos para download.
++- **Isolamento de Token:** O JWT principal do usuário nunca é exposto na URL de download dos arquivos.
++- **Streaming Seguro:** Refatoração do download de ZIP e download individual para validar o ticket e realizar o streaming do Supabase Storage com tratamento de erro.
++- **Validação de Purpósito:** O ticket possui binding com o `casoId` e o propósito `download`, impedindo reutilização para outras ações.
+⚠️ Potential issue | 🟡 Minor
+
+Typo: "Purpósito" → "Propósito".
+
+Pequena correção ortográfica na linha 15.
+
+✏️ Diff
+- - **Validação de Purpósito:** O ticket possui binding com o `casoId` e o propósito `download`, impedindo reutilização para outras ações.
++ - **Validação de Propósito:** O ticket possui binding com o `casoId` e o propósito `download`, impedindo reutilização para outras ações.
+📝 Committable suggestion
+‼️ IMPORTANT
+Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+
+⬇️ Suggested change
+-- **Validação de Purpósito:** O ticket possui binding com o `casoId` e o propósito `download`, impedindo reutilização para outras ações.
++- **Validação de Propósito:** O ticket possui binding com o `casoId` e o propósito `download`, impedindo reutilização para outras ações.
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@arquivos/Conhecimento/04-Historico/2026-04-23_mudancas.md` at line 15,
+Correct the spelling in the markdown heading/line that reads "Validação de
+Purpósito" to "Validação de Propósito"; locate the exact line containing the
+phrase and update the word "Purpósito" to "Propósito" while preserving the rest
+of the text (including the inline code tokens `casoId` and `download`) and
+punctuation.
+In arquivos/Conhecimento/04-Historico/2026-04-23_mudancas.md:
+
+> +
++---
++
++## 3. Inteligência de Dados (Módulo BI) [PLANEJADO / EM ANDAMENTO]
++
++A fundação para o novo módulo de BI foi estabelecida, mas a implementação das rotas e UI está em fase de execução.
++
++- **Documentação de BI:** Criado o Plano Final de BI e a Lista de Tarefas (`task_BI`) em `04-Historico`.
++- **Arquitetura de Dados:** Mapeados os 4 novos índices compostos necessários no PostgreSQL para alta performance de agregação.
++- **Regras de Negócio:** Atualizada a `BUSINESS_RULES.md` com os princípios de LGPD para o módulo de BI.
++
++---
++
++## 4. Manutenção de Documentação e Housekeeping
++
++- **Versionamento:** Atualização da `ARCHITECTURE.md` (v3.0), `BUSINESS_RULES.md` (v2.2) e `DATABASE_MODEL.md` (v3.0).
+⚠️ Potential issue | 🟡 Minor
+
+Versão de BUSINESS_RULES.md diverge do resto do PR.
+
+Esta linha declara BUSINESS_RULES.md (v2.2), mas tanto o objetivo do PR quanto o resumo do ciclo listam BUSINESS_RULES.md no pacote v3.0 junto de ARCHITECTURE.md e DATABASE_MODEL.md. Se a política do PR é subir as três para v3.0, ajustar aqui; caso BUSINESS_RULES permaneça em v2.2 por escopo, alinhar também o texto do PR e o resumo para não gerar dúvida no histórico.
+
+✏️ Diff sugerido (se a decisão é v3.0)
+- - **Versionamento:** Atualização da `ARCHITECTURE.md` (v3.0), `BUSINESS_RULES.md` (v2.2) e `DATABASE_MODEL.md` (v3.0).
++ - **Versionamento:** Atualização da `ARCHITECTURE.md` (v3.0), `BUSINESS_RULES.md` (v3.0) e `DATABASE_MODEL.md` (v3.0).
+📝 Committable suggestion
+‼️ IMPORTANT
+Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+
+⬇️ Suggested change
+-- **Versionamento:** Atualização da `ARCHITECTURE.md` (v3.0), `BUSINESS_RULES.md` (v2.2) e `DATABASE_MODEL.md` (v3.0).
++- **Versionamento:** Atualização da `ARCHITECTURE.md` (v3.0), `BUSINESS_RULES.md` (v3.0) e `DATABASE_MODEL.md` (v3.0).
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@arquivos/Conhecimento/04-Historico/2026-04-23_mudancas.md` at line 47, A
+entrada em 2026-04-23_mudancas.md declara "BUSINESS_RULES.md (v2.2)" e diverge
+do objetivo do PR que sobe ARCHITECTURE.md e DATABASE_MODEL.md para v3.0; se a
+intenção é atualizar BUSINESS_RULES para v3.0, altere essa menção para
+"BUSINESS_RULES.md (v3.0)" na linha correspondente e garanta que o título/resumo
+do PR e qualquer outro trecho do CHANGELOG também mencionem v3.0; se a decisão
+for manter BUSINESS_RULES em v2.2, ajuste o resumo do PR e o corpo do PR para
+refletir que apenas ARCHITECTURE.md e DATABASE_MODEL.md sobem para v3.0,
+mantendo BUSINESS_RULES em v2.2, para que todos os textos fiquem consistentes.
+In arquivos/Conhecimento/04-Historico/BI:
+
+> +const baseWhere = {
++  arquivado: false,
++  created_at: dateRange,          // só se não for "mutirao"
++  ...(unidade_id !== "todas" && { unidade_id }),
++}
++
++const arquivadosWhere = {
++  arquivado: true,
++  updated_at: dateRange,          // data de arquivamento
++  ...(unidade_id !== "todas" && { unidade_id }),
++}
+⚠️ Potential issue | 🟡 Minor
+
+Pseudocódigo do baseWhere pode criar chave created_at: undefined quando periodo="mutirao".
+
+O comentário diz "só se não for 'mutirao'", mas a sintaxe literal created_at: dateRange sempre define a chave; se buildDateRange retornar undefined/null para "mutirao", o Prisma pode receber created_at: undefined e o Supabase JS pode falhar com filtro vazio. Deixar explícito no pseudocódigo (...(periodo !== "mutirao" && { created_at: dateRange })) evita que o executor copie literal e produza uma query com filtro nulo.
+
+Mesmo ponto para arquivadosWhere.updated_at.
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@arquivos/Conhecimento/04-Historico/BI` around lines 134 - 144, The current
+baseWhere and arquivadosWhere objects always include created_at: dateRange /
+updated_at: dateRange which can insert created_at: undefined when periodo ===
+"mutirao"; change them to conditionally spread those keys so they are omitted
+when periodo === "mutirao" (e.g. use the pattern ...(periodo !== "mutirao" && {
+created_at: dateRange }) for baseWhere and ...(periodo !== "mutirao" && {
+updated_at: dateRange }) for arquivadosWhere) and ensure the code that computes
+dateRange (e.g., buildDateRange) remains the source of truth for the value.
+In arquivos/Conhecimento/04-Historico/BI:
+
+> +// Q1: groupBy status (Supabase JS — tabela casos)
++// Q2: groupBy tipo_acao + take(topN) (Supabase JS)
++// Q3: groupBy unidade_id WHERE status=protocolado + JOIN unidades (2 queries: Supabase + Prisma)
++// Q4: count representacao vs proprio via casos_partes (Prisma — tabela partes)
++// Q5: AVG(processed_at - processing_started_at) WHERE both NOT NULL (Prisma raw query)
++// Q6: groupBy DATE(created_at) últimos N dias (Supabase JS)
++// Q7: groupBy DATE(protocolado_at) últimos N dias (Supabase JS)
++// Q8: groupBy motivo_arquivamento WHERE arquivado=true (Supabase JS)
++// Q9: count total arquivados + count por tipo_acao arquivados (Supabase JS)
++```
+⚠️ Potential issue | 🟠 Major
+
+Q4 contradiz as próprias regras de LGPD e de fronteira Supabase/Prisma declaradas neste documento.
+
+Duas inconsistências no bloco Q1–Q9:
+
+LGPD (linha 18): o próprio plano afirma "Nenhuma query de BI pode tocar casos_partes (CPF, nome, endereço)". No entanto, a Q4 (linha 149) propõe exatamente ler de casos_partes para contar representacao vs proprio. Mesmo que seja um count sem selecionar PII, a regra declarada é absoluta — é preciso resolver essa contradição antes de implementar: ou (a) reformular a regra LGPD para permitir agregações sem colunas sensíveis em casos_partes, ou (b) mover esse indicador para uma coluna derivada em casos (ex.: tipo_parte_autora desnormalizada) para que o BI nunca toque casos_partes.
+
+Fronteira arquitetural (linha 12): o plano obriga casos e tabelas filhas a usarem Supabase JS. Q4 está marcada como "(Prisma — tabela partes)", violando essa regra — casos_partes é filha de casos e deveria ser consultada via Supabase JS, não via Prisma.
+
+Resolver ambas antes da Etapa 2 para não cristalizar o desvio no biController.js.
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@arquivos/Conhecimento/04-Historico/BI` around lines 146 - 155, Q4 currently
+violates both the LGPD rule forbidding any BI queries touching casos_partes and
+the architectural rule that child tables of casos must be queried via Supabase
+JS (it proposes Prisma on casos_partes); resolve by either (A) changing the LGPD
+statement to permit aggregate-only reads from casos_partes and document that
+exception, or (B) denormalizing the needed flag into the casos table (e.g., add
+a tipo_parte_autora or is_representacao boolean on casos) so BI queries read
+only casos via Supabase JS; after choosing, update references to Q4 and remove
+any Prisma usage against casos_partes in biController.js so the BI
+implementation only queries the approved column via Supabase JS.
+In arquivos/Conhecimento/04-Historico/BI:
+
+> +
++**Cada widget é um componente independente** com prop `enabled`:
++
++```jsx
++// Componente Widget wrapper
++<BiWidget
++  id="statusPie"
++  title="Distribuição por Status"
++  enabled={prefs.widgets.statusPie}
++  onToggle={(id) => toggleWidget(id)}
++>
++  <PieChart data={data.ativos.por_status} />
++</BiWidget>
++```
++
++**Toolbar de personalização** — painel lateral colapsável com checkboxes para cada widget. As preferências ficam em `localStorage["bi_prefs"]` e sobrevivem entre sessões.
+⚠️ Potential issue | 🟡 Minor
+
+Chave de localStorage inconsistente entre a descrição da toolbar e o hook.
+
+A seção 2.4 referencia localStorage["bi_prefs"] (linha 211), enquanto a Etapa 4 do roteiro referencia localStorage["bi_prefs_v1"] (linha 332). Escolher uma das duas (preferencialmente a versionada, bi_prefs_v1, para facilitar invalidações futuras de schema) e padronizar em todo o documento para não induzir o executor a criar bug de persistência dupla.
+
+✏️ Sugestão de alinhamento
+- **Toolbar de personalização** — painel lateral colapsável com checkboxes para cada widget. As preferências ficam em `localStorage["bi_prefs"]` e sobrevivem entre sessões.
++ **Toolbar de personalização** — painel lateral colapsável com checkboxes para cada widget. As preferências ficam em `localStorage["bi_prefs_v1"]` e sobrevivem entre sessões.
+Also applies to: 330-332
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@arquivos/Conhecimento/04-Historico/BI` at line 211, The document uses two
+different localStorage keys for the toolbar preferences—localStorage["bi_prefs"]
+(section/line referencing the toolbar) and localStorage["bi_prefs_v1"] (the
+hook/Etapa 4); pick a single canonical key (preferably the versioned
+"bi_prefs_v1") and update all references so they match, including the toolbar
+description and the hook that reads/writes prefs, to avoid dual persistence and
+ensure future schema invalidation works consistently.
+In arquivos/Conhecimento/04-Historico/feitos/.dockerignoreoff:
+
+> +#### [MODIFY] [.env](file:///c:/Users/weslley/Downloads/defensoria/maes%20em%20acao/defsul_maes/backend/.env)
++- Adicionar `API_BASE_URL=http://localhost:8000/api` (ajustar conforme o ambiente).
++
++### Backend - Controllers
++
++#### [MODIFY] [casosController.js](file:///c:/Users/weslley/Downloads/defensoria/maes%20em%20acao/defsul_maes/backend/src/controllers/casosController.js)
++- Alterar o retorno da função `mapCasoRelations` para realizar o merge de `dados_formulario` com o objeto `enriched`.
+⚠️ Potential issue | 🟡 Minor
+
+Evite links locais file:///c:/... na documentação versionada.
+
+Nas Lines 21-27, os paths absolutos são não portáveis e quebram para qualquer outro ambiente. Prefira caminhos relativos do repositório (ex.: backend/src/controllers/casosController.js).
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@arquivos/Conhecimento/04-Historico/feitos/.dockerignoreoff` around lines 21 -
+27, The documentation change uses absolute local file URLs (e.g.,
+file:///c:/Users/...) which are non-portable; update the entries in the diff and
+any related docs to use repository-relative paths instead (for example replace
+file:///.../.env and file:///.../src/controllers/casosController.js with .env
+and backend/src/controllers/casosController.js) and ensure the noted change to
+the function mapCasoRelations in casosController.js is referenced by its
+relative path so future readers can locate it.
+In arquivos/Conhecimento/04-Historico/feitos/Plano de Implementação — Hardening de Downloads e Substituição de Minutas:
+
+> +   for (const doc of caso.documentos) {
++     try {
++       // download e archive.append aqui
++     } catch (err) {
++       // LGPD: não logar nome/CPF do documento — apenas ID referencial
++       logger.error(`[ZIP] Falha no doc id=${doc.id}: ${err.message}`);
++       arquivosFalharam.push(doc.nome_original || `documento_${doc.id}`);
++     }
++   }
++   if (arquivosFalharam.length > 0) {
++     archive.append(
++       `Arquivos não incluídos neste ZIP:\n${arquivosFalharam.join('\n')}`,
++       { name: 'RELATORIO_ERROS.txt' }
++     );
++   }
++   ```
+⚠️ Potential issue | 🟡 Minor
+
+Guard de ticket dentro do loop de documentos faz log com doc.id só — ok, mas o arquivosFalharam recebe doc.nome_original que será exposto no ZIP entregue.
+
+Comentário apenas para visibilidade: você está (corretamente) evitando logar nome_original no servidor (linha 154), mas está incluindo doc.nome_original no RELATORIO_ERROS.txt dentro do próprio ZIP (linha 155). Como o ZIP só é acessível via ticket vinculado ao caso, o público já tem vínculo com o assistido — não é vazamento LGPD. Apenas deixar explícito no plano esta decisão, para o executor não ficar em dúvida se deve anonimizar também no TXT.
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@arquivos/Conhecimento/04-Historico/feitos/Plano` de Implementação — Hardening
+de Downloads e Substituição de Minutas around lines 149 - 164, The current loop
+avoids logging PII by using logger.error(... doc.id ...) but pushes
+doc.nome_original into arquivosFalharam which will be written into
+RELATORIO_ERROS.txt inside the ZIP; make explicit in the plan and code that
+including doc.nome_original in arquivosFalharam is an intentional, permitted
+choice because the ZIP is only delivered via a ticket linked to the assisted
+party (LGPD rationale), and add a short guard/comment around the push (or a
+conditional) stating that nome_original is only used when the ZIP is tied to a
+validated ticket; ensure archive.append still falls back to a safe identifier
+(documento_{doc.id}) if the ticket validation fails. Reference symbols:
+caso.documentos loop, logger.error, arquivosFalharam, doc.nome_original,
+archive.append and RELATORIO_ERROS.txt.
+In arquivos/Conhecimento/04-Historico/feitos/Plano de Implementação — Hardening de Downloads e Substituição de Minutas:
+
+> +#### [MODIFY] [.env](file:///c:/Users/weslley/Downloads/defensoria/maes%20em%20acao/defsul_maes/backend/.env)
++- Inserir `API_BASE_URL=http://localhost:8000/api` (ambiente local) ou a URL pública do Railway.
+⚠️ Potential issue | 🔴 Critical
+
+API_BASE_URL está divergente entre este plano e task_list_hardening.md — o executor vai escolher o errado.
+
+Este documento recomenda API_BASE_URL=http://localhost:8000/api (com sufixo /api). Já o task_list_hardening.md (ID 01, linhas 17–20) orienta API_BASE_URL=http://localhost:8001 sem /api e explicitamente diz "Não adicionar /api ao final — o sufixo já é adicionado internamente".
+
+Isso é incompatível: quem seguir este plano vai duplicar /api nos webhooks QStash (ex.: http://localhost:8000/api/api/...) e o callback nunca vai bater. Alinhar os dois documentos — a versão "sem /api e na porta real do backend" parece ser a correta (o backend é inicializado em 8001 no dev local, e há concatenação interna do prefixo).
+
+✏️ Diff sugerido aqui
+- - Inserir `API_BASE_URL=http://localhost:8000/api` (ambiente local) ou a URL pública do Railway.
++ - Inserir `API_BASE_URL=http://localhost:8001` (ambiente local) ou a URL pública do Railway.
++   Não incluir o sufixo `/api` — já é concatenado internamente onde necessário (ver `task_list_hardening.md` ID 01).
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@arquivos/Conhecimento/04-Historico/feitos/Plano` de Implementação — Hardening
+de Downloads e Substituição de Minutas around lines 330 - 331, The API_BASE_URL
+value is inconsistent between this plan and task_list_hardening.md which will
+cause duplicated /api in webhooks; update the .env suggestion and this document
+to use the same canonical form (no trailing /api) and the correct local backend
+port (API_BASE_URL=http://localhost:8001) as described in
+task_list_hardening.md, and ensure any mentions of adding the /api suffix are
+removed or replaced with a note that the prefix is appended internally
+(affecting QStash callbacks and webhook URLs).
+In arquivos/Conhecimento/04-Historico/feitos/task_list_hardening.md:
+
+> +  - Inserir linha: `API_BASE_URL=http://localhost:8001` para desenvolvimento local.
++  - Em produção (Railway), usar a URL pública do serviço (ex: `https://api.mutirao.dpe.ba.gov.br`).
++  - A variável é consumida em `buildSignedUrl` (ln 824) e na publicação de jobs QStash para montar o webhook de retorno.
++  - **Não** adicionar `/api` ao final — o sufixo já é adicionado internamente onde necessário.
++Acceptance Criteria:
++  - Após restart, os logs do backend NÃO exibem `[QStash] API_BASE_URL invalida` ou equivalente.
++  - O sistema usa processamento via QStash (não `setImmediate`) ao criar novos casos.
+⚠️ Potential issue | 🟡 Minor
+
+🧩 Analysis chain
+🏁 Script executed:
+
+#!/bin/bash
+# Confirmar a porta default do backend e como API_BASE_URL é consumida (com ou sem /api).
+fd -t f 'server.js|index.js|app.js' backend | xargs rg -n -C2 'listen\(|PORT\b'
+rg -n -C3 'API_BASE_URL'
+Repository: CJVW-Code/maes_acao
+
+Length of output: 10116
+
+🏁 Script executed:
+
+rg -n '8001' --type-list
+Repository: CJVW-Code/maes_acao
+
+Length of output: 452
+
+🏁 Script executed:
+
+rg -n '8001'
+Repository: CJVW-Code/maes_acao
+
+Length of output: 1889
+
+🏁 Script executed:
+
+rg -n 'buildSignedUrl' -A 5 -B 5
+Repository: CJVW-Code/maes_acao
+
+Length of output: 7059
+
+Corrigir o Plano de Implementação — Hardening… (linha 331) para usar porta 8001 sem /api.
+
+A divergência identificada é real, mas não ambígua: task_list_hardening.md está correto e o outro documento está desatualizado. A configuração Docker (Dockerfile e docker-compose.yml) expõe a porta 8001, e o código em casosController.js (ln 851-854) explicitamente remove qualquer sufixo /api antes de reaplicá-lo internamente. O documento mais antigo (Plano de Implementação) recomenda http://localhost:8000/api, que diverge tanto na porta (8000 vs 8001) quanto na presença do /api — ambos incorretos per arquitetura atual. Alinhar o documento desatualizado com a versão corrigida em task_list_hardening.md elimina a contradição.
+
+🧰 Tools 🪛 LanguageTool
+[inconsistency] ~17-~17: O URL contém o caratére inválido segundo RFC 1738. Os caratéres especiais podem ser codificados com % seguido de dois números hexadecimais. Context: ...way). Logic Details: - Inserir linha:API_BASE_URL=http://localhost:8001` para desenvolvimento local. - Em prod...
+
+(URL_VALIDATION)
+
+[inconsistency] ~18-~18: O URL contém o caratére inválido segundo RFC 1738. Os caratéres especiais podem ser codificados com % seguido de dois números hexadecimais. Context: ...ay), usar a URL pública do serviço (ex:https://api.mutirao.dpe.ba.gov.br`). - A variável é consumida em `buildSig...
+
+(URL_VALIDATION)
+
+🤖 Prompt for AI Agents
+Verify each finding against the current code and only fix it if needed.
+
+In `@arquivos/Conhecimento/04-Historico/feitos/task_list_hardening.md` around
+lines 17 - 23, Update the outdated "Plano de Implementação — Hardening…" entry
+(around the noted line) to match task_list_hardening.md: change the local API
+URL to use port 8001 and remove the trailing /api (i.e., use
+http://localhost:8001); mention that Dockerfile/docker-compose.yml expose port
+8001 and that casosController.js (which strips/reapplies /api) and
+buildSignedUrl consume API_BASE_URL without a trailing /api so the document must
+not add it.
+In arquivos/Conhecimento/04-Historico/feitos/task_list_hardening.md:
+
+> +    if (req.ticket?.casoId && String(req.ticket.casoId) !== String(id)) {
++      return res.status(403).json({ error: "Ticket não autorizado para este caso." });
++    }
++    ```
++  - Usar `String()` em ambos os lados para blindar contra divergência de tipo (`casoId` como número no payload vs. `id` como string de `req.params`).
++  - `req.ticket` é populado pelo middleware `validateDownloadTicket` (já aplicado na rota `GET /:id/download-zip` — ln 61 de `casos.js`).
++  - Se `req
+...

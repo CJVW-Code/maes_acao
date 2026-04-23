@@ -47,7 +47,6 @@ export const Header = () => {
             <ExternalLink size={16} />
             Portal do Cidadão
           </Link>
-          <NotificacoesBell />
           <ThemeToggle />
           <button
             type="button"

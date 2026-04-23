@@ -1713,13 +1713,8 @@ export const DetalhesCaso = () => {
                 </div>
               </div>
 
-              {/* BOTÃO DE REPROCESSAMENTO (Aparece em caso de ERRO ou para ADMIN ou para o DONO do caso) */}
-              {(statusKey === "erro_processamento" ||
-                statusKey === "erro" ||
-                user?.cargo === "admin" ||
-                (user?.id &&
-                  (String(caso.defensor_id) === String(user.id) ||
-                    String(caso.servidor_id) === String(user.id)))) && (
+              {/* BOTÃO DE REPROCESSAMENTO (Apenas para ADMIN) */}
+              {user?.cargo === "admin" && (
                 <button
                   onClick={handleReprocessar}
                   disabled={isReprocessing || caso.status === "processando_ia"}

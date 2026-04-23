@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   FileText,
   Clock,
@@ -66,10 +66,28 @@ const summaryFilterLabels = {
 };
 
 export const Dashboard = () => {
-  const { token, user } = useAuth();
+  const { token, user, notificacoes, marcarNotificacaoLida } = useAuth();
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  const [isSidebarMinimized, setIsSidebarMinimized] = useState(() => {
+    return localStorage.getItem("dashboard_sidebar_minimized") === "true";
+  });
+
+  const toggleSidebar = () => {
+    setIsSidebarMinimized((prev) => {
+      const newState = !prev;
+      localStorage.setItem("dashboard_sidebar_minimized", newState);
+      return newState;
+    });
+  };
+
+  // Filtra notificações não lidas e solicitações de assistência pendentes
+  const alertasAtivos = useMemo(() => {
+    return notificacoes.filter((n) => !n.lida);
+  }, [notificacoes]);
 
   // ✅ Leve: só contagens, nenhum dado pessoal trafega
   const {
@@ -82,7 +100,6 @@ export const Dashboard = () => {
   });
 
   // Lista recente: apenas os últimos casos (id, nome, protocolo, status, data)
-  // Esses campos não expõem CPF nem dados sensíveis do formulário
   const { data: casosRecentes = [], error: casosError } = useSWR(
     token ? "/casos?limite=10" : null,
     fetcherCasos,
@@ -92,21 +109,16 @@ export const Dashboard = () => {
     },
   );
 
-  // useEffect removido: o usuário já vem do AuthContext
-
   useEffect(() => {
     setCurrentPage(1);
   }, [statusFilter]);
 
   const contagens = resumo?.contagens || {};
 
-
   // Paginação da lista recente filtrada por status
   const [casosFiltered, totalPages] = useMemo(() => {
     if (!statusFilter) return [casosRecentes.slice(0, 6), 0];
 
-    // Mapeamento de filtros para suportar legados se necessário,
-    // mas priorizando o enum estratégico
     const filterMapping = {
       aguardando_documentos: ["aguardando_documentos", "aguardando_docs", "recebido"],
       documentacao_completa: ["documentacao_completa", "documentos_entregues"],
@@ -122,7 +134,7 @@ export const Dashboard = () => {
       if (statusFilter === "meus") {
         return c.servidor_id === user?.id || c.defensor_id === user?.id;
       }
-      
+
       const s = normalizeStatus(c.status);
       const statuses = filterMapping[statusFilter] || [];
       return statuses.includes(s);
@@ -131,7 +143,7 @@ export const Dashboard = () => {
     const pages = Math.ceil(filtered.length / itemsPerPage);
     const start = (currentPage - 1) * itemsPerPage;
     return [filtered.slice(start, start + itemsPerPage), pages];
-  }, [casosRecentes, statusFilter, currentPage]);
+  }, [casosRecentes, statusFilter, currentPage, user]);
 
   const handleSummaryClick = (key) => {
     setStatusFilter((previous) => (previous === key ? null : key));
@@ -144,9 +156,7 @@ export const Dashboard = () => {
       resumoError?.status === 401 ||
       casosError?.status === 401;
 
-    if (isAuthError) {
-      return null; // O context vai redirecionar
-    }
+    if (isAuthError) return null;
 
     return (
       <div className="card border-l-4 border-l-red-500 text-red-600">
@@ -156,284 +166,392 @@ export const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-8 pb-24">
-      {resumo?.temCasoOcioso && (
-        <div className="banner-alerta-ocioso">
-          <AlertTriangle className="text-laranja" size={24} />
-          <div>
-            <p className="font-bold">Atenção: Há atendimentos parados há mais de 20 minutos.</p>
-            <p className="text-sm opacity-90">
-              Verifique a fila para garantir a fluidez do mutirão.
-            </p>
-          </div>
-        </div>
-      )}
-
-      <section
-        className="card text-white shadow-lg border-none relative overflow-hidden bg-primary"
-        style={{
-          background:
-            "linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-600) 60%, #0b67a3 100%)",
-        }}
-      >
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="heading-hero mt-2">
-              Olá, {user?.cargo === "defensor" ? "Dr(a). " : ""}
-              {user?.nome || "Usuário"}
-            </h1>
-            <p className="text-bg max-w-2xl mt-2">
-              Acompanhe os casos recebidos pelo Mães em Ação.
-            </p>
-          </div>
-          <Link
-            to="/painel/casos"
-            className="btn btn-ghost border border-white/40 text-white bg-white/10 hover:bg-white/20"
-          >
-            Ver todos os casos
-          </Link>
-        </div>
-      </section>
-
-      <section className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
-        {[
-          {
-            key: "meus",
-            label: "Meus Atendimentos",
-            value: contagens.meus || 0,
-            helper: "Casos atribuídos a você.",
-            icon: User,
-            accent: "text-primary",
-          },
-          {
-            key: "aguardando_documentos",
-            label: "Aguardando Docs",
-            value: contagens.aguardando_documentos || 0,
-            helper: "Faltam documentos do cidadão.",
-            icon: AlertTriangle,
-            accent: "text-amber-500",
-          },
-          {
-            key: "documentacao_completa",
-            label: "Docs. Completos",
-            value: contagens.documentacao_completa || 0,
-            helper: "Tudo pronto para triagem.",
-            icon: Bell,
-            accent: "text-highlight",
-          },
-          {
-            key: "pronto_para_analise",
-            label: "Prontos (IA)",
-            value: contagens.pronto_para_analise || 0,
-            helper: "Aguardando revisão humana.",
-            icon: Inbox,
-            accent: "text-primary",
-          },
-          {
-            key: "em_atendimento",
-            label: "Em Atendimento",
-            value: contagens.em_atendimento || 0,
-            helper: "Sendo trabalhados pela equipe.",
-            icon: Clock,
-            accent: "text-blue-500",
-          },
-          {
-            key: "liberado_para_protocolo",
-            label: "Lib. Protocolo",
-            value: contagens.liberado_para_protocolo || 0,
-            helper: "Prontos para envio final.",
-            icon: CheckCircle2,
-            accent: "text-purple-500",
-          },
-          {
-            key: "protocolado",
-            label: "Protocolados",
-            value: contagens.protocolado || 0,
-            helper: "Finalizados no Solar/TJ.",
-            icon: CheckCircle2,
-            accent: "text-emerald-500",
-          },
-        ].map(({ key, label, value, helper, icon, accent }) => {
-          const active = statusFilter === key;
-          return (
-            <button
-              type="button"
-              key={key}
-              onClick={() => handleSummaryClick(key)}
-              aria-pressed={active}
-              className={`card p-4 rounded-2xl text-left transition-all border-l-4 flex flex-col justify-between min-h-[120px] ${
-                active
-                  ? "border-l-primary shadow-xl ring-2 ring-primary/30 -translate-y-0.5"
-                  : "border-l-transparent hover:border-l-primary/60"
-              }`}
+    <div
+      className={`dashboard-grid ${isSidebarMinimized ? "lg:grid-cols-[1fr_80px]" : "lg:grid-cols-[1fr_350px]"}`}
+    >
+      {/* COLUNA PRINCIPAL */}
+      <div className="space-y-8">
+        <section className="hero-gradient p-8 rounded-[2rem] text-white">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="heading-hero mt-2">
+                Olá, {user?.cargo === "defensor" ? "Dr(a). " : ""}
+                {user?.nome || "Usuário"}
+              </h1>
+              <p className="text-bg max-w-2xl mt-2">
+                Acompanhe os casos recebidos pelo Mães em Ação.
+              </p>
+            </div>
+            <Link
+              to="/painel/casos"
+              className="btn btn-ghost border border-white/40 text-white bg-white/10 hover:bg-white/20"
             >
-              <div className="flex items-start justify-between mb-1">
-                <div className="flex-1">
-                  <p className="text-xs font-medium text-muted leading-tight">{label}</p>
-                  <p className="text-2xl font-bold mt-1">
-                    {resumoLoading ? (
-                      <span className="inline-block w-6 h-6 bg-soft animate-pulse rounded" />
-                    ) : (
-                      value
-                    )}
-                  </p>
+              Ver todos os casos
+            </Link>
+          </div>
+        </section>
+
+        <section className="dashboard-summary-grid">
+          {[
+            {
+              key: "meus",
+              label: "Meus Atendimentos",
+              value: contagens.meus || 0,
+              helper: "Casos atribuídos a você.",
+              icon: User,
+              accent: "text-primary",
+            },
+            {
+              key: "aguardando_documentos",
+              label: "Aguardando Docs",
+              value: contagens.aguardando_documentos || 0,
+              helper: "Faltam documentos.",
+              icon: AlertTriangle,
+              accent: "text-amber-500",
+            },
+            {
+              key: "documentacao_completa",
+              label: "Docs. Completos",
+              value: contagens.documentacao_completa || 0,
+              helper: "Pronto para triagem.",
+              icon: Bell,
+              accent: "text-highlight",
+            },
+            {
+              key: "pronto_para_analise",
+              label: "Prontos (IA)",
+              value: contagens.pronto_para_analise || 0,
+              helper: "Aguardando revisão.",
+              icon: Inbox,
+              accent: "text-primary",
+            },
+            {
+              key: "em_atendimento",
+              label: "Em Atendimento",
+              value: contagens.em_atendimento || 0,
+              helper: "Sendo trabalhados.",
+              icon: Clock,
+              accent: "text-blue-500",
+            },
+            {
+              key: "liberado_para_protocolo",
+              label: "Lib. Protocolo",
+              value: contagens.liberado_para_protocolo || 0,
+              helper: "Prontos para envio.",
+              icon: CheckCircle2,
+              accent: "text-purple-500",
+            },
+            {
+              key: "protocolado",
+              label: "Protocolados",
+              value: contagens.protocolado || 0,
+              helper: "Finalizados no Solar.",
+              icon: CheckCircle2,
+              accent: "text-emerald-500",
+            },
+          ].map(({ key, label, value, helper, icon, accent }) => {
+            const active = statusFilter === key;
+            return (
+              <button
+                type="button"
+                key={key}
+                onClick={() => handleSummaryClick(key)}
+                aria-pressed={active}
+                className={`summary-card ${active ? "active" : ""}`}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    <p className="card-label">{label}</p>
+                    <p className="card-value">
+                      {resumoLoading ? (
+                        <span className="inline-block w-8 h-8 bg-soft animate-pulse rounded" />
+                      ) : (
+                        value
+                      )}
+                    </p>
+                  </div>
+                  {React.createElement(icon, { size: 20, className: `${accent} 2xl:w-6 2xl:h-6` })}
                 </div>
-                {React.createElement(icon, { size: 18, className: accent })}
-              </div>
-              <div>
-                <p className="text-[10px] text-muted leading-tight">{helper}</p>
-                <span
-                  className={`mt-2 block text-[10px] font-bold tracking-wide uppercase ${
-                    active ? "text-primary" : "text-muted"
-                  }`}
-                >
-                  {active ? "Filtro aplicado" : "Clique para filtrar"}
+                <p className="card-helper">{helper}</p>
+              </button>
+            );
+          })}
+        </section>
+
+        <section className="card p-0 overflow-hidden shadow-md">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-soft px-6 py-5">
+            <div>
+              <h2 className="heading-2 2xl:text-2xl">Casos mais recentes</h2>
+              {statusFilter && (
+                <p className="text-sm 2xl:text-base mt-1 flex items-center gap-2">
+                  Filtrando por {summaryFilterLabels[statusFilter]}.
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter(null)}
+                    className="underline text-xs 2xl:text-sm font-semibold hover:text-primary"
+                  >
+                    Limpar
+                  </button>
+                </p>
+              )}
+            </div>
+            <Link to="/painel/casos" className="btn btn-secondary btn-sm 2xl:btn-md">
+              Ver todos
+            </Link>
+          </div>
+
+          {casosRecentes.length === 0 ? (
+            <div className="p-8 text-muted text-center 2xl:text-lg">Nenhum caso encontrado.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-muted uppercase text-[10px] 2xl:text-xs tracking-wider border-b border-soft">
+                    <th className="px-6 py-4 text-left font-bold">Assistida / Representante</th>
+                    <th className="px-6 py-4 text-left font-bold">Data</th>
+                    <th className="px-6 py-4 text-left font-bold">Responsável</th>
+                    <th className="px-6 py-4 text-left font-bold">Status</th>
+                    <th className="px-6 py-4 text-right font-bold">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-soft">
+                  {casosFiltered.map((caso) => {
+                    const statusKey = normalizeStatus(caso.status);
+                    const badgeStyle = statusStyles[statusKey] || statusStyles.default;
+                    return (
+                      <tr 
+                        key={caso.id}
+                        onClick={() => navigate(`/painel/casos/${caso.id}`)}
+                        className={`group cursor-pointer transition-colors hover:bg-primary/5 ${caso.compartilhado ? "bg-purple-500/5" : ""}`}
+                      >
+                        {/* NOME / REPRESENTANTE */}
+                        <td className="px-6 py-5">
+                          <div className="flex items-center gap-3">
+                            {caso.compartilhado && (
+                              <Users size={16} className="text-highlight shrink-0" title="Caso Compartilhado" />
+                            )}
+                            <div>
+                              <p className="font-bold text-main 2xl:text-xl leading-tight">
+                                {caso.nome_assistido}
+                              </p>
+                              {caso.nome_representante && (
+                                <p className="text-[11px] 2xl:text-sm text-primary-600 font-bold mt-1">
+                                  Representante: {caso.nome_representante}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* DATA */}
+                        <td className="px-6 py-5 whitespace-nowrap text-muted 2xl:text-base font-medium">
+                          {new Date(caso.created_at).toLocaleDateString("pt-BR")}
+                        </td>
+
+                        {/* RESPONSÁVEL */}
+                        <td className="px-6 py-5 whitespace-nowrap">
+                          {caso.defensor || caso.servidor ? (
+                            <div className="flex items-center gap-2">
+                              <div className={`p-1.5 rounded-full ${
+                                (caso.defensor_id === user.id || caso.servidor_id === user.id) 
+                                  ? "badge-meu" 
+                                  : "badge-bloqueado"
+                              }`}>
+                                { (caso.defensor_id === user.id || caso.servidor_id === user.id) ? <User size={14} /> : <Lock size={14} /> }
+                              </div>
+                              <span className="text-xs 2xl:text-base font-bold text-main">
+                                { (caso.defensor_id === user.id || caso.servidor_id === user.id) 
+                                  ? "Meu" 
+                                  : (caso.defensor?.nome || caso.servidor?.nome || "").split(" ")[0] }
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] 2xl:text-sm text-muted italic font-medium">Disponível</span>
+                          )}
+                        </td>
+
+                        {/* STATUS */}
+                        <td className="px-6 py-5 whitespace-nowrap">
+                          <span className={`px-3 py-1 rounded-full text-[10px] 2xl:text-xs font-bold border ${badgeStyle} uppercase tracking-wider`}>
+                            {statusKey.replace(/_/g, " ")}
+                          </span>
+                        </td>
+
+                        {/* AÇÃO */}
+                        <td className="px-6 py-5 text-right whitespace-nowrap">
+                          <div className="inline-flex items-center gap-2 text-primary hover:text-primary-600 font-bold 2xl:text-lg transition-transform group-hover:translate-x-1">
+                            <Eye size={18} className="2xl:w-6 2xl:h-6" />
+                            Ver detalhes
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {statusFilter && totalPages > 1 && (
+            <div className="flex justify-center items-center gap-4 py-6 border-t border-soft">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="btn btn-ghost btn-sm 2xl:btn-md"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <span className="text-sm 2xl:text-lg text-muted font-semibold">
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="btn btn-ghost btn-sm 2xl:btn-md"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* SIDEBAR DE ALERTAS */}
+      <aside className={`alert-sidebar ${isSidebarMinimized ? "w-16" : "w-full"}`}>
+        <div className="flex items-center justify-between px-2">
+          {!isSidebarMinimized && (
+            <h2 className="heading-2 flex items-center gap-2 text-base 2xl:text-xl">
+              <Bell size={18} className="text-primary 2xl:w-6 2xl:h-6" />
+              Alertas e Avisos
+            </h2>
+          )}
+          <button
+            onClick={toggleSidebar}
+            className={`p-2 rounded-xl hover:bg-soft transition-colors text-muted hover:text-primary ${isSidebarMinimized ? "mx-auto" : ""}`}
+            title={isSidebarMinimized ? "Expandir" : "Minimizar"}
+          >
+            {isSidebarMinimized ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+          </button>
+        </div>
+
+        {!isSidebarMinimized && (
+          <>
+            {alertasAtivos.length > 0 && (
+              <div className="flex justify-center mb-4">
+                <span className="bg-red-500 text-white text-[10px] 2xl:text-xs font-bold px-3 py-1 rounded-full shadow-sm">
+                  {alertasAtivos.length} {alertasAtivos.length === 1 ? "pendente" : "pendentes"}
                 </span>
               </div>
-            </button>
-          );
-        })}
-      </section>
-
-      <section className="card p-0 overflow-hidden">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-soft px-6 py-4">
-          <div>
-            <h2 className="heading-2">Casos mais recentes</h2>
-            <p className="text-sm text-muted">Últimos atendimentos cadastrados na triagem.</p>
-            {statusFilter && (
-              <p className="text-sm mt-1 flex items-center gap-2">
-                Mostrando apenas {summaryFilterLabels[statusFilter]}.
-                <button
-                  type="button"
-                  onClick={() => setStatusFilter(null)}
-                  className="underline text-xs font-semibold"
-                >
-                  Limpar filtro
-                </button>
-              </p>
             )}
-          </div>
-          <Link to="/painel/casos" className="btn btn-secondary text-sm">
-            Gerenciar todos
-          </Link>
-        </div>
 
-        {casosRecentes.length === 0 ? (
-          <div className="p-6 text-muted text-center">Nenhum caso pendente no momento.</div>
-        ) : (
-          <ul className="divide-y divide-soft">
-            {casosFiltered.map((caso) => {
-              const statusKey = normalizeStatus(caso.status);
-              const badgeStyle = statusStyles[statusKey] || statusStyles.default;
-              return (
-                <li key={caso.id}>
-                  <Link
-                    to={`/painel/casos/${caso.id}`}
-                    className={`block px-6 py-4 hover:bg-primary/20 dark:hover:bg-slate-900 transition ${
-                      caso.compartilhado ? "card-compartilhado-highlight" : ""
+            {resumo?.temCasoOcioso && (
+              <div className="card border-l-4 border-l-amber-500 bg-amber-50 p-4 shadow-sm animate-pulse">
+                <div className="flex gap-3">
+                  <AlertTriangle className="text-amber-600 shrink-0" size={20} />
+                  <div>
+                    <p className="text-sm font-bold text-amber-900">Atendimentos Ociosos</p>
+                    <p className="text-xs text-amber-800 mt-1">
+                      Existem casos parados há mais de 20 minutos.
+                    </p>
+                    <Link
+                      to="/painel/casos"
+                      className="text-xs font-bold text-amber-900 underline mt-2 block hover:text-amber-700"
+                    >
+                      Ver Fila
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {alertasAtivos.length === 0 && !resumo?.temCasoOcioso ? (
+                <div className="text-center py-12 bg-surface rounded-2xl border border-soft border-dashed">
+                  <CheckCircle2 size={32} className="mx-auto text-soft mb-3 2xl:w-10 2xl:h-10" />
+                  <p className="text-sm text-muted 2xl:text-base">Nenhum alerta pendente.</p>
+                </div>
+              ) : (
+                alertasAtivos.map((alerta) => (
+                  <div
+                    key={alerta.id}
+                    className={`alert-card ${
+                      alerta.tipo === "assistencia" ? "border-l-purple-500" : "border-l-primary"
                     }`}
                   >
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                      <div className="flex items-start gap-4">
-                        <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center relative">
-                          <FileText size={20} />
-                          {caso.compartilhado && (
-                            <div className="absolute -top-1 -right-1 bg-purple-500 text-white p-1 rounded-full border-2 border-white dark:border-slate-800 animate-pulse">
-                              <Users size={10} />
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <p className="heading-3 leading-tight">{caso.nome_assistido}</p>
-                          {caso.nome_representante && (
-                            <p className="text-sm font-bold text-primary-600 mt-1 mb-1">
-                              Representante: {caso.nome_representante}
-                            </p>
-                          )}
-                          {caso.assistencia_casos &&
-                            caso.assistencia_casos.some((a) => a.destinatario_id === user.id) && (
-                              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold uppercase tracking-wider mb-2 border border-purple-200">
-                                <Users size={10} /> Compartilhado com você
-                              </div>
-                            )}
-                          <p className="text-sm text-muted">
-                            Protocolo: {caso.protocolo}
-                            {caso.numero_solar && (
-                              <span className="text-primary font-medium border-l border-soft pl-2 ml-2">
-                                {caso.sistema_peticionamento || "Solar"}: {caso.numero_solar}
-                              </span>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2 md:items-center">
-                        {/* Indicador de Responsável / Lock */}
-                        {caso.defensor || caso.servidor ? (
-                          <div
-                            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                              caso.defensor_id === user.id || caso.servidor_id === user.id
-                                ? "bg-green-100 text-green-700 border border-green-200"
-                                : "bg-amber-100 text-amber-700 border border-amber-200"
-                            }`}
-                          >
-                            {caso.defensor_id === user.id || caso.servidor_id === user.id ? (
-                              <User size={10} />
-                            ) : (
-                              <Lock size={10} />
-                            )}
-                            {caso.defensor_id === user.id || caso.servidor_id === user.id
-                              ? "Meu Atendimento"
-                              : caso.defensor?.nome || caso.servidor?.nome}
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 border border-slate-200 italic">
-                            Disponível
-                          </div>
-                        )}
-
-                        <span className={`badge ${badgeStyle}`}>{statusKey.replace("_", " ")}</span>
-                        <div className="flex items-center gap-2 text-sm text-muted">
-                          <Clock size={16} />
-                          {caso.created_at && !isNaN(new Date(caso.created_at).getTime())
-                            ? new Date(caso.created_at).toLocaleDateString("pt-BR", {
-                                day: "2-digit",
-                                month: "short",
-                              })
-                            : "Data indisponível"}
-                        </div>
-                      </div>
+                    <div className="flex justify-between items-start mb-3">
+                      <span
+                        className={`text-[10px] 2xl:text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                          alerta.tipo === "assistencia"
+                            ? "bg-purple-100 text-purple-700"
+                            : "bg-primary/10 text-primary"
+                        }`}
+                      >
+                        {alerta.tipo === "assistencia" ? "Colaboração" : "Notificação"}
+                      </span>
+                      <button
+                        onClick={() => marcarNotificacaoLida(alerta.id)}
+                        className="text-muted hover:text-primary transition-colors p-1 rounded-full hover:bg-soft"
+                        title="Marcar como lida"
+                      >
+                        <CheckCircle2 size={16} />
+                      </button>
                     </div>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+                    <h4 className="text-sm 2xl:text-base font-bold leading-snug text-slate-800 dark:text-slate-100">
+                      {alerta.titulo}
+                    </h4>
+                    <p className="text-xs 2xl:text-sm text-muted mt-2 leading-relaxed">
+                      {alerta.mensagem}
+                    </p>
+
+                    {alerta.link && (
+                      <Link
+                        to={alerta.link}
+                        className="btn btn-ghost btn-sm w-full mt-4 text-[11px] 2xl:text-xs border border-soft hover:border-primary/30"
+                        onClick={() => marcarNotificacaoLida(alerta.id)}
+                      >
+                        Acessar Caso
+                      </Link>
+                    )}
+
+                    <p className="text-[10px] 2xl:text-xs text-muted mt-4 text-right font-medium">
+                      {new Date(alerta.created_at).toLocaleTimeString("pt-BR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Footer Sidebar */}
+            <div className="bg-primary/5 rounded-2xl p-4 2xl:p-6 border border-primary/10">
+              <p className="text-[10px] 2xl:text-xs text-primary font-bold uppercase tracking-widest mb-1.5">
+                Dica de Produtividade
+              </p>
+              <p className="text-xs 2xl:text-sm text-muted leading-relaxed">
+                Use os filtros de status acima para focar nos casos que precisam de ação imediata.
+              </p>
+            </div>
+          </>
         )}
 
-        {statusFilter && totalPages > 1 && (
-          <div className="flex justify-center items-center gap-4 py-4 border-t border-soft">
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="btn btn-ghost btn-sm"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <span className="text-sm text-muted">
-              Página {currentPage} de {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="btn btn-ghost btn-sm"
-            >
-              <ChevronRight size={16} />
-            </button>
+        {isSidebarMinimized && (
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div className="relative">
+              <Bell size={24} className="text-soft" />
+              {alertasAtivos.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full border-2 border-white shadow-sm" />
+              )}
+            </div>
+            {resumo?.temCasoOcioso && (
+              <AlertTriangle size={24} className="text-amber-500 animate-pulse" />
+            )}
           </div>
         )}
-      </section>
+      </aside>
     </div>
   );
 };

@@ -50,8 +50,6 @@ export const StepDadosPessoais = React.memo(({
   labelAutor,
   configAcao,
 }) => {
-  const isCpfOpcional = configAcao?.isCpfRepresentanteOpcional || false;
-
   return (
     <section className="form-section">
       <div className="flex items-center gap-3 border-b border-soft pb-4">
