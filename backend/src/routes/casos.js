@@ -24,13 +24,17 @@ import {
   marcarNotificacaoLida,
   solicitarAssistencia,
   responderAssistencia,
+  substituirMinuta,
+  baixarDocumentoIndividual,
+  baixarTodosDocumentosZip,
+  gerarTicketDownload,
 } from "../controllers/casosController.js";
 
 import { searchLimiter, creationLimiter } from "../middleware/rateLimiter.js";
 import { lockCaso, unlockCaso } from "../controllers/lockController.js";
 import { obterHistoricoCaso } from "../controllers/consultaAuditoria.js";
 
-import { authMiddleware } from "../middleware/auth.js";
+import { authMiddleware, validateDownloadTicket } from "../middleware/auth.js";
 import { auditMiddleware } from "../middleware/auditMiddleware.js";
 import { upload } from "../middleware/upload.js"; 
 import { requireWriteAccess } from "../middleware/requireWriteAcess.js";
@@ -53,6 +57,10 @@ router.post(
   receberDocumentosComplementares,
 );
 
+// Rotas de Download Seguras (One-Time Ticket)
+router.get("/:id/download-zip", validateDownloadTicket, baixarTodosDocumentosZip);
+router.get("/:id/documento/download", validateDownloadTicket, baixarDocumentoIndividual);
+
 
 // FILTRO DE SEGURANÇA E AUDITORIA 
 router.use(authMiddleware);
@@ -66,6 +74,7 @@ router.patch("/notificacoes/:id/lida", marcarNotificacaoLida);
 
 router.get("/:id/exportar-solar", exportarCasoSolar);
 router.get("/:id", obterDetalhesCaso);
+router.post("/:id/gerar-ticket-download", gerarTicketDownload);
 router.use(requireWriteAccess);
 router.post("/:id/gerar-fatos", regenerarDosFatos);
 router.post("/:id/gerar-termo", gerarTermoDeclaracao);
@@ -76,8 +85,7 @@ router.delete("/:id", deletarCaso);
 router.patch("/:id/status", atualizarStatusCaso);
 router.patch("/:id/feedback", salvarFeedback);
 router.post("/:id/regerar-minuta", regerarMinuta);
-
-router.post("/:id/regerar-minuta", regerarMinuta);
+router.post("/:id/upload-minuta", upload.single("minuta"), substituirMinuta);
 router.post("/:id/reprocessar", reprocessarCaso);
 router.patch("/:id/documento/renomear", renomearDocumento);
 router.patch("/:id/arquivar", alternarArquivamento);

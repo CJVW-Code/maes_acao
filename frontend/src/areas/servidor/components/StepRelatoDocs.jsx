@@ -44,33 +44,10 @@ export const StepRelatoDocs = React.memo(({
             className={`input w-full ${formErrors.relato ? "border-error ring-1 ring-error" : ""}`}
           ></textarea>
 
-          {/* Barra de Progresso */}
-          {!prefersAudio && (
-            <div className="w-full h-2 bg-app rounded-full mt-2 overflow-hidden border border-soft">
-              <div
-                className={`h-full transition-all duration-500 ${
-                  (relato || "").length >= 250
-                    ? "bg-success"
-                    : "bg-error"
-                }`}
-                style={{
-                  width: `${Math.min(((relato || "").length / 250) * 100, 100)}%`,
-                }}
-              />
-            </div>
-          )}
-
           <div className="flex justify-between mt-1 px-1">
             <span className="text-xs text-error font-medium">
               {formErrors.relato}
             </span>
-            {!prefersAudio && (
-              <span
-                className={`text-xs font-medium ${(relato || "").length < 250 ? "text-error" : "text-success"}`}
-              >
-                {(relato || "").length} / 250 caracteres
-              </span>
-            )}
           </div>
         </div>
       )}

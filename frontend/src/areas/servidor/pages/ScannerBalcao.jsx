@@ -14,6 +14,8 @@ import {
   ScrollText,
   Wallet,
   Paperclip,
+  Gavel,
+  Calculator,
 } from "lucide-react";
 import { useToast } from "../../../contexts/ToastContext";
 
@@ -30,6 +32,8 @@ export const ScannerBalcao = () => {
     { id: "residencia", label: "Residência", icon: House },
     { id: "certidao", label: "Certidão", icon: ScrollText },
     { id: "renda", label: "Renda", icon: Wallet },
+    { id: "sentenca", label: "Decisão", icon: Gavel },
+    { id: "calculo", label: "Cálculos", icon: Calculator },
     { id: "outros", label: "Outros", icon: Paperclip },
   ];
 
@@ -132,7 +136,7 @@ export const ScannerBalcao = () => {
           <div className="grid grid-cols-1 gap-8">
             <section className="relative">
               <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-primary/35 via-fuchsia-400/20 to-orange-300/20 blur-lg opacity-80" />
-              <div className="group relative rounded-3xl border-2 border-dashed border-white/18 bg-black/16 p-8 text-center backdrop-blur-md transition-all hover:border-primary/55 hover:bg-white/10 md:p-12">
+              <label className="group relative block rounded-3xl border-2 border-dashed border-white/18 bg-black/16 p-8 text-center backdrop-blur-md transition-all hover:border-primary/55 hover:bg-white/10 cursor-pointer md:p-12">
                 <input
                   type="file"
                   multiple
@@ -151,7 +155,7 @@ export const ScannerBalcao = () => {
                   Arraste fotos ou PDFs aqui, ou clique para abrir o explorador
                   de arquivos.
                 </p>
-              </div>
+              </label>
             </section>
 
             {files.length > 0 && (
@@ -180,15 +184,27 @@ export const ScannerBalcao = () => {
                     >
                       <div className="mb-4 flex items-start justify-between">
                         <div className="flex min-w-0 items-center gap-3">
-                          <div
-                            className={`shrink-0 rounded-xl p-2 ${
-                              item.tipo !== "outros"
-                                ? "bg-primary text-white shadow-md shadow-primary/20"
-                                : "bg-white/10 text-white/72"
-                            }`}
-                          >
-                            <FileText size={18} />
-                          </div>
+                          {item.file.type.startsWith("image/") ? (
+                            <img
+                              src={URL.createObjectURL(item.file)}
+                              alt="preview"
+                              className={`h-10 w-10 shrink-0 rounded-xl object-cover ${
+                                item.tipo !== "outros"
+                                  ? "ring-2 ring-primary shadow-md shadow-primary/20"
+                                  : "ring-1 ring-white/10"
+                              }`}
+                            />
+                          ) : (
+                            <div
+                              className={`h-10 w-10 flex items-center justify-center shrink-0 rounded-xl ${
+                                item.tipo !== "outros"
+                                  ? "bg-primary text-white shadow-md shadow-primary/20"
+                                  : "bg-white/10 text-white/72"
+                              }`}
+                            >
+                              <FileText size={18} />
+                            </div>
+                          )}
                           <div className="min-w-0">
                             <p
                               className="truncate text-sm font-bold leading-tight text-white"
@@ -213,7 +229,7 @@ export const ScannerBalcao = () => {
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-4 gap-2">
                         {documentTypes.map((type) => {
                           const Icon = type.icon;
 
@@ -227,8 +243,8 @@ export const ScannerBalcao = () => {
                                   : "border-white/10 bg-black/10 text-white/75 hover:border-primary/35 hover:bg-white/10"
                               }`}
                             >
-                              <Icon size={18} className="mb-1" />
-                              {type.label}
+                              <Icon size={16} className="mb-1" />
+                              <span className="truncate w-full text-center">{type.label}</span>
                             </button>
                           );
                         })}

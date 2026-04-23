@@ -122,14 +122,24 @@ export const processSubmission = async ({
       }
     } else {
       const relatoLimpo = (formState.relato || "").trim();
-      if (relatoLimpo.length < 250) {
-        validationErrors.relato = `O relato deve ser mais detalhado (mínimo 250 caracteres). Atual: ${relatoLimpo.length}.`;
+      if (!relatoLimpo) {
+        validationErrors.relato = `O relato dos fatos é obrigatório para gerar a petição.`;
       }
     }
   }
 
+  if (configAcao?.exigeDadosProcessoOriginal) {
+    if (!formState.valor_debito) {
+      validationErrors.valor_debito = "O valor total do débito é obrigatório.";
+    }
+    if (!formState.calculo_arquivo && !formState.enviarDocumentosDepois) {
+       validationErrors.calculo_arquivo = "Você deve anexar o demonstrativo do cálculo.";
+    }
+  }
+
   // 3. Validação de Quantidade Mínima de Documentos
-  if (!formState.enviarDocumentosDepois) {
+  const isEnviarDepois = formState.enviarDocumentosDepois === true || formState.enviarDocumentosDepois === "true";
+  if (!isEnviarDepois) {
     let minDocs = formState.assistidoEhIncapaz === "nao" ? 4 : 7;
     if (formState.assistidoEhIncapaz === "sim" && formState.outrosFilhos.length > 0) {
       minDocs += formState.outrosFilhos.length * 3;
@@ -201,7 +211,7 @@ export const processSubmission = async ({
   // 1. Preenche o FormData
   // O estado (formState) já usa as TAGS OFICIAIS, portanto iteramos diretamente.
   // Não precisamos mais do fieldMapping legado.
-  const fieldsToIgnore = new Set(["outrosFilhos", "documentFiles", "documentNames", "documentosMarcados", "audioBlob", "tipoAcao", "acaoEspecifica"]);
+  const fieldsToIgnore = new Set(["calculo_arquivo", "outrosFilhos", "documentFiles", "documentNames", "documentosMarcados", "audioBlob", "tipoAcao", "acaoEspecifica"]);
   
   const valuesToSubmit = { ...formState };
   
@@ -356,13 +366,17 @@ export const processSubmission = async ({
     formData.append("audio", formState.audioBlob, "gravacao.webm");
   formState.documentFiles.forEach((file) => {
     if (!file || !file.name) return; // Proteção contra arquivos inválidos
-    // Sanitiza o nome do arquivo (remove acentos) para evitar erros de encoding no servidor
     const safeName = file.name
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
-      .replace(/\s+/g, "_"); // Substitui espaços por underline para maior segurança
+      .replace(/\s+/g, "_");
     formData.append("documentos", file, safeName);
   });
+  if (formState.calculo_arquivo) {
+    const calcFile = formState.calculo_arquivo;
+    const safeCalcName = `CALCULO_${calcFile.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "_")}`;
+    formData.append("documentos", calcFile, safeCalcName);
+  }
 
   try {
     const response = await fetch(`${API_BASE}/casos/novo`, {

@@ -27,6 +27,7 @@ import {
   Users,
   Eye,
   Paperclip,
+  Search,
 } from "lucide-react";
 import { API_BASE } from "../../../utils/apiBase";
 import { formatTipoAcaoLabel } from "../../../utils/caseUtils";
@@ -190,6 +191,8 @@ export const DetalhesCaso = () => {
   const [isSharing, setIsSharing] = useState(false);
   const [minutaPreview, setMinutaPreview] = useState("penhora");
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
+  const [isUploadingMinuta, setIsUploadingMinuta] = useState(false);
+  const [buscaColega, setBuscaColega] = useState("");
   const [autosType, setAutosType] = useState(null); // 'apartados' ou 'proprios_autos'
   const [autosSubtype, setAutosSubtype] = useState(null); // 'provisorio' ou 'definitivo'
 
@@ -333,6 +336,11 @@ export const DetalhesCaso = () => {
     }
     return docs;
   }, [caso]);
+
+  const exibirPainelCumulado = useMemo(() => 
+    todosDocumentosGerados.some(doc => doc.key === "execucao_cumulado" || doc.key === "cumprimento_cumulado"),
+    [todosDocumentosGerados]
+  );
 
   const podeExibirDocumentos =
     autosType === "proprios_autos" ||
@@ -597,7 +605,7 @@ export const DetalhesCaso = () => {
     }
   };
 
-  const handleRegenerateMinuta = async () => {
+  const handleRegenerateMinuta = async (soloCumulado = false) => {
     if (
       !(await confirm(
         "Isso irá gerar um novo arquivo Word com os dados atuais. O arquivo anterior será substituído. Continuar?",
@@ -614,6 +622,7 @@ export const DetalhesCaso = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({ solo_cumulado: soloCumulado }),
       });
 
       if (!response.ok) throw new Error("Falha ao regerar minuta.");
@@ -755,6 +764,7 @@ export const DetalhesCaso = () => {
   const handleOpenShare = async () => {
     setIsShareModalOpen(true);
     setIsLoadingColegas(true);
+    setBuscaColega("");
     try {
       const res = await fetch(`${API_BASE}/defensores/colegas`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -764,6 +774,35 @@ export const DetalhesCaso = () => {
       toast.error("Erro ao carregar colegas.");
     } finally {
       setIsLoadingColegas(false);
+    }
+  };
+
+  const handleUploadMinuta = async (file, documentKey) => {
+    if (!file || !documentKey) return;
+    
+    const formData = new FormData();
+    formData.append("minuta", file);
+    formData.append("documentKey", documentKey);
+
+    setIsUploadingMinuta(true);
+    try {
+      const response = await fetch(`${API_BASE}/casos/${id}/upload-minuta`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Falha ao substituir minuta.");
+      }
+
+      toast.success("Minuta substituída com sucesso!");
+      mutate();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsUploadingMinuta(false);
     }
   };
 
@@ -1255,7 +1294,7 @@ export const DetalhesCaso = () => {
                           key={doc.key}
                           href={doc.url}
                           target="_blank" rel="noopener noreferrer" download
-                          className={`btn btn-secondary text-sm flex items-center gap-2 border-border ${doc.textClass} ${doc.downloadHoverClass}`}
+                          className={`btn-download ${doc.textClass === 'text-success' ? '' : 'filter saturate-[0.8]'}`}
                         >
                           <Download size={16} /> {doc.label}
                         </a>
@@ -1393,7 +1432,108 @@ export const DetalhesCaso = () => {
 
             {/* LAYOUT PRINCIPAL - QUANDO TIPO FOI SELECIONADO */}
             {podeExibirDocumentos && (
-              <div className="flex flex-col lg:flex-row gap-6">
+              <>
+                {/* Informações Financeiras (Cumulado) */}
+                {exibirPainelCumulado && (
+                  <div className="card space-y-4 border-l-4 border-l-secondary mb-6 animate-fade-in">
+                    <div className="flex items-center gap-3">
+                      <Scale className="text-secondary" />
+                      <h2 className="heading-2 font-bold">Informações Financeiras (Cumulado)</h2>
+                    </div>
+                    
+                    <div className="space-y-4 p-4 bg-secondary/5 rounded-xl border border-secondary/10">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Penhora */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-secondary uppercase tracking-wider">Débito Rito Penhora</label>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <input
+                              type="text"
+                              placeholder="R$ 0,00"
+                              className="input font-mono"
+                              value={debitoPenhoraValor}
+                              onChange={(e) => {
+                                const val = formatCurrencyMask(e.target.value);
+                                setDebitoPenhoraValor(val);
+                                setDebitoPenhoraExtenso(numeroParaExtenso(val));
+                              }}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Valor por extenso..."
+                              className="input md:col-span-2 text-xs"
+                              value={debitoPenhoraExtenso}
+                              onChange={(e) => setDebitoPenhoraExtenso(e.target.value)}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Prisão */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-secondary uppercase tracking-wider">Débito Rito Prisão</label>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <input
+                              type="text"
+                              placeholder="R$ 0,00"
+                              className="input font-mono"
+                              value={debitoPrisaoValor}
+                              onChange={(e) => {
+                                const val = formatCurrencyMask(e.target.value);
+                                setDebitoPrisaoValor(val);
+                                setDebitoPrisaoExtenso(numeroParaExtenso(val));
+                              }}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Valor por extenso..."
+                              className="input md:col-span-2 text-xs"
+                              value={debitoPrisaoExtenso}
+                              onChange={(e) => setDebitoPrisaoExtenso(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-secondary/20 mt-2">
+                        <div className="flex justify-between items-center bg-secondary/10 p-3 rounded-lg">
+                          <span className="text-sm font-bold text-secondary">VALOR TOTAL DA CAUSA:</span>
+                          <span className="text-lg font-mono font-black text-secondary">
+                            {formatCurrencyMask((
+                              (parseFloat(debitoPenhoraValor.replace(/\./g, '').replace(',', '.') || 0) + 
+                               parseFloat(debitoPrisaoValor.replace(/\./g, '').replace(',', '.') || 0)) * 100
+                            ).toFixed(0))}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-2 mt-4 border-t border-border">
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          onClick={handleSaveJuridico}
+                          disabled={isSavingJuridico}
+                          className="btn btn-primary flex items-center gap-2"
+                        >
+                          <Save size={18} />
+                          {isSavingJuridico ? "Salvando..." : "Salvar Dados Jurídicos"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRegenerateMinuta(true)}
+                          disabled={isRegeneratingMinuta || isSavingJuridico}
+                          className="btn-regenerate"
+                        >
+                          <RefreshCw size={18} className={isRegeneratingMinuta ? "animate-spin" : ""} />
+                          {isRegeneratingMinuta ? "Regerando..." : "Regerar Minuta com Novos Dados"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col lg:flex-row gap-6">
                 {/* SIDEBAR LATERA - GESTÃO E DOWNLOADS DAS MINUTAS */}
                 <div className="lg:w-1/3 flex flex-col gap-4">
                   <div className="card space-y-4">
@@ -1418,12 +1558,28 @@ export const DetalhesCaso = () => {
                     <div className="space-y-3">
                       {documentosNoFluxo.map((doc) => (
                         <div key={doc.key} className={`flex items-center justify-between p-3 border rounded-lg transition-colors cursor-pointer ${minutaPreview === doc.key ? doc.previewClass : doc.defaultClass}`}>
-                          <button onClick={() => setMinutaPreview(doc.key)} className={`flex-1 text-left font-bold text-sm ${doc.textClass}`}>
-                            {doc.label}
-                          </button>
-                          <a href={doc.url} download className={`p-2 text-muted ${doc.downloadHoverClass} transition-colors`} title="Fazer Download">
-                            <Download size={18} />
-                          </a>
+                          <div className="flex-1 flex flex-col" onClick={() => setMinutaPreview(doc.key)}>
+                            <button className={`text-left font-bold text-sm ${doc.textClass}`}>
+                              {doc.label}
+                            </button>
+                            <span className="text-[10px] text-muted opacity-60">Versão gerada pelo sistema</span>
+                          </div>
+                          
+                          <div className="flex items-center gap-1">
+                            <a href={doc.url} download className="p-2 text-success hover:scale-110 transition-transform" title="Fazer Download">
+                              <Download size={20} />
+                            </a>
+                            
+                            <label className="p-2 text-primary hover:scale-110 transition-transform cursor-pointer" title="Substituir por versão local (Word/PDF)">
+                              {isUploadingMinuta ? <Loader2 size={18} className="animate-spin" /> : <Upload size={20} />}
+                              <input 
+                                type="file" 
+                                className="hidden" 
+                                accept=".docx,.pdf"
+                                onChange={(e) => handleUploadMinuta(e.target.files[0], doc.key)}
+                              />
+                            </label>
+                          </div>
                         </div>
                       ))}
 
@@ -1468,7 +1624,8 @@ export const DetalhesCaso = () => {
                   </div>
                 </div>
               </div>
-            )}
+            </>
+          )}
 
             {autosType === "proprios_autos" && (
               <div className="card border-2 border-dashed border-primary/30 text-center p-8 bg-primary/5">
@@ -1652,8 +1809,8 @@ export const DetalhesCaso = () => {
             </div>
 
             {/* --- SEÇÃO: CÁLCULO E DADOS JURÍDICOS --- */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Memória de Cálculo */}
+            {/* --- ZONA DE FINALIZAÇÃO DO ESTAGIÁRIO --- */}
+            <div className="space-y-6 mb-8">
               <div className="card space-y-4 border-l-4 border-l-primary">
                 <div className="flex items-center gap-3">
                   <Mic className="text-primary" />
@@ -1665,79 +1822,6 @@ export const DetalhesCaso = () => {
                   value={memoriaCalculo}
                   onChange={(e) => setMemoriaCalculo(e.target.value)}
                 />
-              </div>
-
-              {/* Informações Financeiras (Cumulado) */}
-              <div className="card space-y-4 border-l-4 border-l-secondary">
-                <div className="flex items-center gap-3">
-                  <Scale className="text-secondary" />
-                  <h2 className="heading-2 font-bold">Informações Financeiras (Cumulado)</h2>
-                </div>
-                
-                <div className="space-y-4 p-4 bg-secondary/5 rounded-xl border border-secondary/10">
-                  {/* Penhora */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-secondary uppercase tracking-wider">Débito Rito Penhora</label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <input
-                        type="text"
-                        placeholder="R$ 0,00"
-                        className="input font-mono"
-                        value={debitoPenhoraValor}
-                        onChange={(e) => {
-                          const val = formatCurrencyMask(e.target.value);
-                          setDebitoPenhoraValor(val);
-                          setDebitoPenhoraExtenso(numeroParaExtenso(val));
-                        }}
-                      />
-                      <input
-                        type="text"
-                        placeholder="Valor por extenso..."
-                        className="input md:col-span-2 text-xs"
-                        value={debitoPenhoraExtenso}
-                        onChange={(e) => setDebitoPenhoraExtenso(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Prisão */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-secondary uppercase tracking-wider">Débito Rito Prisão</label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <input
-                        type="text"
-                        placeholder="R$ 0,00"
-                        className="input font-mono"
-                        value={debitoPrisaoValor}
-                        onChange={(e) => {
-                          const val = formatCurrencyMask(e.target.value);
-                          setDebitoPrisaoValor(val);
-                          setDebitoPrisaoExtenso(numeroParaExtenso(val));
-                        }}
-                      />
-                      <input
-                        type="text"
-                        placeholder="Valor por extenso..."
-                        className="input md:col-span-2 text-xs"
-                        value={debitoPrisaoExtenso}
-                        onChange={(e) => setDebitoPrisaoExtenso(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-secondary/20 mt-2">
-                    <div className="flex justify-between items-center bg-secondary/10 p-3 rounded-lg">
-                      <span className="text-sm font-bold text-secondary">VALOR TOTAL DA CAUSA:</span>
-                      <span className="text-lg font-mono font-black text-secondary">
-                        {formatCurrencyMask((
-                          (parseFloat(debitoPenhoraValor.replace(/\./g, '').replace(',', '.') || 0) + 
-                           parseFloat(debitoPrisaoValor.replace(/\./g, '').replace(',', '.') || 0)) * 100
-                        ).toFixed(0))}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
                 <div className="flex justify-end pt-2">
                   <button
                     type="button"
@@ -1751,7 +1835,6 @@ export const DetalhesCaso = () => {
                 </div>
               </div>
             </div>
-            {/* --- ZONA DE FINALIZAÇÃO DO ESTAGIÁRIO --- */}
             <div className="mt-8 pt-8 border-t border-soft">
               <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
                 <CheckCircle className="text-green-500" />
@@ -1816,6 +1899,21 @@ export const DetalhesCaso = () => {
                   className="bg-surface border border-soft p-6 rounded-xl space-y-4"
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* INPUT NÚMERO SOLAR */}
+                    <div>
+                      <label className="block text-sm font-medium text-muted mb-1">
+                        Número SOLAR/SIGAD
+                      </label>
+                      <input
+                        type="text"
+                        value={numSolar}
+                        onChange={(e) => setNumSolar(e.target.value)}
+                        placeholder="Ex: 1234..."
+                        className="w-full bg-app border border-soft rounded-lg p-3 text-muted focus:ring-2 focus:ring-primary outline-none"
+                        required
+                      />
+                    </div>
+
                     {/* INPUT NÚMERO PROCESSO */}
                     <div>
                       <label className="block text-sm font-medium text-muted mb-1">
@@ -2006,18 +2104,55 @@ export const DetalhesCaso = () => {
                 <Loader2 className="animate-spin text-primary" />
               </div>
             ) : (
-              <select
-                className="input"
-                value={selectedColegaId}
-                onChange={(e) => setSelectedColegaId(e.target.value)}
-              >
-                <option value="">Selecione um colega...</option>
-                {colegas.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome}
-                  </option>
-                ))}
-              </select>
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                  <input
+                    type="text"
+                    className="input pl-10 py-2 text-sm"
+                    placeholder="Filtrar por nome..."
+                    value={buscaColega}
+                    onChange={(e) => setBuscaColega(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1 custom-scrollbar">
+                  {colegas
+                    .filter(c => c.nome.toLowerCase().includes(buscaColega.toLowerCase()))
+                    .map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setSelectedColegaId(c.id)}
+                        className={`w-full text-left p-3 rounded-xl border transition-all flex items-center gap-3 ${
+                          selectedColegaId === c.id 
+                            ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary/20" 
+                            : "border-border bg-surface hover:border-primary/50 hover:bg-primary/5"
+                        }`}
+                      >
+                        <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-xs ${
+                          selectedColegaId === c.id ? "bg-primary text-white" : "bg-bg text-primary border border-border"
+                        }`}>
+                          {c.nome.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-bold text-sm truncate ${selectedColegaId === c.id ? "text-primary" : "text-main"}`}>
+                            {c.nome.split(' (')[0]}
+                          </p>
+                          <p className="text-[10px] text-muted uppercase tracking-wider truncate">
+                            {c.nome.split(' (')[1]?.replace(')', '') || ""}
+                          </p>
+                        </div>
+                        {selectedColegaId === c.id && <CheckCircle size={16} className="text-primary" />}
+                      </button>
+                    ))}
+                  
+                  {colegas.length > 0 && colegas.filter(c => c.nome.toLowerCase().includes(buscaColega.toLowerCase())).length === 0 && (
+                    <div className="text-center p-8 text-muted italic text-sm">
+                      Nenhum colega encontrado.
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
 
             <div className="flex gap-3 pt-2">

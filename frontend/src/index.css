@@ -231,4 +231,74 @@
   /* Tipografia */
   .heading-hero { @apply text-3xl md:text-4xl font-bold tracking-tight text-main; }
   .heading-1 { @apply text-2xl font-bold text-main; }
+  .heading-2 { @apply text-xl font-bold text-main; }
+  .heading-3 { @apply text-lg font-bold text-main; }
+
+  /* Premium Upload & Download Buttons */
+  .btn-download {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+  }
+  .btn-download:hover {
+    @apply shadow-lg scale-[1.02];
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  }
+  .btn-download:active { @apply scale-[0.98]; }
+
+  .btn-upload {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-600) 100%);
+    color: white;
+    border: none;
+  }
+  .btn-upload:hover {
+    @apply shadow-lg scale-[1.02];
+    filter: brightness(1.1);
+  }
+  .btn-upload:active { @apply scale-[0.98]; }
+
+  .btn-regenerate {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm;
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+    border: none;
+  }
+  .btn-regenerate:hover {
+    @apply shadow-lg scale-[1.02];
+    filter: brightness(1.1);
+  }
+
+  /* REFINAMENTOS 2026: Grid Compacta e Alertas */
+  .casos-grid-compact {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .casos-grid-compact .card-caso {
+    padding: 1.25rem;
+    border-radius: 1.25rem;
+  }
+
+  .banner-alerta-ocioso {
+    @apply flex items-center gap-3 p-4 mb-6 rounded-2xl border-2 animate-pulse;
+    background: color-mix(in oklab, var(--color-laranja) 10%, var(--color-surface));
+    border-color: var(--color-laranja);
+    color: var(--color-text);
+  }
+
+  .badge-atendimento-meu {
+    @apply px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider;
+    background: var(--color-primary);
+    color: white;
+  }
+
+  /* Destaque para casos compartilhados no Dashboard */
+  .card-compartilhado-highlight {
+    background: linear-gradient(to right, color-mix(in oklab, var(--color-highlight) 15%, transparent), transparent) !important;
+    border-left: 4px solid var(--color-highlight) !important;
+  }
 }
+

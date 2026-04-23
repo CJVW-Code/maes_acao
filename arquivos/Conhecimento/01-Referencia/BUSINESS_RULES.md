@@ -1,6 +1,6 @@
 # Regras de Negócio — Mães em Ação · DPE-BA
 
-> **Versão:** 2.0 · **Atualizado em:** 2026-04-10 (Estabilização Mutirão)  
+> **Versão:** 2.1 · **Atualizado em:** 2026-04-22 (Downloads Seguros + Validações de Execução)  
 > **Fonte:** Análise da codebase (controllers, services, middleware, config)  
 > **Propósito:** Referência canônica para treinamento de IAs e orientação de defensores
 
@@ -14,16 +14,16 @@ O campo `tipo_acao` da tabela `casos` determina qual template DOCX e qual prompt
 
 | # | `acaoKey` (chave interna) | Template DOCX | Prompt IA | Vara Competente |
 |---|:--------------------------|:--------------|:----------|:----------------|
-| 1 | `fixacao_alimentos` | `fixacao_alimentos.docx` | ✅ System prompt específico (dicionário) | Vara de Família |
-| 2 | `exec_penhora` | `exec_penhora.docx` | ❌ Usa fallback legado | Vara de Família |
-| 3 | `exec_prisao` | `exec_prisao.docx` | ❌ Usa fallback legado | Vara de Família |
-| 4 | `exec_cumulado` | `prov_cumulado.docx` | ❌ Usa fallback legado | Vara de Família |
-| 5 | `def_penhora` | `def_penhora.docx` | ❌ Usa fallback legado | Vara de Família |
-| 6 | `def_prisao` | `def_prisao.docx` | ❌ Usa fallback legado | Vara de Família |
-| 7 | `def_cumulado` | `def_cumulado.docx` | ❌ Usa fallback legado | Vara de Família |
+| 1 | `fixacao_alimentos` | `fixacao_alimentos1.docx` | ✅ System prompt específico (dicionário) | Vara de Família |
+| 2 | `exec_penhora` | `executacao_alimentos_penhora.docx` | ❌ Usa fallback legado | Vara de Família |
+| 3 | `exec_prisao` | `executacao_alimentos_prisao.docx` | ❌ Usa fallback legado | Vara de Família |
+| 4 | `exec_cumulado` | `executacao_alimentos_cumulado.docx` | ❌ Usa fallback legado | Vara de Família |
+| 5 | `def_penhora` | `cumprimento_penhora.docx` | ❌ Usa fallback legado | Vara de Família |
+| 6 | `def_prisao` | `cumprimento_prisao.docx` | ❌ Usa fallback legado | Vara de Família |
+| 7 | `def_cumulado` | `cumprimento_cumulado.docx` | ❌ Usa fallback legado | Vara de Família |
 | 8 | `alimentos_gravidicos` | `alimentos_gravidicos.docx` | ❌ Usa fallback legado | Vara de Família |
 | 9 | `termo_declaracao` | `termo_declaracao.docx` | ❌ (N/A — gerado separadamente) | — |
-| — | `default` (fallback) | `fixacao_alimentos.docx` | ❌ Usa fallback legado | `[VARA NÃO ESPECIFICADA]` |
+| — | `default` (fallback) | `fixacao_alimentos1.docx` | ❌ Usa fallback legado | `[VARA NÃO ESPECIFICADA]` |
 
 > **Regra de fallback:** Se `acaoKey` está vazio ou não existe no dicionário, a config `default` é usada com log de aviso.
 
@@ -270,6 +270,14 @@ Para garantir que a busca seja resiliente a diferentes formatos de entrada, o si
 | Motivo é obrigatório ao arquivar | Mínimo 5 caracteres; retorna `400` se ausente |
 | Ao restaurar (desarquivar) | Motivo é limpo (`null`) |
 
+### 3.6 Validação do Formulário de Triagem
+
+| Campo | Regra | Comportamento |
+|:------|:------|:--------------|
+| `relato` | Obrigatório (não vazio) | Bloqueia envio se vazio — **não** há mínimo de caracteres |
+| `valor_debito` | Obrigatório quando `exigeDadosProcessoOriginal = true` | Bloqueia envio para execuções sem o valor do débito |
+| `calculo_arquivo` | Obrigatório quando `exigeDadosProcessoOriginal = true` e "Enviar depois" = false | Bloqueia envio de execuções sem o demonstrativo de cálculo anexado |
+
 ### 3.6 Campos que o assistido preenche vs. apenas o defensor
 
 | Quem preenche | Campos |
@@ -311,6 +319,7 @@ criarNovoCaso() → QStash.publishJSON() → jobController.processJob()
 |:---------|:-------------------|:---------------|
 | **Criação do caso** | ✅ Gerada automaticamente via processamento background | — |
 | **Regerar minuta** | — | ✅ Admin pode regerar via `POST /:id/regerar-minuta` |
+| **Substituir minuta** | — | ✅ Servidor pode fazer upload manual via `POST /:id/upload-minuta` |
 | **Regenerar Dos Fatos** | — | ✅ Admin pode regerar via `POST /:id/gerar-fatos` |
 | **Reprocessar caso** | ✅ Re-executa todo o pipeline | — |
 

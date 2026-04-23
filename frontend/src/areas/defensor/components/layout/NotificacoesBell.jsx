@@ -1,14 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import { 
-  Bell, 
-  Calendar, 
-  UserPlus, 
-  FileText, 
-  Check, 
-  Loader2, 
-  X 
-} from "lucide-react";
+import { Bell, Calendar, UserPlus, FileText, Check, Loader2, X } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../../../contexts/ToastContext";
 import { API_BASE } from "../../../../utils/apiBase";
@@ -32,6 +24,7 @@ export const NotificacoesBell = () => {
   }, []);
 
   const naoLidas = notificacoes.filter((n) => !n.lida).length;
+  const temConvitePendente = notificacoes.some((n) => !n.lida && n.tipo === "assistencia");
 
   const handleResponderAssistencia = async (notif, aceito) => {
     if (!notif.referencia_id) return marcarNotificacaoLida(notif.id);
@@ -40,11 +33,11 @@ export const NotificacoesBell = () => {
     try {
       const res = await fetch(`${API_BASE}/casos/assistencia/${notif.referencia_id}/responder`, {
         method: "POST",
-        headers: { 
-           "Content-Type": "application/json",
-           Authorization: `Bearer ${token}` 
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ aceito })
+        body: JSON.stringify({ aceito }),
       });
 
       if (res.ok) {
@@ -67,9 +60,12 @@ export const NotificacoesBell = () => {
 
   const getIcon = (tipo) => {
     switch (tipo) {
-      case "reagendamento": return <Calendar size={16} />;
-      case "assistencia": return <UserPlus size={16} />;
-      default: return <FileText size={16} />;
+      case "reagendamento":
+        return <Calendar size={16} />;
+      case "assistencia":
+        return <UserPlus size={16} />;
+      default:
+        return <FileText size={16} />;
     }
   };
 
@@ -78,11 +74,17 @@ export const NotificacoesBell = () => {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-muted hover:text-primary transition-colors rounded-full hover:bg-surface-alt"
+        className={`relative p-2 transition-colors rounded-full hover:bg-surface-alt ${
+          temConvitePendente ? "text-error animate-pulse" : "text-muted hover:text-primary"
+        }`}
       >
         <Bell size={20} />
         {naoLidas > 0 && (
-          <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-surface"></span>
+          <span
+            className={`absolute top-1 right-1 h-2.5 w-2.5 rounded-full border-2 border-surface ${
+              temConvitePendente ? "bg-highlight" : "bg-red-500"
+            }`}
+          ></span>
         )}
       </button>
 
@@ -94,9 +96,7 @@ export const NotificacoesBell = () => {
           </div>
           <div className="max-h-[400px] overflow-y-auto">
             {notificacoes.length === 0 ? (
-              <p className="p-4 text-center text-sm text-muted">
-                Nenhuma notificação.
-              </p>
+              <p className="p-4 text-center text-sm text-muted">Nenhuma notificação.</p>
             ) : (
               notificacoes.map((notif) => (
                 <div
@@ -120,8 +120,8 @@ export const NotificacoesBell = () => {
                       >
                         {notif.mensagem}
                       </Link>
-                      {!notif.lida && notif.tipo !== 'assistencia' && (
-                        <button 
+                      {!notif.lida && notif.tipo !== "assistencia" && (
+                        <button
                           onClick={() => marcarNotificacaoLida(notif.id)}
                           className="text-muted hover:text-primary p-1"
                         >
@@ -131,14 +131,18 @@ export const NotificacoesBell = () => {
                     </div>
 
                     {/* AÇÕES DE ASSISTÊNCIA */}
-                    {notif.tipo === 'assistencia' && !notif.lida && (
+                    {notif.tipo === "assistencia" && !notif.lida && (
                       <div className="flex gap-2 mt-2">
                         <button
                           disabled={respondingId === notif.id}
                           onClick={() => handleResponderAssistencia(notif, true)}
                           className="btn btn-primary btn-xs py-1 px-3 flex items-center gap-1"
                         >
-                          {respondingId === notif.id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                          {respondingId === notif.id ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : (
+                            <Check size={12} />
+                          )}
                           Aceitar
                         </button>
                         <button

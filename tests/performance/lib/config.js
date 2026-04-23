@@ -6,8 +6,12 @@ export const AUTH_TOKEN = __ENV.AUTH_TOKEN || "";
 export const SCANNER_API_KEY = __ENV.SCANNER_API_KEY || "";
 export const TEST_CASE_ID = __ENV.TEST_CASE_ID || "";
 export const TEST_PROTOCOLO = __ENV.TEST_PROTOCOLO || "";
-export const TEST_CPF_EXISTENTE = (__ENV.TEST_CPF_EXISTENTE || "12345678901").replace(/\D/g, "");
-export const TEST_CPF_INEXISTENTE = (__ENV.TEST_CPF_INEXISTENTE || "99999999999").replace(/\D/g, "");
+export const TEST_CPF_EXISTENTE = (
+  __ENV.TEST_CPF_EXISTENTE || "12345678901"
+).replace(/\D/g, "");
+export const TEST_CPF_INEXISTENTE = (
+  __ENV.TEST_CPF_INEXISTENTE || "99999999999"
+).replace(/\D/g, "");
 
 const fixtureText = open("../fixtures/documento_teste.txt", "b");
 
@@ -48,7 +52,11 @@ export function scannerHeaders(extra = {}) {
 }
 
 export function randomCpf(seedPrefix = "77") {
-  const core = `${seedPrefix}${String(randomIntBetween(100000000, 999999999))}`.slice(0, 11);
+  const core =
+    `${seedPrefix}${String(randomIntBetween(100000000, 999999999))}`.slice(
+      0,
+      11,
+    );
   return core.padEnd(11, "0");
 }
 
@@ -62,7 +70,11 @@ export function buildCasePayload() {
     tipoAcao: "fixacao_alimentos",
     acaoEspecifica: "fixacao_alimentos",
     relato: `Teste de carga automatizado ${unique}`,
-    documentos_informados: JSON.stringify(["RG", "CPF", "Comprovante de residencia"]),
+    documentos_informados: JSON.stringify([
+      "RG",
+      "CPF",
+      "Comprovante de residencia",
+    ]),
   };
 }
 
@@ -77,12 +89,18 @@ export function buildScannerMultipart(protocolo = TEST_PROTOCOLO) {
   return {
     protocolo,
     tipos: "comprovante",
-    documentos: http.file(fixtureText, "scanner_documento_teste.txt", "text/plain"),
+    documentos: http.file(
+      fixtureText,
+      "scanner_documento_teste.txt",
+      "text/plain",
+    ),
   };
 }
 
 export function assertCoreChecks(response, expectedStatuses, tag) {
-  const allowed = Array.isArray(expectedStatuses) ? expectedStatuses : [expectedStatuses];
+  const allowed = Array.isArray(expectedStatuses)
+    ? expectedStatuses
+    : [expectedStatuses];
   check(response, {
     [`${tag} status esperado`]: (r) => allowed.includes(r.status),
     [`${tag} sem 5xx`]: (r) => r.status < 500,

@@ -10,7 +10,9 @@ import {
   Plus,
   Download,
   Loader2,
+  HelpCircle,
 } from "lucide-react";
+import { authFetch } from "../../../../utils/apiBase";
 
 export const PainelDocumentos = ({
   caso,
@@ -25,6 +27,8 @@ export const PainelDocumentos = ({
   const [isDragging, setIsDragging] = useState(false);
   const [filasEnvio, setFilasEnvio] = useState([]);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [isGeneratingZip, setIsGeneratingZip] = useState(false);
+  const [isDownloadingDoc, setIsDownloadingDoc] = useState(null); // url do doc sendo baixado
   const inputRef = useRef(null);
 
   const podeEscrever = user?.cargo !== "visualizador";
@@ -57,11 +61,75 @@ export const PainelDocumentos = ({
     setUploadOpen(false);
   };
 
+  const executarDownloadComTicket = async (urlDownload, caminhoArquivo = null) => {
+    const isZip = urlDownload.includes("download-zip");
+    if (isZip) setIsGeneratingZip(true);
+    else setIsDownloadingDoc(caminhoArquivo);
+
+    try {
+      const response = await authFetch(`/casos/${caso.id}/gerar-ticket-download`, {
+        method: "POST",
+        body: JSON.stringify({ caminho_arquivo: caminhoArquivo }),
+      });
+
+      if (!response.ok) throw new Error("Falha ao gerar ticket");
+
+      const { ticket } = await response.json();
+
+      // Abre o download em uma nova janela/tab para evitar interromper o estado do app
+      const finalUrl = `${urlDownload}${urlDownload.includes("?") ? "&" : "?"}ticket=${ticket}`;
+      window.location.assign(finalUrl);
+    } catch (err) {
+      alert("Não foi possível iniciar o download. Tente novamente.");
+      console.error("[Download] Falha:", err);
+    } finally {
+      if (isZip) setIsGeneratingZip(false);
+      else setIsDownloadingDoc(null);
+    }
+  };
+
   return (
     <div className="card space-y-4">
-      <h2 className="heading-2">Documentos e anexos</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="heading-2">Documentos e anexos</h2>
+        <div className="flex items-center gap-2">
+          {caso.documentos_detalhes?.length > 0 && (
+            <button
+              onClick={() => {
+                const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
+                executarDownloadComTicket(`${API_URL}/casos/${caso.id}/download-zip`);
+              }}
+              disabled={isGeneratingZip}
+              className="btn btn-xs btn-download gap-1"
+              title="Baixar todos os documentos em um arquivo ZIP"
+            >
+              {isGeneratingZip ? (
+                <>
+                  <Loader2 size={12} className="animate-spin" />
+                  Gerando...
+                </>
+              ) : (
+                <>
+                  <Download size={12} />
+                  Baixar Tudo (.zip)
+                </>
+              )}
+            </button>
+          )}
+          <div className="group relative">
+            <HelpCircle size={16} className="text-muted cursor-help" />
+            <div className="absolute right-0 bottom-full mb-2 w-64 p-3 bg-main text-white text-[10px] rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 border border-white/10">
+              <p className="font-bold mb-1">💡 Dica de Download</p>
+              <p>
+                Ao baixar arquivos compactados (.zip), você pode extraí-los clicando com o botão
+                direito e selecionando "Extrair Tudo" no Windows ou dando dois cliques no macOS. O
+                suporte é nativo do sistema operacional.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
       <div className="space-y-3">
-
         {/* Áudio do Relato */}
         {caso.url_audio && (
           <a
@@ -80,13 +148,19 @@ export const PainelDocumentos = ({
           caso.documentos_detalhes.map((doc) => {
             const { url, tipo, nome_original } = doc;
             const isComplementar = url.includes("complementar_");
-            
+
             // Mapeamento de Labels para etiquetas
             const tipoLabels = {
               identidade: { label: "RG/ID", color: "bg-blue-100 text-blue-700 border-blue-200" },
               cpf: { label: "CPF", color: "bg-cyan-100 text-cyan-700 border-cyan-200" },
-              residencia: { label: "Residência", color: "bg-orange-100 text-orange-700 border-orange-200" },
-              certidao: { label: "Certidão", color: "bg-purple-100 text-purple-700 border-purple-200" },
+              residencia: {
+                label: "Residência",
+                color: "bg-orange-100 text-orange-700 border-orange-200",
+              },
+              certidao: {
+                label: "Certidão",
+                color: "bg-purple-100 text-purple-700 border-purple-200",
+              },
               renda: { label: "Renda", color: "bg-green-100 text-green-700 border-green-200" },
               outros: { label: "Outros", color: "bg-slate-100 text-slate-600 border-slate-200" },
             };
@@ -104,16 +178,13 @@ export const PainelDocumentos = ({
                   <input
                     type="text"
                     value={editingFile.name}
-                    onChange={(e) =>
-                      setEditingFile({ ...editingFile, name: e.target.value })
-                    }
+                    onChange={(e) => setEditingFile({ ...editingFile, name: e.target.value })}
                     className="input input-sm flex-1 h-8 text-sm"
                     autoFocus
                     placeholder="Novo nome do arquivo..."
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleSaveRename();
-                      if (e.key === "Escape")
-                        setEditingFile({ url: null, name: "" });
+                      if (e.key === "Escape") setEditingFile({ url: null, name: "" });
                     }}
                   />
                   <button
@@ -143,7 +214,7 @@ export const PainelDocumentos = ({
                   rel="noopener noreferrer"
                   className={`btn btn-ghost border w-full justify-start text-left break-all flex-wrap h-auto py-2.5 ${
                     isComplementar
-                      ? "border-highlight/30 bg-highlight/5 hover:bg-highlight/10"
+                      ? "border-highlight/90 bg-highlight/30 hover:bg-highlight/50"
                       : "border-soft"
                   }`}
                 >
@@ -151,28 +222,52 @@ export const PainelDocumentos = ({
                     size={18}
                     className={`shrink-0 ${isComplementar ? "text-highlight" : "text-muted"}`}
                   />
-                  
+
                   <div className="flex flex-col flex-1 overflow-hidden">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md border ${tag.color}`}>
+                      <span
+                        className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md border ${tag.color}`}
+                      >
                         {tag.label}
                       </span>
                       {isComplementar && (
-                        <span className="text-[10px] uppercase font-bold bg-highlight text-white px-2 py-0.5 rounded-md">
+                        <span className="text-[10px] uppercase font-bold bg-highlight text px-2 py-0.5 rounded-md">
                           Novo (Scanner)
                         </span>
                       )}
                     </div>
                     <span
                       className={`text-sm mt-1 truncate ${
-                        isComplementar ? "font-medium text-highlight" : "text-main"
+                        isComplementar ? "font-medium text" : "text-main"
                       }`}
                     >
                       {displayName}
                     </span>
                   </div>
-                  
-                  <Download size={14} className="ml-auto opacity-40 group-hover:opacity-100 transition-opacity" />
+
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
+                      executarDownloadComTicket(
+                        `${API_URL}/casos/${caso.id}/documento/download?path=${encodeURIComponent(url)}`,
+                        url,
+                      );
+                    }}
+                    disabled={isDownloadingDoc === url}
+                    className="p-1.5 hover:bg-black/5 rounded-md transition-colors ml-auto group/dl"
+                    title="Baixar arquivo"
+                  >
+                    {isDownloadingDoc === url ? (
+                      <Loader2 size={14} className="animate-spin text-primary" />
+                    ) : (
+                      <Download
+                        size={14}
+                        className="opacity-40 group-hover:opacity-100 group-hover/dl:text-primary transition-opacity"
+                      />
+                    )}
+                  </button>
                 </a>
                 {podeEscrever && (
                   <button
@@ -190,9 +285,7 @@ export const PainelDocumentos = ({
             );
           })
         ) : (
-          <p className="text-sm text-muted italic">
-            Nenhum documento anexado a este caso.
-          </p>
+          <p className="text-sm text-muted italic">Nenhum documento anexado a este caso.</p>
         )}
 
         {/* ── UPLOAD PELO PAINEL ────────────────────────────────────────── */}
@@ -246,10 +339,8 @@ export const PainelDocumentos = ({
                     className={`transition-colors ${isDragging ? "text-primary" : "text-muted"}`}
                   />
                   <p className="text-sm text-center text-muted">
-                    <span className="font-semibold text-primary">
-                      Clique para selecionar
-                    </span>{" "}
-                    ou arraste os arquivos aqui
+                    <span className="font-semibold text-primary">Clique para selecionar</span> ou
+                    arraste os arquivos aqui
                   </p>
                   <p className="text-xs text-muted">PDF, JPG ou PNG</p>
                   <input
@@ -270,13 +361,8 @@ export const PainelDocumentos = ({
                         key={i}
                         className="flex items-center gap-2 p-2 bg-surface border border-soft rounded-lg text-sm"
                       >
-                        <FileText
-                          size={14}
-                          className="shrink-0 text-primary"
-                        />
-                        <span className="flex-1 truncate text-main">
-                          {file.name}
-                        </span>
+                        <FileText size={14} className="shrink-0 text-primary" />
+                        <span className="flex-1 truncate text-main">{file.name}</span>
                         <span className="text-xs text-muted shrink-0">
                           {(file.size / 1024).toFixed(0)} KB
                         </span>
@@ -297,7 +383,7 @@ export const PainelDocumentos = ({
                   <button
                     onClick={handleEnviar}
                     disabled={isUploadingDocs || filasEnvio.length === 0}
-                    className="btn btn-primary flex-1 justify-center gap-2 disabled:opacity-60"
+                    className="btn-upload flex-1 justify-center gap-2 disabled:opacity-60"
                   >
                     {isUploadingDocs ? (
                       <>

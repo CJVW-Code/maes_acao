@@ -3,17 +3,19 @@ import logger from "../utils/logger.js";
 import jwt from "jsonwebtoken";
 
 export const authMiddleware = async (req, res, next) => {
-  // 1. Pega o cabeçalho de autorização
+  // 1. Pega o token do cabeçalho ou da query string (para downloads diretos)
   const authHeader = req.headers.authorization;
+  let token = null;
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.split(" ")[1];
+  }
+
+  if (!token) {
     return res
       .status(401)
       .json({ error: "Acesso negado. Nenhum token fornecido." });
   }
-
-  // 2. Extrai o token
-  const token = authHeader.split(" ")[1];
 
   try {
     // 3. Validação EXCLUSIVA com JWT Local (Não usamos Supabase Auth)
@@ -53,5 +55,37 @@ export const authMiddleware = async (req, res, next) => {
       code: "INVALID_TOKEN",
       message: "Por favor, saia e entre novamente no sistema.",
     });
+  }
+};
+
+export const validateDownloadTicket = async (req, res, next) => {
+  const { ticket } = req.query;
+
+  if (!ticket) {
+    return res.status(401).json({ error: "Ticket de download não fornecido." });
+  }
+
+  try {
+    const decoded = jwt.verify(ticket, process.env.JWT_SECRET, {
+      algorithms: ["HS256"],
+    });
+
+    if (decoded.purpose !== "download") {
+      return res.status(403).json({ error: "Ticket inválido para esta operação." });
+    }
+
+    // Reconstrói req.user a partir dos dados do payload
+    req.user = {
+      id: decoded.user.id,
+      nome: decoded.user.nome,
+      email: decoded.user.email,
+      cargo: decoded.user.cargo,
+      unidade_id: decoded.user.unidade_id,
+    };
+
+    next();
+  } catch (error) {
+    logger.error(`[Download Ticket Error]: ${error.message}`);
+    return res.status(401).json({ error: "Ticket expirado ou inválido." });
   }
 };

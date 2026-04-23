@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Lock,
   User,
+  Eye,
   Users,
 } from "lucide-react";
 import { authFetch } from "../../../utils/apiBase";
@@ -63,6 +64,7 @@ const summaryFilterLabels = {
   em_atendimento: "casos em atendimento",
   liberado_para_protocolo: "casos liberados para protocolo",
   protocolado: "casos protocolados",
+  meus: "meus atendimentos",
 };
 
 export const Dashboard = () => {
@@ -101,9 +103,9 @@ export const Dashboard = () => {
   const contagens = resumo?.contagens || {};
   const stats = resumo
     ? {
-      topTipos: resumo.topTipos || [],
-      representacao: resumo.representacao || { representacao: 0, proprio: 0 },
-    }
+        topTipos: resumo.topTipos || [],
+        representacao: resumo.representacao || { representacao: 0, proprio: 0 },
+      }
     : null;
 
   // Paginação da lista recente filtrada por status
@@ -113,26 +115,24 @@ export const Dashboard = () => {
     // Mapeamento de filtros para suportar legados se necessário,
     // mas priorizando o enum estratégico
     const filterMapping = {
-      aguardando_documentos: [
-        "aguardando_documentos",
-        "aguardando_docs",
-        "recebido",
-      ],
+      aguardando_documentos: ["aguardando_documentos", "aguardando_docs", "recebido"],
       documentacao_completa: ["documentacao_completa", "documentos_entregues"],
       pronto_para_analise: ["pronto_para_analise", "processado"],
-      em_atendimento: [
-        "em_atendimento",
-        "em_analise",
-      ],
+      em_atendimento: ["em_atendimento", "em_analise"],
       liberado_para_protocolo: ["liberado_para_protocolo"],
       em_protocolo: ["em_protocolo"],
       protocolado: ["protocolado", "encaminhado_solar"],
+      meus: ["meus"],
     };
 
     const filtered = casosRecentes.filter((c) => {
+      if (statusFilter === "meus") {
+        return c.servidor_id === user?.id || c.defensor_id === user?.id;
+      }
+      
       const s = normalizeStatus(c.status);
-      const targets = filterMapping[statusFilter] || [statusFilter];
-      return targets.includes(s);
+      const statuses = filterMapping[statusFilter] || [];
+      return statuses.includes(s);
     });
 
     const pages = Math.ceil(filtered.length / itemsPerPage);
@@ -164,6 +164,18 @@ export const Dashboard = () => {
 
   return (
     <div className="space-y-8 pb-24">
+      {resumo?.temCasoOcioso && (
+        <div className="banner-alerta-ocioso">
+          <AlertTriangle className="text-laranja" size={24} />
+          <div>
+            <p className="font-bold">Atenção: Há atendimentos parados há mais de 20 minutos.</p>
+            <p className="text-sm opacity-90">
+              Verifique a fila para garantir a fluidez do mutirão.
+            </p>
+          </div>
+        </div>
+      )}
+
       <section
         className="card text-white shadow-lg border-none relative overflow-hidden bg-primary"
         style={{
@@ -190,8 +202,16 @@ export const Dashboard = () => {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
         {[
+          {
+            key: "meus",
+            label: "Meus Atendimentos",
+            value: contagens.meus || 0,
+            helper: "Casos atribuídos a você.",
+            icon: User,
+            accent: "text-primary",
+          },
           {
             key: "aguardando_documentos",
             label: "Aguardando Docs",
@@ -248,31 +268,35 @@ export const Dashboard = () => {
               key={key}
               onClick={() => handleSummaryClick(key)}
               aria-pressed={active}
-              className={`card text-left transition-all border-l-4 ${active
-                ? "border-l-primary shadow-xl ring-2 ring-primary/30 -translate-y-0.5"
-                : "border-l-transparent hover:border-l-primary/60"
-                }`}
+              className={`card p-4 rounded-2xl text-left transition-all border-l-4 flex flex-col justify-between min-h-[120px] ${
+                active
+                  ? "border-l-primary shadow-xl ring-2 ring-primary/30 -translate-y-0.5"
+                  : "border-l-transparent hover:border-l-primary/60"
+              }`}
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted">{label}</p>
-                  <p className="text-3xl font-semibold">
+              <div className="flex items-start justify-between mb-1">
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-muted leading-tight">{label}</p>
+                  <p className="text-2xl font-bold mt-1">
                     {resumoLoading ? (
-                      <span className="inline-block w-8 h-7 bg-soft animate-pulse rounded" />
+                      <span className="inline-block w-6 h-6 bg-soft animate-pulse rounded" />
                     ) : (
                       value
                     )}
                   </p>
                 </div>
-                {React.createElement(icon, { className: accent })}
+                {React.createElement(icon, { size: 18, className: accent })}
               </div>
-              <p className="text-sm text-muted mt-2">{helper}</p>
-              <span
-                className={`mt-4 inline-flex items-center text-xs font-semibold ${active ? "text-primary" : "text-muted"
+              <div>
+                <p className="text-[10px] text-muted leading-tight">{helper}</p>
+                <span
+                  className={`mt-2 block text-[10px] font-bold tracking-wide uppercase ${
+                    active ? "text-primary" : "text-muted"
                   }`}
-              >
-                {active ? "Filtro aplicado" : "Clique para filtrar"}
-              </span>
+                >
+                  {active ? "Filtro aplicado" : "Clique para filtrar"}
+                </span>
+              </div>
             </button>
           );
         })}
@@ -285,17 +309,13 @@ export const Dashboard = () => {
           <div className="card space-y-4 hover:scale-[1.02] transition-transform duration-300 cursor-default border-l-4 border-l-primary">
             <div className="flex items-center gap-2 text-primary">
               <BarChart3 size={20} />
-              <h3 className="font-bold uppercase tracking-wider text-xs">
-                Demandas Recorrentes
-              </h3>
+              <h3 className="font-bold uppercase tracking-wider text-xs">Demandas Recorrentes</h3>
             </div>
             <div className="space-y-3">
               {stats.topTipos.map(({ tipo, qtd }, idx) => (
                 <div key={tipo} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-muted text-sm">
-                      0{idx + 1}
-                    </span>
+                    <span className="font-mono text-muted text-sm">0{idx + 1}</span>
                     <span className="font-medium">{tipo}</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -317,18 +337,12 @@ export const Dashboard = () => {
           <div className="card space-y-4 hover:scale-[1.02] transition-transform duration-300 cursor-default border-l-4 border-l-purple-400 bg-surface/50">
             <div className="flex items-center gap-2 text-purple-400">
               <Users size={20} />
-              <h3 className="font-bold uppercase tracking-wider text-xs">
-                Em Colaboração
-              </h3>
+              <h3 className="font-bold uppercase tracking-wider text-xs">Em Colaboração</h3>
             </div>
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <p className="text-3xl font-bold text">
-                  {contagens.colaboracao || 0}
-                </p>
-                <p className="text-xs text-muted uppercase mt-1">
-                  Casos Compartilhados
-                </p>
+                <p className="text-3xl font-bold text">{contagens.colaboracao || 0}</p>
+                <p className="text-xs text-muted uppercase mt-1">Casos Compartilhados</p>
               </div>
             </div>
           </div>
@@ -336,15 +350,11 @@ export const Dashboard = () => {
           <div className="card space-y-4 hover:scale-[1.02] transition-transform duration-300 cursor-default border-l-4 border-l-purple-500">
             <div className="flex items-center gap-2 text-purple-400">
               <PieChart size={20} />
-              <h3 className="font-bold uppercase tracking-wider text-xs">
-                Perfil do Atendimento
-              </h3>
+              <h3 className="font-bold uppercase tracking-wider text-xs">Perfil do Atendimento</h3>
             </div>
             <div className="flex items-center justify-center h-full gap-8">
               <div className="text-center">
-                <p className="text-3xl font-bold text">
-                  {stats.representacao.representacao}
-                </p>
+                <p className="text-3xl font-bold text">{stats.representacao.representacao}</p>
                 <p className="text-xs text-muted uppercase mt-1">
                   Representando
                   <br />
@@ -353,9 +363,7 @@ export const Dashboard = () => {
               </div>
               <div className="w-px h-12 bg-soft"></div>
               <div className="text-center">
-                <p className="text-3xl font-bold text">
-                  {stats.representacao.proprio}
-                </p>
+                <p className="text-3xl font-bold text">{stats.representacao.proprio}</p>
                 <p className="text-xs text-muted uppercase mt-1">
                   Em causa
                   <br />
@@ -371,9 +379,7 @@ export const Dashboard = () => {
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-soft px-6 py-4">
           <div>
             <h2 className="heading-2">Casos mais recentes</h2>
-            <p className="text-sm text-muted">
-              Últimos atendimentos cadastrados na triagem.
-            </p>
+            <p className="text-sm text-muted">Últimos atendimentos cadastrados na triagem.</p>
             {statusFilter && (
               <p className="text-sm mt-1 flex items-center gap-2">
                 Mostrando apenas {summaryFilterLabels[statusFilter]}.
@@ -393,20 +399,19 @@ export const Dashboard = () => {
         </div>
 
         {casosRecentes.length === 0 ? (
-          <div className="p-6 text-muted text-center">
-            Nenhum caso pendente no momento.
-          </div>
+          <div className="p-6 text-muted text-center">Nenhum caso pendente no momento.</div>
         ) : (
           <ul className="divide-y divide-soft">
             {casosFiltered.map((caso) => {
               const statusKey = normalizeStatus(caso.status);
-              const badgeStyle =
-                statusStyles[statusKey] || statusStyles.default;
+              const badgeStyle = statusStyles[statusKey] || statusStyles.default;
               return (
                 <li key={caso.id}>
                   <Link
                     to={`/painel/casos/${caso.id}`}
-                    className="block px-6 py-4 hover:bg-primary/20 dark:hover:bg-slate-900 transition"
+                    className={`block px-6 py-4 hover:bg-primary/20 dark:hover:bg-slate-900 transition ${
+                      caso.compartilhado ? "card-compartilhado-highlight" : ""
+                    }`}
                   >
                     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                       <div className="flex items-start gap-4">
@@ -419,24 +424,23 @@ export const Dashboard = () => {
                           )}
                         </div>
                         <div>
-                          <p className="heading-3 leading-tight">
-                            {caso.nome_assistido}
-                          </p>
+                          <p className="heading-3 leading-tight">{caso.nome_assistido}</p>
                           {caso.nome_representante && (
                             <p className="text-sm font-bold text-primary-600 mt-1 mb-1">
                               Representante: {caso.nome_representante}
                             </p>
                           )}
-                          {caso.assistencia_casos && caso.assistencia_casos.some(a => a.destinatario_id === user.id) && (
-                            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold uppercase tracking-wider mb-2 border border-purple-200">
-                              <Users size={10} /> Compartilhado com você
-                            </div>
-                          )}
+                          {caso.assistencia_casos &&
+                            caso.assistencia_casos.some((a) => a.destinatario_id === user.id) && (
+                              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold uppercase tracking-wider mb-2 border border-purple-200">
+                                <Users size={10} /> Compartilhado com você
+                              </div>
+                            )}
                           <p className="text-sm text-muted">
                             Protocolo: {caso.protocolo}
                             {caso.numero_solar && (
                               <span className="text-primary font-medium border-l border-soft pl-2 ml-2">
-                                Solar: {caso.numero_solar}
+                                {caso.sistema_peticionamento || "Solar"}: {caso.numero_solar}
                               </span>
                             )}
                           </p>
@@ -446,20 +450,18 @@ export const Dashboard = () => {
                         {/* Indicador de Responsável / Lock */}
                         {caso.defensor || caso.servidor ? (
                           <div
-                            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${caso.defensor_id === user.id ||
-                              caso.servidor_id === user.id
-                              ? "bg-green-100 text-green-700 border border-green-200"
-                              : "bg-amber-100 text-amber-700 border border-amber-200"
-                              }`}
+                            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                              caso.defensor_id === user.id || caso.servidor_id === user.id
+                                ? "bg-green-100 text-green-700 border border-green-200"
+                                : "bg-amber-100 text-amber-700 border border-amber-200"
+                            }`}
                           >
-                            {caso.defensor_id === user.id ||
-                              caso.servidor_id === user.id ? (
+                            {caso.defensor_id === user.id || caso.servidor_id === user.id ? (
                               <User size={10} />
                             ) : (
                               <Lock size={10} />
                             )}
-                            {caso.defensor_id === user.id ||
-                              caso.servidor_id === user.id
+                            {caso.defensor_id === user.id || caso.servidor_id === user.id
                               ? "Meu Atendimento"
                               : caso.defensor?.nome || caso.servidor?.nome}
                           </div>
@@ -469,20 +471,14 @@ export const Dashboard = () => {
                           </div>
                         )}
 
-                        <span className={`badge ${badgeStyle}`}>
-                          {statusKey.replace("_", " ")}
-                        </span>
+                        <span className={`badge ${badgeStyle}`}>{statusKey.replace("_", " ")}</span>
                         <div className="flex items-center gap-2 text-sm text-muted">
                           <Clock size={16} />
-                          {caso.created_at &&
-                            !isNaN(new Date(caso.created_at).getTime())
-                            ? new Date(caso.created_at).toLocaleDateString(
-                              "pt-BR",
-                              {
+                          {caso.created_at && !isNaN(new Date(caso.created_at).getTime())
+                            ? new Date(caso.created_at).toLocaleDateString("pt-BR", {
                                 day: "2-digit",
                                 month: "short",
-                              },
-                            )
+                              })
                             : "Data indisponível"}
                         </div>
                       </div>

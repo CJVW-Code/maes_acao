@@ -41,6 +41,7 @@ const normalizeStatus = (value) => (value || "recebido").toLowerCase();
 
 export const Casos = () => {
   const [busca, setBusca] = useState("");
+  const [statusFiltro, setStatusFiltro] = useState("todos");
   const { token, user } = useAuth();
 
   // 3. A mágica do SWR corrigida:
@@ -54,15 +55,18 @@ export const Casos = () => {
     dedupingInterval: 600000,
   });
 
-  // Filtro de busca (Se casos ainda for undefined, usamos um array vazio [])
+  // Filtro de busca e status
   const casosFiltrados = (casos || []).filter((caso) => {
     const termo = busca.toLowerCase();
-    return (
+    const matchBusca =
       caso.nome_assistido?.toLowerCase().includes(termo) ||
       caso.protocolo?.toLowerCase().includes(termo) ||
       caso.cpf_assistido?.includes(termo) ||
-      (caso.numero_solar && String(caso.numero_solar).includes(termo))
-    );
+      (caso.numero_solar && String(caso.numero_solar).includes(termo));
+    
+    const matchStatus = statusFiltro === "todos" || normalizeStatus(caso.status) === statusFiltro;
+    
+    return matchBusca && matchStatus;
   });
 
   if (isLoading) {
@@ -106,19 +110,40 @@ export const Casos = () => {
             </p>
           </div>
 
-          {/* CAMPO DE BUSCA */}
-          <div className="relative w-full md:w-72">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"
-              size={18}
-            />
-            <input
-              type="text"
-              placeholder="Buscar nome, CPF, protocolo ou Solar..."
-              className="input pl-10 py-2 text-sm"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-            />
+          {/* FILTROS */}
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            {/* SELECT DE STATUS */}
+            <select
+              className="input text-sm py-2 bg-white"
+              value={statusFiltro}
+              onChange={(e) => setStatusFiltro(e.target.value)}
+            >
+              <option value="todos">Todos os status</option>
+              <option value="aguardando_documentos">Aguardando Documentos</option>
+              <option value="documentacao_completa">Docs. Completos</option>
+              <option value="processando_ia">Processando (IA)</option>
+              <option value="pronto_para_analise">Pronto p/ Análise</option>
+              <option value="em_atendimento">Em Atendimento</option>
+              <option value="liberado_para_protocolo">Liberado p/ Protocolo</option>
+              <option value="em_protocolo">Em Protocolo</option>
+              <option value="protocolado">Protocolado</option>
+              <option value="erro_processamento">Erro</option>
+            </select>
+
+            {/* CAMPO DE BUSCA */}
+            <div className="relative w-full md:w-72">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+                size={18}
+              />
+              <input
+                type="text"
+                placeholder="Buscar nome, CPF, protocolo..."
+                className="input pl-10 py-2 text-sm"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
+            </div>
           </div>
         </div>
 
@@ -157,7 +182,7 @@ export const Casos = () => {
                           <div>{caso.protocolo}</div>
                           {caso.numero_solar && (
                             <div className="text-primary font-semibold mt-1">
-                              Solar: {caso.numero_solar}
+                              {caso.sistema_peticionamento || "Solar"}: {caso.numero_solar}
                             </div>
                           )}
                         </td>
@@ -253,7 +278,7 @@ export const Casos = () => {
                     {caso.numero_solar && (
                       <div className="bg-app p-2 rounded border border-soft text-xs">
                         <span className="font-semibold text-primary">
-                          Solar:
+                          {caso.sistema_peticionamento || "Solar"}:
                         </span>{" "}
                         {caso.numero_solar}
                       </div>

@@ -22,6 +22,7 @@
     "@prisma/client": "^6.5.0",
     "@supabase/supabase-js": "^2.39.0",
     "@upstash/qstash": "^2.5.0",
+    "archiver": "^7.0.1",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "docxtemplater": "^3.42.0",

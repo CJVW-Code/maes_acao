@@ -56,6 +56,7 @@ export const FormularioSubmissao = () => {
     location,
     toast,
     forcaRepresentacao,
+    isSubmitted: !!generatedCredentials,
   });
 
   const {
