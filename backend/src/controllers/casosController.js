@@ -433,57 +433,9 @@ const carregarCasoDetalhado = async (id, reqUser) => {
     });
   }
 
-  if (!isAdmin && !data.defensor_id && !data.servidor_id && !isShared) {
-    const updateData = {};
-    const isDefensor = reqUser.cargo.toLowerCase().includes("defensor");
-
-    if (isDefensor) {
-      updateData.defensor_id = reqUser.id;
-      updateData.defensor_at = new Date();
-      data.defensor_id = reqUser.id;
-    } else {
-      updateData.servidor_id = reqUser.id;
-      updateData.servidor_at = new Date();
-      data.servidor_id = reqUser.id;
-    }
-
-    await prisma.casos.update({
-      where: { id: BigInt(id) },
-      data: updateData,
-    });
-
-    // Busca outros casos da mesma família (mesmo representante ou assistido)
-    const cpfRepresentante = data.representante_cpf || data.cpf_assistido;
-    if (cpfRepresentante) {
-      try {
-        const outrosCasos = await prisma.casos_partes.findMany({
-          where: {
-            OR: [{ cpf_representante: cpfRepresentante }, { cpf_assistido: cpfRepresentante }],
-          },
-          select: { caso_id: true },
-        });
-
-        const idsIrmaos = outrosCasos
-          .map((c) => c.caso_id)
-          .filter((cid) => cid.toString() !== id.toString());
-
-        if (idsIrmaos.length > 0) {
-          await prisma.casos.updateMany({
-            where: {
-              id: { in: idsIrmaos },
-              ...(isDefensor ? { defensor_id: null } : { servidor_id: null }),
-            },
-            data: updateData,
-          });
-          logger.info(
-            `Vinculado automaticamente ${idsIrmaos.length} caso(s) irmão(s) ao usuário ${reqUser.id}`,
-          );
-        }
-      } catch (err) {
-        logger.error(`Erro ao vincular casos familiares: ${err.message}`);
-      }
-    }
-  }
+  // [READ-ONLY] carregarCasoDetalhado não realiza nenhuma mutação de estado.
+  // A lógica de vínculo automático (auto-vinculação) foi movida exclusivamente
+  // para obterDetalhesCaso, que inclui o check de unidade_id obrigatório.
 
   if (!data.dados_formulario) {
     data.dados_formulario = {};
@@ -2030,6 +1982,19 @@ export const gerarTicketDownload = async (req, res) => {
   const { caminho_arquivo } = req.body;
 
   try {
+    // [SEGURANÇA] Verifica acesso ao caso antes de emitir o ticket (previne IDOR)
+    const caso = await carregarCasoDetalhado(id, req.user);
+    if (!caso) {
+      return res.status(404).json({ error: "Caso não encontrado." });
+    }
+
+    // Detecta o bucket a partir do caminho para incluir no payload do ticket
+    let bucket = "documentos";
+    if (caminho_arquivo) {
+      if (caminho_arquivo.includes("peticoes")) bucket = "peticoes";
+      else if (caminho_arquivo.includes("audios")) bucket = "audios";
+    }
+
     const payload = {
       user: {
         id: req.user.id,
@@ -2039,7 +2004,9 @@ export const gerarTicketDownload = async (req, res) => {
         unidade_id: req.user.unidade_id,
       },
       casoId: id,
+      casoUnidadeId: caso.unidade_id,
       path: caminho_arquivo || null,
+      bucket,
       purpose: "download",
     };
 
@@ -2050,6 +2017,9 @@ export const gerarTicketDownload = async (req, res) => {
 
     res.status(200).json({ ticket });
   } catch (error) {
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({ error: error.message, ...error.payload });
+    }
     logger.error(`[Ticket] Erro ao gerar: ${error.message}`);
     res.status(500).json({ error: "Erro interno ao gerar ticket de download." });
   }
@@ -2118,6 +2088,34 @@ export const baixarTodosDocumentosZip = async (req, res) => {
     const archive = archiver("zip", { zlib: { level: 9 } });
     res.setHeader("Content-Type", "application/zip");
     res.setHeader("Content-Disposition", `attachment; filename="${caso.protocolo}_documentos.zip"`);
+
+    // [CONFIABILIDADE] Handlers para evitar ZIPs corrompidos e vazamentos de recursos
+    let archiveAborted = false;
+
+    archive.on("error", (err) => {
+      logger.error(`[ZIP] Erro de compressão: ${err.message}`);
+      if (!archiveAborted) {
+        archiveAborted = true;
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Erro ao gerar o arquivo ZIP." });
+        } else {
+          res.destroy();
+        }
+      }
+    });
+
+    archive.on("warning", (warn) => {
+      logger.warn(`[ZIP] Aviso de compressão: ${warn.message || warn.code}`);
+    });
+
+    res.on("error", (err) => {
+      logger.error(`[ZIP] Erro de escrita na resposta (cliente desconectado?): ${err.message}`);
+      if (!archiveAborted) {
+        archiveAborted = true;
+        archive.abort();
+      }
+    });
+
     archive.pipe(res);
 
     if (caso.documentos && caso.documentos.length > 0) {

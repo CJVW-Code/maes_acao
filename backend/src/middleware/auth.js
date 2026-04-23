@@ -83,6 +83,15 @@ export const validateDownloadTicket = async (req, res, next) => {
       unidade_id: decoded.user.unidade_id,
     };
 
+    // Expõe metadados do ticket para uso pelos controllers de download
+    // (path e bucket assinados — usados por baixarDocumentoIndividual para prevenir path tampering)
+    req.ticket = {
+      path: decoded.path || null,
+      bucket: decoded.bucket || null,
+      casoId: decoded.casoId || null,
+      casoUnidadeId: decoded.casoUnidadeId || null,
+    };
+
     next();
   } catch (error) {
     logger.error(`[Download Ticket Error]: ${error.message}`);

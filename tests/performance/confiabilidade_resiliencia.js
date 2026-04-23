@@ -1,6 +1,5 @@
 import http from "k6/http";
-import { sleep } from "k6";
-import { check } from "k6";
+import { sleep, check } from "k6";
 import {
   BASE_URL,
   TEST_CPF_INEXISTENTE,
@@ -10,6 +9,10 @@ import {
   defaultHeaders,
   scannerHeaders,
 } from "./lib/config.js";
+
+// Trata respostas 4xx esperadas (401, 403, 404, 429) como não-falha globalmente.
+// Sem isso, o threshold http_req_failed contaria respostas intencionais como erro.
+http.setResponseCallback(http.expectedStatuses(200, 201, 204, 401, 403, 404, 429));
 
 export const options = {
   scenarios: {
@@ -42,10 +45,13 @@ export const options = {
     },
   },
   thresholds: {
+    // http_req_failed só aplica para respostas fora da lista de expectedStatuses acima.
+    // Para o cenário de health/preflight (único que deve ser 100% verde), o check interno já valida.
     http_req_failed: ["rate<0.05"],
     http_req_duration: ["p(95)<2000", "p(99)<3000"],
   },
 };
+
 
 export function burstConsulta() {
   const response = http.get(`${BASE_URL}/api/status/cpf/${TEST_CPF_INEXISTENTE}`, {
