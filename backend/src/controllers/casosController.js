@@ -46,7 +46,6 @@ const DIRECT_COLUMN_KEYS = new Set([
   "url_peticao",
   "url_peticao_penhora",
   "url_peticao_prisao",
-  "url_termo_declaracao",
 ]);
 
 // --- UTILS DE NORMALIZAÇÃO ---
@@ -2155,7 +2154,7 @@ export const baixarTodosDocumentosZip = async (req, res) => {
     if (!caso) return res.status(404).json({ error: "Caso não encontrado." });
 
     // Ticket Binding Guard (Task 07)
-    if (req.ticket?.casoId && String(req.ticket.casoId) !== String(id)) {
+    if (!req.ticket?.casoId || String(req.ticket.casoId) !== String(id)) {
       return res.status(403).json({ error: "Ticket não autorizado para este caso." });
     }
 

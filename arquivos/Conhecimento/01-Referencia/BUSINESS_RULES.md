@@ -654,5 +654,5 @@ O módulo de BI é restrito exclusivamente a administradores e foca em métricas
 - **Throughput de Triagem:** Casos criados por dia/sede.
 - **Conversão de Protocolo:** Percentual de casos que chegam ao status `protocolado`.
 - **Eficiência da IA:** Tempo médio entre `processing_started_at` e `processed_at`.
-- **Motivos de Arquivamento:** Análise qualitativa de por que os casos estão sendo encerrados sem protocolo.
+- **Motivos de Arquivamento:** Categorias controladas e contagens agregadas sobre por que os casos estão sendo encerrados sem protocolo.
 - **Distribuição por Unidade:** Ranking de sedes com maior volume de atendimento.

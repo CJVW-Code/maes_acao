@@ -628,7 +628,7 @@ Preenchidos quando `assistido_eh_incapaz === "sim"` (a mãe/pai representando o(
 | `representante_nacionalidade` | `string` | ❌ | Nacionalidade |
 | `representante_estado_civil` | `string` | ❌ | Estado civil |
 | `representante_ocupacao` | `string` | ❌ | Profissão |
-| `representante_cpf` | `string` | ❌ | CPF do representante |
+| `representante_cpf` | `string` | ✅ | CPF do representante |
 | `representante_rg_numero` | `string` | ❌ | RG número |
 | `representante_rg_orgao` | `string` | ❌ | RG órgão emissor |
 | `representante_endereco_residencial` | `string` | ❌ | Endereço residencial |
@@ -742,7 +742,7 @@ Para garantir que a busca seja resiliente a diferentes formatos de entrada, o si
 | **Normalização** | CPFs informados na busca são limpos (removendo `.` e `-`) antes da consulta. |
 | **Busca Resiliente** | O backend consulta simultaneamente o CPF "sujo" (como digitado) e o CPF "limpo" na tabela `casos_partes`. |
 | **Escopo de Busca** | A busca verifica os campos `cpf_assistido` e `representante_cpf` para garantir que o caso seja encontrado independente de quem iniciou o processo. |
-| **Validação** | CPF do assistido e do representante são **obrigatórios e validados** algoritmicamente (Bloqueante). |
+| **Validação** | CPF do assistido e do representante são **obrigatórios e validados** algoritmicamente (Regra Bloqueante). |
 
 ### 3.2 Unicidade de CPF e Arquitetura Multi-Casos
 
@@ -1155,7 +1155,7 @@ O módulo de BI é restrito exclusivamente a administradores e foca em métricas
 - **Throughput de Triagem:** Casos criados por dia/sede.
 - **Conversão de Protocolo:** Percentual de casos que chegam ao status `protocolado`.
 - **Eficiência da IA:** Tempo médio entre `processing_started_at` e `processed_at`.
-- **Motivos de Arquivamento:** Análise qualitativa de por que os casos estão sendo encerrados sem protocolo.
+- **Motivos de Arquivamento:** Categorias controladas e contagens agregadas sobre por que os casos estão sendo encerrados sem protocolo.
 - **Distribuição por Unidade:** Ranking de sedes com maior volume de atendimento.
 
 
@@ -1828,7 +1828,7 @@ export const ACOES_FAMILIA = {
     titulo: "Execução de Alimentos",
     // ...
     ocultarRelato: true, // Se true, esconde a tela inteira de narração em áudio/texto e tira a obrigatoriedade.
-    isCpfRepresentanteOpcional: true, // Se true, o CPF passa de obrigatório (*) para opcional.
+    isCpfRepresentanteOpcional: false, // [HARDENED] Regra v3.1: CPF do representante é sempre obrigatório.
     exigeDadosProcessoOriginal: true, // Se true, força o preenchimento de campos de Inadimplência.
     ocultarDadosRequerido: false // Se true (como no Alvará), omite o painel "Dados da Outra Parte".
   }
@@ -5723,4 +5723,3 @@ Executar primeiro em homologacao com massa controlada e observabilidade ligada. 
 
 
 ---
-

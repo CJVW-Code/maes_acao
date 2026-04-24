@@ -102,6 +102,7 @@
   --radius-card: var(--radius);
   --radius-badge: var(--radius-sm);
   --shadow-soft: var(--shadow-soft);
+  --color-soft: var(--color-border);
 }
 
 /* -------------------------------------------------------------
@@ -125,7 +126,6 @@
   .bg-app { background-color: var(--color-bg); }
   .bg-surface { background-color: var(--color-surface); }
   .text-muted { color: var(--color-text-muted); }
-  .border-soft { border-color: var(--color-border); }
 }
 
 @layer components {
@@ -135,8 +135,14 @@
     box-shadow: 0 8px 32px 0 rgba(139, 92, 246, 0.15);
   }
 
+  .btn-sm { @apply px-3 py-1.5 text-xs rounded-lg; }
+  .btn-md { @apply px-5 py-2.5 text-sm rounded-xl; }
+  .btn-ghost { @apply bg-transparent hover:bg-surface/50 text-muted transition-colors; }
+  .bg-soft { @apply bg-surface border border-soft; }
+  .text-soft { @apply text-muted/70; }
+
   .card-solid {
-    @apply bg-surface dark:bg-surface border border-border shadow-md rounded-xl;
+    @apply bg-surface dark:bg-surface border border-soft shadow-md rounded-xl;
   }
 
   /* Cards: Agora com suporte a Glassmorphism e toque lilas */

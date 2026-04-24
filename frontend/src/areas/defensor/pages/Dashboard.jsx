@@ -321,8 +321,11 @@ export const Dashboard = () => {
                     return (
                       <tr 
                         key={caso.id}
+                        role="button"
+                        tabIndex={0}
                         onClick={() => navigate(`/painel/casos/${caso.id}`)}
-                        className={`group cursor-pointer transition-colors hover:bg-primary/5 ${caso.compartilhado ? "bg-purple-500/5" : ""}`}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate(`/painel/casos/${caso.id}`); }}
+                        className={`group cursor-pointer transition-colors hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${caso.compartilhado ? "bg-purple-500/5" : ""}`}
                       >
                         {/* NOME / REPRESENTANTE */}
                         <td className="px-6 py-5">

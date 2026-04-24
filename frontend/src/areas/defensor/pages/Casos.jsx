@@ -227,7 +227,7 @@ export const Casos = () => {
                         <td className="p-4 text-right">
                           <Link
                             to={`/painel/casos/${caso.id}`}
-                            className="inline-flex items-center gap-2 text-primary hover:text-primary-600 font-medium"
+                            className="inline-flex items-center gap-2 text-primary hover:text-primary-600 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none rounded-lg"
                             title="Ver detalhes"
                           >
                             <Eye size={18} />
@@ -287,7 +287,7 @@ export const Casos = () => {
                     <div className="flex gap-3 pt-2">
                       <Link
                         to={`/painel/casos/${caso.id}`}
-                        className="btn btn-secondary flex-1 justify-center text-sm"
+                        className="btn btn-secondary flex-1 justify-center text-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                       >
                         <Eye size={16} className="mr-2" />
                         Ver detalhes
