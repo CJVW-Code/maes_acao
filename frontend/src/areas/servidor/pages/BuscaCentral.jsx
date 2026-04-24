@@ -170,12 +170,12 @@ export const HomeCidadao = () => {
                   </div>
                   <button
                     onClick={() => {
-                      // Passamos apenas o protocolo para o prefill seguro no formulário
-                      const protocoloRef = caseFound[0]?.protocolo_referencia;
+                      // Passamos os dados completos da representante para o prefill instantâneo
+                      const dadosRep = caseFound[0]?.dados_representante;
                       navigate("/novo-pedido", {
                         state: {
                           action: "PREFILL_REPRESENTATIVE_DATA",
-                          protocolo_origem: protocoloRef,
+                          dados_representante: dadosRep,
                           initialCpf: cpfInput,
                         },
                       });

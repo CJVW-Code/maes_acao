@@ -7,6 +7,7 @@ export const SecaoValoresPensao = ({
   formState,
   handleFieldChange,
   handleCurrencyChange,
+  handleRestrictedAlphanumeric,
   validar,
 }) => {
   const isExecucaoAlimentos = formState?.acaoEspecifica === "execucao_alimentos";
@@ -77,7 +78,7 @@ export const SecaoValoresPensao = ({
               type="text"
               name="agencia_deposito"
               value={formState.agencia_deposito}
-              onChange={handleFieldChange}
+              onChange={handleRestrictedAlphanumeric}
               placeholder="Agencia"
               className="input"
             />
@@ -85,7 +86,7 @@ export const SecaoValoresPensao = ({
               type="text"
               name="conta_deposito"
               value={formState.conta_deposito}
-              onChange={handleFieldChange}
+              onChange={handleRestrictedAlphanumeric}
               placeholder="Conta com digito"
               className="input"
             />

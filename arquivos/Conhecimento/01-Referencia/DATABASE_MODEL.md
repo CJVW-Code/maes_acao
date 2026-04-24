@@ -1,6 +1,6 @@
 # Modelo de Dados e Persistência Híbrida — Mães em Ação
 
-> **Versão:** 3.1 · **Atualizado em:** 2026-04-23 (Schema Cleanup + JSONB Virtuals)
+> **Versão:** 3.2 · **Atualizado em:** 2026-04-24 (Representative CPF Mandatory)
 > **Fonte:** `backend/prisma/schema.prisma`
 
 O sistema utiliza uma abordagem híbrida para persistência, combinando o **Prisma ORM** (gestão de equipe e RBAC) com o **Supabase JS Client** (core dos casos e pipeline de IA).
@@ -73,7 +73,7 @@ Armazena a qualificação de assistidas, requeridos e representantes.
 | Campo | Tipo | Descrição |
 |:------|:-----|:----------|
 | `cpf_assistido` | `String` | CPF do assistido (normalizado sem pontuação) |
-| `representante_cpf` | `String?` | CPF da mãe/representante legal |
+| `representante_cpf` | `String` | CPF da mãe/representante legal (obrigatório) |
 | `nome_assistido` | `String?` | Nome do filho/assistido |
 | `exequentes` | `JSONB` | Array de filhos adicionais na mesma petição |
 

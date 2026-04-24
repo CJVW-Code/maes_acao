@@ -10,7 +10,7 @@ Este documento contém a compilação de todas as referências de arquitetura, r
 
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 3.1 · **Atualizado em:** 2026-04-23 (Security Hardening + A11y + Design System)
+> **Versão:** 3.2 · **Atualizado em:** 2026-04-24 (CodeRabbit Audit + Dashboard v3.0 + CPF Mandatory)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
@@ -194,7 +194,8 @@ stateDiagram-v2
 - **Nível 2 (Defensor):** Bloqueia a etapa de protocolo e finalização
 - **HTTP 423 (Locked):** Retorno padrão quando outro usuário detém o lock
 - **Admin Bypass:** Administradores podem forçar destravamento via painel
-- **Auto-release:** Lock liberado após 30min de inatividade
+- **Auto-release:** Lock liberado após 30min de inatividade.
+- **Manual Unlock:** Administradores podem forçar destravamento via painel.
 
 ---
 
@@ -509,7 +510,7 @@ VITE_API_URL=https://api.mutirao.dpe.ba.gov.br
 
 # Regras de Negócio — Mães em Ação · DPE-BA
 
-> **Versão:** 2.3 · **Atualizado em:** 2026-04-23 (Módulo BI Refined + Design Tokens + A11y)  
+> **Versão:** 2.4 · **Atualizado em:** 2026-04-24 (CPF Representante Obrigatório + BI Categories)  
 > **Fonte:** Análise da codebase (controllers, services, middleware, config)  
 > **Propósito:** Referência canônica para treinamento de IAs e orientação de defensores
 
@@ -628,7 +629,7 @@ Preenchidos quando `assistido_eh_incapaz === "sim"` (a mãe/pai representando o(
 | `representante_nacionalidade` | `string` | ❌ | Nacionalidade |
 | `representante_estado_civil` | `string` | ❌ | Estado civil |
 | `representante_ocupacao` | `string` | ❌ | Profissão |
-| `representante_cpf` | `string` | ✅ | CPF do representante |
+| `representante_cpf` | `string` | ✅ | CPF do representante (obrigatório) |
 | `representante_rg_numero` | `string` | ❌ | RG número |
 | `representante_rg_orgao` | `string` | ❌ | RG órgão emissor |
 | `representante_endereco_residencial` | `string` | ❌ | Endereço residencial |
@@ -742,7 +743,7 @@ Para garantir que a busca seja resiliente a diferentes formatos de entrada, o si
 | **Normalização** | CPFs informados na busca são limpos (removendo `.` e `-`) antes da consulta. |
 | **Busca Resiliente** | O backend consulta simultaneamente o CPF "sujo" (como digitado) e o CPF "limpo" na tabela `casos_partes`. |
 | **Escopo de Busca** | A busca verifica os campos `cpf_assistido` e `representante_cpf` para garantir que o caso seja encontrado independente de quem iniciou o processo. |
-| **Validação** | CPF do assistido e do representante são **obrigatórios e validados** algoritmicamente (Regra Bloqueante). |
+| **Validação** | CPF do assistido e do representante são **obrigatórios e validados** algoritmicamente (Bloqueante). |
 
 ### 3.2 Unicidade de CPF e Arquitetura Multi-Casos
 

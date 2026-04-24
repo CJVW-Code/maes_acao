@@ -239,6 +239,7 @@ export const FormularioSubmissao = () => {
               isRepresentacao={isRepresentacao}
               labelAutor={labelAutor}
               configAcao={configAcao}
+              handleRestrictedAlphanumeric={handleRestrictedAlphanumeric}
             />
 
             {!isAlvara && (
@@ -284,6 +285,7 @@ export const FormularioSubmissao = () => {
               handleCurrencyChange={handleCurrencyChange}
               handleDayInputChange={handleDayInputChange}
               handleMonthYearChange={handleMonthYearChange}
+              handleRestrictedAlphanumeric={handleRestrictedAlphanumeric}
               validar={validar}
               configAcao={configAcao}
               formErrors={formErrors}

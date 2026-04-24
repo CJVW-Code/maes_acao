@@ -83,6 +83,15 @@ export const useFormHandlers = ({ formState, dispatch, setFormErrors, toast }) =
     }
   }, [handleFieldChange]);
 
+  const handleRestrictedAlphanumeric = useCallback((e) => {
+    const { name, value } = e.target;
+    // Permite números e caracteres especiais (., -, /), mas BLOQUEIA letras
+    if (/^[0-9.\-/]*$/.test(value)) {
+      dispatch({ type: "UPDATE_FIELD", field: name, value });
+      clearFieldError(name);
+    }
+  }, [dispatch, clearFieldError]);
+
   const handleMaskedChange = useCallback((formatter, field) => (event) => {
     const formattedValue = formatter(event.target.value);
     dispatch({ type: "UPDATE_FIELD", field, value: formattedValue });
@@ -311,6 +320,7 @@ export const useFormHandlers = ({ formState, dispatch, setFormErrors, toast }) =
     handleCidadeChange,
     handleSelecionaCidade,
     handleNumericInput,
+    handleRestrictedAlphanumeric,
     handleCpfChangeAndValidate,
     handlePhoneChange,
     handleDateChange,

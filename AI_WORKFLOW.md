@@ -1,6 +1,6 @@
 # 🤖 Guia de Desenvolvimento com IA — Mães em Ação
 
-> **Versão:** 1.0 · **Atualizado em:** 2026-04-22
+> **Versão:** 1.1 · **Atualizado em:** 2026-04-24
 > **Propósito:** Padronizar o uso de assistentes de IA (Claude, Gemini, etc.) para garantir desenvolvimento seguro, consistente e alinhado à arquitetura do projeto.
 
 ---
@@ -261,10 +261,6 @@ Antes de aprovar qualquer código gerado por IA, cheque a lista abaixo:
 ```
 aguardando_documentos
     → documentacao_completa   (scanner finaliza upload via /api/scanner/upload)
-    → documentos_entregues    (assistido faz upload complementar)
-
-documentos_entregues
-    → documentacao_completa   (scanner processa os novos documentos)
 
 documentacao_completa
     → processando_ia          (QStash job inicia)
