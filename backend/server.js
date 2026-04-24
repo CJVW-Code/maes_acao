@@ -11,6 +11,7 @@ import debugRoutes from "./src/routes/debug.js";
 import jobsRoutes from "./src/routes/jobs.js";
 import unidadesRoutes from "./src/routes/unidades.js";
 import scannerRoutes from "./src/routes/scanner.js";
+import biRoutes from "./src/routes/bi.js";
 import helmet from "helmet";
 import { globalLimiter } from "./src/middleware/rateLimiter.js";
 
@@ -112,6 +113,7 @@ app.use("/api/status", statusRoutes);
 app.use("/api/debug", debugRoutes);
 app.use("/api/unidades", unidadesRoutes);
 app.use("/api/scanner", scannerRoutes);
+app.use("/api/bi", biRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", message: "Mães em Ação API is running" });

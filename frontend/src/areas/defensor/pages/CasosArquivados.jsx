@@ -29,6 +29,16 @@ const statusStyles = {
 
 const normalizeStatus = (value) => (value || "recebido").toLowerCase();
 
+const archiveReasonLabels = {
+  duplicidade: "Duplicidade",
+  desistencia: "Desistencia",
+  dados_inconsistentes: "Dados inconsistentes",
+  fora_do_escopo: "Fora do escopo",
+  outro: "Outro",
+};
+
+const getArchiveReasonLabel = (value) => archiveReasonLabels[value] || value || "Nao informado.";
+
 export const CasosArquivados = () => {
   const [busca, setBusca] = useState("");
   const { token } = useAuth();
@@ -185,10 +195,15 @@ export const CasosArquivados = () => {
                         <td className="p-4 text-sm text-muted max-w-[200px]">
                           <p
                             className="truncate"
-                            title={caso.motivo_arquivamento}
+                            title={getArchiveReasonLabel(caso.motivo_arquivamento)}
                           >
-                            {caso.motivo_arquivamento || "-"}
+                            {getArchiveReasonLabel(caso.motivo_arquivamento)}
                           </p>
+                          {caso.observacao_arquivamento && (
+                            <p className="truncate text-xs" title={caso.observacao_arquivamento}>
+                              {caso.observacao_arquivamento}
+                            </p>
+                          )}
                         </td>
                         <td className="p-4 text-right flex justify-end gap-3">
                           <Link
@@ -248,8 +263,13 @@ export const CasosArquivados = () => {
                         Motivo do Arquivamento
                       </p>
                       <p className="text-muted line-clamp-2">
-                        {caso.motivo_arquivamento || "Não informado."}
+                        {getArchiveReasonLabel(caso.motivo_arquivamento)}
                       </p>
+                      {caso.observacao_arquivamento && (
+                        <p className="text-muted line-clamp-2 mt-2">
+                          {caso.observacao_arquivamento}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex gap-3 pt-2">

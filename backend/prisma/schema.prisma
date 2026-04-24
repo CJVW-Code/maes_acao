@@ -90,6 +90,7 @@ model casos {
   processed_at                DateTime?           @db.Timestamptz(6)
   arquivado                   Boolean             @default(false)
   motivo_arquivamento         String?
+  observacao_arquivamento     String?
   criado_por                  String?             @db.Uuid
   created_at                  DateTime            @default(now()) @db.Timestamptz(6)
   updated_at                  DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
@@ -129,6 +130,10 @@ model casos {
   @@index([protocolado_at], map: "idx_casos_protocolado_at")
   @@index([created_at], map: "idx_casos_created_at")
   @@index([arquivado], map: "idx_casos_arquivado")
+  @@index([arquivado, status], map: "idx_casos_bi_status")
+  @@index([arquivado, unidade_id, status], map: "idx_casos_bi_unidade_status")
+  @@index([arquivado, tipo_acao], map: "idx_casos_bi_tipo")
+  @@index([processed_at], map: "idx_casos_bi_processed_at")
 }
 
 model casos_partes {

@@ -2857,24 +2857,8 @@ export const resumoCasos = async (req, res) => {
       whereClause.unidade_id = req.user.unidade_id;
     }
 
-    const data = await prisma.casos.findMany({
-      where: whereClause,
-      select: {
-        status: true,
-        tipo_acao: true,
-        compartilhado: true,
-        servidor_at: true,
-        defensor_at: true,
-        servidor_id: true,
-        defensor_id: true,
-      },
-    });
-
-    let temCasoOcioso = false;
-    const vinteMinsAgo = Date.now() - 20 * 60 * 1000;
-
     const contagens = {
-      total: data.length,
+      total: 0,
       aguardando_documentos: 0,
       documentacao_completa: 0,
       processando_ia: 0,
@@ -2888,66 +2872,87 @@ export const resumoCasos = async (req, res) => {
       meus: 0,
     };
 
-    const topTiposMap = {};
-    let representacao = 0;
-    let proprio = 0;
+    const vinteMinsAgo = new Date(Date.now() - 20 * 60 * 1000);
+    const partesWhere = req.user?.cargo !== "admin" && req.user?.unidade_id
+      ? { caso: { unidade_id: req.user.unidade_id, arquivado: false } }
+      : { caso: { arquivado: false } };
 
-    for (const caso of data) {
-      if (caso.compartilhado) contagens.colaboracao++;
-      const s = (caso.status || "recebido").toLowerCase().trim();
+    const [
+      total,
+      porStatus,
+      porTipo,
+      colaboracao,
+      meus,
+      ociosos,
+      representacao,
+      partesTotal,
+    ] = await Promise.all([
+      prisma.casos.count({ where: whereClause }),
+      prisma.casos.groupBy({
+        by: ["status"],
+        where: whereClause,
+        _count: { _all: true },
+      }),
+      prisma.casos.groupBy({
+        by: ["tipo_acao"],
+        where: whereClause,
+        _count: { _all: true },
+      }),
+      prisma.casos.count({ where: { ...whereClause, compartilhado: true } }),
+      req.user
+        ? prisma.casos.count({
+            where: {
+              ...whereClause,
+              OR: [{ servidor_id: req.user.id }, { defensor_id: req.user.id }],
+            },
+          })
+        : Promise.resolve(0),
+      prisma.casos.count({
+        where: {
+          ...whereClause,
+          OR: [
+            { status: "em_atendimento", servidor_at: { lt: vinteMinsAgo } },
+            { status: "em_protocolo", defensor_at: { lt: vinteMinsAgo } },
+          ],
+        },
+      }),
+      prisma.casos_partes.count({
+        where: {
+          ...partesWhere,
+          cpf_representante: { not: null },
+          NOT: { cpf_representante: "" },
+        },
+      }),
+      prisma.casos_partes.count({ where: partesWhere }),
+    ]);
 
-      // Mapeamento de legado/variantes para o material estratégico (Enum Prisma)
-      if (s === "aguardando_documentos" || s === "aguardando_docs") {
-        contagens.aguardando_documentos++;
-      } else if (s === "documentacao_completa" || s === "documentos_entregues") {
-        contagens.documentacao_completa++;
-      } else if (s === "processando_ia" || s === "processando") {
-        contagens.processando_ia++;
-      } else if (s === "pronto_para_analise" || s === "processado") {
-        contagens.pronto_para_analise++;
-      } else if (s === "em_atendimento" || s === "em_analise") {
-        contagens.em_atendimento++;
-      } else if (s === "liberado_para_protocolo") {
-        contagens.liberado_para_protocolo++;
-      } else if (s === "em_protocolo") {
-        contagens.em_protocolo++;
-      } else if (s === "protocolado" || s === "encaminhado_solar") {
-        contagens.protocolado++;
-      } else if (s === "erro_processamento" || s === "erro") {
-        contagens.erro_processamento++;
+    contagens.total = total;
+    contagens.colaboracao = colaboracao;
+    contagens.meus = meus;
+
+    for (const row of porStatus) {
+      const status = String(row.status || "").toLowerCase().trim();
+      if (Object.prototype.hasOwnProperty.call(contagens, status)) {
+        contagens[status] = row._count._all;
       }
-
-      // Contador de atendimentos do próprio usuário
-      if (req.user && (caso.servidor_id === req.user.id || caso.defensor_id === req.user.id)) {
-        contagens.meus++;
-      }
-
-      // Verificação de ociosidade (20 min em statuses de atendimento/protocolo)
-      if (["em_atendimento", "em_protocolo"].includes(s)) {
-        const at = caso.servidor_at || caso.defensor_at;
-        if (at && new Date(at).getTime() < vinteMinsAgo) {
-          temCasoOcioso = true;
-        }
-      }
-
-      // Estatísticas sem PII
-      const tipo = caso.tipo_acao || "Outros";
-      topTiposMap[tipo] = (topTiposMap[tipo] || 0) + 1;
     }
 
     contagens.ativos = contagens.total - contagens.protocolado;
 
-    const topTipos = Object.entries(topTiposMap)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 3)
-      .map(([tipo, qtd]) => ({ tipo, qtd }));
+    const topTipos = porTipo
+      .map((row) => ({
+        tipo: row.tipo_acao || "Outros",
+        qtd: row._count._all,
+      }))
+      .sort((a, b) => b.qtd - a.qtd)
+      .slice(0, 3);
 
     res.status(200).json(
       stringifyBigInts({
         contagens,
         topTipos,
-        representacao: { representacao, proprio },
-        temCasoOcioso,
+        representacao: { representacao, proprio: Math.max(partesTotal - representacao, 0) },
+        temCasoOcioso: ociosos > 0,
       }),
     );
   } catch (error) {
@@ -4648,21 +4653,32 @@ export const renomearDocumento = async (req, res) => {
 
 export const alternarArquivamento = async (req, res) => {
   const { id } = req.params;
-  const { arquivado, motivo } = req.body; // espera true ou false
+  const { arquivado, motivo, motivo_codigo, observacao_arquivamento } = req.body; // espera true ou false
+  const motivosPermitidos = new Set([
+    "duplicidade",
+    "desistencia",
+    "dados_inconsistentes",
+    "fora_do_escopo",
+    "outro",
+  ]);
+  const motivoNormalizado = String(motivo_codigo || motivo || "").trim();
+  const observacaoNormalizada = String(observacao_arquivamento || "").trim();
 
   // Validação: Motivo obrigatório ao arquivar
-  if (arquivado === true && (!motivo || motivo.trim().length < 5)) {
+  if (arquivado === true && !motivosPermitidos.has(motivoNormalizado)) {
     return res.status(400).json({
-      error: "Motivo de arquivamento é obrigatório (mín. 5 caracteres).",
+      error: "Motivo de arquivamento invalido.",
     });
   }
 
   try {
     const updateData = { arquivado };
     if (arquivado) {
-      updateData.motivo_arquivamento = motivo;
+      updateData.motivo_arquivamento = motivoNormalizado;
+      updateData.observacao_arquivamento = observacaoNormalizada || null;
     } else {
       updateData.motivo_arquivamento = null; // Limpa o motivo ao restaurar
+      updateData.observacao_arquivamento = null;
     }
 
     const { data, error } = await supabase

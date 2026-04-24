@@ -1,4 +1,4 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // Importando Contextos
@@ -26,6 +26,8 @@ import { CasosArquivados } from "./areas/defensor/pages/CasosArquivados";
 
 import { GerenciarEquipe } from "./areas/defensor/pages/GerenciarEquipe";
 import { NotFound } from "./pages/NotFound";
+
+const Relatorios = lazy(() => import("./areas/defensor/pages/Relatorios"));
 
 // --- COMPONENTES DE SEGURANÇA ---
 
@@ -147,6 +149,17 @@ function App() {
                   element={
                     <AdminRoute>
                       <GerenciarEquipe />
+                    </AdminRoute>
+                  }
+                />
+
+                <Route
+                  path="relatorios"
+                  element={
+                    <AdminRoute>
+                      <Suspense fallback={<div className="text-primary">Carregando relatorios...</div>}>
+                        <Relatorios />
+                      </Suspense>
                     </AdminRoute>
                   }
                 />
