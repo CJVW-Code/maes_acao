@@ -3,7 +3,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import { ExternalLink, LogOut, ChevronLeft } from "lucide-react";
 import { ThemeToggle } from "../../../../components/ThemeToggle";
-import { NotificacoesBell } from "./NotificacoesBell";
 
 export const Header = () => {
   const { user, logout } = useAuth();

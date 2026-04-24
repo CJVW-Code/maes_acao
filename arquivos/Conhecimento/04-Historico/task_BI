@@ -116,3 +116,62 @@ Logic Details:
   - Entrar como Admin, gerar consulta customizada e exportar XLSX. Checar abas por widgets e garantir zero PII exportada.
 Acceptance Criteria: BI gerado com alta fluidez (< 1 seg), total vedação de dados sensíveis LGPD, e layout estável no print em PDF.
 ---
+ID: 13
+File Path: backend/src/controllers/biController.js
+Action: Criar funÃ§Ã£o `exportarXlsxLote`.
+Logic Details:
+  - Iterar sobre todas as unidades ativas.
+  - Rodar as mesmas 8 queries do BI por `unidade_id` (Q4 removida).
+  - Criar uma aba por unidade no workbook.
+  - Definir nome da aba com `unidade.nome`, truncado em 31 caracteres.
+  - Gerar um Ãºnico arquivo no formato `bi-lote-YYYY-MM-DD.xlsx`.
+  - Usar ExcelJS streaming igual ao export individual.
+Route: `POST /api/bi/export-xlsx-lote`
+Acceptance Criteria: O admin consegue baixar um Ãºnico XLSX contendo uma aba por unidade ativa.
+---
+
+ID: 14
+File Path: backend/src/routes/bi.js
+Context: Ajuste de seguranÃ§a e escopo do mÃ³dulo BI.
+Action: Revisar autorizaÃ§Ã£o do BI para contemplar coordenador com escopo restrito.
+Logic Details:
+  - O acesso nÃ£o deve ficar preso apenas a `cargo === 'admin'`.
+  - Permitir acesso tambÃ©m para coordenador com flag de BI ativa.
+  - Se o usuÃ¡rio for coordenador, forÃ§ar consulta apenas Ã  sua unidade/regional autorizada.
+  - Bloquear exportaÃ§Ã£o em lote para nÃ£o-admin com `403`.
+Acceptance Criteria: Admin mantÃ©m visÃ£o global; coordenador autorizado vÃª apenas o seu escopo.
+---
+
+ID: 15
+File Path: frontend/src/areas/defensor/hooks/useBiData.js
+Context: Ajuste do fluxo de exportaÃ§Ã£o do XLSX protegido por JWT.
+Action: Alterar `exportarXlsx()` para usar `POST` autenticado com download via `blob`.
+Logic Details:
+  - NÃ£o usar link nativo nem navegaÃ§Ã£o direta para exportar XLSX.
+  - Fazer `fetch('/api/bi/export-xlsx', { method: 'POST', headers: { Authorization, Content-Type } })`.
+  - Enviar os filtros no body da requisiÃ§Ã£o.
+  - Converter a resposta em `blob`, criar `URL.createObjectURL(blob)` e disparar o download programaticamente.
+Acceptance Criteria: O XLSX baixa corretamente sem perder o header `Authorization`.
+---
+
+ID: 16
+File Path: frontend/src/areas/defensor/pages/Relatorios.jsx
+Context: Ajustes funcionais aprovados para o painel BI.
+Action: Atualizar a tela para refletir o novo escopo do mÃ³dulo.
+Logic Details:
+  - Remover o widget de perfil/representaÃ§Ã£o vs prÃ³prio.
+  - Adicionar botÃ£o de exportaÃ§Ã£o em lote quando o usuÃ¡rio for admin.
+  - Se o usuÃ¡rio for coordenador autorizado, travar filtros para sua unidade/regional.
+Acceptance Criteria: A UI nÃ£o exibe o widget removido, respeita escopo por unidade e apresenta exportaÃ§Ã£o em lote apenas para admin.
+---
+
+ID: 17
+File Path: frontend/src/areas/defensor/components/layout/Sidebar.jsx
+Context: Controle de visibilidade do acesso ao BI.
+Action: Ajustar a exibiÃ§Ã£o do item "RelatÃ³rios" para usar permissÃ£o explÃ­cita de BI.
+Logic Details:
+  - Continuar permitindo acesso para admin.
+  - Exibir o item tambÃ©m para coordenador com permissÃ£o de BI ativa.
+  - NÃ£o exibir para os demais perfis.
+Acceptance Criteria: O link do BI aparece apenas para quem realmente pode entrar no mÃ³dulo.
+---

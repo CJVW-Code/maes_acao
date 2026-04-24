@@ -366,3 +366,102 @@ cd frontend && npm install recharts jspdf html2canvas
 | Exportação personalizada? | ✅ XLSX e PDF exportam apenas widgets ativos |
 | Casos arquivados? | ✅ Seção dedicada com groupBy de motivos |
 | Contexto do evento? | ✅ Header da página + badge "35–52 Sedes" |
+---
+
+## 6. Adendo de CorreÃ§Ã£o â€” 2026-04-24
+
+> [!IMPORTANT]
+> Este adendo complementa o plano acima e **substitui especificamente** os trechos antigos sobre Q4, widget de perfil, exportaÃ§Ã£o XLSX e permissÃ£o exclusiva de admin.
+
+### 6.1 Q4 removida
+
+O item abaixo deixa de existir no escopo:
+
+- `count representacao vs proprio via casos_partes`
+
+Motivo:
+
+- a coluna/base usada nÃ£o Ã© confiÃ¡vel no cenÃ¡rio atual;
+- esse recorte fere a restriÃ§Ã£o de LGPD jÃ¡ definida no prÃ³prio plano.
+
+Impacto:
+
+- o backend passa a considerar **8 queries efetivas**, nÃ£o 9;
+- o widget **Perfil (representaÃ§Ã£o vs prÃ³prio)** deve ser removido;
+- XLSX e PDF nÃ£o devem exportar essa seÃ§Ã£o.
+
+### 6.2 ExportaÃ§Ã£o XLSX individual deve ser POST
+
+O browser nÃ£o envia `Authorization` em links nativos. Portanto, a abordagem anterior com `GET /api/bi/export-xlsx` nÃ£o serve para rota protegida por JWT.
+
+DecisÃ£o final:
+
+- `GET /api/bi/export-xlsx` âŒ
+- `POST /api/bi/export-xlsx` âœ…
+
+Fluxo correto no frontend:
+
+```js
+const res = await fetch('/api/bi/export-xlsx', {
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(filtros)
+})
+
+const blob = await res.blob()
+const url = URL.createObjectURL(blob)
+const a = document.createElement('a')
+a.href = url
+a.download = `bi-${new Date().toISOString().slice(0,10)}.xlsx`
+a.click()
+URL.revokeObjectURL(url)
+```
+
+### 6.3 ExportaÃ§Ã£o em lote por unidade
+
+Novo requisito aprovado:
+
+- criar `exportarXlsxLote` em `backend/src/controllers/biController.js`;
+- rota: `POST /api/bi/export-xlsx-lote`;
+- iterar sobre todas as unidades ativas;
+- rodar as mesmas 8 queries por `unidade_id`;
+- cada unidade = uma aba no workbook;
+- nome da aba = `unidade.nome` truncado em 31 caracteres;
+- um Ãºnico arquivo: `bi-lote-YYYY-MM-DD.xlsx`;
+- usar ExcelJS streaming igual ao export individual.
+
+### 6.4 RelatÃ³rio por unidade para coordenador
+
+Sim, Ã© possÃ­vel permitir relatÃ³rios por unidade e restringir coordenadores ao seu prÃ³prio escopo.
+
+Regra recomendada:
+
+- `admin`
+  - pode ver todas as unidades;
+  - pode exportar individual e em lote.
+- `coordenador`
+  - pode ver apenas sua unidade ou regional;
+  - nÃ£o pode selecionar "todas";
+  - nÃ£o pode usar exportaÃ§Ã£o em lote.
+
+No backend, o `unidade_id` informado por coordenador nÃ£o deve ser confiado; o controller precisa forÃ§ar a unidade/regional autorizada.
+
+### 6.5 Ativar/desativar BI para nÃ£o-admin
+
+TambÃ©m Ã© possÃ­vel liberar o BI para coordenadores sem transformar o usuÃ¡rio em admin.
+
+Abordagem recomendada:
+
+- manter `cargo` como papel institucional;
+- criar uma permissÃ£o separada, por exemplo:
+  - `pode_acessar_bi`
+  - ou `permissoes.bi`
+
+Resultado esperado:
+
+- o admin ativa ou desativa o BI quando quiser;
+- o coordenador continua sem privilÃ©gios globais;
+- o acesso fica temporÃ¡rio, auditÃ¡vel e com escopo restrito.
