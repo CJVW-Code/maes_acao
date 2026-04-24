@@ -78,6 +78,7 @@ export const FormularioSubmissao = () => {
     toggleRequeridoDetalhe,
     handleCurrencyChange,
     handleDayInputChange,
+    handleRestrictedAlphanumeric,
     handleFilesChange,
   } = useFormHandlers({ formState, dispatch, setFormErrors, toast });
 
@@ -296,6 +297,7 @@ export const FormularioSubmissao = () => {
               relato={formState.relato}
               prefersAudio={formState.prefersAudio}
               enviarDocumentosDepois={formState.enviarDocumentosDepois}
+              acaoEspecifica={formState.acaoEspecifica}
               outrosFilhos={formState.outrosFilhos}
               representanteNome={formState.REPRESENTANTE_NOME}
               handleFieldChange={handleFieldChange}

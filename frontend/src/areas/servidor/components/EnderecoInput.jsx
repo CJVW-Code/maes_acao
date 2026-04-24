@@ -139,7 +139,7 @@ export const EnderecoInput = ({
         <input
           type="text"
           name="cep"
-          placeholder="CEP (Opcional)"
+          placeholder="CEP *"
           value={address.cep}
           onChange={handleChange}
           className="input w-full md:col-span-1"

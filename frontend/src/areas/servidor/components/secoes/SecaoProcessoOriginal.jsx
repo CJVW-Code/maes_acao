@@ -10,16 +10,13 @@ export const SecaoProcessoOriginal = ({
   validar = () => ({}),
   formErrors = {},
 }) => {
-  const isCustomDecision = !['', 'Sentença', 'Interlocutória', 'Acordo homologado'].includes(formState.tipo_decisao);
   return (
     <div className="space-y-4 pt-4 border-t border-soft">
-      <h4 className="font-semibold text-primary">
-        Dados do Processo de Alimentos Original
-      </h4>
+      <h4 className="font-semibold text-primary">Dados do Processo de Alimentos Original</h4>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label htmlFor="vara" className="label font-bold ">
-            Vara da Petição Atual (ex: 1ª Vara de Família) *
+            Vara da Petição Atual (ex: 1ª ) Apenas numero *
           </label>
           <input
             id="vara"
@@ -33,10 +30,7 @@ export const SecaoProcessoOriginal = ({
           />
         </div>
         <div>
-          <label
-            htmlFor="percentualSalarioMinimo"
-            className="label font-bold text-"
-          >
+          <label htmlFor="percentualSalarioMinimo" className="label font-bold text-">
             Percentual do Salário Mínimo (%)
           </label>
           <div className="relative">
@@ -110,10 +104,16 @@ export const SecaoProcessoOriginal = ({
           <select
             id="tipoDecisao"
             name="tipo_decisao"
-            value={['', 'Sentença', 'Interlocutória', 'Acordo homologado'].includes(formState.tipo_decisao) ? formState.tipo_decisao : 'Outros'}
+            value={
+              ["", "Sentença", "Interlocutória", "Acordo homologado"].includes(
+                formState.tipo_decisao,
+              )
+                ? formState.tipo_decisao
+                : "Outros"
+            }
             onChange={(e) => {
-              if (e.target.value === 'Outros') {
-                handleFieldChange({ target: { name: 'tipo_decisao', value: 'Outra decisão...' } });
+              if (e.target.value === "Outros") {
+                handleFieldChange({ target: { name: "tipo_decisao", value: "Outra decisão..." } });
               } else {
                 handleFieldChange(e);
               }
@@ -126,18 +126,20 @@ export const SecaoProcessoOriginal = ({
             <option value="Acordo homologado">Acordo homologado</option>
             <option value="Outros">Outros</option>
           </select>
-          
-          {!['', 'Sentença', 'Interlocutória', 'Acordo homologado'].includes(formState.tipo_decisao) && (
-             <input
-               id="tipo_decisao_custom"
-               type="text"
-               placeholder="Escreva o tipo da decisão..."
-               name="tipo_decisao"
-               value={formState.tipo_decisao === 'Outra decisão...' ? '' : formState.tipo_decisao}
-               onChange={handleFieldChange}
-               className="input mt-2 border-primary/50 animate-fade-in"
-               autoFocus
-             />
+
+          {!["", "Sentença", "Interlocutória", "Acordo homologado"].includes(
+            formState.tipo_decisao,
+          ) && (
+            <input
+              id="tipo_decisao_custom"
+              type="text"
+              placeholder="Escreva o tipo da decisão..."
+              name="tipo_decisao"
+              value={formState.tipo_decisao === "Outra decisão..." ? "" : formState.tipo_decisao}
+              onChange={handleFieldChange}
+              className="input mt-2 border-primary/50 animate-fade-in"
+              autoFocus
+            />
           )}
         </div>
 
@@ -174,9 +176,7 @@ export const SecaoProcessoOriginal = ({
             {...validar("Informe o mês e ano inicial do débito (MM/AAAA).")}
           />
           {formErrors.data_inicio_debito && (
-            <p className="text-xs text-error font-medium mt-1">
-              {formErrors.data_inicio_debito}
-            </p>
+            <p className="text-xs text-error font-medium mt-1">{formErrors.data_inicio_debito}</p>
           )}
         </div>
         <div>
@@ -195,9 +195,7 @@ export const SecaoProcessoOriginal = ({
             {...validar("Informe o mês e ano final do débito (MM/AAAA).")}
           />
           {formErrors.data_fim_debito && (
-            <p className="text-xs text-error font-medium mt-1">
-              {formErrors.data_fim_debito}
-            </p>
+            <p className="text-xs text-error font-medium mt-1">{formErrors.data_fim_debito}</p>
           )}
         </div>
         <div>
@@ -221,9 +219,7 @@ export const SecaoProcessoOriginal = ({
             />
           </div>
           {formErrors.valor_debito && (
-            <p className="text-xs text-error font-medium mt-1">
-              {formErrors.valor_debito}
-            </p>
+            <p className="text-xs text-error font-medium mt-1">{formErrors.valor_debito}</p>
           )}
         </div>
         <div>
@@ -235,22 +231,32 @@ export const SecaoProcessoOriginal = ({
             type="file"
             accept=".pdf,.png,.jpg,.jpeg"
             onChange={(e) => {
-               if(e.target.files && e.target.files[0]) {
-                 handleFieldChange({ target: { name: "calculo_arquivo", value: e.target.files[0] } });
-               }
+              if (e.target.files && e.target.files[0]) {
+                handleFieldChange({
+                  target: { name: "calculo_arquivo", value: e.target.files[0] },
+                });
+              }
             }}
             className="input py-2 text-sm"
           />
           {formErrors.calculo_arquivo && (
-            <p className="text-xs text-error font-medium mt-1">
-              {formErrors.calculo_arquivo}
-            </p>
+            <p className="text-xs text-error font-medium mt-1">{formErrors.calculo_arquivo}</p>
           )}
         </div>
         <div>
-          <label htmlFor="link_calculadora" className="label font-bold flex items-center justify-between">
+          <label
+            htmlFor="link_calculadora"
+            className="label font-bold flex items-center justify-between"
+          >
             <span>Link da Calculadora (Opcional)</span>
-            <a href="https://drcalc.net/calculos/pensao-alimenticia" target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">Abrir Dr. Calc</a>
+            <a
+              href="https://drcalc.net/calculos/pensao-alimenticia"
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs text-blue-600 hover:underline"
+            >
+              Abrir Dr. Calc
+            </a>
           </label>
         </div>
       </div>

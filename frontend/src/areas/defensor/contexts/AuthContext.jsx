@@ -156,6 +156,7 @@ export const AuthProvider = ({ children }) => {
         loading,
         notificacoes,
         marcarNotificacaoLida,
+        fetchNotificacoes,
       }}
     >
       {!loading && children}

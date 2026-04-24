@@ -2250,17 +2250,8 @@ export const criarNovoCaso = async (req, res) => {
     const nome = ehIncapaz
       ? dados_formulario.NOME || dados_formulario.nome || ""
       : dados_formulario.REPRESENTANTE_NOME || dados_formulario.nome || "";
-    // CORREÇÃO: Extrair CPF do assistido ANTES do representante
-    // CORREÇÃO ESTRITA: Extrair CPF do assistido e representante separadamente.
-    // Se incapaz: cpf_assistido = cpf do filho, cpf_representante = cpf da mãe
-    // Se adulto: cpf_assistido = cpf próprio, cpf_representante = cpf próprio
     let cpf_assistido_raw = dados_formulario.cpf || dados_formulario.cpf_assistido || "";
     let cpf_representante_raw = dados_formulario.representante_cpf || "";
-
-    if (!ehIncapaz) {
-      if (!cpf_assistido_raw && cpf_representante_raw) cpf_assistido_raw = cpf_representante_raw;
-      if (!cpf_representante_raw && cpf_assistido_raw) cpf_representante_raw = cpf_assistido_raw;
-    }
 
     let cpf = cpf_assistido_raw.replace(/\D/g, "");
     let cpf_rep = cpf_representante_raw.replace(/\D/g, "");
@@ -2280,6 +2271,13 @@ export const criarNovoCaso = async (req, res) => {
     if (!validarCPF(cpf)) {
       return res.status(400).json({ error: "CPF do assistido inválido." });
     }
+
+    if (ehIncapaz && !validarCPF(cpf_rep)) {
+      return res.status(400).json({ error: "CPF do representante é obrigatório e deve ser válido para assistidos incapazes." });
+    } else if (!ehIncapaz && cpf_rep && !validarCPF(cpf_rep)) {
+      return res.status(400).json({ error: "CPF do representante inválido." });
+    }
+
 
     if (cpf_requerido && !validarCPF(cpf_requerido)) {
       avisos.push("Alerta: O CPF informado para a parte contrária (Requerido) parece inválido.");
@@ -2754,6 +2752,11 @@ export const listarCasos = async (req, res) => {
 
     const baseWhere = { arquivado: statusFiltro };
 
+    // Filtro para ocultar em_protocolo de servidor/estagiario
+    if (req.user && (req.user.cargo === "servidor" || req.user.cargo === "estagiario")) {
+      baseWhere.status = { not: "em_protocolo" };
+    }
+
     // Filtro "Meus Atendimentos"
     if (meusAtendimentos === "true" && req.user) {
       baseWhere.OR = [{ defensor_id: req.user.id }, { servidor_id: req.user.id }];
@@ -2855,6 +2858,11 @@ export const resumoCasos = async (req, res) => {
     // Filtro por unidade: admin vê tudo, demais veem apenas sua unidade
     if (req.user && req.user.cargo !== "admin" && req.user.unidade_id) {
       whereClause.unidade_id = req.user.unidade_id;
+    }
+
+    // Filtro para ocultar em_protocolo de servidor/estagiario
+    if (req.user && (req.user.cargo === "servidor" || req.user.cargo === "estagiario")) {
+      whereClause.status = { not: "em_protocolo" };
     }
 
     const contagens = {
@@ -3054,6 +3062,11 @@ export const obterDetalhesCaso = async (req, res) => {
         a.status === "aceito",
     );
 
+    const isServidorOrEstagiario = req.user.cargo === "servidor" || req.user.cargo === "estagiario";
+    if (data.status === "em_protocolo" && isServidorOrEstagiario) {
+      return res.status(403).json({ error: "Acesso Negado. Este caso está na etapa de protocolo e apenas defensores e coordenadores podem acessá-lo." });
+    }
+
     if (!isAdmin && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
       const holderName = data.defensor?.nome || data.servidor?.nome || "outro usuário";
       return res.status(423).json({
@@ -3222,7 +3235,7 @@ export const atualizarStatusCaso = async (req, res) => {
       pronto_para_analise: ["em_atendimento", "aguardando_documentos", "processando_ia"],
       em_atendimento: ["liberado_para_protocolo", "aguardando_documentos", "pronto_para_analise"],
       liberado_para_protocolo: ["em_protocolo", "em_atendimento"],
-      em_protocolo: ["protocolado", "liberado_para_protocolo"],
+      em_protocolo: ["liberado_para_protocolo"], // protocolado removido da transição genérica
       protocolado: ["aguardando_documentos"], // Caso precise reabrir por erro
       erro_processamento: ["processando_ia", "aguardando_documentos"],
     };
@@ -3241,6 +3254,11 @@ export const atualizarStatusCaso = async (req, res) => {
           requestedStatus: status,
         });
       }
+    }
+
+    const isServidorOrEstagiario = req.user?.cargo === "servidor" || req.user?.cargo === "estagiario";
+    if (status === "em_protocolo" && isServidorOrEstagiario) {
+      return res.status(403).json({ error: "Acesso Negado. Seu cargo não permite enviar casos para protocolo." });
     }
 
     const updateData = {};
@@ -3940,7 +3958,8 @@ export const buscarPorCpf = async (req, res) => {
           `,
           )
           .or(
-            `partes.cpf_assistido.eq.${cleanCpf},partes.cpf_representante.eq.${cleanCpf},partes.cpf_assistido.eq.${cpf},partes.cpf_representante.eq.${cpf}`,
+            `cpf_assistido.eq.${cleanCpf},cpf_representante.eq.${cleanCpf},cpf_assistido.eq.${cpf},cpf_representante.eq.${cpf}`,
+            { foreignTable: 'casos_partes' }
           )
           .order("created_at", { ascending: false })
       : prisma.casos.findMany({
@@ -3979,21 +3998,23 @@ export const buscarPorCpf = async (req, res) => {
           ? await buildSignedUrl(storageBuckets.documentos, casoRaw.url_capa_processual)
           : null;
 
+        const partesObj = Array.isArray(casoRaw.partes) ? casoRaw.partes[0] : casoRaw.partes;
+
         // Extraímos os dados da representante para o prefill
         const dadosRepresentante = {
-          nome_representante: casoRaw.partes?.nome_representante,
-          cpf_representante: casoRaw.partes?.cpf_representante,
-          rg_representante: casoRaw.partes?.rg_representante,
-          emissor_rg_representante: casoRaw.partes?.emissor_rg_representante,
-          nacionalidade_representante: casoRaw.partes?.nacionalidade_representante,
-          estado_civil_representante: casoRaw.partes?.estado_civil_representante,
-          profissao_representante: casoRaw.partes?.profissao_representante,
-          data_nascimento_representante: casoRaw.partes?.data_nascimento_representante,
-          nome_mae_representante: casoRaw.partes?.nome_mae_representante,
-          nome_pai_representante: casoRaw.partes?.nome_pai_representante,
-          endereco_representante: casoRaw.partes?.endereco_assistido,
-          telefone_representante: casoRaw.partes?.telefone_assistido,
-          email_representante: casoRaw.partes?.email_assistido,
+          nome_representante: partesObj?.nome_representante,
+          cpf_representante: partesObj?.cpf_representante,
+          rg_representante: partesObj?.rg_representante,
+          emissor_rg_representante: partesObj?.emissor_rg_representante,
+          nacionalidade_representante: partesObj?.nacionalidade_representante,
+          estado_civil_representante: partesObj?.estado_civil_representante,
+          profissao_representante: partesObj?.profissao_representante,
+          data_nascimento_representante: partesObj?.data_nascimento_representante,
+          nome_mae_representante: partesObj?.nome_mae_representante,
+          nome_pai_representante: partesObj?.nome_pai_representante,
+          endereco_representante: partesObj?.endereco_assistido,
+          telefone_representante: partesObj?.telefone_assistido,
+          email_representante: partesObj?.email_assistido,
           CIDADEASSINATURA: casoRaw.unidade?.comarca,
         };
 
@@ -4001,8 +4022,8 @@ export const buscarPorCpf = async (req, res) => {
           id: casoRaw.id,
           protocolo: casoRaw.protocolo,
           status: casoRaw.status,
-          nome_assistido: casoRaw.partes?.nome_assistido || "Não informado",
-          nome_representante: casoRaw.partes?.nome_representante || "Não informado",
+          nome_assistido: partesObj?.nome_assistido || "Não informado",
+          nome_representante: partesObj?.nome_representante || "Não informado",
           descricao: casoRaw.descricao_pendencia || "",
           numero_processo: casoRaw.numero_processo || null,
           numero_solar: casoRaw.numero_solar || null,
@@ -4390,7 +4411,30 @@ export const receberDocumentosComplementares = async (req, res) => {
         ).catch((e) => logger.error(`[Background Upload Complementar] Erro: ${e.message}`));
       });
 
-      res.status(200).json({
+      // 5. Cria Notificação para o Defensor/Servidor (Restaurado)
+      const mensagemNotif = `Novos documentos entregues por ${caso.nome_assistido || "Assistido"}.`;
+
+      if (isSupabaseConfigured) {
+        const destinatarioId = caso.servidor_id || caso.defensor_id;
+        if (destinatarioId) {
+          const { error: notifError } = await supabase
+            .from("notificacoes")
+            .insert({
+              usuario_id: destinatarioId,
+              titulo: "Documentos Complementares",
+              mensagem: mensagemNotif,
+              tipo: "upload",
+              referencia_id: caso.id,
+              lida: false,
+            });
+            
+          if (notifError) {
+            logger.error(`Erro ao criar notificação de upload: ${notifError.message}`);
+          }
+        }
+      }
+
+      return res.status(200).json({
         message: "Documentos anexados com sucesso e caso enviado para processamento!",
         reprocessed: true,
       });
@@ -4402,30 +4446,33 @@ export const receberDocumentosComplementares = async (req, res) => {
         await prisma.casos.update({ where: { id: caso.id }, data: { updated_at: new Date() } });
       }
 
-      res.status(200).json({
+      // 5. Cria Notificação para o Defensor/Servidor
+      const mensagemNotif = `Novos documentos entregues por ${caso.nome_assistido || "Assistido"}.`;
+      
+      if (isSupabaseConfigured) {
+        const destinatarioId = caso.servidor_id || caso.defensor_id;
+        if (destinatarioId) {
+          const { error: notifError } = await supabase
+            .from("notificacoes")
+            .insert({
+              usuario_id: destinatarioId,
+              titulo: "Documentos Complementares",
+              mensagem: mensagemNotif,
+              tipo: "upload",
+              referencia_id: caso.id,
+              lida: false,
+            });
+            
+          if (notifError) {
+            logger.error(`Erro ao criar notificação de upload: ${notifError.message}`);
+          }
+        }
+      }
+
+      return res.status(200).json({
         message: "Documentos anexados com sucesso ao caso (status preservado).",
         reprocessed: false,
       });
-    }
-
-    // 5. Cria Notificação para o Defensor/Servidor (Restaurado)
-    const mensagemNotif = `Novos documentos entregues por ${caso.nome_assistido || "Assistido"}.`;
-
-    if (isSupabaseConfigured) {
-      const destinatarioId = caso.servidor_id || caso.defensor_id;
-      if (destinatarioId) {
-        await supabase
-          .from("notificacoes")
-          .insert({
-            usuario_id: destinatarioId,
-            titulo: "Documentos Complementares",
-            mensagem: mensagemNotif,
-            tipo: "upload",
-            referencia_id: caso.id,
-            lida: false,
-          })
-          .catch((e) => logger.error(`Erro ao criar notificação de upload: ${e.message}`));
-      }
     }
   } catch (error) {
     logger.error(`Erro upload complementar para caso ${id}: ${error.message}`);

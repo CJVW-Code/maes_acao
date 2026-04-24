@@ -14,6 +14,7 @@ export const StepRelatoDocs = React.memo(
     isRepresentacao,
     handleFilesChange,
     configAcao,
+    acaoEspecifica,
   }) => {
     const { confirm } = useConfirm();
 
@@ -95,6 +96,7 @@ export const StepRelatoDocs = React.memo(
             <DocumentUpload
               isRepresentacao={isRepresentacao}
               outrosFilhos={outrosFilhos}
+              acaoEspecifica={acaoEspecifica}
               nomes={{
                 assistido: representanteNome,
                 responsavel: representanteNome,

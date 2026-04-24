@@ -77,7 +77,6 @@ const manualStatusOptions = [
   { value: "em_atendimento", label: "Em Atendimento" },
   { value: "liberado_para_protocolo", label: "Liberado para Protocolo" },
   { value: "em_protocolo", label: "Em Protocolo" },
-  { value: "protocolado", label: "Protocolado" },
 ];
 
 const archiveReasonOptions = [
@@ -1852,6 +1851,8 @@ export const DetalhesCaso = () => {
                 </div>
               </div>
             </div>
+            {/* Oculta o fluxo de finalização para servidor e estagiario */}
+            {user?.cargo !== "servidor" && user?.cargo !== "estagiario" && (
             <div className="mt-8 pt-8 border-t border-soft">
               <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
                 <CheckCircle className="text-green-500" />
@@ -1985,6 +1986,7 @@ export const DetalhesCaso = () => {
                 </form>
               )}
             </div>
+            )}
 
             {/* Botão de Arquivar (Movido para Gestão) */}
             <button

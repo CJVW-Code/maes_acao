@@ -13,12 +13,30 @@ export const lockCaso = async (req, res) => {
 
   try {
     const isAdmin = cargo === 'admin';
-    const isDefensor = cargo.includes("defensor");
+    const isDefensorOrCoordenador = cargo.includes("defensor") || cargo === "coordenador";
+    const isServidorOrEstagiario = cargo === "servidor" || cargo === "estagiario";
+
+    // Busca o caso para saber o status e decidir o nível de lock
+    const casoAtual = await prisma.casos.findUnique({
+      where: { id: BigInt(id) },
+      select: { status: true, defensor_id: true, servidor_id: true, defensor: true, servidor: true }
+    });
+
+    if (!casoAtual) return res.status(404).json({ error: "Caso não encontrado." });
+
+    let nivelLock = 1;
+    if (["liberado_para_protocolo", "em_protocolo"].includes(casoAtual.status)) {
+      nivelLock = 2;
+    }
+
+    if (nivelLock === 2 && isServidorOrEstagiario) {
+      return res.status(403).json({ error: "Acesso negado. Seu cargo não permite atuar nesta etapa do caso." });
+    }
 
     const updateData = {};
     const whereClause = { id: BigInt(id) };
 
-    if (isDefensor) {
+    if (nivelLock === 2) {
       updateData.defensor_id = userId;
       updateData.defensor_at = new Date();
       if (!isAdmin) {
@@ -44,16 +62,9 @@ export const lockCaso = async (req, res) => {
     });
 
     if (count === 0) {
-      const casoCheck = await prisma.casos.findUnique({
-        where: { id: BigInt(id) },
-        include: { defensor: true, servidor: true },
-      });
-
-      if (!casoCheck) return res.status(404).json({ error: "Caso não encontrado." });
-
-      const holder = isDefensor
-        ? casoCheck.defensor?.nome
-        : casoCheck.servidor?.nome;
+      const holder = nivelLock === 2
+        ? casoAtual.defensor?.nome
+        : casoAtual.servidor?.nome;
 
       return res.status(423).json({
         error: "Caso bloqueado",

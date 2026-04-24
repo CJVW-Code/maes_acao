@@ -19,6 +19,24 @@ export const SecaoValoresPensao = ({
           ? "Dados para Deposito (Execucao)"
           : "Valores e Pagamento (Pedido Principal)"}
       </h4>
+      
+      {formState?.acaoEspecifica === "fixacao_alimentos" && (
+        <div className="mb-4">
+          <label htmlFor="vara" className="label font-bold ">
+            Vara da Petição Atual (ex: 1ª ) Apenas numero *
+          </label>
+          <input
+            id="vara"
+            type="text"
+            placeholder="Ex: 1ª Vara de Família"
+            name="VARA"
+            value={formState.VARA}
+            onChange={handleFieldChange}
+            className="input border-primary/50"
+            {...validar("Informe a vara para esta petição.")}
+          />
+        </div>
+      )}
 
       {!isExecucaoAlimentos && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

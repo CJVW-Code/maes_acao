@@ -89,7 +89,7 @@ export const useFormEffects = ({ dispatch, formState, location, toast, forcaRepr
       }
 
       // ETAPA 3: Se não houver rascunho nem prefill, mas houver CPF da busca
-      if (location.state?.initialCpf && !rascunhoStr && !protocoloOrigem) {
+      if (location.state?.initialCpf && !rascunhoStr && !location.state?.protocoloOrigem) {
         dispatch({ 
           type: "UPDATE_FIELD", 
           field: "representante_cpf", 
