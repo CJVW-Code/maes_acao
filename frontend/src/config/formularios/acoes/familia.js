@@ -50,7 +50,6 @@ export const ACOES_FAMILIA = {
     camposGerais: { mostrarBensPartilha: false, ocultarDetalhesGerais: true },
     forcaRepresentacao: true, // assistidoEhIncapaz = "sim" automático
     ocultarRelato: true, // Oculta campo de relato livre
-    isCpfRepresentanteOpcional: true, // CPF da mãe é opcional
     exigeDadosProcessoOriginal: true, // Exibe seção do processo originário
     exigeFilhos: true, // Exibe lista de filhos/exequentes
     labelAutor: "Filho(a) Exequente", // Rótulo do campo do assistido

@@ -1,23 +1,23 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap');
 @import "tailwindcss";
 
-/* index.css — Purple & Lilac Edition */
+/* index.css -- Purple & Lilac Edition */
 
 /* -------------------------------------------------------------
-   1) Tokens de cor (Light - "Royal Amethyst")
+   1) Tokens de cor (Light - Royal Amethyst)
 ---------------------------------------------------------------- */
 :root {
-  /* Core - Tons de Roxo Vibrante & Lilás (Mães em Ação Identity) */
-  --color-primary: #8b5cf6;       /* Violet 500 - Lilás Vibrante */
+  /* Core - Tons de Roxo Vibrante & Lilas (Maes em Acao Identity) */
+  --color-primary: #8b5cf6;       /* Violet 500 - Lilas Vibrante */
   --color-primary-600: #7c3aed;   /* Violet 600 - Roxo Profundo */
-  --color-secondary: #c084fc;     /* Purple 400 - Lilás Suave */
-  --color-secondary-600: #a855f7; /* Purple 500 - Lilás Forte */
+  --color-secondary: #c084fc;     /* Purple 400 - Lilas Suave */
+  --color-secondary-600: #a855f7; /* Purple 500 - Lilas Forte */
   --color-special: #6366f1;       /* Indigo - Contraste */
   --color-laranja: #f59e0b;       /* Alertas */
 
   /* Surfaces & Text */
   --color-bg: #f8f7ff;            /* Lavanda Suave (Warm White) */
-  --color-surface: #fdfbff;       /* Lilás Perolado (Off-white para contrastar com bordas) */
+  --color-surface: #fdfbff;       /* Lilas Perolado (Off-white para contrastar com bordas) */
   --color-border: #ddd6fe;        
 
   --color-text: #2e1065;          /* Roxo Imperial escuro */
@@ -40,7 +40,7 @@
 }
 
 /* -------------------------------------------------------------
-   2) Tema escuro (Dark - "Deep Midnight Purple")
+   2) Tema escuro (Dark - Deep Midnight Purple)
 ---------------------------------------------------------------- */
 :root[data-theme="dark"] {
   --color-primary: #c084fc;       
@@ -65,7 +65,7 @@
   color-scheme: dark;
 }
 
-/* Preferência do sistema */
+/* Preferencia do sistema */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
     color-scheme: light;
@@ -102,10 +102,11 @@
   --radius-card: var(--radius);
   --radius-badge: var(--radius-sm);
   --shadow-soft: var(--shadow-soft);
+  --color-soft: var(--color-border);
 }
 
 /* -------------------------------------------------------------
-   4) Base & Layers (Mantendo a estrutura semântica)
+   4) Base & Layers (Mantendo a estrutura semantica)
 ---------------------------------------------------------------- */
 @layer base {
   html, body {
@@ -115,7 +116,7 @@
   }
 
   ::selection {
-    /* Seleção de texto lilás suave */
+    /* Selecao de texto lilas suave */
     background: color-mix(in oklab, var(--color-primary) 25%, transparent);
     color: var(--color-primary);
   }
@@ -125,7 +126,6 @@
   .bg-app { background-color: var(--color-bg); }
   .bg-surface { background-color: var(--color-surface); }
   .text-muted { color: var(--color-text-muted); }
-  .border-soft { border-color: var(--color-border); }
 }
 
 @layer components {
@@ -135,23 +135,31 @@
     box-shadow: 0 8px 32px 0 rgba(139, 92, 246, 0.15);
   }
 
+  .btn-sm { @apply px-3 py-1.5 text-xs rounded-lg; }
+  .btn-md { @apply px-5 py-2.5 text-sm rounded-xl; }
+  .btn-ghost { @apply bg-transparent hover:bg-surface/50 text-muted transition-colors; }
+  .bg-soft { @apply bg-surface border border-soft; }
+  .text-soft { @apply text-muted/70; }
+
   .card-solid {
-    @apply bg-surface dark:bg-surface border border-border shadow-md rounded-xl;
+    @apply bg-surface dark:bg-surface border border-soft shadow-md rounded-xl;
   }
 
-  /* Cards: Agora com suporte a Glassmorphism e toque lilás */
+  /* Cards: Agora com suporte a Glassmorphism e toque lilas */
   .card {
-     @apply p-8 rounded-[2rem] shadow-xl;
-     border: 1px solid var(--color-border);
-     background-color: var(--color-surface); /* Perlatto */
+     padding: 2rem;
+     border-radius: 2rem;
+     border: 1.5px solid var(--color-border);
+     background-color: var(--color-surface);
      box-shadow: var(--shadow-soft);
   }
 
   :root[data-theme="dark"] .card {
     background-color: #1a1a24;
+    border-color: #312e81;
   }
 
-  /* Seções de Formulário */
+  /* Secoes de Formulario */
   .form-section {
     @apply p-8 rounded-2xl space-y-6 border-l-8 shadow-xl relative;
     border: 1px solid var(--color-border);
@@ -180,7 +188,7 @@
     border-color: var(--color-primary);
   }
 
-  /* Botões: O Roxo traz nobreza e ação */
+  /* Botoes: O Roxo traz nobreza e acao */
   .btn {
     @apply inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-medium rounded-xl transition select-none;
   }
@@ -204,7 +212,7 @@
     background: color-mix(in oklab, var(--color-primary) 8%, transparent);
   }
 
-  /* Accent (Lilás) */
+  /* Accent (Lilas) */
   .btn-accent {
     background: var(--color-secondary);
     color: var(--color-text);
@@ -214,7 +222,7 @@
     color: #fff;
   }
 
-  /* Alertas (Semânticos mas harmonizados) */
+  /* Alertas (Semanticos mas harmonizados) */
   .alert-success {
     background: #ecfdf5;
     border-color: #a7f3d0;
@@ -300,5 +308,109 @@
     background: linear-gradient(to right, color-mix(in oklab, var(--color-highlight) 15%, transparent), transparent) !important;
     border-left: 4px solid var(--color-highlight) !important;
   }
-}
 
+  /* -------------------------------------------------------------
+     DASHBOARD 3.1 -- GRID & CARDS
+  ---------------------------------------------------------------- */
+  .dashboard-grid {
+    @apply grid grid-cols-1 gap-8 pb-24 items-start transition-all duration-300 ease-in-out;
+  }
+
+  .dashboard-summary-grid {
+    @apply grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7;
+  }
+
+  .summary-card {
+    @apply p-4 rounded-2xl text-left transition-all border-l-4 flex flex-col justify-between min-h-[120px] shadow-sm;
+    @apply border-l-transparent hover:border-l-primary/60;
+    border-top: 1px solid var(--color-border);
+    border-right: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+  }
+
+  .summary-card.active {
+    @apply border-l-primary shadow-xl ring-2 ring-primary/30 -translate-y-0.5;
+  }
+
+  .summary-card .card-label {
+    @apply text-[10px] font-bold text-muted leading-tight uppercase tracking-wider;
+  }
+
+  .summary-card .card-value {
+    @apply text-xl font-extrabold mt-1 tracking-tight;
+  }
+
+  .summary-card .card-helper {
+    @apply text-[9px] text-muted font-medium leading-tight;
+  }
+
+  /* Escala para Monitores de 27" (2xl) */
+  @media (min-width: 1536px) {
+    .summary-card {
+      @apply p-6 min-h-[160px];
+    }
+    .summary-card .card-label {
+      @apply text-xs;
+    }
+    .summary-card .card-value {
+      @apply text-4xl mt-2;
+    }
+    .summary-card .card-helper {
+      @apply text-[11px];
+    }
+  }
+
+  .case-item-link {
+    @apply block px-6 py-4 hover:bg-primary/5 transition;
+  }
+
+  .case-item-link .case-name {
+    @apply font-bold text-base leading-tight text-slate-800 dark:text-slate-100;
+  }
+
+  @media (min-width: 1536px) {
+    .case-item-link {
+      @apply py-6;
+    }
+    .case-item-link .case-name {
+      @apply text-xl;
+    }
+  }
+
+  .alert-sidebar {
+    @apply space-y-6 sticky top-8 transition-all duration-300;
+  }
+
+  .alert-card {
+    @apply p-4 shadow-sm border-l-4 transition-all hover:shadow-md;
+    border-top: 1px solid var(--color-border);
+    border-right: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+  }
+
+    @media (min-width: 1536px) {
+    .alert-card {
+      @apply p-6;
+    }
+  }
+
+  /* REFINAMENTOS DASHBOARD 3.2 -- CORES SEMANTICAS */
+  .hero-gradient {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-600) 60%, #4f46e5 100%);
+    @apply border-none shadow-xl;
+  }
+
+  .badge-meu {
+    @apply bg-success/10 text-success border border-success/20;
+  }
+
+  .badge-bloqueado {
+    @apply bg-amber-500/10 text-amber-600 border border-amber-500/20;
+  }
+
+  .icon-badge-shared {
+    @apply absolute -top-1 -right-1 bg-highlight text-white p-1 rounded-full border-2 border-white dark:border-surface;
+  }
+}

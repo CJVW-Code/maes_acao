@@ -10,7 +10,6 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notificacoes, setNotificacoes] = useState([]);
-  const intervalRef = useRef(null);
 
   // Busca notificações
   const fetchNotificacoes = useCallback(async (currentToken) => {
@@ -82,15 +81,11 @@ export const AuthProvider = ({ children }) => {
     };
   }, [logout]);
 
-  // Polling de Notificações
+  // Busca inicial de Notificações
   useEffect(() => {
     if (token) {
       fetchNotificacoes(token);
-      intervalRef.current = setInterval(() => fetchNotificacoes(token), 300000); // Pausado (5 min) para debug
     }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
   }, [token, fetchNotificacoes]);
 
   const login = async (email, password) => {

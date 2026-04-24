@@ -1,0 +1,36 @@
+# Plano de Implementação - Correções de Backend
+
+Este plano visa resolver o aviso de configuração do QStash e o erro de perda de dados de múltiplos filhos durante a regeneração de minutas.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **API_BASE_URL:** Para que o QStash (Upstash) funcione corretamente, ele precisa de uma URL pública para enviar o webhook de volta ao servidor. No ambiente local, usaremos `http://localhost:8000`, mas no Railway, você deve garantir que esta variável aponte para a URL do seu serviço (ex: `https://seu-backend.railway.app`).
+
+## Problemas Identificados
+
+1.  **Aviso de API_BASE_URL:** A variável está ausente no `.env`, forçando o fallback para processamento local síncrono.
+2.  **Bug dos Filhos na Regeneração:** A função `mapCasoRelations` não achata os dados do formulário no nível raiz do objeto. Como a geração de documentos busca os campos no nível superior, ela ignora a lista de irmãos (`outros_filhos_detalhes`) que fica "escondida" dentro do JSONB.
+
+---
+
+## Mudanças Propostas
+
+### Backend - Configuração
+
+#### [MODIFY] [.env](file:///c:/Users/weslley/Downloads/defensoria/maes%20em%20acao/defsul_maes/backend/.env)
+- Adicionar `API_BASE_URL=http://localhost:8000/api` (ajustar conforme o ambiente).
+
+### Backend - Controllers
+
+#### [MODIFY] [casosController.js](file:///c:/Users/weslley/Downloads/defensoria/maes%20em%20acao/defsul_maes/backend/src/controllers/casosController.js)
+- Alterar o retorno da função `mapCasoRelations` para realizar o merge de `dados_formulario` com o objeto `enriched`.
+- **Lógica:** `{ ...enriched.dados_formulario, ...enriched }`. Isso garante que todos os campos do formulário estejam disponíveis no topo, mas que os campos oficiais mapeados do Prisma (como nomes corrigidos) tenham precedência.
+
+---
+
+## Plano de Verificação
+
+### Testes Manuais
+- **QStash:** Verificar se o log `[QStash] API_BASE_URL invalida` desaparece ao iniciar o servidor.
+- **Regeneração:** Criar um caso com 2 ou mais filhos, clicar em "Regerar Minuta" e confirmar se todos os filhos aparecem no `.docx` gerado.

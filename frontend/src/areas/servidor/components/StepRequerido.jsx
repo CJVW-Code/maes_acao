@@ -59,10 +59,10 @@ export const StepRequerido = React.memo(
               value={requeridoNome}
               onChange={handleFieldChange}
               className="input"
-              aria-invalid={Boolean(formErrors.nomeRequerido)}
+              aria-invalid={Boolean(formErrors.REQUERIDO_NOME)}
             />
-            {formErrors.nomeRequerido && (
-              <p className="text-xs text-red-500 mt-1">{formErrors.nomeRequerido}</p>
+            {formErrors.REQUERIDO_NOME && (
+              <p className="text-xs text-red-500 mt-1">{formErrors.REQUERIDO_NOME}</p>
             )}
           </div>
           <div>
@@ -115,7 +115,7 @@ export const StepRequerido = React.memo(
 
         <div>
           <EnderecoInput
-            label="Endereço Residencial do Requerido (Pelo menos um contato é obrigatório) *"
+            label="Endereço Residencial do Requerido (Pelo menos um endereço ou telefone é obrigatório) *"
             name="executado_endereco_residencial"
             value={requeridoEnderecoResidencial}
             onChange={handleFieldChange}
@@ -132,7 +132,7 @@ export const StepRequerido = React.memo(
               id="telefoneRequerido"
               type="text"
               inputMode="tel"
-              placeholder="Telefone (pelo menos um contato é obrigatório) *"
+              placeholder="Telefone (Endereço ou telefone é obrigatório) *"
               name="executado_telefone"
               value={requeridoTelefone}
               onChange={handlePhoneChange("executado_telefone")}

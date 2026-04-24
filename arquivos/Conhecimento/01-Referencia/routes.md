@@ -1,5 +1,7 @@
 # Referência da API — Mães em Ação · DPE-BA
 
+> **Versão:** 3.1 · **Atualizado em:** 2026-04-23 (Download Hardening + A11y)
+
 Esta documentação lista as principais rotas do backend do Mães em Ação.  
 Todas as rotas são prefixadas com `/api`. Exemplo: `https://api.mutirao.dpe.ba.gov.br/api/casos`.
 

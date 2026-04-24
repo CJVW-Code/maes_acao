@@ -1,7 +1,7 @@
 # Modelo de Dados e Persistência Híbrida — Mães em Ação
 
-> **Versão:** 2.1 · **Atualizado em:** 2026-04-13
-> **Fonte:** `backend/prisma/schema.prisma` (commit `601877e`)
+> **Versão:** 3.1 · **Atualizado em:** 2026-04-23 (Schema Cleanup + JSONB Virtuals)
+> **Fonte:** `backend/prisma/schema.prisma`
 
 O sistema utiliza uma abordagem híbrida para persistência, combinando o **Prisma ORM** (gestão de equipe e RBAC) com o **Supabase JS Client** (core dos casos e pipeline de IA).
 
@@ -97,7 +97,9 @@ Resultados do processamento assíncrono.
 | `dos_fatos_gerado` | `String?` | Texto jurídico gerado pelo Groq Llama 3.3 |
 | `dados_extraidos` | `JSONB?` | Resumo do OCR (Gemini Vision) para conferência |
 | `url_documento_gerado` | `String?` | URL Supabase Storage do .docx da petição |
-| `url_termo_declaracao` | `String?` | URL do Termo de Declaração gerado sob demanda |
+| `url_peticao_penhora` | `String?` | URL específica para rito de penhora |
+| `url_peticao_prisao` | `String?` | URL específica para rito de prisão |
+| `url_termo_declaracao` | `Virtual/JSONB` | Armazenado dentro de `dados_extraidos` para evitar coluna fantasma |
 | `regenerado_por` | `UUID?` | FK para `defensores` (quem regenerou a IA) |
 
 ### 3.5 Tabela `assistencia_casos` (N:N)
@@ -146,6 +148,12 @@ CREATE INDEX idx_casos_protocolo ON casos (protocolo);
 -- Concorrência (Locking)
 CREATE INDEX idx_casos_lock_servidor ON casos (servidor_id);
 CREATE INDEX idx_casos_lock_defensor ON casos (defensor_id);
+
+-- BI e Performance (v3.0)
+CREATE INDEX idx_casos_bi_status ON casos (arquivado, status);
+CREATE INDEX idx_casos_bi_unidade_status ON casos (arquivado, unidade_id, status);
+CREATE INDEX idx_casos_bi_tipo ON casos (arquivado, tipo_acao);
+CREATE INDEX idx_casos_bi_processed_at ON casos (processed_at);
 ```
 
 ---

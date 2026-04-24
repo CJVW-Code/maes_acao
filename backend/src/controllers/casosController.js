@@ -41,6 +41,13 @@ import logger from "../utils/logger.js";
 import { Client } from "@upstash/qstash";
 import { TAGS_OFICIAIS } from "../config/dicionarioTags.js";
 
+// Colunas físicas da tabela casos_ia que podem ser atualizadas diretamente
+const DIRECT_COLUMN_KEYS = new Set([
+  "url_peticao",
+  "url_peticao_penhora",
+  "url_peticao_prisao",
+]);
+
 // --- UTILS DE NORMALIZAÇÃO ---
 const mapCasoRelations = (caso) => {
   if (!caso) return caso;
@@ -94,13 +101,19 @@ const mapCasoRelations = (caso) => {
       dadosFormulario.requerente_endereco_residencial ||
       "";
 
-    // Datas de nascimento nativas do Prisma
     enriched.assistido_data_nascimento =
       partes.data_nascimento_assistido ||
       dadosFormulario.data_nascimento_assistido ||
       dadosFormulario.assistido_data_nascimento ||
       dadosFormulario.nascimento ||
       "";
+
+    // Garante que o array de filhos e outros dados do formulário estejam na raiz para o gerador de documentos
+    enriched.outros_filhos_detalhes = 
+      partes?.exequentes || 
+      dadosFormulario.outros_filhos_detalhes || 
+      [];
+    enriched.dados_formulario = dadosFormulario;
 
     enriched.assistido_rg_numero = partes.rg_assistido;
     enriched.assistido_rg_orgao = partes.emissor_rg_assistido;
@@ -265,16 +278,29 @@ const mapCasoRelations = (caso) => {
       : null;
 
     // Empregador: Pega do Jurídico, se não, cai pro formulário.
-    enriched.empregador_nome = juridico.empregador_nome || dadosFormulario.empregador_nome || dadosFormulario.empregador_requerido_nome || "";
+    enriched.empregador_nome =
+      juridico.empregador_nome ||
+      dadosFormulario.empregador_nome ||
+      dadosFormulario.empregador_requerido_nome ||
+      "";
     enriched.empregador_requerido_nome = enriched.empregador_nome;
-    enriched.empregador_endereco = juridico.empregador_endereco || dadosFormulario.empregador_endereco || dadosFormulario.empregador_requerido_endereco || "";
+    enriched.empregador_endereco =
+      juridico.empregador_endereco ||
+      dadosFormulario.empregador_endereco ||
+      dadosFormulario.empregador_requerido_endereco ||
+      "";
     enriched.empregador_requerido_endereco = enriched.empregador_endereco;
 
     enriched.juridico = juridico;
   }
 
   // [FIX] Cidade Assinatura Fallback (Task ID 01)
-  enriched.CIDADEASSINATURA = juridico?.cidade_assinatura || dadosFormulario.CIDADEASSINATURA || dadosFormulario.cidade_assinatura || caso.unidade?.comarca || "";
+  enriched.CIDADEASSINATURA =
+    juridico?.cidade_assinatura ||
+    dadosFormulario.CIDADEASSINATURA ||
+    dadosFormulario.cidade_assinatura ||
+    caso.unidade?.comarca ||
+    "";
   enriched.cidade_assinatura = enriched.CIDADEASSINATURA;
 
   if (ia) {
@@ -488,16 +514,37 @@ const normalizeAcaoKey = (acaoRaw = "") => {
 };
 
 const DOC_URL_KEY_BY_TIPO = {
+  fixacao_alimentos: "url_peticao",
+  exec_penhora: "url_peticao_execucao_penhora",
+  exec_prisao: "url_peticao_execucao_prisao",
+  exec_cumulado: "url_peticao_execucao_cumulado",
   execucao_cumulado: "url_peticao_execucao_cumulado",
   execucao_penhora: "url_peticao_execucao_penhora",
   execucao_prisao: "url_peticao_execucao_prisao",
   cumprimento_cumulado: "url_peticao_cumprimento_cumulado",
   cumprimento_penhora: "url_peticao_cumprimento_penhora",
   cumprimento_prisao: "url_peticao_cumprimento_prisao",
+  // Aliases para chaves simplificadas
   cumulado: "url_peticao_execucao_cumulado",
   penhora: "url_peticao_execucao_penhora",
   prisao: "url_peticao_execucao_prisao",
+  termo: "url_termo_declaracao",
 };
+
+// Colunas diretas de casos_ia que podem ser substituídas por upload manual.
+// Chaves JSONB (dados_extraidos) são espelhadas automaticamente.
+const ALLOWED_MINUTA_KEYS = new Set([
+  "url_peticao",
+  "url_peticao_penhora",
+  "url_peticao_prisao",
+  "url_termo_declaracao",
+  "url_peticao_execucao_cumulado",
+  "url_peticao_execucao_penhora",
+  "url_peticao_execucao_prisao",
+  "url_peticao_cumprimento_cumulado",
+  "url_peticao_cumprimento_penhora",
+  "url_peticao_cumprimento_prisao",
+]);
 
 const URL_KEYS_DOCUMENTOS_GERADOS = [
   "url_peticao_execucao_cumulado",
@@ -1319,12 +1366,15 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
   // Se for uma minuta específica (penhora ou prisão), o valor_debito deve ser o valor específico.
   // Se for cumulada ou a principal, tentamos usar o valor_debito total ou a soma.
   let debitoCalculado = parseCurrencyToNumber(baseData.valor_debito || "0");
-  
+
   if (acaoKey.includes("penhora")) {
     debitoCalculado = debitoPenhoraCalculado;
   } else if (acaoKey.includes("prisao")) {
     debitoCalculado = debitoPrisaoCalculado;
-  } else if (acaoKey.includes("cumulado") || (acaoKey === "execucao_alimentos" && debitoPenhoraCalculado > 0 && debitoPrisaoCalculado > 0)) {
+  } else if (
+    acaoKey.includes("cumulado") ||
+    (acaoKey === "execucao_alimentos" && debitoPenhoraCalculado > 0 && debitoPrisaoCalculado > 0)
+  ) {
     if (!debitoCalculado) {
       debitoCalculado = debitoPenhoraCalculado + debitoPrisaoCalculado;
     }
@@ -2052,6 +2102,24 @@ export const baixarDocumentoIndividual = async (req, res) => {
     if (objectPath.includes("peticoes") || storagePath.includes("peticoes")) bucket = "peticoes";
     if (objectPath.includes("audios") || storagePath.includes("audios")) bucket = "audios";
 
+    // [SEGURANÇA] Hardening: O Ticket deve estar vinculado ao mesmo caso e path (Task ID: 01)
+    if (req.ticket) {
+      if (String(req.ticket.casoId) !== String(id)) {
+        return res.status(403).json({ error: "Ticket não autorizado para este caso." });
+      }
+
+      // Valida se o path assinado bate com o requisitado (previne tampering)
+      if (req.ticket.path && req.ticket.path !== storagePath) {
+        logger.warn(`[Tampering Attempt] User ${req.user.id} tentou baixar path divergente do ticket.`);
+        return res.status(403).json({ error: "Ticket inválido: Divergência de arquivo." });
+      }
+
+      // Valida o bucket (opcional mas recomendado para consistência)
+      if (req.ticket.bucket && req.ticket.bucket !== bucket) {
+        return res.status(403).json({ error: "Ticket inválido: Divergência de categoria." });
+      }
+    }
+
     if (isSupabaseConfigured) {
       const { data, error } = await supabase.storage.from(bucket).download(objectPath);
       if (error) {
@@ -2085,9 +2153,12 @@ export const baixarTodosDocumentosZip = async (req, res) => {
     const caso = await carregarCasoDetalhado(id, req.user);
     if (!caso) return res.status(404).json({ error: "Caso não encontrado." });
 
+    // Ticket Binding Guard (Task 07)
+    if (!req.ticket?.casoId || String(req.ticket.casoId) !== String(id)) {
+      return res.status(403).json({ error: "Ticket não autorizado para este caso." });
+    }
+
     const archive = archiver("zip", { zlib: { level: 9 } });
-    res.setHeader("Content-Type", "application/zip");
-    res.setHeader("Content-Disposition", `attachment; filename="${caso.protocolo}_documentos.zip"`);
 
     // [CONFIABILIDADE] Handlers para evitar ZIPs corrompidos e vazamentos de recursos
     let archiveAborted = false;
@@ -2116,49 +2187,54 @@ export const baixarTodosDocumentosZip = async (req, res) => {
       }
     });
 
+    // Repositioned Headers (Task 08)
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="${caso.protocolo}_documentos.zip"`);
+
     archive.pipe(res);
+
+    const arquivosFalharam = [];
 
     if (caso.documentos && caso.documentos.length > 0) {
       for (const doc of caso.documentos) {
-        const objectPath = doc.storage_path;
-        if (isSupabaseConfigured) {
-          const { data, error } = await supabase.storage.from("documentos").download(objectPath);
-          if (!error && data) archive.append(Buffer.from(await data.arrayBuffer()), { name: `anexos/${doc.nome_original || path.basename(objectPath)}` });
-        } else {
-          const localPath = path.resolve("uploads", "documentos", objectPath);
-          if (fsSync.existsSync(localPath)) archive.file(localPath, { name: `anexos/${doc.nome_original || path.basename(objectPath)}` });
+        try {
+          const objectPath = doc.storage_path;
+          if (isSupabaseConfigured) {
+            const { data, error } = await supabase.storage.from("documentos").download(objectPath);
+            if (error) throw error;
+            if (data) {
+              archive.append(Buffer.from(await data.arrayBuffer()), {
+                name: `anexos/${doc.nome_original || path.basename(objectPath)}`,
+              });
+            }
+          } else {
+            const localPath = path.resolve("uploads", "documentos", objectPath);
+            if (fsSync.existsSync(localPath)) {
+              archive.file(localPath, {
+                name: `anexos/${doc.nome_original || path.basename(objectPath)}`,
+              });
+            } else {
+              throw new Error("Arquivo não encontrado no storage local");
+            }
+          }
+        } catch (err) {
+          // LGPD: logar apenas ID, nunca nome/CPF do arquivo (Task 09)
+          logger.error(`[ZIP] Falha no doc id=${doc.id}: ${err.message}`);
+          arquivosFalharam.push(doc.nome_original || `documento_${doc.id}`);
         }
       }
     }
 
-    // [TASK 3] Bloqueado o apensamento de minutas no ZIP por segurança e limpeza
-    /*
-    const ia = Array.isArray(caso.casos_ia) ? caso.casos_ia[0] : caso.casos_ia;
-    if (ia) {
-      const minutas = [
-        { path: ia.url_peticao, name: "minuta_principal.docx" },
-        { path: ia.url_peticao_penhora, name: "minuta_penhora.docx" },
-        { path: ia.url_peticao_prisao, name: "minuta_prisao.docx" },
-        { path: ia.url_termo_declaracao, name: "termo_declaracao.docx" }
-      ];
-      for (const m of minutas) {
-        const op = extractObjectPath(m.path);
-        if (op) {
-          if (isSupabaseConfigured) {
-            const { data, error } = await supabase.storage.from("peticoes").download(op);
-            if (!error && data) archive.append(Buffer.from(await data.arrayBuffer()), { name: m.name });
-          } else {
-            const localPath = path.resolve("uploads", "peticoes", op);
-            if (fsSync.existsSync(localPath)) archive.file(localPath, { name: m.name });
-          }
-        }
-      }
+    if (arquivosFalharam.length > 0) {
+      archive.append(`Arquivos não incluídos neste ZIP:\n${arquivosFalharam.join("\n")}`, {
+        name: "RELATORIO_ERROS.txt",
+      });
     }
-    */
+
     archive.finalize();
   } catch (error) {
-    logger.error(`[ZIP] Erro fatal: ${error.message}`);
-    if (!res.headersSent) res.status(500).json({ error: error.message });
+    logger.error(`[Download] Erro fatal: ${error.message}`);
+    if (!res.headersSent) res.status(error.statusCode || 500).json({ error: error.message });
   }
 };
 
@@ -2684,10 +2760,7 @@ export const listarCasos = async (req, res) => {
 
     // Filtro "Meus Atendimentos"
     if (meusAtendimentos === "true" && req.user) {
-      baseWhere.OR = [
-        { defensor_id: req.user.id },
-        { servidor_id: req.user.id }
-      ];
+      baseWhere.OR = [{ defensor_id: req.user.id }, { servidor_id: req.user.id }];
     } else if (req.user && req.user.cargo !== "admin" && req.user.unidade_id) {
       // Filtro por unidade padrão (admin vê tudo)
       baseWhere.OR = [
@@ -2929,8 +3002,10 @@ export const obterDetalhesCaso = async (req, res) => {
 
       if (result.data && result.data.assistencia_casos) {
         // Filtro manual para Supabase (Garantia de segurança: apenas aceitos do usuário logado ou enviados por ele)
-        result.data.assistencia_casos = result.data.assistencia_casos.filter(a => 
-          (a.destinatario_id === req.user.id || a.remetente_id === req.user.id) && a.status === "aceito"
+        result.data.assistencia_casos = result.data.assistencia_casos.filter(
+          (a) =>
+            (a.destinatario_id === req.user.id || a.remetente_id === req.user.id) &&
+            a.status === "aceito",
         );
       }
 
@@ -2989,9 +3064,11 @@ export const obterDetalhesCaso = async (req, res) => {
       String(data.defensor_id) === String(req.user.id) ||
       String(data.servidor_id) === String(req.user.id);
 
-    const isShared = (data.assistencia_casos || []).some(a => 
-      (String(a.destinatario_id) === String(req.user.id) || String(a.remetente_id) === String(req.user.id)) && 
-      a.status === "aceito"
+    const isShared = (data.assistencia_casos || []).some(
+      (a) =>
+        (String(a.destinatario_id) === String(req.user.id) ||
+          String(a.remetente_id) === String(req.user.id)) &&
+        a.status === "aceito",
     );
 
     if (!isAdmin && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
@@ -3502,16 +3579,55 @@ export const regerarMinuta = async (req, res) => {
     };
 
     // 2. Prepara os dados do formulário com o percentual recalculado e salário mínimo correto
-    const baseData = caso.dados_formulario || caso;
+    // Garante que campos do JSONB bruto (dados_formulario) preencham lacunas,
+    // sem sobrescrever campos já normalizados pelo mapCasoRelations (que têm prioridade).
+    const iaData = safeJsonParse(caso.ia?.dados_extraidos, {});
+    const juridico = dataRaw.juridico || {};
+    const baseData = {
+      ...iaData,
+      ...(caso.dados_formulario || {}),
+      // Preenche lacunas com dados normalizados da tabela casos_juridico (fonte canônica)
+      percentual_salario_minimo: caso.percentual_salario_minimo ||
+        (juridico.percentual_salario ? String(juridico.percentual_salario) : null) ||
+        iaData.percentual_salario_minimo ||
+        (caso.dados_formulario || {}).percentual_salario_minimo,
+      valor_mensal_pensao: caso.valor_mensal_pensao ||
+        juridico.debito_valor ||
+        iaData.valor_mensal_pensao ||
+        (caso.dados_formulario || {}).valor_mensal_pensao,
+      debito_penhora_valor: juridico.debito_penhora_valor ||
+        iaData.debito_penhora_valor ||
+        iaData.valor_debito_penhora,
+      debito_prisao_valor: juridico.debito_prisao_valor ||
+        iaData.debito_prisao_valor ||
+        iaData.valor_debito_prisao,
+      ...caso,
+    };
     const valorMensalPensao = baseData.valor_mensal_pensao;
     const percentualSalarioMinimoCalculado = calcularPercentualSalarioMinimo(valorMensalPensao);
     const valorPensaoFormatado = formatCurrencyBr(valorMensalPensao);
 
-    // Adiciona o percentual calculado e o salário mínimo correto aos dados do formulário
+    let acaoRaw =
+      caso.dados_formulario?.acaoEspecifica ||
+      (caso.tipo_acao || "").split(" - ")[1]?.trim() ||
+      (caso.tipo_acao || "").trim();
+
+    // Normalização básica: converte para snake_case
+    const acaoKey = normalizeAcaoKey(acaoRaw);
+
+    // [LÓGICA INTELIGENTE DE PERCENTUAL]
+    // Se for FIXAÇÃO: O Valor manda (recalculamos sempre para bater com o salário mínimo atual)
+    // Se for EXECUÇÃO/CUMPRIMENTO: O Percentual manda (é um dado fixo da sentença passada)
+    const isFixacao = acaoKey === "fixacao_alimentos" || acaoKey === "alimentos_gravidicos";
+    
+    const finalPercentual = (!isFixacao && (baseData.percentual_salario_minimo || (baseData.percentual_salario ? String(baseData.percentual_salario) : null))) || 
+                           percentualSalarioMinimoCalculado || 
+                           baseData.percentual_salario_minimo;
+
     const dadosComPercentual = {
       ...baseData,
-      percentual_salario_minimo: percentualSalarioMinimoCalculado,
-      percentual_definitivo_salario_min: percentualSalarioMinimoCalculado,
+      percentual_salario_minimo: finalPercentual,
+      percentual_definitivo_salario_min: finalPercentual,
       salario_minimo_atual: salarioMinimoAtual,
       salario_minimo_formatado: formatCurrencyBr(salarioMinimoAtual),
       valor_salario_minimo: formatCurrencyBr(salarioMinimoAtual),
@@ -3519,20 +3635,12 @@ export const regerarMinuta = async (req, res) => {
       valor_pensao_solicitado: valorPensaoFormatado,
     };
 
-    let acaoRaw =
-      caso.dados_formulario?.acaoEspecifica ||
-      (caso.tipo_acao || "").split(" - ")[1]?.trim() ||
-      (caso.tipo_acao || "").trim();
-
-    // Normalização básica: converte para snake_case se vier com espaços ou camelCase
-    const acaoKey = normalizeAcaoKey(acaoRaw);
-
     // 3. Gera o novo payload e o buffer do Word
     // Já usamos o 'caso' que já passou pelo mapCasoRelations no topo desta função
     const payload = buildDocxTemplatePayload(
       normalizedData,
       dosFatosTexto,
-      caso, // ← CORRETO: já contém merge com casos_juridico via mapCasoRelations
+      dadosComPercentual, // ← FIX: usa os dados mesclados (filhos + valores recalculados)
       acaoKey,
     );
 
@@ -3550,9 +3658,10 @@ export const regerarMinuta = async (req, res) => {
       // reprocessamos APENAS ela no "Regerar". Isso preserva minutas individuais editadas.
       const soloCumulado = req.body.solo_cumulado === true;
       const hasCumulado = docs.some((d) => d.tipo.toLowerCase().includes("cumulado"));
-      const docsToProcess = (hasCumulado && soloCumulado)
-        ? docs.filter((d) => d.tipo.toLowerCase().includes("cumulado"))
-        : docs;
+      const docsToProcess =
+        hasCumulado && soloCumulado
+          ? docs.filter((d) => d.tipo.toLowerCase().includes("cumulado"))
+          : docs;
 
       let url_peticao_penhora = null;
       let url_peticao_prisao = null;
@@ -3679,26 +3788,42 @@ export const regerarMinuta = async (req, res) => {
 
 export const substituirMinuta = async (req, res) => {
   const { id } = req.params;
-  const { documentKey } = req.body; // ex: 'url_peticao_execucao_penhora'
+  const { documentKey: rawDocumentKey } = req.body;
   const file = req.file;
 
   if (!file) return res.status(400).json({ error: "Arquivo não enviado." });
-  if (!documentKey) return res.status(400).json({ error: "Chave do documento não informada." });
+  if (!rawDocumentKey) return res.status(400).json({ error: "Chave do documento não informada." });
+
+  // 1. Normaliza a chave (frontend envia chaves curtas como "penhora", "prisao")
+  let documentKey = DOC_URL_KEY_BY_TIPO[rawDocumentKey] || rawDocumentKey;
+  if (documentKey === "termo") documentKey = "url_termo_declaracao";
+
+  // 2. Validações de arquivo e allowlist
+  const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+
+  if (file.mimetype !== DOCX_MIME || !file.originalname.toLowerCase().endsWith(".docx")) {
+    return res.status(400).json({ error: "Apenas arquivos .docx são aceitos." });
+  }
+  if (file.size > MAX_SIZE_BYTES) {
+    return res.status(400).json({ error: "Arquivo excede o tamanho máximo de 10MB." });
+  }
+  if (!ALLOWED_MINUTA_KEYS.has(documentKey)) {
+    logger.warn(`[Upload Minuta] Chave rejeitada: "${documentKey}" (original: "${rawDocumentKey}")`);
+    return res.status(400).json({ 
+      error: "Chave de documento inválida.",
+      detalhes: `A chave ${documentKey} não está na lista de permissões.` 
+    });
+  }
 
   try {
-    // 1. Busca o caso e a IA
-    const casoRaw = await prisma.casos.findUnique({
-      where: { id: BigInt(id) },
-      include: { ia: true },
-    });
-
-    if (!casoRaw) return res.status(404).json({ error: "Caso não encontrado." });
-
-    const protocolo = casoRaw.protocolo;
-    const ia = casoRaw.ia;
+    // 3. Autorização via carregarCasoDetalhado (já implementa isAdmin/isOwner/isShared e lança HttpError(423))
+    const caso = await carregarCasoDetalhado(id, req.user);
+    const ia = Array.isArray(caso.ia) ? caso.ia[0] : caso.ia; // Reuso da relação carregada
+    const protocolo = caso.protocolo;
     const extras = safeJsonParse(ia?.dados_extraidos, {});
 
-    // 2. Upload para o Supabase Storage (Bucket peticoes)
+    // 4. Upload para o Supabase Storage (Bucket peticoes)
     const safeName = file.originalname.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const storagePath = `${protocolo}/substituicao_${Date.now()}_${safeName}`;
 
@@ -3720,15 +3845,8 @@ export const substituirMinuta = async (req, res) => {
       await fs.copyFile(file.path, localPath);
     }
 
-    // Limpa arquivo temporário
-    try {
-      await fs.unlink(file.path);
-    } catch (e) {
-      logger.warn(`Falha ao limpar arquivo temporário: ${file.path}`);
-    }
-
-    // 3. Atualiza o Histórico de Versões
-    const oldUrl = ia[documentKey] || extras[documentKey];
+    // 5. Atualiza o Histórico de Versões
+    const oldUrl = ia?.[documentKey] || extras[documentKey];
     const historico = extras.historico_versoes || [];
 
     if (oldUrl) {
@@ -3740,28 +3858,34 @@ export const substituirMinuta = async (req, res) => {
       });
     }
 
-    // 4. Atualiza o Banco de Dados
+    // 6. Atualiza o Banco de Dados
     const updatedExtras = {
       ...extras,
       [documentKey]: storagePath,
       historico_versoes: historico,
     };
 
-    // Algumas chaves estão na tabela casos_ia diretamente, outras no JSONB
     const iaUpdateData = { dados_extraidos: updatedExtras };
-    if (ia && documentKey in ia) {
+    if (DIRECT_COLUMN_KEYS.has(documentKey)) {
       iaUpdateData[documentKey] = storagePath;
     }
 
-    await prisma.casos_ia.update({
-      where: { caso_id: BigInt(id) },
-      data: iaUpdateData,
-    });
+    if (isSupabaseConfigured) {
+      const { error: dbError } = await supabase
+        .from("casos_ia")
+        .update(iaUpdateData)
+        .eq("caso_id", id);
+      if (dbError) throw new Error(`Falha ao atualizar casos_ia no Supabase: ${dbError.message}`);
+    } else {
+      await prisma.casos_ia.update({
+        where: { caso_id: BigInt(id) },
+        data: iaUpdateData,
+      });
+    }
 
-    // 5. Log de auditoria
+    // 7. Log de auditoria (LGPD-safe: remove nome_arquivo)
     await registrarLog(req.user.id, "substituir_minuta", "casos", id, {
       documento: documentKey,
-      nome_arquivo: file.originalname,
     });
 
     res.status(200).json({
@@ -3770,7 +3894,21 @@ export const substituirMinuta = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Erro ao substituir minuta do caso ${id}: ${error.message}`);
-    res.status(500).json({ error: "Erro interno ao substituir minuta." });
+    if (error.statusCode) {
+      return res.status(error.statusCode).json(error.payload || { error: error.message });
+    }
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Erro interno ao substituir minuta." });
+    }
+  } finally {
+    // Garante limpeza mesmo que upload ou DB falhem (Task 05)
+    if (file?.path) {
+      try {
+        await fs.unlink(file.path);
+      } catch (e) {
+        logger.warn(`[substituirMinuta] Falha ao limpar temp: ${file.path}`);
+      }
+    }
   }
 };
 
@@ -4030,89 +4168,76 @@ export const resetarChaveAcesso = async (req, res) => {
 };
 export const receberDocumentosComplementares = async (req, res) => {
   const { id } = req.params;
-  // Tenta pegar do body (FormData) ou da query string (URL) para garantir
   const cpfRaw = req.body.cpf || req.query.cpf;
   const cpf = cpfRaw ? String(cpfRaw).replace(/\D/g, "") : null;
-  const chave = req.body.chave || req.query.chave;
   const { nomes_arquivos } = req.body;
 
   try {
-    logger.info(`[Upload Complementar] Iniciando. ID: ${id}, CPF recebido: ${!!cpf} `);
+    // Log seguro sem expor o CPF completo
+    logger.info(`[Upload Complementar] Iniciando. ID: ${id}, CPF recebido: ${!!cpf}`);
 
     let caso = null;
-
-    // 1. Tenta buscar por ID ou Protocolo na URL
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
     const isInt = /^\d+$/.test(id) && id !== "0";
 
+    // 1. Busca do caso
     if (isSupabaseConfigured) {
       if (isUUID || isInt) {
-        const { data } = await supabase.from("casos").select("*").eq("id", id).single();
+        const { data } = await supabase.from("casos").select("*, ia:casos_ia(*)").eq("id", id).single();
         caso = data;
       } else if (id !== "0") {
-        const { data } = await supabase.from("casos").select("*").eq("protocolo", id).single();
+        const { data } = await supabase.from("casos").select("*, ia:casos_ia(*)").eq("protocolo", id).single();
         caso = data;
       }
     } else {
-      // Fallback Prisma
       if (isInt) {
-        caso = await prisma.casos.findUnique({ where: { id: BigInt(id) } });
+        caso = await prisma.casos.findUnique({ where: { id: BigInt(id) }, include: { ia: true } });
       } else if (id !== "0") {
-        caso = await prisma.casos.findUnique({ where: { protocolo: id } });
+        caso = await prisma.casos.findUnique({ where: { protocolo: id }, include: { ia: true } });
       }
     }
 
-    // 2. Fallback: Se não achou pelo ID (ex: frontend enviou 0), tenta por CPF (ambos assistido e representante)
-    if (!caso) {
-      if (cpf) {
-        if (isSupabaseConfigured) {
-          // Busca em ambos os campos: cpf_assistido e cpf_representante
-          const cpfLimpo = cpf.replace(/\D/g, "");
-          const [assistidoResult, representanteResult] = await Promise.all([
-            supabase.from("casos_partes").select("caso_id").eq("cpf_assistido", cpfLimpo).limit(1),
-            supabase
-              .from("casos_partes")
-              .select("caso_id")
-              .eq("cpf_representante", cpfLimpo)
-              .limit(1),
-          ]);
+    if (!caso && cpf) {
+      if (isSupabaseConfigured) {
+        const cpfLimpo = cpf.replace(/\D/g, "");
+        const [assistidoResult, representanteResult] = await Promise.all([
+          supabase.from("casos_partes").select("caso_id").eq("cpf_assistido", cpfLimpo).limit(1),
+          supabase.from("casos_partes").select("caso_id").eq("cpf_representante", cpfLimpo).limit(1),
+        ]);
 
-          let casoId = null;
-          if (assistidoResult.data?.length > 0) {
-            casoId = assistidoResult.data[0].caso_id;
-          } else if (representanteResult.data?.length > 0) {
-            casoId = representanteResult.data[0].caso_id;
-          }
-
-          if (casoId) {
-            const { data } = await supabase.from("casos").select("*").eq("id", casoId).single();
-            caso = data;
-          }
-        } else {
-          // Prisma: busca em ambos cpf_assistido e cpf_representante
-          caso = await prisma.casos.findFirst({
-            where: {
-              partes: {
-                OR: [
-                  { cpf_assistido: cpf.replace(/\D/g, "") },
-                  { cpf_representante: cpf.replace(/\D/g, "") },
-                ],
-              },
-            },
-          });
+        let casoId = null;
+        if (assistidoResult.data?.length > 0) {
+          casoId = assistidoResult.data[0].caso_id;
+        } else if (representanteResult.data?.length > 0) {
+          casoId = representanteResult.data[0].caso_id;
         }
+
+        if (casoId) {
+          const { data } = await supabase.from("casos").select("*, ia:casos_ia(*)").eq("id", casoId).single();
+          caso = data;
+        }
+      } else {
+        caso = await prisma.casos.findFirst({
+          where: {
+            partes: {
+              OR: [
+                { cpf_assistido: cpf.replace(/\D/g, "") },
+                { cpf_representante: cpf.replace(/\D/g, "") },
+              ],
+            },
+          },
+          include: { ia: true },
+        });
       }
     }
 
-    if (!caso)
-      throw new Error("Caso não encontrado. Verifique se o CPF ou Protocolo estão corretos.");
+    if (!caso) throw new Error("Caso não encontrado.");
 
     const novosUrls = [];
 
-    // 2. Processa os arquivos enviados
+    // 2. Processa e sobe os arquivos
     if (req.files && req.files.documentos) {
       for (const docFile of req.files.documentos) {
-        // Sanitiza nome
         const safeName = docFile.originalname.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         const filePath = `${caso.protocolo}/complementar_${Date.now()}_${safeName}`;
 
@@ -4124,126 +4249,125 @@ export const receberDocumentosComplementares = async (req, res) => {
               contentType: docFile.mimetype,
               duplex: "half",
             });
-          if (uploadError) {
-            logger.error(`Erro upload complementar Supabase: ${uploadError.message}`);
-          } else {
+          
+          if (!uploadError) {
             novosUrls.push(filePath);
+            await supabase.from("documentos").insert({
+              caso_id: caso.id,
+              storage_path: filePath,
+              nome_original: docFile.originalname,
+              tipo: "complementar",
+              tamanho_bytes: docFile.size,
+            });
           }
         } else {
-          // Fallback Local
           const localDir = path.resolve("uploads", "documentos", caso.protocolo);
           await fs.mkdir(localDir, { recursive: true });
           const localPath = path.join(localDir, `complementar_${Date.now()}_${safeName}`);
           await fs.copyFile(docFile.path, localPath);
-          const relativePath = `documentos/${caso.protocolo}/${path.basename(localPath)}`;
+          const relativePath = `${caso.protocolo}/${path.basename(localPath)}`;
           novosUrls.push(relativePath);
-          logger.info(`[Local] Documento complementar salvo em ${localPath}`);
-        }
 
-        // --- REGISTRO NA TABELA DOCUMENTOS (NORMALIZAÇÃO) ---
-        try {
           await prisma.documentos.create({
             data: {
               caso_id: caso.id,
-              storage_path: novosUrls[novosUrls.length - 1], // Pega a última URL gerada
+              storage_path: relativePath,
               nome_original: docFile.originalname,
               tipo: "complementar",
               tamanho_bytes: BigInt(docFile.size),
             },
           });
-        } catch (dbErr) {
-          logger.error(`[Normalização] Erro ao registrar documento no banco: ${dbErr.message}`);
         }
 
-        // Limpa arquivo temporário
         try {
           await fs.unlink(docFile.path);
         } catch (e) {
-          logger.warn(
-            `Falha ao limpar arquivo temporário complementar: ${docFile.path}`,
-            e.message,
-          );
+          logger.warn(`Falha ao limpar temporário: ${docFile.path}`);
         }
       }
     }
 
     if (novosUrls.length === 0) {
-      return res.status(400).json({ error: "Nenhum arquivo foi enviado." });
+      return res.status(400).json({ error: "Nenhum arquivo enviado ou erro no upload." });
     }
 
-    // 3. Atualiza metadados de nomes (dados_formulario.document_names)
+    // 3. Atualiza metadados na tabela casos_ia (CORREÇÃO DO ERRO 500)
     const nomesMap = safeJsonParse(nomes_arquivos, {});
-    const currentDadosFormulario = caso.dados_formulario || {};
-    const currentNames = currentDadosFormulario.document_names || {};
+    let iaData = caso.ia && caso.ia[0] ? caso.ia[0] : caso.ia; // Trata array ou objeto
+    const currentDadosExtraidos = typeof iaData?.dados_extraidos === "string" 
+      ? safeJsonParse(iaData.dados_extraidos, {}) 
+      : (iaData?.dados_extraidos || {});
+    
+    const currentNames = currentDadosExtraidos.document_names || {};
     const updatedNames = { ...currentNames, ...nomesMap };
-    const updatedDadosFormulario = {
-      ...currentDadosFormulario,
+    const updatedDadosExtraidos = {
+      ...currentDadosExtraidos,
       document_names: updatedNames,
     };
 
-    // 4. Prepara e atualiza o banco (SÓ O STATUS E METADADOS - SEM URLS_DOCUMENTOS)
+    if (isSupabaseConfigured) {
+      // Usar upsert para criar o registro caso_ia se não existir
+      await supabase.from("casos_ia").upsert({
+        caso_id: caso.id,
+        dados_extraidos: updatedDadosExtraidos,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "caso_id" });
+    } else {
+      await prisma.casos_ia.upsert({
+        where: { caso_id: caso.id },
+        update: { dados_extraidos: updatedDadosExtraidos },
+        create: {
+          caso_id: caso.id,
+          dados_extraidos: updatedDadosExtraidos,
+        },
+      });
+    }
+
+    // 4. Atualiza status na tabela casos
     const updatePayload = {
-      dados_formulario: updatedDadosFormulario,
       status: "documentacao_completa",
       updated_at: new Date(),
     };
 
     if (isSupabaseConfigured) {
-      const { error: updateError } = await supabase
-        .from("casos")
-        .update(updatePayload)
-        .eq("id", caso.id);
-      if (updateError) throw updateError;
+      await supabase.from("casos").update(updatePayload).eq("id", caso.id);
     } else {
-      await prisma.casos.update({
-        where: { id: caso.id },
-        data: updatePayload,
-      });
+      await prisma.casos.update({ where: { id: caso.id }, data: updatePayload });
     }
 
-    // [NOTIFICAÇÃO] Alerta o defensor sobre novos documentos
-    const notifData = {
-      caso_id: caso.id,
-      mensagem: `Novos documentos entregues por ${caso.nome_assistido || "Assistido"}.`,
-      tipo: "upload",
-      lida: false,
-      created_at: new Date(),
-    };
-
+    // 5. Cria Notificação para o Defensor/Servidor
+    const mensagemNotif = `Novos documentos entregues por ${caso.nome_assistido || "Assistido"}.`;
+    
     if (isSupabaseConfigured) {
-      await prisma.notificacoes.create({
-        data: {
-          caso_id: BigInt(id),
-          usuario_id: notifData.usuario_id,
-          titulo: notifData.titulo,
-          mensagem: notifData.mensagem,
-          tipo: notifData.tipo,
+      // Se o caso tem servidor ou defensor atribuído, notifica
+      const destinatarioId = caso.servidor_id || caso.defensor_id;
+      if (destinatarioId) {
+        await supabase.from("notificacoes").insert({
+          usuario_id: destinatarioId,
+          titulo: "Documentos Complementares",
+          mensagem: mensagemNotif,
+          tipo: "upload",
+          referencia_id: caso.id,
           lida: false,
-        },
-      });
-    } else {
-      // Opcional: Se houver model de notificações no Prisma
-      // await prisma.notificacoes.create({ data: notifData });
+        });
+      }
     }
 
-    // [PROCESSAMENTO EM BACKGROUND]
-    // Agora que temos novos documentos, o caso não precisa esperar intervenção manual
+    // 6. Dispara o processamento em background (IA / OCR / Merge)
     setImmediate(() => {
       processarCasoEmBackground(
         caso.protocolo,
-        updatePayload.dados_formulario,
-        updatePayload.urls_documentos,
+        updatedDadosExtraidos,
+        novosUrls, // Ou null se não for mais usado
         caso.url_audio,
-        caso.url_peticao,
-      );
+        caso.url_peticao
+      ).catch(e => logger.error(`[Background Upload Complementar] Erro: ${e.message}`));
     });
 
-    res.status(200).json({
-      message: "Documentos enviados com sucesso e caso na fila de processamento!",
-    });
+    res.status(200).json({ message: "Documentos anexados com sucesso e caso na fila!" });
   } catch (error) {
     logger.error(`Erro upload complementar para caso ${id}: ${error.message}`);
-    res.status(500).json({ error: error.message || "Falha ao enviar documentos." });
+    res.status(500).json({ error: "Falha ao enviar documentos." });
   }
 };
 

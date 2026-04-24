@@ -1,6 +1,6 @@
 # Regras de Negócio — Mães em Ação · DPE-BA
 
-> **Versão:** 2.1 · **Atualizado em:** 2026-04-22 (Downloads Seguros + Validações de Execução)  
+> **Versão:** 2.3 · **Atualizado em:** 2026-04-23 (Módulo BI Refined + Design Tokens + A11y)  
 > **Fonte:** Análise da codebase (controllers, services, middleware, config)  
 > **Propósito:** Referência canônica para treinamento de IAs e orientação de defensores
 
@@ -638,3 +638,21 @@ Para evitar que dois usuários editem o mesmo caso simultaneamente, o sistema ut
 ### 11.3 Liberação
 - O lock é liberado automaticamente após 30 minutos de inatividade ou manualmente pelo botão **Liberar Caso**.
 - **Administradores** possuem bypass e podem forçar o destravamento de qualquer sessão.
+
+---
+
+## 12. Inteligência de Dados (Módulo BI)
+
+O módulo de BI é restrito exclusivamente a administradores e foca em métricas de produtividade e throughput sem comprometer dados sensíveis.
+
+### 12.1 Princípios de LGPD no BI
+- **Zero PII (Personally Identifiable Information):** As queries de BI nunca acessam as tabelas `casos_partes` ou campos de qualificação.
+- **Agregação Obrigatória:** Dados são exibidos apenas em formatos agregados (contagens, médias, percentuais).
+- **Exportação Segura:** O arquivo XLSX gerado para download segue as mesmas restrições de vedação de dados pessoais.
+
+### 12.2 Métricas Monitoradas
+- **Throughput de Triagem:** Casos criados por dia/sede.
+- **Conversão de Protocolo:** Percentual de casos que chegam ao status `protocolado`.
+- **Eficiência da IA:** Tempo médio entre `processing_started_at` e `processed_at`.
+- **Motivos de Arquivamento:** Categorias controladas e contagens agregadas sobre por que os casos estão sendo encerrados sem protocolo.
+- **Distribuição por Unidade:** Ranking de sedes com maior volume de atendimento.
