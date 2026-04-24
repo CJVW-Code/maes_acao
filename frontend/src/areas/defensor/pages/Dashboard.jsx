@@ -356,14 +356,14 @@ export const Dashboard = () => {
                           {caso.defensor || caso.servidor ? (
                             <div className="flex items-center gap-2">
                               <div className={`p-1.5 rounded-full ${
-                                (caso.defensor_id === user.id || caso.servidor_id === user.id) 
+                                (caso.defensor_id === user?.id || caso.servidor_id === user?.id) 
                                   ? "badge-meu" 
                                   : "badge-bloqueado"
                               }`}>
-                                { (caso.defensor_id === user.id || caso.servidor_id === user.id) ? <User size={14} /> : <Lock size={14} /> }
+                                { (caso.defensor_id === user?.id || caso.servidor_id === user?.id) ? <User size={14} /> : <Lock size={14} /> }
                               </div>
                               <span className="text-xs 2xl:text-base font-bold text-main">
-                                { (caso.defensor_id === user.id || caso.servidor_id === user.id) 
+                                { (caso.defensor_id === user?.id || caso.servidor_id === user?.id) 
                                   ? "Meu" 
                                   : (caso.defensor?.nome || caso.servidor?.nome || "").split(" ")[0] }
                               </span>

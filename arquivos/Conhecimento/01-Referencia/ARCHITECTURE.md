@@ -1,6 +1,6 @@
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 3.0 · **Atualizado em:** 2026-04-23 (Módulo BI + Índices Performance + Download Tickets)
+> **Versão:** 3.1 · **Atualizado em:** 2026-04-23 (Security Hardening + A11y + Design System)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
@@ -17,7 +17,7 @@ O **Mães em Ação** é um sistema Full Stack desenvolvido para apoiar o mutir�
 
 ### Frontend
 - **React 18 + Vite** → Vercel (SPA estática)
-- **Vanilla CSS** → Estilização personalizada via `index.css`
+- **Vanilla CSS** → Estilização personalizada via `index.css` (Tailwind v4 + Design Tokens)
 - **React Router** → Navegação SPA
 
 ### Backend
@@ -52,7 +52,7 @@ O **Mães em Ação** é um sistema Full Stack desenvolvido para apoiar o mutir�
 - **Payload:** `{ id, nome, email, cargo, unidade_id }`
 - **Expiração:** 12h (cobre um dia de mutirão)
 - **Servidores do balcão:** `X-API-Key` (string aleatória 64 chars)
-- **Download Ticket JWT:** token de curta duração com `purpose: "download"` — evita expor o JWT principal na URL dos downloads
+- **Download Ticket JWT:** token de curta duração com `purpose: "download"`. **Hardened:** Agora exige `casoId` explícito no payload e validação estrita contra o parâmetro da rota (bloqueio de IDOR).
 
 ---
 

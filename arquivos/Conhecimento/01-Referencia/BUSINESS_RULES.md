@@ -1,6 +1,6 @@
 # Regras de Negócio — Mães em Ação · DPE-BA
 
-> **Versão:** 2.2 · **Atualizado em:** 2026-04-23 (Módulo BI + LGPD Enforcement + Refinamentos UX)  
+> **Versão:** 2.3 · **Atualizado em:** 2026-04-23 (Módulo BI Refined + Design Tokens + A11y)  
 > **Fonte:** Análise da codebase (controllers, services, middleware, config)  
 > **Propósito:** Referência canônica para treinamento de IAs e orientação de defensores
 
