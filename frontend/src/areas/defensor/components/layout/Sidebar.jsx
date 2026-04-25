@@ -6,6 +6,7 @@ import {
   FolderKanban,
   UserPlus,
   Archive,
+  BarChart3,
   ChevronLeft,
   ChevronRight,
   LogOut
@@ -25,6 +26,7 @@ export const Sidebar = ({ isExpanded, setIsExpanded }) => {
     { icon: LayoutDashboard, label: "Dashboard", path: "/painel", show: isJuridico },
     { icon: FolderKanban, label: "Casos e Triagem", path: "/painel/casos", show: isJuridico },
     { icon: Archive, label: "Arquivo Morto", path: "/painel/casos/arquivados", show: isJuridico },
+    { icon: BarChart3, label: "Relatorios", path: "/painel/relatorios", show: isAdmin },
     { icon: UserPlus, label: "Gerenciar Equipe", path: "/painel/equipe", show: isAdmin },
   ].filter(item => item.show);
 

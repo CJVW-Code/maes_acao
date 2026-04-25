@@ -1,6 +1,6 @@
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 3.1 · **Atualizado em:** 2026-04-23 (Security Hardening + A11y + Design System)
+> **Versão:** 3.2 · **Atualizado em:** 2026-04-24 (CodeRabbit Audit + Dashboard v3.0 + CPF Mandatory)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
@@ -184,7 +184,8 @@ stateDiagram-v2
 - **Nível 2 (Defensor):** Bloqueia a etapa de protocolo e finalização
 - **HTTP 423 (Locked):** Retorno padrão quando outro usuário detém o lock
 - **Admin Bypass:** Administradores podem forçar destravamento via painel
-- **Auto-release:** Lock liberado após 30min de inatividade
+- **Auto-release:** Lock liberado após 30min de inatividade.
+- **Manual Unlock:** Administradores podem forçar destravamento via painel.
 
 ---
 
@@ -402,7 +403,7 @@ frontend/src/areas/servidor/
 ```
 frontend/src/areas/defensor/
 ├── pages/
-│   ├── Dashboard.jsx              ← Visão geral por status/unidade
+│   ├── Dashboard.jsx              ← Grid 3.0 (1fr 350px) + Sidebar de Alertas
 │   ├── Casos.jsx                  ← Listagem com filtros
 │   ├── DetalhesCaso.jsx           ← Detalhe completo + ações
 │   ├── GerenciarEquipe.jsx        ← CRUD membros + CRUD unidades
@@ -418,7 +419,6 @@ A pasta `frontend/src/config/formularios/acoes/` contém arquivos de configuraç
 Flags chave:
 - `exigeDadosProcessoOriginal` — exibe campos do processo originário (e ativa validação de `valor_debito` + `calculo_arquivo`)
 - `ocultarDadosRequerido` — oculta seção da parte contrária
-- `isCpfRepresentanteOpcional` — torna CPF da mãe opcional
 - `labelAutor` — rótulo do autor (Mãe, Assistida, etc.)
 - `ocultarDetalhesGerais` — oculta seção de campos gerais redundantes (fixação de alimentos)
 

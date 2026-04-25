@@ -78,6 +78,7 @@ export const FormularioSubmissao = () => {
     toggleRequeridoDetalhe,
     handleCurrencyChange,
     handleDayInputChange,
+    handleRestrictedAlphanumeric,
     handleFilesChange,
   } = useFormHandlers({ formState, dispatch, setFormErrors, toast });
 
@@ -239,6 +240,7 @@ export const FormularioSubmissao = () => {
               isRepresentacao={isRepresentacao}
               labelAutor={labelAutor}
               configAcao={configAcao}
+              handleRestrictedAlphanumeric={handleRestrictedAlphanumeric}
             />
 
             {!isAlvara && (
@@ -284,6 +286,7 @@ export const FormularioSubmissao = () => {
               handleCurrencyChange={handleCurrencyChange}
               handleDayInputChange={handleDayInputChange}
               handleMonthYearChange={handleMonthYearChange}
+              handleRestrictedAlphanumeric={handleRestrictedAlphanumeric}
               validar={validar}
               configAcao={configAcao}
               formErrors={formErrors}
@@ -294,6 +297,7 @@ export const FormularioSubmissao = () => {
               relato={formState.relato}
               prefersAudio={formState.prefersAudio}
               enviarDocumentosDepois={formState.enviarDocumentosDepois}
+              acaoEspecifica={formState.acaoEspecifica}
               outrosFilhos={formState.outrosFilhos}
               representanteNome={formState.REPRESENTANTE_NOME}
               handleFieldChange={handleFieldChange}

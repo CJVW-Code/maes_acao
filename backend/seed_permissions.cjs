@@ -22,7 +22,7 @@ async function main() {
   const permissoesDB = await prisma.permissoes.findMany();
 
   // Cargos
-  const cargosPadrao = ["admin", "defensor", "servidor"];
+  const cargosPadrao = ["admin", "coordenador", "defensor", "servidor", "estagiario", "visualizador"];
   
   for (const cargoNome of cargosPadrao) {
     const cargo = await prisma.cargos.upsert({
@@ -33,8 +33,9 @@ async function main() {
 
     // Vincular Permissões
     for (const perm of permissoesDB) {
-      if (cargoNome === "servidor" && perm.chave === "protocolar_caso") continue;
-      if (cargoNome === "defensor" && perm.chave === "gerenciar_equipe") continue;
+      if ((cargoNome === "servidor" || cargoNome === "estagiario" || cargoNome === "visualizador") && perm.chave === "protocolar_caso") continue;
+      if ((cargoNome === "defensor" || cargoNome === "coordenador" || cargoNome === "servidor" || cargoNome === "estagiario" || cargoNome === "visualizador") && perm.chave === "gerenciar_equipe") continue;
+      if (cargoNome === "visualizador" && perm.chave === "atender_caso") continue;
       
       await prisma.cargo_permissoes.upsert({
         where: {

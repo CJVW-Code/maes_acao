@@ -51,12 +51,18 @@ export const processSubmission = async ({
     validationErrors.representante_cpf = "O CPF é obrigatório.";
   }
 
-  if (formState.assistidoEhIncapaz === "nao") {
-    if (!formState.requerente_endereco_residencial)
-      validationErrors.requerente_endereco_residencial = "O endereço residencial é obrigatório.";
-    if (!formState.requerente_telefone)
-      validationErrors.requerente_telefone = "O telefone de contato é obrigatório.";
+  // Validação de Endereço e CEP do Representante (Obrigatório para todos os casos)
+  if (!formState.requerente_endereco_residencial) {
+    validationErrors.requerente_endereco_residencial = "O endereço residencial é obrigatório.";
+  } else if (!/\b\d{5}-?\d{3}\b/.test(formState.requerente_endereco_residencial)) {
+    validationErrors.requerente_endereco_residencial = "O CEP do endereço residencial é obrigatório.";
   }
+
+  if (!formState.requerente_telefone) {
+    validationErrors.requerente_telefone = "O telefone de contato é obrigatório.";
+  }
+
+  // (Removido bloco if (formState.assistidoEhIncapaz === "nao") pois as validações agora são gerais)
 
   // Validação do Valor da Pensão (apenas para fixação/alimentos)
   if (

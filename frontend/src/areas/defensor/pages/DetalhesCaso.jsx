@@ -77,8 +77,18 @@ const manualStatusOptions = [
   { value: "em_atendimento", label: "Em Atendimento" },
   { value: "liberado_para_protocolo", label: "Liberado para Protocolo" },
   { value: "em_protocolo", label: "Em Protocolo" },
-  { value: "protocolado", label: "Protocolado" },
 ];
+
+const archiveReasonOptions = [
+  { value: "duplicidade", label: "Duplicidade" },
+  { value: "desistencia", label: "Desistencia" },
+  { value: "dados_inconsistentes", label: "Dados inconsistentes" },
+  { value: "fora_do_escopo", label: "Fora do escopo" },
+  { value: "outro", label: "Outro" },
+];
+
+const getArchiveReasonLabel = (value) =>
+  archiveReasonOptions.find((option) => option.value === value)?.label || value || "Nao informado.";
 
 
 const statusBadges = {
@@ -181,6 +191,7 @@ export const DetalhesCaso = () => {
   const [showStatusHelp, setShowStatusHelp] = useState(false);
   const [archiveModalOpen, setArchiveModalOpen] = useState(false);
   const [archiveReason, setArchiveReason] = useState("");
+  const [archiveObservation, setArchiveObservation] = useState("");
   const [activeTab, setActiveTab] = useState("visao_geral");
   const [memoriaCalculo, setMemoriaCalculo] = useState("");
   const [isSavingJuridico, setIsSavingJuridico] = useState(false);
@@ -935,11 +946,12 @@ export const DetalhesCaso = () => {
       }
     } else {
       setArchiveReason("");
+      setArchiveObservation("");
       setArchiveModalOpen(true);
     }
   };
 
-  const processarArquivamento = async (novoEstado, motivo) => {
+  const processarArquivamento = async (novoEstado, motivo, observacao = "") => {
     try {
       const response = await fetch(`${API_BASE}/casos/${id}/arquivar`, {
         method: "PATCH",
@@ -947,7 +959,11 @@ export const DetalhesCaso = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ arquivado: novoEstado, motivo }),
+        body: JSON.stringify({
+          arquivado: novoEstado,
+          motivo_codigo: motivo,
+          observacao_arquivamento: observacao,
+        }),
       });
 
       if (!response.ok) {
@@ -1126,8 +1142,13 @@ export const DetalhesCaso = () => {
             <h3 className="font-bold">Caso Arquivado</h3>
             <p className="text-muted mt-1">
               <strong>Motivo:</strong>{" "}
-              {caso.motivo_arquivamento || "Não informado."}
+              {getArchiveReasonLabel(caso.motivo_arquivamento)}
             </p>
+            {caso.observacao_arquivamento && (
+              <p className="text-muted mt-1">
+                <strong>Observacao:</strong> {caso.observacao_arquivamento}
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -1830,6 +1851,8 @@ export const DetalhesCaso = () => {
                 </div>
               </div>
             </div>
+            {/* Oculta o fluxo de finalização para servidor e estagiario */}
+            {user?.cargo !== "servidor" && user?.cargo !== "estagiario" && (
             <div className="mt-8 pt-8 border-t border-soft">
               <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
                 <CheckCircle className="text-green-500" />
@@ -1963,6 +1986,7 @@ export const DetalhesCaso = () => {
                 </form>
               )}
             </div>
+            )}
 
             {/* Botão de Arquivar (Movido para Gestão) */}
             <button
@@ -2030,13 +2054,32 @@ export const DetalhesCaso = () => {
               principal. Justifique esta ação:
             </p>
 
-            <textarea
-              className="input min-h-[100px] resize-none"
-              placeholder="Ex: Dados inconsistentes, assistido desistiu, duplicidade..."
-              value={archiveReason}
-              onChange={(e) => setArchiveReason(e.target.value)}
-              autoFocus
-            />
+            <label className="block space-y-2">
+              <span className="text-sm font-bold text-main">Motivo padronizado</span>
+              <select
+                className="input"
+                value={archiveReason}
+                onChange={(e) => setArchiveReason(e.target.value)}
+                autoFocus
+              >
+                <option value="">Selecione um motivo</option>
+                {archiveReasonOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-bold text-main">Observacao detalhada (opcional)</span>
+              <textarea
+                className="input min-h-[100px] resize-none"
+                placeholder="Detalhe o contexto apenas se for necessario. Evite dados pessoais."
+                value={archiveObservation}
+                onChange={(e) => setArchiveObservation(e.target.value)}
+              />
+            </label>
 
             <div className="flex gap-3 pt-2">
               <button
@@ -2045,35 +2088,19 @@ export const DetalhesCaso = () => {
               >
                 Cancelar
               </button>
-              <div className="flex gap-4 mt-8">
-                <button
-                  onClick={() => navigate("/painel")}
-                  className="px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-lg hover:bg-primary-dark transition-all transform hover:-translate-y-1"
-                >
-                  Voltar ao Início
-                </button>
-                {user?.cargo === "admin" && (
-                  <button
-                    onClick={async () => {
-                      if (
-                        await confirm(
-                          "Como administrador, deseja forçar a liberação deste caso?",
-                          "Forçar Liberação?",
-                        )
-                      ) {
-                        await fetch(`${API_BASE}/casos/${id}/unlock`, {
-                          method: "PATCH",
-                          headers: { Authorization: `Bearer ${token}` },
-                        });
-                        mutate();
-                      }
-                    }}
-                    className="px-8 py-3 bg-red-100 text-red-700 font-bold rounded-xl border border-red-200 hover:bg-red-200 transition-all"
-                  >
-                    Forçar Liberação (Admin)
-                  </button>
-                )}
-              </div>
+              <button
+                onClick={async () => {
+                  if (!archiveReason) {
+                    toast.error("Selecione um motivo de arquivamento.");
+                    return;
+                  }
+                  setArchiveModalOpen(false);
+                  await processarArquivamento(true, archiveReason, archiveObservation.trim());
+                }}
+                className="btn btn-primary flex-1"
+              >
+                Confirmar Arquivamento
+              </button>
             </div>
           </div>
         </div>

@@ -10,6 +10,7 @@ export const ACOES_FAMILIA = {
 
     templateWord: "template_fixacao_alimentos.docx",
     tagsTemplate: [
+      "VARA",
       "NOME_ASSISTIDO",
       "CPF_ASSISTIDO",
       "NOME_REQUERIDO",

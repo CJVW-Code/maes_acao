@@ -49,6 +49,7 @@ export const StepDadosPessoais = React.memo(({
   isRepresentacao,
   labelAutor,
   configAcao,
+  handleRestrictedAlphanumeric,
 }) => {
   return (
     <section className="form-section">
@@ -245,6 +246,7 @@ export const StepDadosPessoais = React.memo(({
               name="requerente_endereco_residencial"
               value={requerenteEnderecoResidencial}
               onChange={handleFieldChange}
+              handleRestrictedAlphanumeric={handleRestrictedAlphanumeric}
               className="w-full mt-4"
             />
 
@@ -515,6 +517,7 @@ export const StepDadosPessoais = React.memo(({
               name="requerente_endereco_residencial"
               value={requerenteEnderecoResidencial}
               onChange={handleFieldChange}
+              handleRestrictedAlphanumeric={handleRestrictedAlphanumeric}
               className="w-full"
             />
             <input

@@ -34,6 +34,7 @@ export const ScannerBalcao = () => {
     { id: "renda", label: "Renda", icon: Wallet },
     { id: "sentenca", label: "Decisão", icon: Gavel },
     { id: "calculo", label: "Cálculos", icon: Calculator },
+    { id: "copia_sentenca", label: "Tít. Executivo", icon: Gavel },
     { id: "outros", label: "Outros", icon: Paperclip },
   ];
 

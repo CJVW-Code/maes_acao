@@ -9,6 +9,7 @@ export const StepDetalhesCaso = React.memo(({
   handleCurrencyChange,
   handleDayInputChange,
   handleMonthYearChange,
+  handleRestrictedAlphanumeric,
   validar,
   configAcao,
   formErrors = {},
@@ -30,6 +31,7 @@ export const StepDetalhesCaso = React.memo(({
           handleCurrencyChange={handleCurrencyChange}
           handleDayInputChange={handleDayInputChange}
           handleMonthYearChange={handleMonthYearChange}
+          handleRestrictedAlphanumeric={handleRestrictedAlphanumeric}
           validar={validar}
           formErrors={formErrors}
         />

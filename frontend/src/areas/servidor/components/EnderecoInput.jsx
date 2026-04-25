@@ -47,6 +47,11 @@ export const EnderecoInput = ({
   const handleChange = (e) => {
     const { name: fieldName, value: fieldValue } = e.target;
     
+    // Restrição específica para CEP: apenas números e caracteres especiais (., -, /), sem letras
+    if (fieldName === "cep" && !/^[0-9.\-/]*$/.test(fieldValue)) {
+      return;
+    }
+
     // Using a functional state update to ensure the latest state
     setAddress((prev) => {
       const newAddress = { ...prev, [fieldName]: fieldValue };
@@ -134,7 +139,7 @@ export const EnderecoInput = ({
         <input
           type="text"
           name="cep"
-          placeholder="CEP (Opcional)"
+          placeholder="CEP *"
           value={address.cep}
           onChange={handleChange}
           className="input w-full md:col-span-1"

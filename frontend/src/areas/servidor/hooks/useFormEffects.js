@@ -44,68 +44,52 @@ export const useFormEffects = ({ dispatch, formState, location, toast, forcaRepr
         }
       }
 
-      // ETAPA 2: Se houver protocolo de origem, carregar dados da representante remotamente (Merge)
-      const protocoloOrigem = location.state?.protocolo_origem;
+      // ETAPA 2: Se houver dados da representante no state, carregar (Merge)
       const isPrefillAction = location.state?.action === "PREFILL_REPRESENTATIVE_DATA";
+      const repDataFromState = location.state?.dados_representante;
 
-      if (protocoloOrigem && isPrefillAction) {
-        try {
-          // Busca segura (usa o token da sessão do servidor)
-          const token = localStorage.getItem("token");
-          const response = await fetch(`${API_BASE}/casos/id-ou-protocolo/${protocoloOrigem}`, {
-            headers: { "Authorization": `Bearer ${token}` }
-          });
-          
-          if (response.ok) {
-            const casoFull = await response.json();
-            const repData = casoFull.partes || {};
+      if (isPrefillAction && repDataFromState) {
+        const fieldMap = {
+          "nome_representante": "REPRESENTANTE_NOME",
+          "cpf_representante": "representante_cpf",
+          "rg_representante": "representante_rg",
+          "emissor_rg_representante": "emissor_rg_exequente",
+          "nacionalidade_representante": "representante_nacionalidade",
+          "estado_civil_representante": "representante_estado_civil",
+          "profissao_representante": "representante_ocupacao",
+          "data_nascimento_representante": "representante_data_nascimento",
+          "endereco_representante": "requerente_endereco_residencial",
+          "telefone_representante": "requerente_telefone",
+          "email_representante": "requerente_email",
+          "nome_mae_representante": "nome_mae_representante",
+          "nome_pai_representante": "nome_pai_representante",
+          "CIDADEASSINATURA": "CIDADEASSINATURA"
+        };
 
-            const fieldMap = {
-              "nome_representante": "REPRESENTANTE_NOME",
-              "cpf_representante": "representante_cpf",
-              "rg_representante": "representante_rg",
-              "emissor_rg_representante": "emissor_rg_exequente",
-              "nacionalidade_representante": "representante_nacionalidade",
-              "estado_civil_representante": "representante_estado_civil",
-              "profissao_representante": "representante_ocupacao",
-              "data_nascimento_representante": "representante_data_nascimento",
-              "endereco_assistido": "requerente_endereco_residencial",
-              "telefone_assistido": "requerente_telefone",
-              "email_assistido": "requerente_email",
-              "nome_mae_representante": "nome_mae_representante",
-              "nome_pai_representante": "nome_pai_representante",
-              "CIDADEASSINATURA": "CIDADEASSINATURA"
-            };
+        let mergedCount = 0;
+        Object.entries(fieldMap).forEach(([dbKey, formKey]) => {
+          const valInState = repDataFromState[dbKey];
+          const valNoState = currentDataOnLoad[formKey];
+          const stringVal = String(valNoState || "").trim();
 
-            let mergedCount = 0;
-            Object.entries(fieldMap).forEach(([dbKey, formKey]) => {
-              // SÓ ATUALIZA SE O CAMPO NO FORMULÁRIO (STATE) ESTIVER VAZIO
-              // Isso garante que o rascunho local vença o prefill antigo
-              const valNoState = currentDataOnLoad[formKey];
-              const stringVal = String(valNoState || "").trim();
-
-              if (repData[dbKey] && (!valNoState || stringVal === "" || stringVal === "______")) {
-                let val = repData[dbKey];
-                if (formKey.toLowerCase().includes("cpf")) val = formatCpf(val);
-                else if (formKey.toLowerCase().includes("telefone")) val = formatPhone(val);
-                
-                dispatch({ type: "UPDATE_FIELD", field: formKey, value: val });
-                mergedCount++;
-              }
-            });
-
-            if (mergedCount > 0) {
-              toast.success(`${mergedCount} campos da representante recuperados do histórico.`);
-              dispatch({ type: "UPDATE_FIELD", field: "assistidoEhIncapaz", value: "sim" });
-            }
+          if (valInState && (!valNoState || stringVal === "" || stringVal === "______")) {
+            let val = valInState;
+            if (formKey.toLowerCase().includes("cpf")) val = formatCpf(val);
+            else if (formKey.toLowerCase().includes("telefone")) val = formatPhone(val);
+            
+            dispatch({ type: "UPDATE_FIELD", field: formKey, value: val });
+            mergedCount++;
           }
-        } catch (err) {
-          console.error("Erro prefill remoto:", err);
+        });
+
+        if (mergedCount > 0) {
+          toast.success(`${mergedCount} campos da representante recuperados do histórico.`);
+          dispatch({ type: "UPDATE_FIELD", field: "assistidoEhIncapaz", value: "sim" });
         }
       }
 
       // ETAPA 3: Se não houver rascunho nem prefill, mas houver CPF da busca
-      if (location.state?.initialCpf && !rascunhoStr && !protocoloOrigem) {
+      if (location.state?.initialCpf && !rascunhoStr && !location.state?.protocoloOrigem) {
         dispatch({ 
           type: "UPDATE_FIELD", 
           field: "representante_cpf", 

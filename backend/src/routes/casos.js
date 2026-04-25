@@ -37,7 +37,7 @@ import { obterHistoricoCaso } from "../controllers/consultaAuditoria.js";
 import { authMiddleware, validateDownloadTicket } from "../middleware/auth.js";
 import { auditMiddleware } from "../middleware/auditMiddleware.js";
 import { upload } from "../middleware/upload.js"; 
-import { requireWriteAccess } from "../middleware/requireWriteAcess.js";
+import { requireWriteAccess } from "../middleware/requireWriteAccess.js";
 
 const router = express.Router();
 

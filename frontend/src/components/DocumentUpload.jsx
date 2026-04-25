@@ -84,6 +84,7 @@ export const DocumentUpload = ({
   nomes = { assistido: "", responsavel: "", crianca: "" },
   isRepresentacao = false,
   outrosFilhos = [],
+  acaoEspecifica = "",
   onFilesChange, // Callback (files[], namesMap{})
 }) => {
   const { toast } = useToast();
@@ -166,8 +167,19 @@ export const DocumentUpload = ({
       ...(isRepresentacao ? SLOTS_CONFIG.crianca : []),
       ...SLOTS_CONFIG.responsavel,
       ...extraSlots,
+      ...(acaoEspecifica === "execucao_alimentos"
+        ? [
+            {
+              id: "copia_sentenca",
+              label: "Cópia da sentença de decisão ou acordo _ titulo executivo",
+              accept: "image/*,.pdf",
+              required: true,
+              context: "processo_original",
+            },
+          ]
+        : []),
     ];
-  }, [isRepresentacao, extraSlots]);
+  }, [isRepresentacao, extraSlots, acaoEspecifica]);
 
   const getSlotLabel = useCallback((slotId) => {
     const slot = getAllSlots().find((s) => s.id === slotId);
@@ -614,6 +626,24 @@ export const DocumentUpload = ({
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {extraSlots.map(renderSlot)}
+            </div>
+          </div>
+        )}
+
+        {/* Grupo D: Documentos Específicos da Ação */}
+        {acaoEspecifica === "execucao_alimentos" && (
+          <div>
+            <h4 className="text-sm font-bold text-primary uppercase tracking-wider mb-3 border-b border-primary/20 pb-1">
+              Documentos do Processo Original
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {renderSlot({
+                id: "copia_sentenca",
+                label: "Cópia da sentença de decisão ou acordo _ titulo executivo",
+                accept: "image/*,.pdf",
+                required: true,
+                context: "processo_original",
+              })}
             </div>
           </div>
         )}
