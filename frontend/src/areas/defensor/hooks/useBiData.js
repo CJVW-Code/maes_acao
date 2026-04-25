@@ -175,7 +175,11 @@ export const useBiData = () => {
     const hiddenControls = Array.from(document.querySelectorAll("[data-bi-export-hidden='true']"));
 
     try {
-      hiddenControls.forEach((node) => node.classList.add("hidden"));
+      hiddenControls.forEach((node) => {
+        node.dataset.wasHidden = node.classList.contains("hidden") ? "true" : "false";
+        node.classList.add("hidden");
+      });
+
       const canvas = await html2canvas(root, {
         scale: 2,
         useCORS: true,
@@ -205,7 +209,11 @@ export const useBiData = () => {
       setError(err.message || "Falha ao exportar PDF.");
       throw err;
     } finally {
-      hiddenControls.forEach((node) => node.classList.remove("hidden"));
+      hiddenControls.forEach((node) => {
+        if (node.dataset.wasHidden !== "true") {
+          node.classList.remove("hidden");
+        }
+      });
       setExporting(false);
     }
   };

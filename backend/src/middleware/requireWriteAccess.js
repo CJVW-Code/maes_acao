@@ -4,8 +4,9 @@ export const requireWriteAccess = (req, res, next) => {
   }
 
   const allowedRoles = ["admin", "coordenador", "defensor", "servidor", "estagiario"];
+  const userCargo = typeof req.user?.cargo === "string" ? req.user.cargo.toLowerCase() : "";
 
-  if (!allowedRoles.includes(req.user.cargo.toLowerCase())) {
+  if (!allowedRoles.includes(userCargo)) {
     return res.status(403).json({ 
       error: "Acesso negado. Sua conta permite apenas leitura e não pode fazer alterações." 
     });

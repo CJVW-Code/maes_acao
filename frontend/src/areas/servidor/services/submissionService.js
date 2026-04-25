@@ -54,7 +54,7 @@ export const processSubmission = async ({
   // Validação de Endereço e CEP do Representante (Obrigatório para todos os casos)
   if (!formState.requerente_endereco_residencial) {
     validationErrors.requerente_endereco_residencial = "O endereço residencial é obrigatório.";
-  } else if (!formState.requerente_endereco_residencial.includes("CEP:")) {
+  } else if (!/\b\d{5}-?\d{3}\b/.test(formState.requerente_endereco_residencial)) {
     validationErrors.requerente_endereco_residencial = "O CEP do endereço residencial é obrigatório.";
   }
 

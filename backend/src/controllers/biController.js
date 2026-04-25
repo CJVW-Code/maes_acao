@@ -129,6 +129,12 @@ const fetchCasosMetadata = async ({ range, unidadeId }) => {
 
       if (unidadeId && unidadeId !== "todas") query = query.eq("unidade_id", unidadeId);
 
+      if (range) {
+        const start = range.gte.toISOString();
+        const end = range.lte.toISOString();
+        query = query.or(`and(created_at.gte.${start},created_at.lte.${end}),and(updated_at.gte.${start},updated_at.lte.${end}),and(protocolado_at.gte.${start},protocolado_at.lte.${end})`);
+      }
+
       const { data, error } = await query;
       if (error) throw error;
       rows.push(...(data || []));
@@ -136,14 +142,20 @@ const fetchCasosMetadata = async ({ range, unidadeId }) => {
       from += PAGE_SIZE;
     }
 
-    return rows.filter((row) => {
-      if (!range) return true;
-      return filterByDate(row, "created_at", range) || filterByDate(row, "updated_at", range) || filterByDate(row, "protocolado_at", range);
-    });
+    return rows;
+  }
+
+  const prismaWhere = unidadeId && unidadeId !== "todas" ? { unidade_id: unidadeId } : {};
+  if (range) {
+    prismaWhere.OR = [
+      { created_at: { gte: range.gte, lte: range.lte } },
+      { updated_at: { gte: range.gte, lte: range.lte } },
+      { protocolado_at: { gte: range.gte, lte: range.lte } },
+    ];
   }
 
   return prisma.casos.findMany({
-    where: unidadeId && unidadeId !== "todas" ? { unidade_id: unidadeId } : {},
+    where: prismaWhere,
     select: {
       status: true,
       tipo_acao: true,
@@ -185,7 +197,7 @@ const validateUnidade = async (unidadeId) => {
   return unidade?.ativo ? unidade : null;
 };
 
-const montarRelatorio = async (body = {}, user = {}) => {
+const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preFetchedUnidades = null) => {
   const { range, periodo, warning } = buildDateRange(body);
   const topN = body.topN ?? DEFAULT_TOP_N;
   const requestedUnidade = body.unidade_id || "todas";
@@ -198,14 +210,15 @@ const montarRelatorio = async (body = {}, user = {}) => {
     throw error;
   }
 
-  const [rows, unidades] = await Promise.all([
-    fetchCasosMetadata({ range, unidadeId }),
-    prisma.unidades.findMany({
-      where: { ativo: true },
-      select: { id: true, nome: true, comarca: true },
-      orderBy: { nome: "asc" },
-    }),
-  ]);
+  const unidades = preFetchedUnidades || await prisma.unidades.findMany({
+    where: { ativo: true },
+    select: { id: true, nome: true, comarca: true },
+    orderBy: { nome: "asc" },
+  });
+
+  const rows = preFetchedRows 
+    ? preFetchedRows.filter(r => unidadeId === "todas" || r.unidade_id === unidadeId) 
+    : await fetchCasosMetadata({ range, unidadeId });
 
   const tempoMedioIa = calcularTempoMedioIa(rows, range);
   const unidadeNomeById = new Map(unidades.map((unidade) => [unidade.id, unidade.nome]));
@@ -392,9 +405,12 @@ export const exportarXlsxLote = async (req, res) => {
   try {
     const unidades = await prisma.unidades.findMany({
       where: { ativo: true },
-      select: { id: true, nome: true },
+      select: { id: true, nome: true, comarca: true },
       orderBy: { nome: "asc" },
     });
+
+    const { range } = buildDateRange(req.body);
+    const preFetchedRows = await fetchCasosMetadata({ range, unidadeId: "todas" });
 
     const filename = `bi-lote-${new Date().toISOString().slice(0, 10)}.xlsx`;
     const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: res });
@@ -402,9 +418,23 @@ export const exportarXlsxLote = async (req, res) => {
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
 
+    const usedSheetNames = new Set();
+
     for (const unidade of unidades) {
-      const relatorio = await montarRelatorio({ ...req.body, unidade_id: unidade.id }, req.user);
-      const sheet = workbook.addWorksheet(unidade.nome.slice(0, 31));
+      const relatorio = await montarRelatorio({ ...req.body, unidade_id: unidade.id }, req.user, preFetchedRows, unidades);
+      
+      let baseName = unidade.nome.replace(/[\/\\*?\[\]:]/g, "").slice(0, 31).trim();
+      if (!baseName) baseName = "Unidade";
+      let finalName = baseName;
+      let counter = 1;
+      while (usedSheetNames.has(finalName)) {
+        const suffix = ` (${counter})`;
+        finalName = baseName.slice(0, 31 - suffix.length) + suffix;
+        counter++;
+      }
+      usedSheetNames.add(finalName);
+
+      const sheet = workbook.addWorksheet(finalName);
       sheet.columns = [
         { header: "Indicador", key: "indicador", width: 34 },
         { header: "Valor", key: "valor", width: 18 },
