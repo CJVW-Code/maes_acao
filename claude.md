@@ -10,7 +10,7 @@ Este documento contém a compilaçío de todas as referências de arquitetura, r
 
 # Arquitetura do Sistema — Míes em Açío · DPE-BA
 
-> **Versão:** 4.1 · **Atualizado em:** 2026-04-26 (RBAC Hierárquico + Cargo Gestor + Unlock Expandido)
+> **Versão:** 4.2 · **Atualizado em:** 2026-04-26 (Hardening de Segurança + Assistência Compartilhada)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---

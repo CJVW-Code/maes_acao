@@ -51,5 +51,13 @@ describe("Utils: helpers", () => {
     it("trata caso nulo", () => {
       expect(safeFormData(null).document_names).toEqual({});
     });
+    it("trata dados_formulario como array (converte para objeto vazio)", () => {
+      const result = safeFormData({ dados_formulario: [1, 2, 3] });
+      expect(result).toEqual({ document_names: {}, documentNames: {} });
+    });
+    it("trata dados_formulario como primitivo (converte para objeto vazio)", () => {
+      const result = safeFormData({ dados_formulario: "texto simples" });
+      expect(result).toEqual({ document_names: {}, documentNames: {} });
+    });
   });
 });

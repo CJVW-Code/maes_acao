@@ -73,8 +73,8 @@ router.get("/resumo", resumoCasos);
 router.get("/notificacoes", listarNotificacoes);
 router.patch("/notificacoes/:id/lida", marcarNotificacaoLida);
 
-// Middleware de Isolamento de Unidade (aplica-se a todas as rotas que começam com /:id)
-router.use("/:id", requireSameUnit);
+// Middleware de Isolamento de Unidade (aplica-se a todas as rotas que começam com /:id numérico)
+router.use("/:id(\\d+)", requireSameUnit);
 
 router.get("/:id/exportar-solar", exportarCasoSolar);
 router.get("/:id", obterDetalhesCaso);

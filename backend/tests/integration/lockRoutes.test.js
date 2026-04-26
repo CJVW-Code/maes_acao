@@ -33,7 +33,10 @@ jest.unstable_mockModule("../../src/config/supabase.js", () => ({
     from: jest.fn().mockReturnThis(),
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
-    single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    single: jest.fn().mockResolvedValue({ 
+      data: { id: 1, unidade_id: "u1", status: "pronto_para_analise", assistencia_casos: [] }, 
+      error: null 
+    }),
     storage: { from: jest.fn().mockReturnThis() },
   },
   isSupabaseConfigured: false,

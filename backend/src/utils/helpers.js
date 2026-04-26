@@ -6,7 +6,12 @@
  */
 export function safeFormData(caso) {
   const rawDados = caso?.dados_formulario;
-  const dados = safeJsonParse(rawDados, {});
+  const parsed = safeJsonParse(rawDados, {});
+  
+  // Garante que dados seja um objeto plano e não nulo/array
+  const dados = (parsed && typeof parsed === "object" && !Array.isArray(parsed)) 
+    ? parsed 
+    : {};
 
   // Clone para evitar mutações inesperadas no objeto original
   const safeDados = { ...dados };
@@ -17,12 +22,12 @@ export function safeFormData(caso) {
   }
 
   // 2. Garantir estrutura de nomes de arquivos (usado em visualização e templates)
-  if (!safeDados.document_names) {
+  if (!safeDados.document_names || typeof safeDados.document_names !== "object") {
     safeDados.document_names = {};
   }
   
   // 3. Espelhar camelCase para o frontend que espera documentNames
-  if (!safeDados.documentNames) {
+  if (!safeDados.documentNames || typeof safeDados.documentNames !== "object") {
     safeDados.documentNames = safeDados.document_names;
   }
 

@@ -1,6 +1,6 @@
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 4.1 · **Atualizado em:** 2026-04-26 (RBAC Hierárquico + Cargo Gestor + Unlock Expandido)
+> **Versão:** 4.2 · **Atualizado em:** 2026-04-26 (Hardening de Segurança + Assistência Compartilhada)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---

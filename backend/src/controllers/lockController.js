@@ -62,16 +62,20 @@ export const lockCaso = async (req, res) => {
     });
 
     if (count === 0) {
-      const holder = nivelLock === 2
+      const holderName = nivelLock === 2
         ? casoAtual.defensor?.nome
         : casoAtual.servidor?.nome;
+      
+      const holderId = nivelLock === 2 
+        ? casoAtual.defensor_id 
+        : casoAtual.servidor_id;
 
-      logger.warn(`[Lock Contention] Usuário ${userId} tentou travar caso ${id} (Nível ${nivelLock}), mas já está travado por ${holder || "outro usuário"}`);
+      logger.warn(`[Lock Contention] Usuário ${userId} tentou travar caso ${id} (Nível ${nivelLock}), mas já está travado por ID ${holderId || "desconhecido"}`);
 
       return res.status(423).json({
         error: "Caso bloqueado",
-        message: `Este caso já está vinculado ao profissional ${holder || "outro colega"}. Apenas o Administrador pode liberar este caso.`,
-        holder: holder || "outro colega",
+        message: `Este caso já está vinculado ao profissional ${holderName || "outro colega"}. Apenas o Administrador pode liberar este caso.`,
+        holder: holderName || "outro colega",
       });
     }
 

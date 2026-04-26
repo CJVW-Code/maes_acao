@@ -2884,7 +2884,8 @@ export const resumoCasos = async (req, res) => {
     };
 
     const vinteMinsAgo = new Date(Date.now() - 20 * 60 * 1000);
-    const partesWhere = req.user?.cargo !== "admin" && req.user?.unidade_id
+    const isPowerUser = req.user?.cargo === "admin" || req.user?.cargo === "gestor";
+    const partesWhere = !isPowerUser && req.user?.unidade_id
       ? { caso: { unidade_id: req.user.unidade_id, arquivado: false } }
       : { caso: { arquivado: false } };
 
@@ -3073,9 +3074,11 @@ export const obterDetalhesCaso = async (req, res) => {
 
     if (!isPowerUser && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
       const holderName = data.defensor?.nome || data.servidor?.nome || "outro usuário";
+      const holderId = data.defensor_id || data.servidor_id;
+      logger.warn(`[Lock Contention]: Usuário ${req.user.id} tentou acessar caso ${id} bloqueado por ID ${holderId}`);
       return res.status(423).json({
         error: "Caso bloqueado",
-        message: `Este caso já está vinculado ao defensor(a) ${holderName}. Apenas o administrador pode liberar este caso.`,
+        message: `Este caso já está vinculado ao profissional ${holderName}. Apenas o administrador pode liberar este caso.`,
         holder: holderName,
       });
     }
