@@ -48,7 +48,6 @@ export const StepDadosPessoais = React.memo(({
   forcaRepresentacao,
   isRepresentacao,
   labelAutor,
-  configAcao,
   handleRestrictedAlphanumeric,
 }) => {
   return (

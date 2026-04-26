@@ -110,7 +110,7 @@ const filterByDate = (row, field, range) => {
   return true;
 };
 
-const buildPrismaWhere = ({ range, unidadeId, arquivado = false, dateField = "created_at" }) => {
+const _buildPrismaWhere = ({ range, unidadeId, arquivado = false, dateField = "created_at" }) => {
   const where = { arquivado };
   if (unidadeId && unidadeId !== "todas") where.unidade_id = unidadeId;
   if (range) where[dateField] = { gte: range.gte, lte: range.lte };
@@ -423,7 +423,7 @@ export const exportarXlsxLote = async (req, res) => {
     for (const unidade of unidades) {
       const relatorio = await montarRelatorio({ ...req.body, unidade_id: unidade.id }, req.user, preFetchedRows, unidades);
       
-      let baseName = unidade.nome.replace(/[\/\\*?\[\]:]/g, "").slice(0, 31).trim();
+      let baseName = unidade.nome.replace(/[/\\*?[\]:]/g, "").slice(0, 31).trim();
       if (!baseName) baseName = "Unidade";
       let finalName = baseName;
       let counter = 1;

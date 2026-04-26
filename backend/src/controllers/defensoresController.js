@@ -1,8 +1,9 @@
+/* eslint-disable no-unused-vars */
 import { prisma } from "../config/prisma.js";
 import { hashPassword, verifyPassword } from "../services/securityService.js";
 import { generateToken } from "../config/jwt.js";
 import logger from "../utils/logger.js";
-import { supabase, isSupabaseConfigured } from "../config/supabase.js";
+import {  isSupabaseConfigured } from "../config/supabase.js";
 
 // --- FUNÇÃO DE CADASTRO (Atualizada com Cargo) ---
 export const registrarDefensor = async (req, res) => {
@@ -14,7 +15,7 @@ export const registrarDefensor = async (req, res) => {
       });
     }
 
-    const { nome, email, senha, cargo = "operador", unidade_id } = req.body;
+    const { nome, email, senha, cargo = "servidor", unidade_id } = req.body;
 
     const cargoDb = await prisma.cargos.findFirst({
       where: { nome: cargo.toLowerCase() },

@@ -1,6 +1,6 @@
 import { jest } from "@jest/globals";
 import request from "supertest";
-import jwt from "jsonwebtoken";
+
 
 process.env.JWT_SECRET = "test_secret_key_at_least_32_chars_long!!";
 process.env.API_KEY_SERVIDORES = "chave-secreta-de-64-chars-para-scanner-balcao-valida-1234567890ab";

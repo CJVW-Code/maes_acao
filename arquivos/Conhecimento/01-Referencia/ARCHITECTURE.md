@@ -1,6 +1,6 @@
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 3.2 · **Atualizado em:** 2026-04-24 (CodeRabbit Audit + Dashboard v3.0 + CPF Mandatory)
+> **Versão:** 3.3 · **Atualizado em:** 2026-04-26 (RBAC Sync + Missing Roles)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
@@ -332,9 +332,10 @@ sequenceDiagram
 | Cargo | Leitura | Escrita | Admin |
 |:------|:--------|:--------|:------|
 | `admin` | ✅ | ✅ | ✅ |
+| `coordenador` | ✅ | ✅ | ❌ |
 | `defensor` | ✅ | ✅ | ❌ |
+| `servidor` | ✅ | ✅ | ❌ |
 | `estagiario` | ✅ | ✅ | ❌ |
-| `recepcao` | ✅ | ✅ | ❌ |
 | `visualizador` | ✅ | ❌ | ❌ |
 
 > **Middleware:** `requireWriteAccess` bloqueia `visualizador` de operações POST/PATCH/DELETE com HTTP 403.

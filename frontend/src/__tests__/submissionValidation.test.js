@@ -1,3 +1,4 @@
+/* global global */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { processSubmission } from "@/areas/servidor/services/submissionService.js";
 

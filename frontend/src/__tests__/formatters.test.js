@@ -10,10 +10,7 @@ import {
   validateBrDate,
   formatCurrencyMask,
   normalizeDecimalForSubmit,
-  sanitizeDecimalInput,
   numeroParaExtenso,
-  formatRgNumber,
-  formatMonthYearMask,
 } from "@/utils/formatters.js";
 
 // ─── stripNonDigits ───────────────────────────────────────────────────────────

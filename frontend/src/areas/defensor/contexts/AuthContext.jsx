@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useState, useContext, useEffect, useRef, useCallback } from "react";
+import React, { createContext, useState, useContext, useEffect, useCallback } from "react";
 import { API_BASE, authFetch } from "../../../utils/apiBase";
 import { jwtDecode } from "jwt-decode";
 

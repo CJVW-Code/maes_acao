@@ -1,6 +1,6 @@
 import multer from "multer";
 import fs from "fs";
-import path from "path";
+
 
 // Garante que o diretório de uploads temporários exista
 const uploadDir = "uploads/";

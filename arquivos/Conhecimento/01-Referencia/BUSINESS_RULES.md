@@ -1,6 +1,6 @@
 # Regras de Negócio — Mães em Ação · DPE-BA
 
-> **Versão:** 2.4 · **Atualizado em:** 2026-04-24 (CPF Representante Obrigatório + BI Categories)  
+> **Versão:** 2.5 · **Atualizado em:** 2026-04-26 (RBAC Sync + Missing Roles)  
 > **Fonte:** Análise da codebase (controllers, services, middleware, config)  
 > **Propósito:** Referência canônica para treinamento de IAs e orientação de defensores
 
@@ -394,9 +394,10 @@ O campo `cargo` na tabela `defensores` define o nível de acesso. O cargo é inc
 | Cargo | Acesso de Leitura | Acesso de Escrita | Operações Admin |
 |:------|:-------------------|:-------------------|:----------------|
 | `admin` | ✅ | ✅ | ✅ |
+| `coordenador` | ✅ | ✅ | ❌ |
 | `defensor` | ✅ | ✅ | ❌ |
+| `servidor` | ✅ | ✅ | ❌ |
 | `estagiario` | ✅ | ✅ | ❌ |
-| `recepcao` | ✅ | ✅ | ❌ |
 | `visualizador` | ✅ | ❌ | ❌ |
 
 > O cargo padrão ao cadastrar um novo membro é `"estagiario"`. Apenas o admin pode criar cadastros e deve selecionar entre as opções disponíveis no formulário.

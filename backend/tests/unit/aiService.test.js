@@ -25,7 +25,7 @@ jest.unstable_mockModule("@google/generative-ai", () => ({
 }));
 
 // Carrega o módulo DEPOIS dos mocks (padrão ESM)
-const { generateLegalText, visionOCR } = await import(
+const { generateLegalText, } = await import(
   "../../src/services/aiService.js"
 );
 

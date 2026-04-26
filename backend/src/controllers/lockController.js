@@ -13,7 +13,7 @@ export const lockCaso = async (req, res) => {
 
   try {
     const isAdmin = cargo === 'admin';
-    const isDefensorOrCoordenador = cargo.includes("defensor") || cargo === "coordenador";
+    const _isDefensorOrCoordenador = cargo.includes("defensor") || cargo === "coordenador";
     const isServidorOrEstagiario = cargo === "servidor" || cargo === "estagiario";
 
     // Busca o caso para saber o status e decidir o nível de lock

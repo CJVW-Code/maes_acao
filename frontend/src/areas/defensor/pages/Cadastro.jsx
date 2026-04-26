@@ -89,7 +89,7 @@ export const Cadastro = () => {
             <Shield className="w-10 h-10" />
             <h1 className="heading-1">Novo Membro</h1>
             <p className="text-muted">
-              Cadastre um novo defensor, estagiário ou recepcionista para
+              Cadastre um novo defensor, servidor, estagiário ou coordenador para
               acessar o painel.
             </p>
             <div className="divider my-4"></div>
@@ -166,7 +166,9 @@ export const Cadastro = () => {
                 className="input"
               >
                 <option value="estagiario">Estagiário</option>
+                <option value="servidor">Servidor / Balcão</option>
                 <option value="defensor">Defensor</option>
+                <option value="coordenador">Coordenador</option>
                 <option value="admin">Administrador</option>
                 <option value="visualizador">Visualizador</option>
               </select>

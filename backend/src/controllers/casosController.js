@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 // @ts-nocheck
 import { supabase, isSupabaseConfigured } from "../config/supabase.js";
 import { prisma } from "../config/prisma.js";
@@ -35,7 +36,7 @@ import {
   generateTermoDeclaracao,
   generateMultiplosDocx,
 } from "../services/documentGenerationService.js";
-import { analyzeCase, generateDosFatos } from "../services/geminiService.js";
+import {  generateDosFatos } from "../services/geminiService.js";
 import { getVaraByTipoAcao } from "../config/varasMapping.js";
 import logger from "../utils/logger.js";
 import { Client } from "@upstash/qstash";
@@ -679,7 +680,7 @@ const parseCurrencyToNumber = (value) => {
   return Number.isNaN(result) ? 0 : result;
 };
 
-const calcularValorCausa = (valorMensal) => {
+const _calcularValorCausa = (valorMensal) => {
   const valorNumerico = parseCurrencyToNumber(valorMensal);
   if (!valorNumerico) return 0;
   return valorNumerico * 12;
@@ -968,7 +969,7 @@ const sanitizeInlineText = (value) => {
     .trim();
 };
 
-const ensureInlineValue = (value) => {
+const _ensureInlineValue = (value) => {
   const ensured = ensureText(value);
   return ensured;
 };
@@ -1305,11 +1306,11 @@ const processarDadosFilhosParaPeticao = (baseData = {}, normalizedData = {}) => 
     termo_representacao = ` ${termo_representacao}`;
   }
 
-  const assistidoCpf =
+  const _assistidoCpf =
     lista_filhos.length > 0
       ? lista_filhos[0].cpf
       : baseData.cpf_assistido || baseData.cpf || normalizedData.requerente_cpf;
-  const dataNascimentoAssistidoBr =
+  const _dataNascimentoAssistidoBr =
     lista_filhos.length > 0
       ? lista_filhos[0].nascimento
       : formatDateBr(

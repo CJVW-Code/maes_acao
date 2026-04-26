@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { prisma } from "../config/prisma.js";
 import { supabase, isSupabaseConfigured } from "../config/supabase.js";
 import logger from "../utils/logger.js";

@@ -237,7 +237,9 @@ export const GerenciarEquipe = () => {
   const cargoBadge = (cargo) => {
     const map = {
       admin: "bg-red-100 text-red-800",
+      coordenador: "bg-purple-100 text-purple-800",
       defensor: "bg-blue-100 text-blue-800",
+      servidor: "bg-highlight/15 text-highlight",
       estagiario: "bg-green-100 text-green-800",
       visualizador: "bg-gray-100 text-gray-800",
     };
@@ -468,8 +470,11 @@ export const GerenciarEquipe = () => {
                 <label className="label">Cargo</label>
                 <select value={editForm.cargo} onChange={(e) => setEditForm({ ...editForm, cargo: e.target.value })} className="input">
                   <option value="estagiario">Estagiário</option>
+                  <option value="servidor">Servidor / Balcão</option>
                   <option value="defensor">Defensor</option>
+                  <option value="coordenador">Coordenador</option>
                   <option value="admin">Administrador</option>
+                  <option value="visualizador">Visualizador</option>
                 </select>
               </div>
               <div>

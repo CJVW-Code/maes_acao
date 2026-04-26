@@ -218,7 +218,7 @@ describe("validateDownloadTicket", () => {
   });
 
   it("retorna 401 para ticket expirado", async () => {
-    const expired = makeTicket({ expiresIn: "-1s" });
+    const _expired = makeTicket({ expiresIn: "-1s" });
     // Precisa recriar manualmente com options
     const expiredTicket = jwt.sign(
       { purpose: "download", user: {}, path: "x", bucket: "y", casoId: "1" },

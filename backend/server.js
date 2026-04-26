@@ -1,9 +1,9 @@
 import express from "express";
 import cors from "cors";
-import logger from "./src/utils/logger.js";
+
 import dotenv from "dotenv";
 import path from "path";
-import fs from "fs";
+
 import statusRoutes from "./src/routes/status.js";
 import casosRoutes from "./src/routes/casos.js";
 import defensoresRoutes from "./src/routes/defensores.js";
