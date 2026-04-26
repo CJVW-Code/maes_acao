@@ -19,6 +19,8 @@ function makeFormState(overrides = {}) {
     relato: "Desejo fixar alimentos para meu filho.",
     acaoEspecifica: "fixacao_alimentos",
     tipoAcao: "Família - Fixação",
+    valor_pensao: "30% do salário mínimo",
+    nascimento: "01/01/2015",
     prefersAudio: false,
     audioBlob: null,
     documentFiles: [
