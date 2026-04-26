@@ -4,12 +4,12 @@ import { authMiddleware } from "../middleware/auth.js";
 
 const router = express.Router();
 
-const canAccessBi = (user) => user?.cargo === "admin";
-const canExportBiLote = (user) => user?.cargo === "admin";
+const canAccessBi = (user) => ["admin", "gestor", "coordenador"].includes(user?.cargo?.toLowerCase());
+const canExportBiLote = (user) => ["admin", "gestor"].includes(user?.cargo?.toLowerCase());
 
 const requireBiAccess = (req, res, next) => {
   if (!canAccessBi(req.user)) {
-    return res.status(403).json({ error: "Acesso negado ao modulo de BI." });
+    return res.status(403).json({ error: "Acesso negado ao módulo de BI." });
   }
   next();
 };

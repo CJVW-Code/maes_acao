@@ -25,6 +25,7 @@ import { DetalhesCaso } from "./areas/defensor/pages/DetalhesCaso";
 import { CasosArquivados } from "./areas/defensor/pages/CasosArquivados";
 
 import { GerenciarEquipe } from "./areas/defensor/pages/GerenciarEquipe";
+import { ConfiguracoesSistema } from "./areas/defensor/pages/ConfiguracoesSistema";
 import { NotFound } from "./pages/NotFound";
 
 const Relatorios = lazy(() => import("./areas/defensor/pages/Relatorios"));
@@ -66,9 +67,31 @@ const AdminRoute = ({ children }) => {
 // 4. Protege rotas de DEFENSOR/ESTAGIÁRIO
 const DefensorRoute = ({ children }) => {
   const { loading } = useAuth();
-
   if (loading) return null;
+  return children;
+};
 
+// 5. Protege rotas para Admin e Gestor
+const GestorRoute = ({ children }) => {
+  const { permissions, loading } = useAuth();
+  if (loading) return null;
+  if (!permissions.canEditConfig) return <Navigate to="/painel" />;
+  return children;
+};
+
+// 6. Protege rotas de BI (Admin, Gestor, Coordenador)
+const BiRoute = ({ children }) => {
+  const { permissions, loading } = useAuth();
+  if (loading) return null;
+  if (!permissions.canViewBi) return <Navigate to="/painel" />;
+  return children;
+};
+
+// 7. Protege rotas de Gestão de Equipe (Admin, Gestor, Coordenador)
+const TeamRoute = ({ children }) => {
+  const { permissions, loading } = useAuth();
+  if (loading) return null;
+  if (!permissions.canManageTeam) return <Navigate to="/painel" />;
   return children;
 };
 
@@ -143,24 +166,33 @@ function App() {
 
 
 
-                {/* Rota de Gestão de Equipe (Admin) */}
+                {/* Rota de Gestão de Equipe (Admin, Gestor, Coordenador) */}
                 <Route
                   path="equipe"
                   element={
-                    <AdminRoute>
+                    <TeamRoute>
                       <GerenciarEquipe />
-                    </AdminRoute>
+                    </TeamRoute>
                   }
                 />
 
                 <Route
                   path="relatorios"
                   element={
-                    <AdminRoute>
+                    <BiRoute>
                       <Suspense fallback={<div className="text-primary">Carregando relatorios...</div>}>
                         <Relatorios />
                       </Suspense>
-                    </AdminRoute>
+                    </BiRoute>
+                  }
+                />
+
+                <Route
+                  path="configuracoes"
+                  element={
+                    <GestorRoute>
+                      <ConfiguracoesSistema />
+                    </GestorRoute>
                   }
                 />
 

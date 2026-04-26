@@ -140,6 +140,8 @@ const mapCasoRelations = (caso) => {
     enriched.emissor_rg_exequente = partes.emissor_rg_representante || partes.emissor_rg_assistido;
     enriched.nome_mae_representante = partes.nome_mae_representante;
     enriched.nome_pai_representante = partes.nome_pai_representante;
+    enriched.nome_mae_assistido = partes.nome_mae_assistido || partes.nome_mae_representante;
+    enriched.nome_pai_assistido = partes.nome_pai_assistido || partes.nome_pai_representante;
 
     enriched.REQUERIDO_NOME = partes.nome_requerido;
     enriched.nome_requerido = partes.nome_requerido;
@@ -1027,6 +1029,16 @@ const buildSolarExportPayload = (caso = {}) => {
       caso.nascimento ||
       formatDateBr(caso.partes?.data_nascimento_assistido) ||
       "",
+    data_nascimento_assistido:
+      caso.assistido_data_nascimento ||
+      caso.nascimento ||
+      formatDateBr(caso.partes?.data_nascimento_assistido) ||
+      "",
+    nome_mae_assistido:
+      caso.nome_mae_assistido || caso.partes?.nome_mae_assistido || caso.nome_mae_representante || "",
+    nome_pai_assistido:
+      caso.nome_pai_assistido || caso.partes?.nome_pai_assistido || caso.nome_pai_representante || "",
+    filiacao: `Mãe: ${caso.nome_mae_assistido || caso.partes?.nome_mae_assistido || caso.nome_mae_representante || "N/I"}, Pai: ${caso.nome_pai_assistido || caso.partes?.nome_pai_assistido || caso.nome_pai_representante || "N/I"}`,
     representante_estado_civil:
       caso.assistido_estado_civil ||
       caso.representante_estado_civil ||
@@ -2191,6 +2203,20 @@ export const baixarTodosDocumentosZip = async (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename="${caso.protocolo}_documentos.zip"`);
 
     archive.pipe(res);
+    
+    // [AUTOMACAO] Injeta JSON de dados para a extensão (atendimento.json)
+    const exportData = {
+      caso: {
+        id: caso.id,
+        protocolo: caso.protocolo,
+        tipo_acao: caso.tipo_acao,
+        status: caso.status,
+      },
+      solar: buildSolarExportPayload(caso),
+    };
+    archive.append(JSON.stringify(stringifyBigInts(exportData), null, 2), {
+      name: "atendimento.json",
+    });
 
     const arquivosFalharam = [];
 
@@ -3180,6 +3206,95 @@ export const obterDetalhesCaso = async (req, res) => {
   } catch (error) {
     logger.error(`Erro ao obter detalhes do caso ${id}: ${error.message}`);
     res.status(500).json({ error: "Erro ao obter detalhes." });
+  }
+};
+
+export const distribuirCaso = async (req, res) => {
+  const { id } = req.params;
+  const { usuario_id } = req.body;
+  const userCargo = req.user.cargo.toLowerCase();
+
+  if (!usuario_id) {
+    return res.status(400).json({ error: "ID do usuário alvo é obrigatório." });
+  }
+
+  try {
+    // 1. Busca status atual via Supabase (garantindo dados mais recentes)
+    const { data: casoAtual, error: fetchError } = await supabase
+      .from('casos')
+      .select('status, unidade_id')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !casoAtual) {
+      return res.status(404).json({ error: "Caso não encontrado." });
+    }
+
+    // 2. Determina o campo alvo e o novo status com base no fluxo
+    let campoAlvo = null;
+    let novoStatus = null;
+    let statusPermitidos = [];
+
+    if (['pronto_para_analise', 'em_atendimento'].includes(casoAtual.status)) {
+      campoAlvo = 'servidor_id';
+      novoStatus = 'em_atendimento';
+      statusPermitidos = ['pronto_para_analise', 'em_atendimento'];
+    } else if (['liberado_para_protocolo', 'em_protocolo'].includes(casoAtual.status)) {
+      campoAlvo = 'defensor_id';
+      novoStatus = 'em_protocolo';
+      statusPermitidos = ['liberado_para_protocolo', 'em_protocolo'];
+    } else {
+      return res.status(409).json({ 
+        error: "Operação inválida", 
+        message: `Não é possível distribuir um caso com status '${casoAtual.status}'.` 
+      });
+    }
+
+    // 3. Executa a mutação atômica no Supabase
+    const updateData = {
+      [campoAlvo]: usuario_id,
+      [`${campoAlvo.split('_')[0]}_at`]: new Date().toISOString(),
+      status: novoStatus
+    };
+
+    const { data: casoAtualizado, error: updateError } = await supabase
+      .from('casos')
+      .update(updateData)
+      .eq('id', id)
+      .in('status', statusPermitidos) // Segurança da máquina de estados
+      .select()
+      .single();
+
+    if (updateError || !casoAtualizado) {
+      return res.status(409).json({ 
+        error: "Conflito", 
+        message: "O caso foi alterado por outro usuário ou não pôde ser distribuído." 
+      });
+    }
+
+    // 4. Log de Auditoria via Prisma
+    await prisma.logs_auditoria.create({
+      data: {
+        usuario_id: req.user.id,
+        caso_id: BigInt(id),
+        acao: 'distribuicao_caso',
+        detalhes: {
+          alvo_id: usuario_id,
+          campo_atualizado: campoAlvo,
+          status_anterior: casoAtual.status,
+          status_novo: novoStatus
+        }
+      }
+    });
+
+    return res.status(200).json({ 
+      message: "Caso distribuído com sucesso.", 
+      caso: stringifyBigInts(casoAtualizado) 
+    });
+
+  } catch (error) {
+    logger.error(`Erro ao distribuir caso ${id}: ${error.message}`);
+    return res.status(500).json({ error: "Erro interno ao distribuir caso." });
   }
 };
 

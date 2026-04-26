@@ -8,13 +8,13 @@ import {
   CheckCircle2,
   AlertTriangle,
   Bell,
-  Calendar,
   ChevronLeft,
   ChevronRight,
-  Lock,
   User,
+  Lock,
   Eye,
   Users,
+  Settings,
 } from "lucide-react";
 import { authFetch } from "../../../utils/apiBase";
 import useSWR from "swr";
@@ -66,7 +66,7 @@ const summaryFilterLabels = {
 };
 
 export const Dashboard = () => {
-  const { token, user, notificacoes, marcarNotificacaoLida } = useAuth();
+  const { token, user, notificacoes, marcarNotificacaoLida, permissions } = useAuth();
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -174,7 +174,7 @@ export const Dashboard = () => {
     >
       {/* COLUNA PRINCIPAL */}
       <div className="space-y-8">
-        <section className="hero-gradient p-8 rounded-[2rem] text-white">
+        <section className="hero-gradient p-8 rounded-4xl text-white">
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="heading-hero mt-2">
@@ -193,6 +193,52 @@ export const Dashboard = () => {
             </Link>
           </div>
         </section>
+
+        {/* Atalhos Rápidos para Gestão e Relatórios */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {permissions.canManageTeam && (
+            <Link
+              to="/painel/equipe"
+              className="card p-6 flex items-center gap-4 hover:shadow-lg transition-all group border border-soft/50"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                <Users size={28} />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800 2xl:text-xl">Gerenciar Equipe</h3>
+                <p className="text-sm text-muted 2xl:text-base">Membros e unidades.</p>
+              </div>
+            </Link>
+          )}
+          {permissions.canViewBi && (
+            <Link
+              to="/painel/relatorios"
+              className="card p-6 flex items-center gap-4 hover:shadow-lg transition-all group border border-soft/50"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-highlight/10 flex items-center justify-center text-highlight group-hover:bg-highlight group-hover:text-white transition-all duration-300">
+                <FileText size={28} />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800 2xl:text-xl">Relatórios BI</h3>
+                <p className="text-sm text-muted 2xl:text-base">Indicadores e produtividade.</p>
+              </div>
+            </Link>
+          )}
+          {permissions.canEditConfig && (
+            <Link
+              to="/painel/configuracoes"
+              className="card p-6 flex items-center gap-4 hover:shadow-lg transition-all group border border-soft/50"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-all duration-300">
+                <Settings size={28} />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800 2xl:text-xl">Configurações</h3>
+                <p className="text-sm text-muted 2xl:text-base">Horários e sistema.</p>
+              </div>
+            </Link>
+          )}
+        </div>
 
         <section className="dashboard-summary-grid">
           {[
@@ -322,19 +368,26 @@ export const Dashboard = () => {
                     const statusKey = normalizeStatus(caso.status);
                     const badgeStyle = statusStyles[statusKey] || statusStyles.default;
                     return (
-                      <tr 
+                      <tr
                         key={caso.id}
                         role="button"
                         tabIndex={0}
                         onClick={() => navigate(`/painel/casos/${caso.id}`)}
-                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate(`/painel/casos/${caso.id}`); }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ")
+                            navigate(`/painel/casos/${caso.id}`);
+                        }}
                         className={`group cursor-pointer transition-colors hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${caso.compartilhado ? "bg-purple-500/5" : ""}`}
                       >
                         {/* NOME / REPRESENTANTE */}
                         <td className="px-6 py-5">
                           <div className="flex items-center gap-3">
                             {caso.compartilhado && (
-                              <Users size={16} className="text-highlight shrink-0" title="Caso Compartilhado" />
+                              <Users
+                                size={16}
+                                className="text-highlight shrink-0"
+                                title="Caso Compartilhado"
+                              />
                             )}
                             <div>
                               <p className="font-bold text-main 2xl:text-xl leading-tight">
@@ -358,27 +411,39 @@ export const Dashboard = () => {
                         <td className="px-6 py-5 whitespace-nowrap">
                           {caso.defensor || caso.servidor ? (
                             <div className="flex items-center gap-2">
-                              <div className={`p-1.5 rounded-full ${
-                                (caso.defensor_id === user?.id || caso.servidor_id === user?.id) 
-                                  ? "badge-meu" 
-                                  : "badge-bloqueado"
-                              }`}>
-                                { (caso.defensor_id === user?.id || caso.servidor_id === user?.id) ? <User size={14} /> : <Lock size={14} /> }
+                              <div
+                                className={`p-1.5 rounded-full ${
+                                  caso.defensor_id === user?.id || caso.servidor_id === user?.id
+                                    ? "badge-meu"
+                                    : "badge-bloqueado"
+                                }`}
+                              >
+                                {caso.defensor_id === user?.id || caso.servidor_id === user?.id ? (
+                                  <User size={14} />
+                                ) : (
+                                  <Lock size={14} />
+                                )}
                               </div>
                               <span className="text-xs 2xl:text-base font-bold text-main">
-                                { (caso.defensor_id === user?.id || caso.servidor_id === user?.id) 
-                                  ? "Meu" 
-                                  : (caso.defensor?.nome || caso.servidor?.nome || "").split(" ")[0] }
+                                {caso.defensor_id === user?.id || caso.servidor_id === user?.id
+                                  ? "Meu"
+                                  : (caso.defensor?.nome || caso.servidor?.nome || "").split(
+                                      " ",
+                                    )[0]}
                               </span>
                             </div>
                           ) : (
-                            <span className="text-[11px] 2xl:text-sm text-muted italic font-medium">Disponível</span>
+                            <span className="text-[11px] 2xl:text-sm text-muted italic font-medium">
+                              Disponível
+                            </span>
                           )}
                         </td>
 
                         {/* STATUS */}
                         <td className="px-6 py-5 whitespace-nowrap">
-                          <span className={`px-3 py-1 rounded-full text-[10px] 2xl:text-xs font-bold border ${badgeStyle} uppercase tracking-wider`}>
+                          <span
+                            className={`px-3 py-1 rounded-full text-[10px] 2xl:text-xs font-bold border ${badgeStyle} uppercase tracking-wider`}
+                          >
                             {statusKey.replace(/_/g, " ")}
                           </span>
                         </td>

@@ -35,7 +35,7 @@ export const ToastProvider = ({ children }) => {
     warning: (msg) => addToast(msg, "warning"),
   }), [addToast]);
 
-  const contextValue = React.useMemo(() => ({ toasts, removeToast, toast }), [toasts, removeToast, toast]);
+  const contextValue = React.useMemo(() => ({ toasts, removeToast, addToast, toast }), [toasts, removeToast, addToast, toast]);
 
   return (
     <ToastContext.Provider value={contextValue}>

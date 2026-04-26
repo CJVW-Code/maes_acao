@@ -3,8 +3,9 @@
 import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { Eye, Search, Lock, User } from "lucide-react";
+import { Eye, Search, Lock, User, UserPlus, Clock } from "lucide-react";
 import useSWR from "swr";
+import { ModalDistribuicao } from "../components/casos/ModalDistribuicao";
 
 // 1. Trazemos seu authFetch de volta
 import { authFetch } from "../../../utils/apiBase";
@@ -43,7 +44,8 @@ export const Casos = () => {
   const [busca, setBusca] = useState("");
   const [statusFiltro, setStatusFiltro] = useState("todos");
   const [unidadeFiltro, setUnidadeFiltro] = useState("todas");
-  const { token, user } = useAuth();
+  const [selectedCaso, setSelectedCaso] = useState(null);
+  const { token, user, permissions } = useAuth();
 
   const isAdminOrGestor = user && ["admin", "gestor"].includes(user.cargo.toLowerCase());
 
@@ -53,6 +55,7 @@ export const Casos = () => {
     data: casos,
     error,
     isLoading,
+    mutate,
   } = useSWR(token ? ['/casos', token] : null, ([url]) => fetcher(url), {
     revalidateOnFocus: false,
     dedupingInterval: 600000,
@@ -232,7 +235,7 @@ export const Casos = () => {
                                   ? "bg-green-100 text-green-700" 
                                   : "bg-amber-100 text-amber-700"
                               }`}>
-                                { (user && (caso.defensor_id === user.id || caso.servidor_id === user.id)) ? <User size={12} /> : <Lock size={12} /> }
+                                { (user && (caso.defensor_id === user.id || caso.servidor_id === user.id)) ? <User size={14} /> : <Lock size={14} /> }
                               </div>
                               <span className="font-medium whitespace-nowrap">
                                 { (user && (caso.defensor_id === user.id || caso.servidor_id === user.id)) 
@@ -252,14 +255,29 @@ export const Casos = () => {
                           </span>
                         </td>
                         <td className="p-4 text-right">
-                          <Link
-                            to={`/painel/casos/${caso.id}`}
-                            className="inline-flex items-center gap-2 text-primary hover:text-primary-600 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none rounded-lg"
-                            title="Ver detalhes"
-                          >
-                            <Eye size={18} />
-                            Ver detalhes
-                          </Link>
+                          <div className="flex items-center justify-end gap-2">
+                            {permissions.canDistribuir && (
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setSelectedCaso(caso);
+                                }}
+                                className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                                title="Distribuir caso"
+                              >
+                                <UserPlus size={18} />
+                              </button>
+                            )}
+                            <Link
+                              to={`/painel/casos/${caso.id}`}
+                              className="inline-flex items-center gap-2 text-primary hover:text-primary-600 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none rounded-lg"
+                              title="Ver detalhes"
+                            >
+                              <Eye size={18} />
+                              Ver detalhes
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -327,6 +345,15 @@ export const Casos = () => {
           </>
         )}
       </section>
+
+      {selectedCaso && (
+        <ModalDistribuicao
+          caso={selectedCaso}
+          isOpen={!!selectedCaso}
+          onClose={() => setSelectedCaso(null)}
+          onRefresh={() => mutate()}
+        />
+      )}
     </div>
   );
 };

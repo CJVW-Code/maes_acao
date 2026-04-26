@@ -14,7 +14,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { BarChart3, Download, FileSpreadsheet, FileText, Filter, RefreshCw, Settings2 } from "lucide-react";
+import { BarChart3, Clock, Download, FileSpreadsheet, FileText, Filter, RefreshCw, Settings2, TrendingUp } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useBiData } from "../hooks/useBiData";
 import { authFetch } from "../../../utils/apiBase";
@@ -96,7 +96,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 const Relatorios = () => {
-  const { user } = useAuth();
+  const { user, permissions } = useAuth();
   const {
     data,
     loading,
@@ -114,15 +114,15 @@ const Relatorios = () => {
   const [unidades, setUnidades] = useState([]);
   const [showPrefs, setShowPrefs] = useState(false);
 
-  const isAdmin = user?.cargo === "admin";
+  const canSeeAllUnidades = user?.cargo === "admin" || user?.cargo === "gestor";
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!canSeeAllUnidades) return;
     authFetch("/unidades")
       .then((response) => (response.ok ? response.json() : []))
       .then((result) => setUnidades(result.filter((unidade) => unidade.ativo)))
       .catch(() => setUnidades([]));
-  }, [isAdmin]);
+  }, [canSeeAllUnidades]);
 
   const kpiCards = useMemo(() => {
     if (!data) return [];
@@ -136,13 +136,36 @@ const Relatorios = () => {
     ];
   }, [data]);
 
-  if (!isAdmin) {
+  if (data?.bloqueadoPorHorario) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 px-6 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 mb-6 shadow-inner">
+          <Clock size={48} />
+        </div>
+        <h2 className="heading-1 text-amber-900 mb-2">Acesso Temporariamente Restrito</h2>
+        <p className="text-amber-800 max-w-md mx-auto leading-relaxed">
+          O módulo de BI está configurado para acesso apenas em horários específicos. 
+          Por favor, tente novamente durante o horário de expediente definido nas configurações do sistema.
+        </p>
+      </div>
+    );
+  }
+
+  if (!permissions?.canViewBi) {
     return <Navigate to="/painel" replace />;
   }
 
   const updateFiltro = (key, value) => {
     setFiltros((current) => ({ ...current, [key]: value }));
   };
+
+  // Auto-filtro: Se ja tem dados, atualiza ao mudar filtros importantes
+  useEffect(() => {
+    if (data && !loading) {
+      gerar().catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtros.periodo, filtros.dataInicio, filtros.dataFim, filtros.unidade_id, filtros.topN]);
 
   return (
     <div className="space-y-6 pb-24">
@@ -342,6 +365,58 @@ const Relatorios = () => {
               </div>
             </BiWidget>
           </div>
+
+          {data.produtividade && (
+            <section className="card-solid p-6 border-l-4 border-l-primary/50">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-3 bg-primary/10 rounded-2xl text-primary">
+                  <TrendingUp size={24} />
+                </div>
+                <div>
+                  <h2 className="heading-2">Produtividade Individual</h2>
+                  <p className="text-sm text-muted">Ranking de atendimentos finalizados (Top 10)</p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-muted mb-4">Defensores</h3>
+                  <div className="space-y-2">
+                    {data.produtividade.defensores.map((p, idx) => (
+                      <div key={p.nome} className="flex items-center justify-between p-3 bg-app/40 rounded-xl border border-soft/50">
+                        <div className="flex items-center gap-3">
+                          <span className="w-6 h-6 flex items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                            {idx + 1}
+                          </span>
+                          <span className="text-sm font-bold text-main">{p.nome}</span>
+                        </div>
+                        <span className="text-sm font-extrabold text-primary">{p.total}</span>
+                      </div>
+                    ))}
+                    {data.produtividade.defensores.length === 0 && <p className="text-xs text-muted py-4">Nenhum dado disponível.</p>}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-muted mb-4">Servidores / Estagiários</h3>
+                  <div className="space-y-2">
+                    {data.produtividade.servidores.map((p, idx) => (
+                      <div key={p.nome} className="flex items-center justify-between p-3 bg-app/40 rounded-xl border border-soft/50">
+                        <div className="flex items-center gap-3">
+                          <span className="w-6 h-6 flex items-center justify-center rounded-full bg-highlight/10 text-[10px] font-bold text-highlight">
+                            {idx + 1}
+                          </span>
+                          <span className="text-sm font-bold text-main">{p.nome}</span>
+                        </div>
+                        <span className="text-sm font-extrabold text-highlight">{p.total}</span>
+                      </div>
+                    ))}
+                    {data.produtividade.servidores.length === 0 && <p className="text-xs text-muted py-4">Nenhum dado disponível.</p>}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
         </div>
       )}
     </div>

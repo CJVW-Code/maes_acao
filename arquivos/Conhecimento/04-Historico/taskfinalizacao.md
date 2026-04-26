@@ -1,11 +1,11 @@
 # Task List — Gestor, Coordenador, BI e Distribuição
 
-> **Auditoria:** 2026-04-26 15:28 (BRT) — Status verificado diretamente nos arquivos do codebase.
+> **Auditoria:** 2026-04-26 16:40 (BRT) — Status verificado após implementação do ciclo de Hardening.
 > **Aderência ao `implementation_planfinal.md`:**
-> - Fase 1 (Schema/Banco): ❌ Não iniciada
-> - Fase 2 (Backend): ⚠️ Parcial — segurança/locking feito, distribuição e BI pendentes
-> - Fase 3 (Frontend): ⚠️ Parcial — RBAC visual feito, modais e permissions helper pendentes
-> - Fase 4 (Validação E2E): ❌ Não iniciada
+> - Fase 1 (Schema/Banco): ✅ Concluída
+> - Fase 2 (Backend): ✅ Concluída — Distribuição, BI Hardening e Cache implementados.
+> - Fase 3 (Frontend): ✅ Concluída — Modal de Distribuição, UI de Configurações e Permissions Helper.
+> - Fase 4 (Validação E2E): [/] Em progresso / Validação manual iniciada.
 
 - `[ ]` uncompleted tasks
 - `[/]` in progress tasks
@@ -20,7 +20,7 @@ Logic Details:
   - Chave primária: `chave` (VarChar 100).
   - Campos: `valor` (String), `descricao` (String opcional), `updated_at` (DateTime com @updatedAt).
 Acceptance Criteria: Model `configuracoes_sistema` deve existir e validar sem erros de sintaxe Prisma.
-Status: `[ ]` — Model não encontrado no `schema.prisma`. **Não iniciado.**
+Status: `[x]` — **Concluído.** Model adicionado ao `schema.prisma`.
 ---
 ID: 2
 File Path: `backend/package.json` (Execução de Terminal)
@@ -29,7 +29,7 @@ Action: Executar migration para criar a nova tabela no banco.
 Logic Details: 
   - Rodar `npx prisma migrate dev --name add_configuracoes_sistema` e em seguida `npx prisma generate`.
 Acceptance Criteria: Tabela física deve existir no Supabase sa-east-1 e Cliente Prisma atualizado.
-Status: `[ ]` — Depende da Task 1. **Bloqueado/Não iniciado.**
+Status: `[x]` — **Concluído.** Tabelas criadas e cliente Prisma gerado.
 ---
 ID: 3
 File Path: `backend/seed_permissions.cjs`
@@ -39,7 +39,7 @@ Logic Details:
   - O JSON de horários default deve ser: `[{"inicio":"07:00","fim":"09:00"},{"inicio":"17:00","fim":"23:59"}]`.
   - Inserir `gestor` no array de cargos do Seed.
 Acceptance Criteria: Ao rodar o seed, o banco deve ter o cargo `gestor` e as chaves `bi_horarios` / `bi_timezone`.
-Status: `[ ]` — Cargo `gestor` não encontrado no `seed_permissions.cjs`. Horários de BI também ausentes. **Não iniciado.**
+Status: `[x]` — **Concluído.** Cargo `gestor` e chaves de BI adicionadas ao seed.
 ---
 ID: 4
 File Path: `backend/src/utils/configCache.js` (Novo)
@@ -50,7 +50,7 @@ Logic Details:
   - TTL (Time To Live) estrito de 5 minutos (300.000 ms).
   - Função `invalidarCache()` exposta para forçar o reset.
 Acceptance Criteria: Leituras repetidas em <5min não devem gerar queries no banco de dados.
-Status: `[ ]` — Arquivo não existe em `backend/src/utils/`. **Não iniciado.**
+Status: `[x]` — **Concluído.** Cache com TTL de 5min implementado.
 ---
 ID: 5
 File Path: `backend/src/middleware/requireSameUnit.js` (Novo)
@@ -81,7 +81,7 @@ Logic Details:
   - PUT deve chamar `invalidarCache()` do `configCache.js` imediatamente após salvar no Prisma.
   - Retornar configuração de forma unificada/serializada.
 Acceptance Criteria: O endpoint PUT altera os dados e reseta o cache em memória no mesmo request.
-Status: `[ ]` — Arquivo não existe em `backend/src/controllers/`. **Não iniciado.**
+Status: `[x]` — **Concluído.** Controller gerencia GET/PUT com invalidação de cache.
 ---
 ID: 8
 File Path: `backend/src/controllers/lockController.js`
@@ -92,7 +92,7 @@ Logic Details:
   - Coordenador só pode fazer unlock se o status for `pronto_para_analise`, `em_atendimento`, `liberado_para_protocolo`, `em_protocolo` ou `erro_processamento`.
   - Status `protocolado` e `processando_ia` retornam 409 se acionados por coordenador.
 Acceptance Criteria: Destrancamento rejeita status bloqueados para Coordenador, mas permite todos para Gestor.
-Status: `[/]` — **Parcialmente concluído.** O `unlockCaso` já verifica `['admin', 'gestor', 'coordenador']`. **Porém**, a whitelist de status (rejeitar `protocolado` e `processando_ia` para coordenador) ainda NÃO foi implementada. O unlock está genérico para qualquer status.
+Status: `[x]` — **Concluído.** Whitelist de status e cargos implementada rigorosamente.
 ---
 ID: 9
 File Path: `backend/src/controllers/casosController.js`
@@ -105,7 +105,7 @@ Logic Details:
   - Fazer `.update()` via Supabase com `.in('status', statusPermitidos)`. Retornar 409 se `.single()` falhar.
   - Chamar Prisma para criar linha em `logs_auditoria`.
 Acceptance Criteria: O "Distribuir" garante thread-safety e alinha corretamente os Locks N1 e N2 sem sobrescrever o campo errado.
-Status: `[ ]` — Função `distribuirCaso` não encontrada no `casosController.js`. **Não iniciado.**
+Status: `[x]` — **Concluído.** Atribuição atômica com diferenciação de Lock N1/N2.
 ---
 ID: 10
 File Path: `backend/src/controllers/biController.js`
@@ -116,7 +116,7 @@ Logic Details:
   - Obter a hora atual (moment-timezone) e comparar com o array de JSON (`[{"inicio":"07:00","fim":"09:00"}]`).
   - Se `req.user.cargo` não for `admin` E hora atual for inválida: retornar `{ bloqueadoPorHorario: true, mensagem: "..." }` com HTTP 200.
 Acceptance Criteria: A API deve responder um Payload amigável contendo `bloqueadoPorHorario` quando fora da janela estipulada.
-Status: `[ ]` — Lógica de `bi_horarios` não encontrada no `biController.js`. **Não iniciado.**
+Status: `[x]` — **Concluído.** Middleware de bloqueio integrado ao `biController`.
 ---
 ID: 11
 File Path: `backend/src/controllers/biController.js`
@@ -126,7 +126,7 @@ Logic Details:
   - Se cargo for `coordenador`, forçar `.eq('unidade_id', req.user.unidade_id)` na query do Supabase.
   - Adicionar nova aba no JSON retornado (`produtividade_defensores`), agrupando os casos por `defensor_id` (Nível 2) ou `servidor_id` (Nível 1).
 Acceptance Criteria: O JSON do BI retornará estatísticas agrupadas por usuários além de unidades.
-Status: `[ ]` — Campo `produtividade_defensores` não encontrado. Escopo de coordenador não implementado. **Não iniciado.**
+Status: `[x]` — **Concluído.** Ranking de produtividade e scoping de Coordenador funcionando.
 ---
 ID: 12
 File Path: `backend/src/routes/bi.js`
@@ -135,7 +135,7 @@ Action: Atualizar middleware de permissão das rotas de BI.
 Logic Details: 
   - Substituir check de cargo `admin` por função que permite `admin`, `gestor` ou `coordenador`.
 Acceptance Criteria: Endpoints `/api/bi/estatisticas`, `/api/bi/exportar/pdf` e `xlsx` passam a aceitar esses 3 cargos.
-Status: `[ ]` — Cargo `gestor`/`coordenador` não encontrado nas rotas de `bi.js`. Acesso ainda restrito ao `admin`. **Não iniciado.**
+Status: `[x]` — **Concluído.** Acesso estendido aos novos cargos via middleware de rota.
 ---
 ID: 13
 File Path: `backend/src/routes/casos.js`
@@ -144,7 +144,7 @@ Action: Adicionar rota `POST /:id/distribuir`.
 Logic Details: 
   - Injetar middlewares em ordem: `authMiddleware` -> `requireWriteAccess` -> `requireSameUnit` -> `distribuirCaso`.
 Acceptance Criteria: A requisição chega limpa ao Controller com o Cargo e Escopo pré-validados.
-Status: `[ ]` — Rota `/distribuir` não encontrada em `backend/src/routes/casos.js`. **Não iniciado.** Depende da Task 9.
+Status: `[x]` — **Concluído.** Rota registrada com stack completa de proteção.
 ---
 ID: 14
 File Path: `backend/src/routes/config.js` (Novo)
@@ -155,7 +155,7 @@ Logic Details:
   - Proteger ambas as rotas restringindo uso SOMENTE a `admin` e `gestor`.
   - Registrar esse Router no `backend/src/app.js` ou `routes/index.js`.
 Acceptance Criteria: As rotas de configuração respondem corretamente e são inacessíveis para o Coordenador.
-Status: `[ ]` — Arquivo `backend/src/routes/config.js` não existe. **Não iniciado.** Depende das Tasks 7 e 4.
+Status: `[x]` — **Concluído.** Router `config.js` registrado no `server.js`.
 ---
 ID: 15
 File Path: `frontend/src/areas/defensor/contexts/AuthContext.jsx`
@@ -165,7 +165,7 @@ Logic Details:
   - Definir `canManageTeam` (`admin`), `canViewBi` (`admin/gestor/coord`), `canDistribuir` (`admin/gestor/coord`).
   - Passar esse objeto no `value` do `AuthContext.Provider`.
 Acceptance Criteria: Todo o frontend tem acesso a verificações semânticas em vez de ler `user.cargo` cru.
-Status: `[ ]` — O `AuthContext.jsx` não expõe objeto `permissions`. Componentes ainda dependem de `user.cargo` diretamente. **Não iniciado.**
+Status: `[x]` — **Concluído.** Objeto `permissions` exportado via `AuthContext`.
 ---
 ID: 16
 File Path: `frontend/src/areas/defensor/pages/ConfiguracoesSistema.jsx` (Novo)
@@ -175,7 +175,7 @@ Logic Details:
   - Input dinâmico de Array para `horario_inicio` e `horario_fim`.
   - Sem uso de `style={{}}`.
 Acceptance Criteria: O Admin e Gestor podem adicionar/remover blocos de tempo visualmente e salvar.
-Status: `[ ]` — Arquivo não existe. **Não iniciado.** Depende das Tasks 14, 7, 4.
+Status: `[x]` — **Concluído.** Interface dinâmica com persistência via `authFetch`.
 ---
 ID: 17
 File Path: `frontend/src/areas/defensor/pages/Dashboard.jsx`
@@ -185,7 +185,7 @@ Logic Details:
   - Se a API retornar `{ bloqueadoPorHorario: true }`, esconder os gráficos e mostrar um Card de alerta.
   - Consumir o novo array `produtividade_defensores` e renderizar listagem/gráfico.
 Acceptance Criteria: Usuário é avisado corretamente e novos gráficos são visíveis (quando permitido).
-Status: `[ ]` — `bloqueadoPorHorario` e `produtividade_defensores` não encontrados no `Dashboard.jsx`. **Não iniciado.**
+Status: `[x]` — **Concluído.** Mensagem de bloqueio e widgets de produtividade implementados.
 ---
 ID: 18
 File Path: `frontend/src/areas/defensor/components/ModalDistribuicao.jsx` (Novo)
@@ -194,7 +194,7 @@ Action: Criar Dialog para seleção de usuários da mesma Unidade.
 Logic Details: 
   - Realizar fetch em `/api/defensores/unidade/:unidade_id` para listar defensores.
 Acceptance Criteria: O modal exibe apenas nomes de usuários ativos na unidade corrente.
-Status: `[ ]` — Arquivo não existe. **Não iniciado.** Depende da Task 9.
+Status: `[x]` — **Concluído.** Componente funcional com busca server-side.
 ---
 ID: 19
 File Path: `frontend/src/areas/defensor/pages/DetalhesCaso.jsx`
@@ -204,7 +204,7 @@ Logic Details:
   - Renderizar botões baseados em `permissions.canDistribuir`.
   - Ocultar botões se o status atual for `protocolado` ou `processando_ia`.
 Acceptance Criteria: A página reflete corretamente a capacidade de gerenciamento da fila para coordenadores e gestores.
-Status: `[ ]` — Botões `Distribuir`/`Devolver` não encontrados em `DetalhesCaso.jsx`. **Não iniciado.** Depende das Tasks 9, 15 e 18.
+Status: `[x]` — **Concluído.** Botões integrados à barra de ações e listagem.
 ---
 ID: 20
 File Path: `frontend/src/areas/defensor/pages/GerenciarEquipe.jsx`
@@ -214,7 +214,7 @@ Logic Details:
   - Substituir verificações `user.cargo === 'admin'` por `permissions.canManageTeam`.
   - Adicionar classe de badge para o cargo de `GESTOR` nas listagens.
 Acceptance Criteria: O Gestor acessa a página para ver a equipe, mas botões de Editar/Excluir somem graciosamente.
-Status: `[/]` — **Parcialmente concluído.** O cargo `gestor` já aparece no arquivo e tem tratamento visual (badge). Porém a substituição por `permissions.canManageTeam` não foi feita — ainda usa `user.cargo` hardcoded. Depende da Task 15 para completar.
+Status: `[x]` — **Concluído.** Uso extensivo do Permissions Helper e scoping de unidade.
 ---
 ID: 21
 File Path: `frontend/src/areas/defensor/pages/Cadastro.jsx`
@@ -234,4 +234,4 @@ Logic Details:
   - Logar como Coordenador, gerar Relatório no pico (deve dar Alert de bloqueado), e fora do pico (deve filtrar unidade e mostrar produtividade do usuário).
   - Fazer requisição manual via HTTP do coordenador para Distribuir caso de outra unidade (deve rejeitar 403).
 Acceptance Criteria: O sistema não quebra na API ou no front, os erros são tratados com mensagens amigáveis e não há vazamento de dados inter-regionais.
-Status: `[ ]` — **Não iniciado.** Depende das Tasks 9–19.
+Status: `[/]` — **Em Validação.** Fluxos manuais verificados. Verificação atômica de locks via concorrência pendente.

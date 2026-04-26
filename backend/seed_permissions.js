@@ -1,10 +1,9 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+import { prisma } from "./src/config/prisma.js";
 
 async function main() {
-  console.log("Semeando permissoes básicas...");
+  console.log("🌱 Semeando permissões básicas e configurações...");
 
-  // Permissões
+  // 1. Permissões
   const permissoesObj = [
     { chave: "atender_caso", descricao: "Pode atender e assumir casos" },
     { chave: "protocolar_caso", descricao: "Pode protocolar casos no SOLAR" },
@@ -21,8 +20,8 @@ async function main() {
 
   const permissoesDB = await prisma.permissoes.findMany();
 
-  // Cargos
-  const cargosPadrao = ["admin", "coordenador", "defensor", "servidor", "estagiario", "visualizador"];
+  // 2. Cargos
+  const cargosPadrao = ["admin", "gestor", "coordenador", "defensor", "servidor", "estagiario", "visualizador"];
   
   for (const cargoNome of cargosPadrao) {
     const cargo = await prisma.cargos.upsert({
@@ -33,8 +32,9 @@ async function main() {
 
     // Vincular Permissões
     for (const perm of permissoesDB) {
+      // Regras de vinculação
       if ((cargoNome === "servidor" || cargoNome === "estagiario" || cargoNome === "visualizador") && perm.chave === "protocolar_caso") continue;
-      if ((cargoNome === "defensor" || cargoNome === "coordenador" || cargoNome === "servidor" || cargoNome === "estagiario" || cargoNome === "visualizador") && perm.chave === "gerenciar_equipe") continue;
+      if ((cargoNome === "gestor" || cargoNome === "defensor" || cargoNome === "coordenador" || cargoNome === "servidor" || cargoNome === "estagiario" || cargoNome === "visualizador") && perm.chave === "gerenciar_equipe") continue;
       if (cargoNome === "visualizador" && perm.chave === "atender_caso") continue;
       
       await prisma.cargo_permissoes.upsert({
@@ -47,12 +47,35 @@ async function main() {
     }
   }
 
-  console.log("Permissões e relacional cargo_permissoes atualizados com sucesso!");
+  // 3. Configurações do Sistema (BI)
+  console.log("📊 Semeando configurações do sistema...");
+  
+  await prisma.configuracoes_sistema.upsert({
+    where: { chave: 'bi_horarios' },
+    update: {},
+    create: {
+      chave: 'bi_horarios',
+      valor: JSON.stringify([{ inicio: '07:00', fim: '09:00' }, { inicio: '17:00', fim: '23:59' }]),
+      descricao: 'Janelas de horário permitidas para gerar relatórios de BI',
+    },
+  });
+
+  await prisma.configuracoes_sistema.upsert({
+    where: { chave: 'bi_timezone' },
+    update: {},
+    create: { 
+      chave: 'bi_timezone', 
+      valor: 'America/Bahia', 
+      descricao: 'Timezone do BI' 
+    },
+  });
+
+  console.log("✅ Permissões, cargos e configurações atualizados com sucesso!");
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error("❌ Erro no seed:", e);
     process.exit(1);
   })
   .finally(async () => {

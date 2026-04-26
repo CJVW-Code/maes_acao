@@ -99,9 +99,10 @@ export const lockCaso = async (req, res) => {
 export const unlockCaso = async (req, res) => {
   const { id } = req.params;
   const userCargo = req.user.cargo.toLowerCase();
-  const hasPowerToUnlock = ["admin", "gestor", "coordenador"].includes(userCargo);
+  const isAdminOrGestor = ["admin", "gestor"].includes(userCargo);
+  const isCoordenador = userCargo === "coordenador";
 
-  if (!hasPowerToUnlock) {
+  if (!isAdminOrGestor && !isCoordenador) {
     return res.status(403).json({ 
       error: "Acesso negado", 
       message: "Apenas administradores, gestores ou coordenadores podem liberar casos bloqueados." 
@@ -110,10 +111,22 @@ export const unlockCaso = async (req, res) => {
 
   try {
     const caso = await prisma.casos.findUnique({
-      where: { id: BigInt(id) }
+      where: { id: BigInt(id) },
+      select: { id: true, status: true }
     });
 
     if (!caso) return res.status(404).json({ error: "Caso não encontrado." });
+
+    // Regras específicas para Coordenador
+    if (isCoordenador) {
+      const statusBloqueados = ["protocolado", "processando_ia"];
+      if (statusBloqueados.includes(caso.status)) {
+        return res.status(409).json({
+          error: "Conflito de Operação",
+          message: `Coordenadores não podem destravar casos com status '${caso.status}'.`
+        });
+      }
+    }
 
     await prisma.casos.update({
       where: { id: BigInt(id) },
@@ -125,9 +138,9 @@ export const unlockCaso = async (req, res) => {
       }
     });
 
-    logger.info(`[Lock Released] Administrador ${req.user.id} liberou o caso ${id}`);
+    logger.info(`[Lock Released] Usuário ${req.user.id} (${userCargo}) liberou o caso ${id}`);
 
-    res.status(200).json({ message: "Caso liberado com sucesso pelo administrador." });
+    res.status(200).json({ message: `Caso liberado com sucesso pelo ${userCargo}.` });
   } catch (error) {
     logger.error(`Erro ao destravar caso ${id}: ${error.message}`);
     res.status(500).json({ error: "Erro ao realizar liberação." });

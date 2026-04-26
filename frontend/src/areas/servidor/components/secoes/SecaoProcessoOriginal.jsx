@@ -247,14 +247,14 @@ export const SecaoProcessoOriginal = ({
             htmlFor="link_calculadora"
             className="label font-bold flex items-center justify-between"
           >
-            <span>Link da Calculadora (Opcional)</span>
+            <span>Link da Calculadora</span>
             <a
-              href="https://drcalc.net/calculos/pensao-alimenticia"
+              href="https://solar.defensoria.ba.def.br/calcjur/calcjur/"
               target="_blank"
               rel="noreferrer"
               className="text-xs text-blue-600 hover:underline"
             >
-              Abrir Dr. Calc
+              Abrir Calculadora
             </a>
           </label>
         </div>

@@ -11,6 +11,7 @@ import {
   buscarPorCpf,
   resetarChaveAcesso,
   atualizarStatusCaso,
+  distribuirCaso,
   deletarCaso,
   gerarTermoDeclaracao,
   regerarMinuta,
@@ -99,6 +100,7 @@ router.patch("/:id/juridico", salvarDadosJuridicos);
 router.post("/:id/solicitar-assistencia", solicitarAssistencia);
 router.post("/assistencia/:assistencia_id/responder", responderAssistencia); // assistencia_id não é id, não dispara requireSameUnit
 router.get("/:id/historico", obterHistoricoCaso);
+router.post("/:id/distribuir", distribuirCaso);
 
 // Rotas de Locking
 router.patch("/:id/lock", lockCaso);

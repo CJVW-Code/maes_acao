@@ -2,6 +2,65 @@ import ExcelJS from "exceljs";
 import { prisma } from "../config/prisma.js";
 import { supabase, isSupabaseConfigured } from "../config/supabase.js";
 import logger from "../utils/logger.js";
+import { getConfiguracoes } from "../utils/configCache.js";
+
+/**
+ * Verifica se o acesso ao BI está liberado no horário atual.
+ * Admins e Gestores possuem bypass.
+ */
+/**
+ * Verifica se o acesso ao BI está liberado no horário atual.
+ * Admins e Gestores possuem bypass.
+ */
+const verificarBloqueioHorario = async (user) => {
+  if (["admin", "gestor"].includes(user.cargo.toLowerCase())) return { bloqueado: false };
+
+  const configs = await getConfiguracoes();
+  const biHorarios = JSON.parse(configs.bi_horarios || "[]");
+  const timezone = configs.bi_timezone || "America/Bahia";
+  const liberadoAte = configs.bi_liberado_ate ? new Date(configs.bi_liberado_ate) : null;
+
+  // 1. Verifica Bypass Temporário (Liberar Agora)
+  if (liberadoAte && new Date() < liberadoAte) {
+    return { bloqueado: false };
+  }
+
+  if (biHorarios.length === 0) return { bloqueado: false };
+
+  // 2. Obtém hora e dia atual no timezone configurado
+  const agora = new Date();
+  const formatadorHora = new Intl.DateTimeFormat("en-GB", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const formatadorDia = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: timezone,
+    weekday: "long"
+  });
+
+  const horaAtualStr = formatadorHora.format(agora); // "HH:mm"
+  const diaAtual = formatadorDia.format(agora).toLowerCase(); // "segunda-feira"
+
+  const estaNoHorario = biHorarios.some((janela) => {
+    // Se a janela especifica um dia, verifica se coincide (ou se é 'todos')
+    const diaMatch = !janela.dia || janela.dia === "todos" || diaAtual.includes(janela.dia.toLowerCase());
+    const horaMatch = horaAtualStr >= janela.inicio && horaAtualStr <= janela.fim;
+    return diaMatch && horaMatch;
+  });
+
+  if (!estaNoHorario) {
+    const formatarJanelas = biHorarios.map(j => `${j.dia || 'todos'}: ${j.inicio}-${j.fim}`).join(", ");
+    return {
+      bloqueado: true,
+      mensagem: `Acesso ao BI bloqueado fora do horário permitido (${formatarJanelas}).`,
+    };
+  }
+
+  return { bloqueado: false };
+};
+
 
 const DEFAULT_TOP_N = 10;
 const PAGE_SIZE = 1000;
@@ -201,11 +260,17 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
   const { range, periodo, warning } = buildDateRange(body);
   const topN = body.topN ?? DEFAULT_TOP_N;
   const requestedUnidade = body.unidade_id || "todas";
-  const unidadeId = user.cargo === "admin" ? requestedUnidade : user.unidade_id;
+  
+  // Escopo de Unidade por Cargo
+  // Admin e Gestor: Podem ver todas ou uma específica.
+  // Coordenador: Sempre restrito à sua própria unidade.
+  const userCargo = user.cargo.toLowerCase();
+  const isAdminOrGestor = ["admin", "gestor"].includes(userCargo);
+  const unidadeId = isAdminOrGestor ? requestedUnidade : user.unidade_id;
 
   const unidadeValida = await validateUnidade(unidadeId);
   if (unidadeId !== "todas" && !unidadeValida) {
-    const error = new Error("Unidade invalida ou inativa.");
+    const error = new Error("Unidade inválida ou inativa.");
     error.statusCode = 400;
     throw error;
   }
@@ -222,6 +287,13 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
 
   const tempoMedioIa = calcularTempoMedioIa(rows, range);
   const unidadeNomeById = new Map(unidades.map((unidade) => [unidade.id, unidade.nome]));
+  
+  // Busca nomes de todos os defensores/servidores para o ranking de produtividade
+  const defensoresDB = await prisma.defensores.findMany({
+    select: { id: true, nome: true }
+  });
+  const usuarioNomeById = new Map(defensoresDB.map(u => [u.id, u.nome]));
+
   const ativos = rows.filter((row) => row.arquivado === false && filterByDate(row, "created_at", range));
   const arquivados = rows.filter((row) => row.arquivado === true && filterByDate(row, "updated_at", range));
   const protocolosNoPeriodo = rows.filter((row) => row.status === "protocolado" && filterByDate(row, "protocolado_at", range));
@@ -233,22 +305,35 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
   const protocoloDiaMap = new Map();
   const arquivadosMotivoMap = new Map();
   const arquivadosTipoMap = new Map();
+  
+  // Métrica de Produtividade: Agrupamento por Defensor/Servidor
+  const produtividadeMap = new Map();
 
   ativos.forEach((row) => {
     increment(porStatusMap, row.status);
     increment(porTipoMap, row.tipo_acao);
     increment(triagemDiaMap, toDateOnly(row.created_at));
+    
+    // Contabiliza quem está com o caso "em atendimento" (Servidor)
+    if (row.servidor_id) {
+      increment(produtividadeMap, row.servidor_id);
+    }
   });
 
   protocolosNoPeriodo.forEach((row) => {
     increment(rankingMap, row.unidade_id);
     increment(protocoloDiaMap, toDateOnly(row.protocolado_at));
+    
+    // Contabiliza quem protocolou (Defensor)
+    if (row.defensor_id) {
+      increment(produtividadeMap, row.defensor_id);
+    }
   });
 
   arquivados.forEach((row) => {
     increment(
       arquivadosMotivoMap,
-      ARCHIVE_REASON_LABELS[row.motivo_arquivamento] || row.motivo_arquivamento || "Motivo nao registrado",
+      ARCHIVE_REASON_LABELS[row.motivo_arquivamento] || row.motivo_arquivamento || "Motivo não registrado",
     );
     increment(arquivadosTipoMap, row.tipo_acao);
   });
@@ -262,7 +347,12 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
 
   const rankingUnidades = applyTopN(mapToSortedArray(rankingMap, "unidade_id"), topN).map((item) => ({
     ...item,
-    unidade: unidadeNomeById.get(item.unidade_id) || "Unidade nao identificada",
+    unidade: unidadeNomeById.get(item.unidade_id) || "Unidade não identificada",
+  }));
+
+  const produtividadeDefensores = applyTopN(mapToSortedArray(produtividadeMap, "usuario_id"), topN).map((item) => ({
+    ...item,
+    nome: usuarioNomeById.get(item.usuario_id) || "Usuário não identificado",
   }));
 
   const porStatus = mapToSortedArray(porStatusMap, "status");
@@ -293,6 +383,7 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
     },
     throughput,
     ranking_unidades: rankingUnidades,
+    produtividade_defensores: produtividadeDefensores,
     arquivados: {
       total: arquivados.length,
       por_motivo: mapToSortedArray(arquivadosMotivoMap, "motivo"),
@@ -374,6 +465,11 @@ const preencherWorkbook = (workbook, relatorio, widgets = DEFAULT_WIDGETS) => {
 
 export const gerarRelatorio = async (req, res) => {
   try {
+    const bloqueio = await verificarBloqueioHorario(req.user);
+    if (bloqueio.bloqueado) {
+      return res.status(200).json({ bloqueadoPorHorario: true, mensagem: bloqueio.mensagem });
+    }
+
     const relatorio = await montarRelatorio(req.body, req.user);
     res.status(200).json(relatorio);
   } catch (error) {
@@ -384,6 +480,11 @@ export const gerarRelatorio = async (req, res) => {
 
 export const exportarXlsx = async (req, res) => {
   try {
+    const bloqueio = await verificarBloqueioHorario(req.user);
+    if (bloqueio.bloqueado) {
+      return res.status(200).json({ bloqueadoPorHorario: true, mensagem: bloqueio.mensagem });
+    }
+
     const relatorio = await montarRelatorio(req.body, req.user);
     const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: res });
     const filename = `bi-${new Date().toISOString().slice(0, 10)}.xlsx`;
