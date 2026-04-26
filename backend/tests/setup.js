@@ -26,8 +26,3 @@ jest.unstable_mockModule("../src/config/supabase.js", () => ({
   __esModule: true
 }));
 
-jest.unstable_mockModule("../src/services/aiService.js", () => ({
-  generateLegalText: jest.fn().mockResolvedValue("Texto IA (Setup Mock)"),
-  visionOCR: jest.fn().mockResolvedValue("Texto OCR (Setup Mock)"),
-  __esModule: true
-}));

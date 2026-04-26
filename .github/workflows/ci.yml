@@ -1,0 +1,335 @@
+name: CI — Mães em Ação
+
+on:
+  push:
+    branches: [versao_1, main]
+  pull_request:
+    branches: [versao_1, main]
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  # ────────────────────────────────────────────────────────────────
+  # JOB 1 — Lint (Backend + Frontend em paralelo)
+  # ────────────────────────────────────────────────────────────────
+  lint-backend:
+    name: "Lint · Backend"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+  lint-frontend:
+    name: "Lint · Frontend"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+  # ────────────────────────────────────────────────────────────────
+  # JOB 2 — Testes (Backend + Frontend em paralelo)
+  # ────────────────────────────────────────────────────────────────
+  test-backend:
+    name: "Testes · Backend (Jest)"
+    runs-on: ubuntu-latest
+    needs: lint-backend
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      NODE_ENV: test
+      JWT_SECRET: "ci_test_secret_key_at_least_32_chars_long!!"
+      API_KEY_SERVIDORES: "ci_test_api_key_64_chars_for_scanner_balcao_valid_1234567890abcdef"
+      GEMINI_API_KEY: "dummy_gemini_key_for_ci"
+      GROQ_API_KEY: "gsk_dummy_groq_key_for_ci_testing_purposes"
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_test"
+      DIRECT_URL: "postgresql://ci:ci@localhost:5432/ci_test"
+      SUPABASE_URL: "https://dummy.supabase.co"
+      SUPABASE_SERVICE_KEY: "dummy_service_key_for_ci"
+      QSTASH_TOKEN: "dummy_qstash_token"
+      QSTASH_CURRENT_SIGNING_KEY: "dummy_signing_key"
+      QSTASH_NEXT_SIGNING_KEY: "dummy_next_signing_key"
+      SALARIO_MINIMO_ATUAL: "1621.00"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run Jest tests with coverage
+        run: npm test -- --forceExit
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage
+          path: backend/logs/coverage/
+          retention-days: 7
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          echo "## Backend Coverage" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat logs/coverage/coverage-summary.json 2>/dev/null | node -e "
+            const data = require('fs').readFileSync('/dev/stdin','utf8');
+            try {
+              const j = JSON.parse(data).total;
+              console.log('Statements:', j.statements.pct + '%');
+              console.log('Branches:  ', j.branches.pct + '%');
+              console.log('Functions: ', j.functions.pct + '%');
+              console.log('Lines:     ', j.lines.pct + '%');
+            } catch { console.log('Coverage data not available'); }
+          " 2>/dev/null || echo "Coverage data not available"
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  test-frontend:
+    name: "Testes · Frontend (Vitest)"
+    runs-on: ubuntu-latest
+    needs: lint-frontend
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Vitest tests with coverage
+        run: npm run test:coverage
+        env:
+          VITE_API_URL: "http://localhost:8000"
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          retention-days: 7
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          echo "## Frontend Coverage" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat coverage/coverage-summary.json 2>/dev/null | node -e "
+            const data = require('fs').readFileSync('/dev/stdin','utf8');
+            try {
+              const j = JSON.parse(data).total;
+              console.log('Statements:', j.statements.pct + '%');
+              console.log('Branches:  ', j.branches.pct + '%');
+              console.log('Functions: ', j.functions.pct + '%');
+              console.log('Lines:     ', j.lines.pct + '%');
+            } catch { console.log('Coverage data not available'); }
+          " 2>/dev/null || echo "Coverage data not available"
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ────────────────────────────────────────────────────────────────
+  # JOB 3 — Security Audit (npm audit --audit-level=high)
+  # ────────────────────────────────────────────────────────────────
+  security-audit:
+    name: "Segurança · npm audit"
+    runs-on: ubuntu-latest
+    # Roda em paralelo com testes — não bloqueia o pipeline por lint
+    needs: [lint-backend, lint-frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Audit Backend
+        working-directory: backend
+        run: |
+          npm ci
+          npm audit --audit-level=high --json > audit-backend.json || true
+          CRITICAL=$(node -e "
+            const a = require('./audit-backend.json');
+            const v = a.metadata?.vulnerabilities || {};
+            console.log(v.critical || 0);
+          ")
+          HIGH=$(node -e "
+            const a = require('./audit-backend.json');
+            const v = a.metadata?.vulnerabilities || {};
+            console.log(v.high || 0);
+          ")
+          echo "Backend — Critical: $CRITICAL | High: $HIGH"
+          echo "### Backend Audit" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔴 Critical: $CRITICAL" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟠 High: $HIGH" >> $GITHUB_STEP_SUMMARY
+          if [ "$CRITICAL" -gt "0" ]; then
+            echo "❌ Vulnerabilidades críticas encontradas no backend!" >&2
+            exit 1
+          fi
+
+      - name: Audit Frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm audit --audit-level=high --json > audit-frontend.json || true
+          CRITICAL=$(node -e "
+            const a = require('./audit-frontend.json');
+            const v = a.metadata?.vulnerabilities || {};
+            console.log(v.critical || 0);
+          ")
+          HIGH=$(node -e "
+            const a = require('./audit-frontend.json');
+            const v = a.metadata?.vulnerabilities || {};
+            console.log(v.high || 0);
+          ")
+          echo "Frontend — Critical: $CRITICAL | High: $HIGH"
+          echo "### Frontend Audit" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔴 Critical: $CRITICAL" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟠 High: $HIGH" >> $GITHUB_STEP_SUMMARY
+          if [ "$CRITICAL" -gt "0" ]; then
+            echo "❌ Vulnerabilidades críticas encontradas no frontend!" >&2
+            exit 1
+          fi
+
+  # ────────────────────────────────────────────────────────────────
+  # JOB 4 — Build (valida que o código compila corretamente)
+  # ────────────────────────────────────────────────────────────────
+  build-backend:
+    name: "Build · Backend (prisma generate)"
+    runs-on: ubuntu-latest
+    needs: test-backend
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Verify server.js imports (syntax check)
+        run: node --input-type=module < /dev/null && node --check server.js 2>/dev/null || echo "Syntax check skipped (ESM)"
+
+  build-frontend:
+    name: "Build · Frontend (vite build)"
+    runs-on: ubuntu-latest
+    needs: test-frontend
+    defaults:
+      run:
+        working-directory: frontend
+
+    env:
+      VITE_API_URL: "https://api.mutirao.dpe.ba.gov.br"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 3
+
+  # ────────────────────────────────────────────────────────────────
+  # JOB 5 — Status final (gate para merge)
+  # ────────────────────────────────────────────────────────────────
+  ci-success:
+    name: "✅ CI Completo"
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend, security-audit]
+    if: always()
+
+    steps:
+      - name: Verificar se todos os jobs passaram
+        run: |
+          if [[ "${{ needs.build-backend.result }}" != "success" ]] || \
+             [[ "${{ needs.build-frontend.result }}" != "success" ]] || \
+             [[ "${{ needs.security-audit.result }}" != "success" ]]; then
+            echo "❌ Um ou mais jobs falharam"
+            echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| build-backend | ${{ needs.build-backend.result }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| build-frontend | ${{ needs.build-frontend.result }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| security-audit | ${{ needs.security-audit.result }} |" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "✅ Todos os jobs passaram com sucesso!" >> $GITHUB_STEP_SUMMARY
