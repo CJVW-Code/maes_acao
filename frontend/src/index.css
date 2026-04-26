@@ -413,4 +413,30 @@
   .icon-badge-shared {
     @apply absolute -top-1 -right-1 bg-highlight text-white p-1 rounded-full border-2 border-white dark:border-surface;
   }
+
+  /* BI & RELATORIOS V4.0 */
+  .bi-management-widget {
+    @apply bg-surface border border-soft rounded-3xl p-6 shadow-sm hover:shadow-md transition-all duration-300;
+    @apply border-l-4 border-l-primary/40;
+  }
+
+  .bi-user-rank-item {
+    @apply flex items-center justify-between p-4 mb-3 rounded-2xl border border-soft/50 transition-all;
+    @apply bg-app/30 hover:bg-app/50 hover:translate-x-1;
+  }
+
+  .bi-stat-badge-premium {
+    @apply px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm;
+    @apply bg-primary/10 text-primary border border-primary/20;
+  }
+
+  .bi-stat-badge-highlight {
+    @apply px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm;
+    @apply bg-highlight/10 text-highlight border border-highlight/20;
+  }
+
+  .bi-rank-number {
+    @apply w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold;
+    @apply bg-primary/10 text-primary shadow-inner;
+  }
 }

@@ -21,6 +21,8 @@ const defaultPrefs = {
     throughputLine: true,
     rankingUnidades: true,
     arquivados: true,
+    produtividade: true,
+    acoesGestao: true,
   },
 };
 
@@ -71,8 +73,8 @@ const sanitizePdfClone = (documentClone) => {
   });
 };
 
-const DATA_CACHE_KEY = "bi_data_cache_v1";
-const FILTROS_CACHE_KEY = "bi_filtros_cache_v1";
+const DATA_CACHE_KEY = "bi_data_cache_v2";
+const FILTROS_CACHE_KEY = "bi_filtros_cache_v2";
 
 const loadDataCache = () => {
   try {
@@ -128,7 +130,10 @@ export const useBiData = () => {
         body: JSON.stringify(payload()),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Falha ao gerar relatorio.");
+      if (!response.ok) {
+        const msg = result.details ? `${result.error} (${result.details})` : (result.error || "Falha ao gerar relatorio.");
+        throw new Error(msg);
+      }
       setData(result);
       return result;
     } catch (err) {

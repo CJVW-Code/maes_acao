@@ -10,7 +10,7 @@ Este documento contém a compilaçío de todas as referências de arquitetura, r
 
 # Arquitetura do Sistema — Míes em Açío · DPE-BA
 
-> **Versão:** 4.2 · **Atualizado em:** 2026-04-26 (Hardening de Segurança + Assistência Compartilhada)
+> **Versão:** 4.3 · **Atualizado em:** 2026-04-26 (BI v4.0: Produtividade Individual + Ações de Gestão)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
@@ -5748,3 +5748,34 @@ Executar primeiro em homologacao com massa controlada e observabilidade ligada. 
 ## Atualização Rápida (2026-04-24)
 - Adicionado slot 'Cópia da sentença de decisão ou acordo _ titulo executivo' na ação 'execucao_alimentos' (DocumentUpload.jsx).
 - Adicionada opção 'Tít. Executivo' no ScannerBalcao.jsx.
+
+## 15. Arquitetura de BI e Performance v4.0
+
+### 15.1 Estratégia de Agregação
+Para suportar mutirões de larga escala (35-52 sedes), o sistema de BI v4.0 prioriza a agregação no nível do banco de dados (PostgreSQL/Prisma) em vez do processamento em memória no Node.js.
+- **Consultas**: Uso de `Prisma.groupBy` para produtividade de defensores (protocolos) e servidores (atendimentos).
+- **Auditoria**: Ações de gestão são extraídas da tabela `logs_auditoria`, permitindo rastreabilidade completa sem impactar a performance da tabela principal de `casos`.
+
+### 15.2 Segurança e LGPD
+- **Sanitização de PII**: Todos os endpoints de BI passam por uma camada de expurgo que remove dados sensíveis (CPF, RG, nomes de assistidas) antes de enviar o payload para o frontend.
+- **Isolamento por Unidade**: Coordenadores de unidade possuem sua visão restrita apenas aos logs e casos de sua própria sede através de filtros de `unidade_id` injetados no nvel da query.
+
+### 15.3 Mitigação de Timeouts
+- **Índices Estratégicos**: Consultas de BI utilizam índices compostos como `idx_casos_bi_unidade_status` para garantir respostas abaixo de 2 segundos.
+- **Caching**: Resultados de BI pesados (como o ranking estadual) podem ser cacheados por curtos períodos para evitar sobrecarga no banco de dados durante picos de acesso.
+
+### 15.4 Controle de Acesso e Overrides
+O acesso ao BI pode ser restrito a horários específicos via configuração (`bi_horarios`).
+- **Bypass de Cargo**: Administradores e Gestores possuem acesso irrestrito.
+- **Sistema de Overrides**: Permite a criação de janelas de liberação emergencial (`bi_overrides`) que autorizam o acesso temporário (ex: por 1 hora) para todos os usuários, útil para auditorias fora do horário comercial.
+
+
+---
+
+## Atualização Rápida (2026-04-26)
+- **BI v4.0**: Implementação de rankings de produtividade individual (Defensores vs Servidores).
+- **Ações de Gestão**: Monitoramento de redistribuições e destravamentos manuais via logs_auditoria (Prisma aggregation).
+- **Performance**: Otimização com Prisma.groupBy para evitar timeouts em mutirões de alta escala.
+- **Segurança**: Expurgo automático de PII em payloads de relatórios e isolamento de unidade para coordenadores.
+- **Bypass de BI**: Implementado sistema de "Overrides" para liberação emergencial de acesso ao BI.
+

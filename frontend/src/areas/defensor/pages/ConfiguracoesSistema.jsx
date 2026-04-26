@@ -7,9 +7,12 @@ export const ConfiguracoesSistema = () => {
   const [configs, setConfigs] = useState({
     bi_horarios: "[]",
     bi_timezone: "America/Bahia",
+    bi_bloqueado: "false",
   });
   const [horarios, setHorarios] = useState([]);
+  const [overrides, setOverrides] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingOverrides, setLoadingOverrides] = useState(false);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
@@ -24,6 +27,7 @@ export const ConfiguracoesSistema = () => {
         setConfigs({
           bi_horarios: configMap.bi_horarios || "[]",
           bi_timezone: configMap.bi_timezone || "America/Bahia",
+          bi_bloqueado: configMap.bi_bloqueado || "false",
         });
         setHorarios(JSON.parse(configMap.bi_horarios || "[]"));
       }
@@ -34,9 +38,25 @@ export const ConfiguracoesSistema = () => {
     }
   }, [toast]);
 
+  const fetchOverrides = useCallback(async () => {
+    setLoadingOverrides(true);
+    try {
+      const response = await authFetch("/bi/overrides");
+      if (response.ok) {
+        const data = await response.json();
+        setOverrides(data);
+      }
+    } catch {
+      // Silently fail or log
+    } finally {
+      setLoadingOverrides(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchConfigs();
-  }, [fetchConfigs]);
+    fetchOverrides();
+  }, [fetchConfigs, fetchOverrides]);
 
   const handleAddHorario = () => {
     setHorarios([...horarios, { dia: "todos", inicio: "08:00", fim: "18:00" }]);
@@ -53,25 +73,38 @@ export const ConfiguracoesSistema = () => {
   };
 
   const handleLiberarAgora = async () => {
-    const umaHoraDepois = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     setSaving(true);
     try {
-      const response = await authFetch("/config", {
-        method: "PUT",
+      const response = await authFetch("/bi/overrides", {
+        method: "POST",
         body: JSON.stringify({
-          configs: {
-            bi_liberado_ate: umaHoraDepois
-          }
+          horas: 1,
+          motivo: "Liberação manual via Painel de Configurações"
         }),
       });
 
       if (response.ok) {
         toast.success("BI liberado por 1 hora!");
+        fetchOverrides();
       }
     } catch {
       toast.error("Erro ao liberar acesso.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRemoveOverride = async (id) => {
+    try {
+      const response = await authFetch(`/bi/overrides/${id}`, {
+        method: "DELETE"
+      });
+      if (response.ok) {
+        toast.success("Registro de horário removido.");
+        fetchOverrides();
+      }
+    } catch {
+      toast.error("Erro ao remover registro.");
     }
   };
 
@@ -144,80 +177,134 @@ export const ConfiguracoesSistema = () => {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                Restrição de Horário (BI)
+                Governança do BI
               </h2>
               <p className="text-sm text-gray-500">
-                Defina janelas em que os relatórios estarão acessíveis.
+                Bloqueio manual e janelas de acesso.
               </p>
             </div>
-            <button
-              onClick={handleAddHorario}
-              className="flex items-center gap-2 px-4 py-2 bg-primary/5 text-primary hover:bg-primary/10 rounded-xl transition-colors font-medium"
-            >
-              <Plus size={18} /> Adicionar Janela
-            </button>
           </div>
 
-          <div className="space-y-4">
-            {horarios.length === 0 ? (
-              <div className="text-center py-8 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 text-gray-400">
-                Nenhum horário configurado. O acesso será livre 24/7.
-              </div>
-            ) : (
-              horarios.map((h, index) => (
-                <div 
-                  key={index} 
-                  className="flex flex-col md:flex-row items-center gap-4 p-5 bg-gray-50 rounded-2xl border border-gray-200 group hover:border-primary/30 transition-all"
-                >
-                  <div className="w-full md:w-48 space-y-1">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Dia</label>
-                    <select
-                      value={h.dia || "todos"}
-                      onChange={(e) => handleUpdateHorario(index, "dia", e.target.value)}
-                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                    >
-                      {diasSemana.map(d => (
-                        <option key={d.value} value={d.value}>{d.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="flex-1 grid grid-cols-2 gap-4 w-full">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Início</label>
-                      <input
-                        type="time"
-                        value={h.inicio}
-                        onChange={(e) => handleUpdateHorario(index, "inicio", e.target.value)}
-                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Fim</label>
-                      <input
-                        type="time"
-                        value={h.fim}
-                        onChange={(e) => handleUpdateHorario(index, "fim", e.target.value)}
-                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleRemoveHorario(index);
-                      toast.info("Horário removido da lista. Salve para persistir.");
-                    }}
-                    className="p-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                    title="Remover horário"
-                  >
-                    <Trash2 size={20} />
-                  </button>
+          <div className="space-y-6">
+            {/* Bloqueio Manual */}
+            <div className="flex items-center justify-between p-5 bg-amber-50 rounded-2xl border border-amber-100">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${configs.bi_bloqueado === "true" ? "bg-amber-500 text-white" : "bg-white text-amber-500 border border-amber-200"}`}>
+                  <Save size={20} />
                 </div>
-              ))
-            )}
+                <div>
+                  <h3 className="font-bold text-amber-900">Bloqueio Manual Global</h3>
+                  <p className="text-xs text-amber-700">Quando ativo, ignora todos os horários e bloqueia o BI para todos exceto Admins.</p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="sr-only peer" 
+                  checked={configs.bi_bloqueado === "true"}
+                  onChange={(e) => setConfigs({ ...configs, bi_bloqueado: e.target.checked ? "true" : "false" })}
+                />
+                <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-amber-500"></div>
+              </label>
+            </div>
+
+            {/* Registro de Horários (Overrides) */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                <Clock size={14} /> Registro de Horários (Liberados)
+              </h3>
+              
+              <div className="grid gap-3">
+                {overrides.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic">Nenhum registro de liberação temporária ativo.</p>
+                ) : (
+                  overrides.map(ov => (
+                    <div key={ov.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-gray-800">{ov.usuario}</span>
+                          <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold uppercase">Ativo</span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Válido até: {new Date(ov.fim).toLocaleString("pt-BR")}
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => handleRemoveOverride(ov.id)}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                        title="Remover liberação"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <hr className="border-gray-100" />
+
+            {/* Janelas de Horário */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Janelas de Horário Padrão</h3>
+                <button
+                  onClick={handleAddHorario}
+                  className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+                >
+                  <Plus size={14} /> Adicionar Janela
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {horarios.length === 0 ? (
+                  <div className="text-center py-6 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 text-gray-400 text-sm">
+                    Acesso livre 24/7 (sem restrições).
+                  </div>
+                ) : (
+                  horarios.map((h, index) => (
+                    <div 
+                      key={index} 
+                      className="flex flex-col md:flex-row items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200"
+                    >
+                      <select
+                        value={h.dia || "todos"}
+                        onChange={(e) => handleUpdateHorario(index, "dia", e.target.value)}
+                        className="w-full md:w-40 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none"
+                      >
+                        {diasSemana.map(d => (
+                          <option key={d.value} value={d.value}>{d.label}</option>
+                        ))}
+                      </select>
+
+                      <div className="flex items-center gap-2 flex-1">
+                        <input
+                          type="time"
+                          value={h.inicio}
+                          onChange={(e) => handleUpdateHorario(index, "inicio", e.target.value)}
+                          className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none"
+                        />
+                        <span className="text-gray-400 text-xs">até</span>
+                        <input
+                          type="time"
+                          value={h.fim}
+                          onChange={(e) => handleUpdateHorario(index, "fim", e.target.value)}
+                          className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveHorario(index)}
+                        className="p-2 text-gray-400 hover:text-red-500 transition-all"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         </section>
 

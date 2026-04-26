@@ -138,6 +138,16 @@ export const unlockCaso = async (req, res) => {
       }
     });
 
+    // Registra auditoria para o BI
+    await prisma.logs_auditoria.create({
+      data: {
+        usuario_id: req.user.id,
+        caso_id: BigInt(id),
+        acao: isAdminOrGestor ? "lock_removido_admin" : "lock_removido_coordenador",
+        detalhes: { cargo: userCargo, acao: "unlock_manual" }
+      }
+    });
+
     logger.info(`[Lock Released] Usuário ${req.user.id} (${userCargo}) liberou o caso ${id}`);
 
     res.status(200).json({ message: `Caso liberado com sucesso pelo ${userCargo}.` });
