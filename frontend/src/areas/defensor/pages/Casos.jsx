@@ -42,7 +42,10 @@ const normalizeStatus = (value) => (value || "recebido").toLowerCase();
 export const Casos = () => {
   const [busca, setBusca] = useState("");
   const [statusFiltro, setStatusFiltro] = useState("todos");
+  const [unidadeFiltro, setUnidadeFiltro] = useState("todas");
   const { token, user } = useAuth();
+
+  const isAdminOrGestor = user && ["admin", "gestor"].includes(user.cargo.toLowerCase());
 
   // 3. A mágica do SWR corrigida:
   // Passamos apenas a rota '/casos', pois o authFetch já completa a URL base internamente
@@ -55,6 +58,13 @@ export const Casos = () => {
     dedupingInterval: 600000,
   });
 
+  // Busca lista de unidades para o filtro (apenas admin/gestor)
+  const { data: unidades } = useSWR(
+    token && isAdminOrGestor ? ["/unidades", token] : null,
+    ([url]) => fetcher(url),
+    { dedupingInterval: 600000 }
+  );
+
   // Filtro de busca e status
   const casosFiltrados = (casos || []).filter((caso) => {
     const termo = busca.toLowerCase();
@@ -65,8 +75,9 @@ export const Casos = () => {
       (caso.numero_solar && String(caso.numero_solar).includes(termo));
     
     const matchStatus = statusFiltro === "todos" || normalizeStatus(caso.status) === statusFiltro;
+    const matchUnidade = unidadeFiltro === "todas" || String(caso.unidade_id) === unidadeFiltro;
     
-    return matchBusca && matchStatus;
+    return matchBusca && matchStatus && matchUnidade;
   });
 
   if (isLoading) {
@@ -112,6 +123,22 @@ export const Casos = () => {
 
           {/* FILTROS */}
           <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            {/* SELECT DE UNIDADE (APENAS ADMIN/GESTOR) */}
+            {isAdminOrGestor && (
+              <select
+                className="input text-sm py-2 bg-white min-w-[180px]"
+                value={unidadeFiltro}
+                onChange={(e) => setUnidadeFiltro(e.target.value)}
+              >
+                <option value="todas">Todas as Unidades</option>
+                {unidades?.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nome}
+                  </option>
+                ))}
+              </select>
+            )}
+
             {/* SELECT DE STATUS */}
             <select
               className="input text-sm py-2 bg-white"

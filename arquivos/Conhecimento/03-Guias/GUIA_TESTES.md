@@ -43,7 +43,7 @@ npm test -- tests/security/injection.test.js
 ```bash
 npm test -- tests/unit/
 npm test -- tests/middleware/
-npm test -- tests/integration`1/
+npm test -- tests/integration/
 npm test -- tests/security/
 ```
 
@@ -279,6 +279,37 @@ Executa antes de todos os testes. Define variáveis de ambiente seguras para o a
 | `X-Frame-Options` ou `CSP`            | Proteção anti-clickjacking presente                 |
 | `X-Powered-By` ausente                | Express não se expõe                                |
 | CORS bloqueia origin não autorizado   | Não vaza `Access-Control-Allow-Origin: *`           |
+| Isolamento de Unidade (IDOR)         | Middleware `requireSameUnit` bloqueia acesso a casos de outras sedes |
+
+---
+
+#### `tests/middleware/requireSameUnit.test.js` — Isolamento de Unidade
+
+**O que testa:** Proteção contra acesso a dados de outras sedes (unidades).
+
+| Teste                           | Descrição                                    |
+| ------------------------------- | -------------------------------------------- |
+| Unidade Coincidente             | Permite acesso se `unidade_id` bate          |
+| Unidade Divergente              | Retorna `403 Forbidden`                      |
+| Admin Bypass                    | Permite acesso independente da unidade       |
+| Caso Inexistente                | Retorna `404 Not Found`                      |
+| Erro de Banco                   | Retorna `500 Internal Server Error`          |
+
+---
+
+#### `tests/unit/utils.test.js` — Helpers e State Machine
+
+**O que testa:** Lógica pura de transição de status e manipulação de JSONB.
+
+| Teste                           | Descrição                                    |
+| ------------------------------- | -------------------------------------------- |
+| Transição Válida                | Valida fluxo normal (ex: análise -> atendimento) |
+| Transição Inválida              | Bloqueia saltos ilegais na máquina de estados |
+| Admin Bypass (Status)           | Permite qualquer transição para admins       |
+| `safeJsonParse`                 | Parse seguro sem quebrar o servidor          |
+| `safeFormData`                  | Higieniza dados_formulario (string/obj/null) |
+
+---
 
 ---
 
@@ -450,4 +481,4 @@ npm audit --json | node -e "..."  # para ver qual pacote
 
 ### Teste de lock retorna 500 em vez do status esperado
 
-Os testes de lock aceitam `[200, 500]` onde o 500 pode ocorrer por limitação do mock de `BigInt` do Prisma. Isso **não afeta a produção** — apenas o ambiente de teste isolado.
+Em versões anteriores do código, os testes de lock aceitavam `[200, 500]` devido à serialização imperfeita de campos `BigInt` usados pelos mocks do Prisma. Essa prática é desencorajada pois mascara falhas legítimas de servidor (500). O problema foi corrigido forçando que os ids sejam tipados via mocks fixos, permitindo que as asserções exijam precisamente os status corretos (`200`, `403` ou `423`).

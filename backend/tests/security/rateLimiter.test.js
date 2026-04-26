@@ -75,32 +75,35 @@ describe("Rate Limiter — comportamento em memória (mock req/res)", () => {
 });
 
 describe("Rate Limiter — mensagens de erro padronizadas", () => {
-  /**
-   * Verifica que as mensagens de erro são em português e corretas.
-   * Acessa a configuração interna do limiter através da propriedade message.
-   */
-
-  function getMessage(limiter) {
-    // express-rate-limit v7+ armazena em .options ou similar
-    // Tentamos acessar a mensagem de forma defensiva
-    try {
-      if (limiter._options?.message) return limiter._options.message;
-      if (limiter.message) return limiter.message;
-    } catch {
-      // Não conseguiu acessar internals
+  it("creationLimiter bloqueia após exceder o limite e retorna mensagem em português", async () => {
+    // Para evitar timeout no Jest com o globalLimiter (5000), testamos o creationLimiter (300)
+    let resBlocked;
+    const req = { ip: "10.0.0.99", method: "GET", headers: {}, socket: { remoteAddress: "10.0.0.99" }, app: { get: () => false } };
+    
+    // Rodamos chamadas até ele bloquear
+    for (let i = 0; i < 305; i++) {
+      let blocked = false;
+      await new Promise(resolve => {
+        const resLocal = { 
+          status: jest.fn().mockReturnThis(), 
+          json: jest.fn((data) => { blocked = true; resBlocked = { status: resLocal.status, json: resLocal.json, data }; resolve(); return resLocal; }), 
+          send: jest.fn((data) => { blocked = true; resBlocked = { status: resLocal.status, send: resLocal.send, data }; resolve(); return resLocal; }), 
+          end: jest.fn(() => { resolve(); return resLocal; }), 
+          set: jest.fn(), setHeader: jest.fn(), header: jest.fn(), getHeader: jest.fn() 
+        };
+        creationLimiter(req, resLocal, () => {
+          resolve(); // next() foi chamado
+        });
+      });
+      if (blocked) {
+        break;
+      }
     }
-    return null;
-  }
 
-  it("globalLimiter tem mensagem em português", () => {
-    // Criamos manualmente para verificar
-    const msg = getMessage(globalLimiter);
-    if (msg) {
-      const errorText = typeof msg === "object" ? msg.error : msg;
-      expect(errorText).toMatch(/requisições|IP|minutos/i);
-    } else {
-      // Se não conseguiu acessar a config interna, o teste passa (limitador existe)
-      expect(typeof globalLimiter).toBe("function");
-    }
+    expect(resBlocked).toBeDefined();
+    expect(resBlocked.status).toHaveBeenCalledWith(429);
+    // express-rate-limit default behavior sends a string if message is a string, or json if it's an object. We passed { error: "..." }
+    const errorMsg = resBlocked.data?.error || resBlocked.data;
+    expect(errorMsg).toMatch(/hora|limite|cadastros/i);
   });
 });

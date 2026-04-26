@@ -1,6 +1,6 @@
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 3.3 · **Atualizado em:** 2026-04-26 (RBAC Sync + Missing Roles)
+> **Versão:** 4.1 · **Atualizado em:** 2026-04-26 (RBAC Hierárquico + Cargo Gestor + Unlock Expandido)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
@@ -180,12 +180,12 @@ stateDiagram-v2
 
 ### Locking — Sessões e Concorrência
 
-- **Nível 1 (Servidor):** Bloqueia edição de dados jurídicos e relato
-- **Nível 2 (Defensor):** Bloqueia a etapa de protocolo e finalização
-- **HTTP 423 (Locked):** Retorno padrão quando outro usuário detém o lock
-- **Admin Bypass:** Administradores podem forçar destravamento via painel
+- **Nível 1 (Servidor/Estagiário/Defensor/Coordenador):** Atribuição de `servidor_id` — bloqueia edição de dados jurídicos e relato. Ativo em `pronto_para_analise` e `em_atendimento`.
+- **Nível 2 (Defensor/Coordenador/Admin):** Atribuição de `defensor_id` — bloqueia etapa de protocolo e finalização. Ativo em `liberado_para_protocolo` e `em_protocolo`. **`servidor` e `estagiario` NUNCA adquirem Nível 2.**
+- **Isolamento de Unidade:** Middleware `requireSameUnit` bloqueia IDOR. **Admin e Gestor** possuem bypass global.
+- **HTTP 423 (Locked):** Retorno padrão quando outro usuário detém o lock.
+- **Unlock Privilegiado:** Administradores, Gestores e Coordenadores podem forçar destravamento via painel.
 - **Auto-release:** Lock liberado após 30min de inatividade.
-- **Manual Unlock:** Administradores podem forçar destravamento via painel.
 
 ---
 
@@ -329,16 +329,17 @@ sequenceDiagram
 
 ### Permissões por Cargo (RBAC)
 
-| Cargo | Leitura | Escrita | Admin |
-|:------|:--------|:--------|:------|
-| `admin` | ✅ | ✅ | ✅ |
-| `coordenador` | ✅ | ✅ | ❌ |
-| `defensor` | ✅ | ✅ | ❌ |
-| `servidor` | ✅ | ✅ | ❌ |
-| `estagiario` | ✅ | ✅ | ❌ |
-| `visualizador` | ✅ | ❌ | ❌ |
+| Cargo | Leitura | Escrita | Protocolo/Finalizar | Admin/Global | Unlock |
+|:------|:--------|:--------|:--------------------|:-------------|:-------|
+| `admin` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `gestor` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `coordenador` | ✅ | ✅ | ✅ | ❌ | ✅ |
+| `defensor` | ✅ | ✅ | ✅ | ❌ | ❌ |
+| `servidor` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `estagiario` | ✅ | ✅ | ❌ | ❌ | ❌ |
 
-> **Middleware:** `requireWriteAccess` bloqueia `visualizador` de operações POST/PATCH/DELETE com HTTP 403.
+> **Middleware:** `requireWriteAccess` usa whitelist positiva: apenas `admin`, `gestor`, `coordenador`, `defensor`, `servidor`, `estagiario` passam.
+> **Isolamento de Unidade:** Middleware `requireSameUnit` bloqueia IDOR. Admins e Gestores possuem bypass global.
 
 ---
 
@@ -490,6 +491,7 @@ QSTASH_NEXT_SIGNING_KEY=...
 JWT_SECRET=64_chars_random_string
 API_KEY_SERVIDORES=64_chars_random
 SALARIO_MINIMO_ATUAL=1621.00
+ALLOWED_ORIGINS=https://maesemacao.defsulbahia.com.br,https://maes-acao.vercel.app
 
 # Frontend
 VITE_API_URL=https://api.mutirao.dpe.ba.gov.br

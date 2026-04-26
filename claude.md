@@ -10,8 +10,8 @@ Este documento contém a compilaçío de todas as referências de arquitetura, r
 
 # Arquitetura do Sistema — Míes em Açío · DPE-BA
 
-> **Versío:** 3.3 · **Atualizado em:** 2026-04-24 (RBAC Hardening + Locking Nível 2 + Execução de Alimentos + Fix busca CPF)
-> **Contexto:** Mutirío estadual da Defensoria Pública da Bahia
+> **Versão:** 4.1 · **Atualizado em:** 2026-04-26 (RBAC Hierárquico + Cargo Gestor + Unlock Expandido)
+> **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
 
@@ -159,7 +159,7 @@ graph TB
 ### Etapa 4 — Protocolo (Defensor)
 
 - Filtra casos com status `liberado_para_protocolo`
-- **Locking Nível 2:** Atribuiçío explícita (`defensor_id` + `defensor_at`)
+- **Locking Nível 2:** Atribuição de `defensor_id` — bloqueia etapa de protocolo e finalização. Ativo em `liberado_para_protocolo` e `em_protocolo`. **`servidor` e `estagiario` NUNCA adquirem Nível 2.**
 - Protocola no SOLAR ou SIGAD
 - Salva `numero_processo` + upload da capa
 - **Manual Unlock:** Botío "Liberar Caso" devolve o processo à fila global
@@ -192,8 +192,9 @@ stateDiagram-v2
 
 - **Nível 1 (Servidor/Estagiário/Defensor/Coordenador):** Atribuição de `servidor_id` — bloqueia edição de dados jurídicos e relato. Ativo em `pronto_para_analise` e `em_atendimento`.
 - **Nível 2 (Defensor/Coordenador/Admin):** Atribuição de `defensor_id` — bloqueia etapa de protocolo e finalização. Ativo em `liberado_para_protocolo` e `em_protocolo`. **`servidor` e `estagiario` NUNCA adquirem Nível 2.**
-- **HTTP 423 (Locked):** Retorno padrão quando outro usuário detém o lock (expõe apenas `nome` do holder, sem dados pessoais)
-- **Admin Bypass:** Administradores podem forçar destravamento via painel
+- **Isolamento de Unidade:** Middleware `requireSameUnit` bloqueia IDOR. **Admin e Gestor** possuem bypass global.
+- **HTTP 423 (Locked):** Retorno padrão quando outro usuário detém o lock.
+- **Unlock Privilegiado:** Administradores, Gestores e Coordenadores podem forçar destravamento via painel.
 - **Auto-release:** Lock liberado após 30min de inatividade.
 - **Determinação de Nível:** `lockController` consulta o `status` atual do caso antes de tentar o lock e escolhe o nível correspondente.
 
@@ -337,17 +338,20 @@ sequenceDiagram
 
 ### Permissões por Cargo (RBAC)
 
-| Cargo | Leitura | Escrita | Protocolo/Finalizar | Admin |
-|:------|:--------|:--------|:--------------------|:------|
-| `admin` | ✅ | ✅ | ✅ | ✅ |
-| `coordenador` | ✅ | ✅ | ✅ | ❌ |
-| `defensor` | ✅ | ✅ | ✅ | ❌ |
-| `servidor` | ✅ | ✅ | ❌ | ❌ |
-| `estagiario` | ✅ | ✅ | ❌ | ❌ |
-| `visualizador` | ✅ | ❌ | ❌ | ❌ |
+| Cargo | Leitura | Escrita | Protocolo/Finalizar | Admin/Global | Unlock |
+|:------|:--------|:--------|:--------------------|:-------------|:-------|
+| `admin` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `gestor` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `coordenador` | ✅ | ✅ | ✅ | ❌ | ✅ |
+| `defensor` | ✅ | ✅ | ✅ | ❌ | ❌ |
+| `servidor` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `estagiario` | ✅ | ✅ | ❌ | ❌ | ❌ |
 
-> **Middleware:** `requireWriteAccess` usa whitelist positiva: apenas `admin`, `coordenador`, `defensor`, `servidor`, `estagiario` passam. Qualquer cargo fora da lista recebe HTTP 403.
+> **Middleware:** `requireWriteAccess` usa whitelist positiva: apenas `admin`, `gestor`, `coordenador`, `defensor`, `servidor`, `estagiario` passam.
+> **Isolamento de Unidade:** Middleware `requireSameUnit` bloqueia IDOR. Admins e Gestores possuem bypass global.
 > **RBAC adicional no controller:** `servidor` e `estagiario` recebem HTTP 403 ao tentar mover caso para `em_protocolo` ou adquirir lock de Nível 2.
+> **Integridade de Dados:** Helper `safeFormData` garante que campos JSONB (dados_formulario) sejam sempre objetos válidos, prevenindo `TypeError` em produção.
+> **Máquina de Estados:** Transições de status centralizadas em `stateMachine.js` com validação de cargo e bypass de admin documentado.
 
 ---
 

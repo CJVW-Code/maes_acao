@@ -69,8 +69,9 @@ function makeProfile(cargo = "defensor", overrides = {}) {
 
 function makeCasoAtual(status = "pronto_para_analise", overrides = {}) {
   return {
-    id: BigInt(1),
+    id: 1, // Number in mock to avoid BigInt serialization errors
     status,
+    unidade_id: "u1", // Default unit for tests
     servidor_id: null,
     defensor_id: null,
     defensor: null,
@@ -93,13 +94,13 @@ describe("PATCH /api/casos/:id/lock — Nível 1 (Servidor)", () => {
     mockPrismaDefensores.findUnique.mockResolvedValue(makeProfile("servidor"));
     mockPrismaCasos.findUnique
       .mockResolvedValueOnce(makeCasoAtual("pronto_para_analise")) // busca inicial
-      .mockResolvedValueOnce({ id: BigInt(1), protocolo: "P1" }); // busca final
+      .mockResolvedValueOnce({ id: 1, protocolo: "P1" }); // busca final
     mockPrismaCasos.updateMany.mockResolvedValue({ count: 1 });
 
     const res = await request(app)
       .patch("/api/casos/1/lock")
       .set("Authorization", `Bearer ${token}`);
-    expect([200, 500]).toContain(res.status); // 500 pode ocorrer por BigInt em mock
+    expect(res.status).toBe(200);
   });
 
   it("servidor é bloqueado de tentar lock em caso liberado_para_protocolo → 403", async () => {
@@ -111,7 +112,7 @@ describe("PATCH /api/casos/:id/lock — Nível 1 (Servidor)", () => {
     const res = await request(app)
       .patch("/api/casos/1/lock")
       .set("Authorization", `Bearer ${token}`);
-    expect([403, 200]).toContain(res.status);
+    expect(res.status).toBe(403);
   });
 
   it("retorna 423 quando caso já está bloqueado por outro usuário", async () => {
@@ -128,7 +129,7 @@ describe("PATCH /api/casos/:id/lock — Nível 1 (Servidor)", () => {
     const res = await request(app)
       .patch("/api/casos/1/lock")
       .set("Authorization", `Bearer ${token}`);
-    expect([423, 200]).toContain(res.status);
+    expect(res.status).toBe(423);
   });
 });
 
@@ -148,7 +149,7 @@ describe("PATCH /api/casos/:id/unlock — apenas Admin", () => {
     const res = await request(app)
       .patch("/api/casos/1/unlock")
       .set("Authorization", `Bearer ${token}`);
-    expect([403]).toContain(res.status);
+    expect(res.status).toBe(403);
   });
 
   it("servidor não pode fazer unlock → 403", async () => {
@@ -158,18 +159,18 @@ describe("PATCH /api/casos/:id/unlock — apenas Admin", () => {
     const res = await request(app)
       .patch("/api/casos/1/unlock")
       .set("Authorization", `Bearer ${token}`);
-    expect([403]).toContain(res.status);
+    expect(res.status).toBe(403);
   });
 
   it("admin consegue fazer unlock → 200", async () => {
     const token = makeJwt("admin");
     mockPrismaDefensores.findUnique.mockResolvedValue(makeProfile("admin"));
     mockPrismaCasos.findUnique.mockResolvedValue(makeCasoAtual("em_protocolo"));
-    mockPrismaCasos.update.mockResolvedValue({ id: BigInt(1) });
+    mockPrismaCasos.update.mockResolvedValue({ id: 1 });
 
     const res = await request(app)
       .patch("/api/casos/1/unlock")
       .set("Authorization", `Bearer ${token}`);
-    expect([200, 500]).toContain(res.status);
+    expect(res.status).toBe(200);
   });
 });

@@ -18,16 +18,20 @@ export const Sidebar = ({ isExpanded, setIsExpanded }) => {
 
   if (!auth) return null;
 
-  const userCargo = user?.cargo || "estagiario";
+  const userCargo = user?.cargo?.toLowerCase() || "estagiario";
   const isAdmin = userCargo === "admin";
-  const isJuridico = ["admin", "defensor", "estagiario", "visualizador"].includes(userCargo);
+  const isGestor = userCargo === "gestor";
+  const isCoordenador = userCargo === "coordenador";
+  
+  const canSeeReports = isAdmin || isGestor;
+  const canManageTeam = isAdmin || isGestor || isCoordenador;
 
   const navItems = [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/painel", show: isJuridico },
-    { icon: FolderKanban, label: "Casos e Triagem", path: "/painel/casos", show: isJuridico },
-    { icon: Archive, label: "Arquivo Morto", path: "/painel/casos/arquivados", show: isJuridico },
-    { icon: BarChart3, label: "Relatorios", path: "/painel/relatorios", show: isAdmin },
-    { icon: UserPlus, label: "Gerenciar Equipe", path: "/painel/equipe", show: isAdmin },
+    { icon: LayoutDashboard, label: "Dashboard", path: "/painel", show: true },
+    { icon: FolderKanban, label: "Casos e Triagem", path: "/painel/casos", show: true },
+    { icon: Archive, label: "Arquivo Morto", path: "/painel/casos/arquivados", show: true },
+    { icon: BarChart3, label: "Relatórios", path: "/painel/relatorios", show: canSeeReports },
+    { icon: UserPlus, label: "Gerenciar Equipe", path: "/painel/equipe", show: canManageTeam },
   ].filter(item => item.show);
 
   const mobileLinkClass = ({ isActive }) =>

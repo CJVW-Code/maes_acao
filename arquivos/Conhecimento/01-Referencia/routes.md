@@ -1,6 +1,6 @@
 # Referência da API — Mães em Ação · DPE-BA
 
-> **Versão:** 3.1 · **Atualizado em:** 2026-04-23 (Download Hardening + A11y)
+> **Versão:** 4.0 · **Atualizado em:** 2026-04-26 (Global Unit Isolation + Team Visibility)
 
 Esta documentação lista as principais rotas do backend do Mães em Ação.  
 Todas as rotas são prefixadas com `/api`. Exemplo: `https://api.mutirao.dpe.ba.gov.br/api/casos`.
@@ -15,8 +15,9 @@ Para rotas marcadas como **Protegidas**, é exigido o envio de um token JWT no c
 ### Cargos e Permissões (`cargo`)
 O sistema utiliza os seguintes cargos, extraídos do JWT:
 * `admin`: Acesso total (leitura, escrita e ações críticas/destrutivas, como criação de perfis).
-* `defensor`, `estagiario`, `recepcao`: Acesso de leitura e escrita (exceto exclusões e recriação IA).
-* `visualizador`: Apenas leitura (bloqueado pelo middleware `requireWriteAccess`).
+* `coordenador`, `gestor`: Acesso de leitura e escrita. Pode listar defensores da sua própria unidade.
+* `defensor`, `servidor`, `estagiario`: Acesso de leitura e escrita (exceto exclusões e recriação IA). Restricted a casos da própria unidade via `requireSameUnit`.
+* `visualizador`: Apenas leitura (bloqueado pelo middleware `requireWriteAccess`). Restricted a casos da própria unidade.
 
 ---
 
@@ -39,6 +40,8 @@ Exigem autenticação. Fundamentais para evitar edição concorrente.
 | :----- | :-------------- | :------------------------------------------------------- |
 | `PATCH`| `/:id/lock`     | Tenta travar o caso para o usuário (Retorna 423 se ocupado)|
 | `PATCH`| `/:id/unlock`   | Libera o caso manualmente para outros usuários           |
+
+> **Nota:** Todas as rotas que utilizam o parâmetro `/:id` (exceto uploads públicos) aplicam o middleware `requireSameUnit`, impedindo acesso cruzado entre unidades.
 
 ### Rotas de Scanner (Balcão)
 Endpoint otimizado para alto volume.
@@ -210,8 +213,9 @@ Gerenciamento de acesso e contas dos Defensores Públicos.
 * **Request:** JSON: `nome`, `email` (único na view constraint DB), `senha` (>= 6 chr), `cargo` (válidos, bloqueado para 'operador', que inexiste dinamicamente), `unidade_id` (obrigatório — selecionar unidade de lotação).
 
 #### `GET /`
-*Protegida (Exclusiva para `admin`)*
-* **Response (200 OK):** Lista de perfis do time com `unidade_nome` e `unidade_id`, dados de senha restritos.
+*Protegida (Acesso: `admin`, `coordenador`, `gestor`)*
+* **Response (200 OK):** Lista de perfis do time. Se o cargo for `admin`, vê todas as sedes. Se for `coordenador` ou `gestor`, vê apenas membros da própria `unidade_id`.
+* **Observação:** Dados de senha são restritos. Senha_hash nunca é exposta.
 
 #### `PUT /:id`
 *Protegida*

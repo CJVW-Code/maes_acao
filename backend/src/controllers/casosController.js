@@ -41,6 +41,8 @@ import { getVaraByTipoAcao } from "../config/varasMapping.js";
 import logger from "../utils/logger.js";
 import { Client } from "@upstash/qstash";
 import { TAGS_OFICIAIS } from "../config/dicionarioTags.js";
+import { safeFormData } from "../utils/helpers.js";
+import { validateTransition } from "../utils/stateMachine.js";
 
 // Colunas físicas da tabela casos_ia que podem ser atualizadas diretamente
 const DIRECT_COLUMN_KEYS = new Set(["url_peticao", "url_peticao_penhora", "url_peticao_prisao"]);
@@ -2761,8 +2763,8 @@ export const listarCasos = async (req, res) => {
     // Filtro "Meus Atendimentos"
     if (meusAtendimentos === "true" && req.user) {
       baseWhere.OR = [{ defensor_id: req.user.id }, { servidor_id: req.user.id }];
-    } else if (req.user && req.user.cargo !== "admin" && req.user.unidade_id) {
-      // Filtro por unidade padrão (admin vê tudo)
+    } else if (req.user && !["admin", "gestor"].includes(req.user.cargo.toLowerCase()) && req.user.unidade_id) {
+      // Filtro por unidade padrão (admin e gestor veem tudo)
       baseWhere.OR = [
         { unidade_id: req.user.unidade_id },
         {
@@ -2856,8 +2858,8 @@ export const resumoCasos = async (req, res) => {
   try {
     const whereClause = { arquivado: false };
 
-    // Filtro por unidade: admin vê tudo, demais veem apenas sua unidade
-    if (req.user && req.user.cargo !== "admin" && req.user.unidade_id) {
+    // Filtro por unidade: admin e gestor veem tudo, demais veem apenas sua unidade
+    if (req.user && !["admin", "gestor"].includes(req.user.cargo.toLowerCase()) && req.user.unidade_id) {
       whereClause.unidade_id = req.user.unidade_id;
     }
 
@@ -3048,7 +3050,8 @@ export const obterDetalhesCaso = async (req, res) => {
     data = mapCasoRelations(data);
 
     // --- Lógica de Travamento (Locking) e Vínculo Automático ---
-    const isAdmin = req.user.cargo.toLowerCase() === "admin";
+    const userCargo = req.user.cargo.toLowerCase();
+    const isPowerUser = ["admin", "gestor"].includes(userCargo);
 
     // [EIXO 1] Lock Permanente: Uma vez vinculado, apenas o dono ou Admin acessa.
     // Não expira em 30 min. Somente Admin pode liberar via /unlock.
@@ -3068,7 +3071,7 @@ export const obterDetalhesCaso = async (req, res) => {
       return res.status(403).json({ error: "Acesso Negado. Este caso está na etapa de protocolo e apenas defensores e coordenadores podem acessá-lo." });
     }
 
-    if (!isAdmin && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
+    if (!isPowerUser && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
       const holderName = data.defensor?.nome || data.servidor?.nome || "outro usuário";
       return res.status(423).json({
         error: "Caso bloqueado",
@@ -3079,7 +3082,7 @@ export const obterDetalhesCaso = async (req, res) => {
 
     // Vínculo Automático (Apenas para o dono primário, colaboradores NÃO vinculam irmãos)
     // SEGURANÇA: Só pode assumir a autoria de um caso se ele pertencer à sua própria unidade.
-    if (!isAdmin && !data.defensor_id && !data.servidor_id && !isShared) {
+    if (!isPowerUser && !data.defensor_id && !data.servidor_id && !isShared) {
       if (String(req.user.unidade_id) !== String(data.unidade_id)) {
         return res.status(403).json({
           error: "Acesso Negado",
@@ -3228,38 +3231,30 @@ export const atualizarStatusCaso = async (req, res) => {
     // 2. Normalização
     if (status === "aguardando_docs") status = "aguardando_documentos";
 
-    // 3. Máquina de Estados Básica
-    const transicoesPermitidas = {
-      aguardando_documentos: ["documentacao_completa", "erro_processamento"],
-      documentacao_completa: ["processando_ia", "pronto_para_analise", "aguardando_documentos"],
-      processando_ia: ["pronto_para_analise", "erro_processamento"],
-      pronto_para_analise: ["em_atendimento", "aguardando_documentos", "processando_ia"],
-      em_atendimento: ["liberado_para_protocolo", "aguardando_documentos", "pronto_para_analise"],
-      liberado_para_protocolo: ["em_protocolo", "em_atendimento"],
-      em_protocolo: ["liberado_para_protocolo"], // protocolado removido da transição genérica
-      protocolado: ["aguardando_documentos"], // Caso precise reabrir por erro
-      erro_processamento: ["processando_ia", "aguardando_documentos"],
-    };
+    // Validação centralizada via State Machine
+    const transition = validateTransition(casoAtual.status, status, req.user?.cargo);
 
-    if (status && status !== casoAtual.status) {
-      const permitidas = transicoesPermitidas[casoAtual.status] || [];
-      const isAdmin = req.user?.cargo === "admin";
-
-      if (!permitidas.includes(status) && !isAdmin) {
-        logger.warn(
-          `[Status Machine] Bloqueada transição inválida: ${casoAtual.status} -> ${status} (Usuário: ${req.user?.id})`,
-        );
-        return res.status(400).json({
-          error: "Transição de status não permitida.",
-          currentStatus: casoAtual.status,
-          requestedStatus: status,
-        });
-      }
+    if (!transition.ok && status !== undefined && status !== casoAtual.status) {
+      logger.warn(
+        `[Status Machine] Bloqueada: ${casoAtual.status} -> ${status} (user: ${req.user?.id})`,
+      );
+      return res
+        .status(400)
+        .json({ error: transition.reason, currentStatus: casoAtual.status });
     }
 
-    const isServidorOrEstagiario = req.user?.cargo === "servidor" || req.user?.cargo === "estagiario";
+    if (transition.adminBypass) {
+      logger.warn(
+        `[Status Machine] Admin bypass: ${casoAtual.status} -> ${status} (user: ${req.user?.id})`,
+      );
+    }
+
+    const isServidorOrEstagiario =
+      req.user?.cargo === "servidor" || req.user?.cargo === "estagiario";
     if (status === "em_protocolo" && isServidorOrEstagiario) {
-      return res.status(403).json({ error: "Acesso Negado. Seu cargo não permite enviar casos para protocolo." });
+      return res.status(403).json({
+        error: "Acesso Negado. Seu cargo não permite enviar casos para protocolo.",
+      });
     }
 
     const updateData = {};
@@ -3403,8 +3398,10 @@ export const regenerarDosFatos = async (req, res) => {
       caso = mapCasoRelations(dataRaw);
     }
 
-    const dados = caso.dados_formulario;
-    if (!dados.relato_texto && caso.relato_texto) dados.relato_texto = caso.relato_texto;
+    const dados = safeFormData(caso);
+    if (!Object.keys(dados).length) {
+      logger.warn(`[regenerarDosFatos] dados_formulario vazio para caso ${id}`);
+    }
 
     let acaoRaw =
       dados.acaoEspecifica ||

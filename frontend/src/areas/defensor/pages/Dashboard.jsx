@@ -165,6 +165,9 @@ export const Dashboard = () => {
     );
   }
 
+  const isJuridico = ["defensor", "coordenador", "gestor"].includes(user?.cargo?.toLowerCase());
+  const prefixo = isJuridico ? "Dr(a). " : "";
+
   return (
     <div
       className={`dashboard-grid ${isSidebarMinimized ? "lg:grid-cols-[1fr_80px]" : "lg:grid-cols-[1fr_350px]"}`}
@@ -175,7 +178,7 @@ export const Dashboard = () => {
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="heading-hero mt-2">
-                Olá, {user?.cargo === "defensor" ? "Dr(a). " : ""}
+                Olá, {prefixo}
                 {user?.nome || "Usuário"}
               </h1>
               <p className="text-bg max-w-2xl mt-2">

@@ -271,12 +271,9 @@ describe("processSubmission — chamada à API em caso válido", () => {
     await processSubmission({ ...mocks, formState });
 
     // Se não há erros de validação, fetch deve ter sido chamado
-    if (mocks.setFormErrors.mock.calls.length === 0 ||
-        Object.keys(mocks.setFormErrors.mock.calls[0]?.[0] || {}).length === 0) {
-      expect(global.fetch).toHaveBeenCalled();
-      const url = global.fetch.mock.calls[0][0];
-      expect(url).toContain("/casos/novo");
-    }
+    expect(global.fetch).toHaveBeenCalled();
+    const url = global.fetch.mock.calls[0][0];
+    expect(url).toContain("/casos/novo");
   });
 
   it("chama setLoading(false) no finally mesmo em caso de erro de rede", async () => {
@@ -286,12 +283,9 @@ describe("processSubmission — chamada à API em caso válido", () => {
     const formState = makeFormState();
     await processSubmission({ ...mocks, formState });
 
-    // setLoading pode ter sido chamado com false no finally
+    // setLoading deve ter sido chamado com false no finally
     const loadingCalls = mocks.setLoading.mock.calls;
     const hasCalledFalse = loadingCalls.some(([val]) => val === false);
-    // Se chegou ao fetch (sem erros de validação), deve ter chamado false
-    if (global.fetch.mock.calls.length > 0) {
-      expect(hasCalledFalse).toBe(true);
-    }
+    expect(hasCalledFalse).toBe(true);
   });
 });

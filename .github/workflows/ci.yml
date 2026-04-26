@@ -273,7 +273,7 @@ jobs:
         run: npx prisma generate
 
       - name: Verify server.js imports (syntax check)
-        run: node --input-type=module < /dev/null && node --check server.js 2>/dev/null || echo "Syntax check skipped (ESM)"
+        run: node --check server.js
 
   build-frontend:
     name: "Build · Frontend (vite build)"

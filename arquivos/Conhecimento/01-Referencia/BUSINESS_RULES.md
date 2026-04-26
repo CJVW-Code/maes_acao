@@ -1,6 +1,6 @@
 # Regras de Negócio — Mães em Ação · DPE-BA
 
-> **Versão:** 2.5 · **Atualizado em:** 2026-04-26 (RBAC Sync + Missing Roles)  
+> **Versão:** 3.1 · **Atualizado em:** 2026-04-26 (RBAC Hierárquico + Cargo Gestor + Unlock Expandido)  
 > **Fonte:** Análise da codebase (controllers, services, middleware, config)  
 > **Propósito:** Referência canônica para treinamento de IAs e orientação de defensores
 
@@ -391,14 +391,14 @@ O sistema agora suporta a geração e visualização simultânea de múltiplos d
 
 O campo `cargo` na tabela `defensores` define o nível de acesso. O cargo é incluído no token JWT no login.
 
-| Cargo | Acesso de Leitura | Acesso de Escrita | Operações Admin |
-|:------|:-------------------|:-------------------|:----------------|
-| `admin` | ✅ | ✅ | ✅ |
-| `coordenador` | ✅ | ✅ | ❌ |
-| `defensor` | ✅ | ✅ | ❌ |
-| `servidor` | ✅ | ✅ | ❌ |
-| `estagiario` | ✅ | ✅ | ❌ |
-| `visualizador` | ✅ | ❌ | ❌ |
+| Cargo | Acesso de Leitura | Acesso de Escrita | Operações Admin/Global | Unlock |
+|:------|:-------------------|:-------------------|:-----------------------|:-------|
+| `admin` | ✅ | ✅ | ✅ | ✅ |
+| `gestor` | ✅ | ✅ | ✅ | ✅ |
+| `coordenador` | ✅ | ✅ | ❌ | ✅ |
+| `defensor` | ✅ | ✅ | ❌ | ❌ |
+| `servidor` | ✅ | ✅ | ❌ | ❌ |
+| `estagiario` | ✅ | ✅ | ❌ | ❌ |
 
 > O cargo padrão ao cadastrar um novo membro é `"estagiario"`. Apenas o admin pode criar cadastros e deve selecionar entre as opções disponíveis no formulário.
 
@@ -408,26 +408,31 @@ O campo `cargo` na tabela `defensores` define o nível de acesso. O cargo é inc
 
 | Middleware | Função | Aplicação |
 |:-----------|:-------|:----------|
-| `authMiddleware` | Verifica JWT e injeta `req.user` | Todas as rotas protegidas (após rotas públicas) |
-| `requireWriteAccess` | Bloqueia cargo `visualizador` de operações de escrita (403) | Todas as rotas de escrita (POST, PATCH, DELETE protegidas) |
+| `authMiddleware` | Verifica JWT e injeta `req.user` | Todas as rotas protegidas |
+| `requireWriteAccess` | Bloqueia operações de escrita para cargos não autorizados | Todas as rotas de escrita |
 | `auditMiddleware` | Registra operações de escrita na tabela `logs_auditoria` | Todas as rotas protegidas |
+| `requireSameUnit` | Bloqueia acesso a casos de outras unidades (IDOR) | Rotas de detalhe/edição |
+
+> **Middleware:** `requireWriteAccess` usa whitelist positiva. Qualquer cargo fora da lista recebe HTTP 403.
+> **Isolamento de Unidade:** Usuários (exceto Admins e Gestores) são restritos a casos de sua própria `unidade_id`. Admins e Gestores possuem bypass global para visualização e edição.
+> **Visibilidade de Equipe:** Gestores e Admins possuem visão global de todos os membros. Coordenadores listam apenas membros da sua própria unidade.
 
 ### 5.3 Operações exclusivas de Admin
 
-As seguintes operações verificam **explicitamente** `req.user.cargo === "admin"` no controller:
+As seguintes operações verificam **explicitamente** cargo privilegiado no controller:
 
-| Operação | Endpoint | Justificativa |
-|:---------|:---------|:-------------|
-| Regenerar Dos Fatos | `POST /:id/gerar-fatos` | Consome créditos de IA |
-| Gerar Termo de Declaração | `POST /:id/gerar-termo` | Documento formal |
-| Regerar Minuta DOCX | `POST /:id/regerar-minuta` | Consome créditos de IA |
-| Reverter Finalização | `POST /:id/reverter-finalizacao` | Ação destrutiva (remove dados Solar) |
-| Deletar Caso | `DELETE /:id` | Ação irreversível (exclui do banco e Storage) |
-| Registrar novo membro | `POST /api/defensores/cadastro` | Gestão de equipe |
-| Listar equipe | `GET /api/defensores` | Dados sensíveis da equipe |
-| Atualizar membro | `PATCH /api/defensores/:id` | Gestão de equipe |
-| Deletar membro | `DELETE /api/defensores/:id` | Gestão de equipe (não pode deletar a si mesmo) |
-| Resetar senha de membro | `POST /api/defensores/:id/resetar-senha` | Segurança |
+| Operação | Endpoint | Cargos Autorizados |
+|:---------|:---------|:-------------------|
+| Regenerar Dos Fatos | `POST /:id/gerar-fatos` | `admin` |
+| Gerar Termo de Declaração | `POST /:id/gerar-termo` | `admin` |
+| Regerar Minuta DOCX | `POST /:id/regerar-minuta` | `admin` |
+| Reverter Finalização | `POST /:id/reverter-finalizacao` | `admin` |
+| Deletar Caso | `DELETE /:id` | `admin` |
+| Liberar Caso (Unlock) | `PATCH /lock/unlock` | `admin`, `gestor`, `coordenador` |
+| Registrar novo membro | `POST /api/defensores/register` | `admin` |
+| Listar equipe global | `GET /api/defensores` | `admin`, `gestor` |
+| Listar equipe local | `GET /api/defensores` | `coordenador` (filtra por unidade) |
+| Resetar senha de membro | `POST /api/defensores/:id/reset-password` | `admin` |
 
 ### 5.4 Acesso público (sem autenticação)
 

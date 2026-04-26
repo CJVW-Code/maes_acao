@@ -66,12 +66,16 @@ export const lockCaso = async (req, res) => {
         ? casoAtual.defensor?.nome
         : casoAtual.servidor?.nome;
 
+      logger.warn(`[Lock Contention] Usuário ${userId} tentou travar caso ${id} (Nível ${nivelLock}), mas já está travado por ${holder || "outro usuário"}`);
+
       return res.status(423).json({
         error: "Caso bloqueado",
         message: `Este caso já está vinculado ao profissional ${holder || "outro colega"}. Apenas o Administrador pode liberar este caso.`,
         holder: holder || "outro colega",
       });
     }
+
+    logger.info(`[Lock Success] Usuário ${userId} travou caso ${id} (Nível ${nivelLock})`);
 
     const casoAtualizado = await prisma.casos.findUnique({
       where: { id: BigInt(id) },
@@ -90,12 +94,13 @@ export const lockCaso = async (req, res) => {
  */
 export const unlockCaso = async (req, res) => {
   const { id } = req.params;
-  const isAdmin = req.user.cargo.toLowerCase() === 'admin';
+  const userCargo = req.user.cargo.toLowerCase();
+  const hasPowerToUnlock = ["admin", "gestor", "coordenador"].includes(userCargo);
 
-  if (!isAdmin) {
+  if (!hasPowerToUnlock) {
     return res.status(403).json({ 
       error: "Acesso negado", 
-      message: "Apenas administradores podem liberar casos bloqueados." 
+      message: "Apenas administradores, gestores ou coordenadores podem liberar casos bloqueados." 
     });
   }
 
@@ -115,6 +120,8 @@ export const unlockCaso = async (req, res) => {
         servidor_at: null
       }
     });
+
+    logger.info(`[Lock Released] Administrador ${req.user.id} liberou o caso ${id}`);
 
     res.status(200).json({ message: "Caso liberado com sucesso pelo administrador." });
   } catch (error) {

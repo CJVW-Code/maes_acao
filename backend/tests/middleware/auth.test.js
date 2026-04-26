@@ -1,5 +1,6 @@
 import { jest } from "@jest/globals";
 import jwt from "jsonwebtoken";
+import crypto from "node:crypto";
 
 // ─── Configuração de variáveis de ambiente ───────────────────────────────────
 process.env.JWT_SECRET = "test_secret_key_at_least_32_chars_long!!";
@@ -85,16 +86,18 @@ describe("authMiddleware", () => {
   });
 
   it("bloqueia token RS256 (bypass de algoritmo)", async () => {
-    // Simula um token RS256 assinado com chave diferente
-    const rs256Token = jwt.sign({ id: "attacker" }, "outra-chave", {
-      algorithm: "HS256", // Em produção seria RS256, mas aqui testamos secret errado
+    // Simula um token RS256 assinado com chave privada (bypassa verificação HS256)
+    const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const rs256Token = jwt.sign({ id: "uuid-1234", cargo: "defensor" }, privateKey, {
+      algorithm: "RS256",
+      expiresIn: "1h",
     });
     const { req, res, next } = mockReqRes({
       authorization: `Bearer ${rs256Token}`,
     });
-    mockFindUnique.mockResolvedValue(null); // Usuário não existe
     await authMiddleware(req, res, next);
-    // Deve rejeitar (usuário não encontrado ou assinatura inválida)
+    // Deve rejeitar com 401 especificamente (algorithms: ["HS256"] falha a verificação do jwt.verify)
+    expect(res.status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
   });
 
@@ -151,7 +154,7 @@ describe("authMiddleware", () => {
     });
   });
 
-  it("usa 'operador' como cargo padrão quando cargo está ausente", async () => {
+  it("usa 'visualizador' como cargo padrão quando cargo está ausente", async () => {
     const token = makeToken();
     const user = makeUser({ cargo: null });
     mockFindUnique.mockResolvedValue(user);
@@ -160,7 +163,7 @@ describe("authMiddleware", () => {
     });
     await authMiddleware(req, res, next);
     expect(next).toHaveBeenCalled();
-    expect(req.user.cargo).toBe("operador");
+    expect(req.user.cargo).toBe("visualizador");
   });
 });
 

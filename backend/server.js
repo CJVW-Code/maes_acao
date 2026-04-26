@@ -45,6 +45,7 @@ app.use((req, res, next) => {
 // 2. CONFIGURAÇÃO DE CORS DETALHADA
 const allowedOrigins = [
   "https://maes-acao.vercel.app",
+  "https://maesemacao.defsulbahia.com.br",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
 ];

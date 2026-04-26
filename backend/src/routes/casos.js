@@ -38,6 +38,7 @@ import { authMiddleware, validateDownloadTicket } from "../middleware/auth.js";
 import { auditMiddleware } from "../middleware/auditMiddleware.js";
 import { upload } from "../middleware/upload.js"; 
 import { requireWriteAccess } from "../middleware/requireWriteAccess.js";
+import { requireSameUnit } from "../middleware/requireSameUnit.js";
 
 const router = express.Router();
 
@@ -72,10 +73,15 @@ router.get("/resumo", resumoCasos);
 router.get("/notificacoes", listarNotificacoes);
 router.patch("/notificacoes/:id/lida", marcarNotificacaoLida);
 
+// Middleware de Isolamento de Unidade (aplica-se a todas as rotas que começam com /:id)
+router.use("/:id", requireSameUnit);
+
 router.get("/:id/exportar-solar", exportarCasoSolar);
 router.get("/:id", obterDetalhesCaso);
 router.post("/:id/gerar-ticket-download", gerarTicketDownload);
+
 router.use(requireWriteAccess);
+
 router.post("/:id/gerar-fatos", regenerarDosFatos);
 router.post("/:id/gerar-termo", gerarTermoDeclaracao);
 router.post("/:id/finalizar", upload.single("capa"), finalizarCasoSolar);
@@ -91,7 +97,7 @@ router.patch("/:id/documento/renomear", renomearDocumento);
 router.patch("/:id/arquivar", alternarArquivamento);
 router.patch("/:id/juridico", salvarDadosJuridicos);
 router.post("/:id/solicitar-assistencia", solicitarAssistencia);
-router.post("/assistencia/:assistencia_id/responder", responderAssistencia);
+router.post("/assistencia/:assistencia_id/responder", responderAssistencia); // assistencia_id não é id, não dispara requireSameUnit
 router.get("/:id/historico", obterHistoricoCaso);
 
 // Rotas de Locking

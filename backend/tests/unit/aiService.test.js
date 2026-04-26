@@ -24,6 +24,9 @@ jest.unstable_mockModule("@google/generative-ai", () => ({
   },
 }));
 
+process.env.GROQ_API_KEY = "dummy_groq_key_for_testing";
+process.env.GEMINI_API_KEY = "dummy_gemini_key_for_testing";
+
 // Carrega o módulo DEPOIS dos mocks (padrão ESM)
 const { generateLegalText, } = await import(
   "../../src/services/aiService.js"

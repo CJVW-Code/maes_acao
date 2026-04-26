@@ -179,6 +179,8 @@ describe("DELETE /api/casos/:id — requer write access", () => {
   it("retorna 403 para cargo visualizador", async () => {
     const token = makeJwt("visualizador");
     mockPrismaDefensores.findUnique.mockResolvedValue(makeUserProfile("visualizador"));
+    mockPrismaCasos.findUnique.mockResolvedValue({ id: 1, unidade_id: "u1" });
+    
     const res = await request(app)
       .delete("/api/casos/1")
       .set("Authorization", `Bearer ${token}`);
