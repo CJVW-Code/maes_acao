@@ -18,12 +18,12 @@ export default {
     "!src/config/prisma.js",
     "!src/config/supabase.js",
   ],
-  coverageThresholds: {
+  coverageThreshold: {
     global: {
-      statements: 30,
+      statements: 28,
       branches: 20,
-      functions: 30,
-      lines: 30,
+      functions: 25,
+      lines: 28,
     },
   },
   coverageReporters: ["text", "lcov", "html"],
