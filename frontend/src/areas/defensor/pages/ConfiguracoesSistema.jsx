@@ -12,7 +12,6 @@ export const ConfiguracoesSistema = () => {
   const [horarios, setHorarios] = useState([]);
   const [overrides, setOverrides] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadingOverrides, setLoadingOverrides] = useState(false);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
@@ -39,7 +38,6 @@ export const ConfiguracoesSistema = () => {
   }, [toast]);
 
   const fetchOverrides = useCallback(async () => {
-    setLoadingOverrides(true);
     try {
       const response = await authFetch("/bi/overrides");
       if (response.ok) {
@@ -48,8 +46,6 @@ export const ConfiguracoesSistema = () => {
       }
     } catch {
       // Silently fail or log
-    } finally {
-      setLoadingOverrides(false);
     }
   }, []);
 

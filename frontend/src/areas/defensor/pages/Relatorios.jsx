@@ -140,6 +140,14 @@ const Relatorios = () => {
     ];
   }, [data]);
 
+  // Auto-filtro: Se ja tem dados, atualiza ao mudar filtros importantes
+  useEffect(() => {
+    if (data && !loading) {
+      gerar().catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtros.periodo, filtros.dataInicio, filtros.dataFim, filtros.unidade_id, filtros.topN]);
+
   if (data?.bloqueadoPorHorario) {
     const canUnlock = user?.cargo === "admin" || user?.cargo === "gestor";
     
@@ -194,14 +202,6 @@ const Relatorios = () => {
   const updateFiltro = (key, value) => {
     setFiltros((current) => ({ ...current, [key]: value }));
   };
-
-  // Auto-filtro: Se ja tem dados, atualiza ao mudar filtros importantes
-  useEffect(() => {
-    if (data && !loading) {
-      gerar().catch(() => {});
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtros.periodo, filtros.dataInicio, filtros.dataFim, filtros.unidade_id, filtros.topN]);
 
   return (
     <div className="space-y-6 pb-24">
@@ -441,7 +441,7 @@ const Relatorios = () => {
 
             <BiWidget id="acoesGestao" title="Acoes de Gestao" subtitle="Redistribuicoes e destravamentos manuais." enabled={prefs.widgets.acoesGestao} onToggle={toggleWidget}>
               <div className="space-y-2">
-                {data.acoes_gestao?.map((p, idx) => (
+                {data.acoes_gestao?.map((p) => (
                   <div key={p.usuario_id} className="bi-management-widget flex items-center justify-between !p-4">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600">

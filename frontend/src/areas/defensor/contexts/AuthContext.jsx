@@ -44,7 +44,7 @@ export function AuthProvider({ children }) {
           setToken(storedToken);
           setUser(JSON.parse(storedUser));
         }
-      } catch (error) {
+      } catch {
         localStorage.removeItem("defensorToken");
         localStorage.removeItem("defensorUser");
       }
@@ -80,27 +80,23 @@ export function AuthProvider({ children }) {
   }, [token, fetchNotificacoes]);
 
   const login = async (email, password) => {
-    try {
-      const response = await fetch(`${API_BASE}/defensores/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, senha: password }),
-      });
+    const response = await fetch(`${API_BASE}/defensores/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, senha: password }),
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Erro desconhecido" }));
-        throw new Error(errorData.error || "Falha na autenticação.");
-      }
-
-      const { token: receivedToken, defensor } = await response.json();
-      setToken(receivedToken);
-      setUser(defensor);
-      localStorage.setItem("defensorToken", receivedToken);
-      localStorage.setItem("defensorUser", JSON.stringify(defensor));
-      return true;
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: "Erro desconhecido" }));
+      throw new Error(errorData.error || "Falha na autenticação.");
     }
+
+    const { token: receivedToken, defensor } = await response.json();
+    setToken(receivedToken);
+    setUser(defensor);
+    localStorage.setItem("defensorToken", receivedToken);
+    localStorage.setItem("defensorUser", JSON.stringify(defensor));
+    return true;
   };
 
   const marcarNotificacaoLida = async (id) => {
@@ -109,14 +105,16 @@ export function AuthProvider({ children }) {
       setNotificacoes((prev) =>
         prev.map((n) => (n.id === id ? { ...n, lida: true } : n)),
       );
-    } catch (error) {}
+    } catch (error) {
+      console.warn("Falha ao marcar notificação como lida", error);
+    }
   };
 
-  const permissions = {
+  const permissions = useMemo(() => ({
     canManageTeam: (user?.cargo || "").toLowerCase() === "admin",
     canViewBi: ["admin", "gestor", "coordenador"].includes((user?.cargo || "").toLowerCase()),
     canEditConfig: ["admin", "gestor"].includes((user?.cargo || "").toLowerCase()),
-  };
+  }), [user?.cargo]);
 
   const contextValue = useMemo(() => ({
     user,
