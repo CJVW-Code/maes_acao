@@ -7,7 +7,6 @@ const StepDadosProcessuais = React.memo(
     CIDADEASSINATURA,
     handleFieldChange,
     unidades = [],
-    validar,
     formErrors = {}
   }) => {
     // Mapeia unidades para o formato do SearchableSelect e remove duplicatas por comarca

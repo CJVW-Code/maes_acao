@@ -80,12 +80,7 @@ export const FormularioSubmissao = () => {
     startRecording,
     stopRecording,
     removeAudioRecording,
-    mostrarSugestoes,
-    setMostrarSugestoes,
-    sugestoesCidades,
     handleFieldChange,
-    handleCidadeChange,
-    handleSelecionaCidade,
     handleCpfChangeAndValidate,
     handlePhoneChange,
     handleDateChange,
@@ -290,7 +285,6 @@ export const FormularioSubmissao = () => {
                CIDADEASSINATURA={formState.CIDADEASSINATURA}
                handleFieldChange={handleFieldChange}
                unidades={unidades}
-               validar={validar}
                formErrors={formErrors}
             />
 

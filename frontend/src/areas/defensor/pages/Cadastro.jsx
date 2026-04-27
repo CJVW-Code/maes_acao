@@ -49,7 +49,7 @@ export const Cadastro = () => {
       }
     };
     if (token) fetchUnidades();
-  }, [token]);
+  }, [token, user]);
 
   useEffect(() => {
     let timer;
