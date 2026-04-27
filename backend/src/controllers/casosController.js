@@ -3258,10 +3258,17 @@ export const obterDetalhesCaso = async (req, res) => {
 export const distribuirCaso = async (req, res) => {
   const { id } = req.params;
   const { usuario_id } = req.body;
-  const userCargo = req.user.cargo.toLowerCase();
-
   if (!usuario_id) {
     return res.status(400).json({ error: "ID do usuário alvo é obrigatório." });
+  }
+
+  // 0. Verificação de Cargo do Distribuidor (RBAC Explícito)
+  const allowedDistributors = ["admin", "gestor", "coordenador"];
+  if (!allowedDistributors.includes(req.user.cargo.toLowerCase())) {
+    return res.status(403).json({ 
+      error: "Acesso Negado", 
+      message: "Seu cargo não possui permissão para distribuir casos." 
+    });
   }
 
   try {
@@ -3363,20 +3370,24 @@ export const distribuirCaso = async (req, res) => {
       if (updateError) throw updateError;
       casoAtualizado = data;
     } else {
-      // Fallback Prisma
-      casoAtualizado = await prisma.casos.update({
+      // Fallback Prisma - Operação Atômica para evitar condições de corrida
+      const { count } = await prisma.casos.updateMany({
         where: { 
           id: BigInt(id),
           status: { in: statusPermitidos }
         },
         data: updateData
       });
-    }
 
-    if (!casoAtualizado) {
-      return res.status(409).json({ 
-        error: "Conflito", 
-        message: "O caso foi alterado por outro usuário ou não pôde ser distribuído." 
+      if (count === 0) {
+        return res.status(409).json({ 
+          error: "Conflito", 
+          message: "O caso foi alterado por outro usuário ou não pôde ser distribuído." 
+        });
+      }
+
+      casoAtualizado = await prisma.casos.findUnique({
+        where: { id: BigInt(id) }
       });
     }
 
@@ -3402,6 +3413,15 @@ export const distribuirCaso = async (req, res) => {
 
   } catch (error) {
     logger.error(`Erro ao distribuir caso ${id}: ${error.message}`);
+    
+    // Mapeamento de Erro de Concorrência do Prisma (P2025: Record not found)
+    if (error.code === 'P2025') {
+      return res.status(409).json({ 
+        error: "Conflito", 
+        message: "O caso foi alterado por outro usuário ou não pôde ser distribuído." 
+      });
+    }
+
     return res.status(500).json({ error: "Erro interno ao distribuir caso." });
   }
 };

@@ -185,6 +185,8 @@ stateDiagram-v2
 - **Isolamento de Unidade:** Middleware `requireSameUnit` bloqueia IDOR. **Admin e Gestor** possuem bypass global.
 - **HTTP 423 (Locked):** Retorno padrão quando outro usuário detém o lock.
 - **Unlock Privilegiado:** Administradores, Gestores e Coordenadores podem forçar destravamento via painel.
+- **Distribuição Protegida:** Apenas `admin`, `gestor` e `coordenador` podem distribuir casos. Servidores e estagiários são bloqueados com HTTP 403.
+- **Concorrência Atômica (Fallback Prisma):** Operações críticas de status (como distribuição) utilizam `updateMany` com cláusula `where` composta (ID + Status Permitido) para evitar condições de corrida (Race Conditions). Retorna HTTP 409 em caso de conflito.
 - **Auto-release:** Lock liberado após 30min de inatividade.
 
 ---

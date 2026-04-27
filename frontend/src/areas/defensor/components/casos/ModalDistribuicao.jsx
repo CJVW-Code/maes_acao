@@ -13,8 +13,12 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh }) => {
   React.useEffect(() => {
     if (isOpen) {
       authFetch("/defensores")
-        .then(r => r.json())
-        .then(data => setDefensores(data))
+        .then(async (r) => {
+          if (!r.ok) return [];
+          const data = await r.json().catch(() => []);
+          return Array.isArray(data) ? data : [];
+        })
+        .then((data) => setDefensores(data))
         .catch(() => setDefensores([]));
     }
   }, [isOpen]);

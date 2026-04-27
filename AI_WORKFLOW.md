@@ -90,6 +90,7 @@ Após a análise, gere um Implementation Plan estruturado em:
 
 4. Step-by-Step Strategy
    - Sequência lógica de modificação (dependências primeiro).
+5. solucoes para o premortem
 
 Não gere código funcional ainda. Foque na estratégia.
 ```

@@ -1,6 +1,6 @@
 # Regras de Negócio — Mães em Ação · DPE-BA
 
-> **Versão:** 3.4 · **Atualizado em:** 2026-04-27 (Security Hardening Audit + Case Distribution L1/L2)  
+> **Versão:** 3.5 · **Atualizado em:** 2026-04-27 (Hardening Distribuição + RBAC Solicitante)  
 > **Fonte:** Análise da codebase (controllers, services, middleware, config)  
 > **Propósito:** Referência canônica para treinamento de IAs e orientação de defensores
 
@@ -416,7 +416,10 @@ O campo `cargo` na tabela `defensores` define o nível de acesso. O cargo é inc
 
 > **Middleware:** `requireWriteAccess` usa whitelist positiva. Qualquer cargo fora da lista recebe HTTP 403.
 > **Isolamento de Unidade:** Usuários (exceto Admins e Gestores) são restritos a casos de sua própria `unidade_id`. Admins e Gestores possuem bypass global para visualização e edição. **Novidade:** A busca por CPF filtra resultados pela unidade do profissional ou casos compartilhados.
-> **Hierarquia de Distribuição:** A distribuição de casos valida o cargo do alvo. Casos em fase de Protocolo só podem ser distribuídos para cargos de nível superior (Defensor, Coordenador, Gestor, Admin). Atendimentos (L1) são abertos a todos os cargos operacionais.
+> **Hierarquia de Distribuição:** 
+> 1. **Quem pode distribuir:** Apenas usuários com cargo `admin`, `gestor` ou `coordenador`. Outros cargos recebem HTTP 403.
+> 2. **Alvos da Distribuição:** Atendimentos (L1) são abertos a todos os cargos operacionais. Casos em fase de Protocolo (L2) só podem ser distribuídos para Defensor, Coordenador, Gestor ou Admin.
+> 3. **Concorrência:** A distribuição utiliza `updateMany` para garantir atomicidade. Se o status do caso mudar durante a operação, o sistema retorna `409 Conflict`.
 > **RBAC Case-Insensitive:** O sistema normaliza a verificação de cargos para letras minúsculas (`.toLowerCase()`), prevenindo falhas de permissão por divergência de casing no banco de dados e garantindo integridade no controle de acesso.
 
 ### 5.3 Operações exclusivas de Admin

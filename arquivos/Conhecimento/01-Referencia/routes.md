@@ -1,6 +1,6 @@
 # Referência da API — Mães em Ação · DPE-BA
 
-> **Versão:** 4.1 · **Atualizado em:** 2026-04-27 (Hardening Audit + L1/L2 Distribution Validation)
+> **Versão:** 4.2 · **Atualizado em:** 2026-04-27 (RBAC Distribuição + Concorrência Atômica)
 
 Esta documentação lista as principais rotas do backend do Mães em Ação.  
 Todas as rotas são prefixadas com `/api`. Exemplo: `https://api.mutirao.dpe.ba.gov.br/api/casos`.
@@ -83,6 +83,7 @@ Exigem autenticação e permissão de modificação.
 | `POST`   | `/:id/reprocessar`          | Reprocessa arquivos do caso na fila.                                   |
 | `PATCH`  | `/:id/documento/renomear`   | Renomeia um documento específico do caso.                              |
 | `PATCH`  | `/:id/arquivar`             | Arquiva ou desarquiva um caso.                                         |
+| `POST`   | `/:id/distribuir`           | Distribui o caso para um profissional. Exige cargo privilegiado.       |
 
 ### Rotas de Download Seguro (Ticket JWT)
 Um ticket de curta duração deve ser obtido via `POST /:id/gerar-ticket-download` e usado nas rotas abaixo. O ticket evita expor o JWT principal em URLs de download.
