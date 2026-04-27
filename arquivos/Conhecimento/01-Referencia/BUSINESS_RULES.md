@@ -1,6 +1,6 @@
 # Regras de Negócio — Mães em Ação · DPE-BA
 
-> **Versão:** 3.2 · **Atualizado em:** 2026-04-26 (Hardening RBAC + Regras de Distribuição por Unidade)  
+> **Versão:** 3.3 · **Atualizado em:** 2026-04-26 (RBAC Gestor Bypass + BI Premium Widgets)  
 > **Fonte:** Análise da codebase (controllers, services, middleware, config)  
 > **Propósito:** Referência canônica para treinamento de IAs e orientação de defensores
 
@@ -658,8 +658,6 @@ O módulo de BI é restrito exclusivamente a administradores e foca em métricas
 - **Exportação Segura:** O arquivo XLSX gerado para download segue as mesmas restrições de vedação de dados pessoais.
 
 ### 12.2 Métricas Monitoradas
-- **Throughput de Triagem:** Casos criados por dia/sede.
-- **Conversão de Protocolo:** Percentual de casos que chegam ao status `protocolado`.
-- **Eficiência da IA:** Tempo médio entre `processing_started_at` e `processed_at`.
-- **Motivos de Arquivamento:** Categorias controladas (ex: Falta de Documentos, Desistência, Conciliação Extrajudicial) e contagens agregadas.
-- **Distribuição por Unidade:** Ranking de sedes com maior volume de atendimento.
+- **Métricas de Produtividade:** Ranking de profissionais por casos protocolados e atendimentos realizados.
+- **Ações de Gestão:** Histórico de auditoria de distribuições e movimentações manuais de status.
+- **Exportação Padrão:** O arquivo XLSX gerado agora inclui automaticamente as abas de Produtividade e Gestão para usuários com cargo `admin` ou `gestor`.

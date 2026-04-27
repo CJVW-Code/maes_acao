@@ -1,6 +1,6 @@
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 4.3 · **Atualizado em:** 2026-04-26 (Hardening RBAC + Isolamento por Unidade)
+> **Versão:** 4.4 · **Atualizado em:** 2026-04-26 (RBAC Gestor Bypass + CI Coverage Summary)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
@@ -341,6 +341,7 @@ sequenceDiagram
 > **Middleware:** `requireWriteAccess` usa whitelist positiva: apenas `admin`, `gestor`, `coordenador`, `defensor`, `servidor`, `estagiario` passam.
 > **Isolamento de Unidade:** Middleware `requireSameUnit` bloqueia IDOR. Admins e Gestores possuem bypass global. **Novidade:** A busca por CPF e a distribuição de casos agora validam a unidade do profissional, restringindo o acesso apenas à sede de atuação (salvo bypass global).
 > **RBAC Case-Insensitive:** Todas as verificações de cargo no backend agora utilizam `.toLowerCase()` para garantir consistência entre o banco de dados e a lógica de aplicação.
+> **Power User Bypass:** O cargo `gestor` foi adicionado ao bypass de lock na função `carregarCasoDetalhado`, permitindo auditoria e downloads administrativos de casos bloqueados por outros usuários.
 
 ---
 
@@ -463,6 +464,7 @@ services:
 
 1. **`logs_auditoria`** → Rastreia ações humanas (quem fez o quê e quando)
 2. **`logs_pipeline`** → Rastreia falhas técnicas na IA (etapa, erro, timestamp)
+3. **`coverage_summary`** → O sistema agora gera um reporter `json-summary` no Jest (backend) e Vitest (frontend) para facilitar a integração com dashboards de qualidade no CI/CD.
 
 > [!CAUTION]
 > **LGPD:** NUNCA grave CPFs, nomes ou dados pessoais nas colunas de `detalhes` dos logs. Use apenas IDs e referências genéricas.
