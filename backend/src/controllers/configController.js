@@ -26,14 +26,15 @@ export const updateConfig = async (req, res) => {
     // Se recebeu um objeto 'configs', processa em lote
     if (configs && typeof configs === 'object') {
       const entries = Object.entries(configs);
-      const updates = entries.map(([k, v]) => 
-        prisma.configuracoes_sistema.upsert({
-          where: { chave: k },
-          update: { valor: String(v) },
-          create: { chave: k, valor: String(v) }
-        })
+      await prisma.$transaction(
+        entries.map(([k, v]) => 
+          prisma.configuracoes_sistema.upsert({
+            where: { chave: k },
+            update: { valor: String(v) },
+            create: { chave: k, valor: String(v) }
+          })
+        )
       );
-      await Promise.all(updates);
     } else {
       // Formato individual original
       if (!chave || valor === undefined) {

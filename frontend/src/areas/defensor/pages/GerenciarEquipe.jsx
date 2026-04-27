@@ -242,6 +242,7 @@ export const GerenciarEquipe = () => {
       defensor: "bg-blue-100 text-blue-800",
       servidor: "bg-highlight/15 text-highlight",
       estagiario: "bg-green-100 text-green-800",
+      visualizador: "bg-slate-100 text-slate-800",
     };
     return map[cargo] || "bg-blue-100 text-blue-800";
   };
@@ -475,6 +476,7 @@ export const GerenciarEquipe = () => {
                   <option value="coordenador">Coordenador</option>
                   <option value="gestor">Defensor Geral (Gestor)</option>
                   <option value="admin">Administrador</option>
+                  <option value="visualizador">Visualizador</option>
                 </select>
               </div>
               <div>

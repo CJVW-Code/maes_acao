@@ -114,6 +114,7 @@ export function AuthProvider({ children }) {
     canManageTeam: (user?.cargo || "").toLowerCase() === "admin",
     canViewBi: ["admin", "gestor", "coordenador"].includes((user?.cargo || "").toLowerCase()),
     canEditConfig: ["admin", "gestor"].includes((user?.cargo || "").toLowerCase()),
+    canDistribuir: ["admin", "gestor", "coordenador"].includes((user?.cargo || "").toLowerCase()),
   }), [user?.cargo]);
 
   const contextValue = useMemo(() => ({

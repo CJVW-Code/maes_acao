@@ -1,6 +1,6 @@
 # Regras de Negócio — Mães em Ação · DPE-BA
 
-> **Versão:** 3.1 · **Atualizado em:** 2026-04-26 (RBAC Hierárquico + Cargo Gestor + Unlock Expandido)  
+> **Versão:** 3.2 · **Atualizado em:** 2026-04-26 (Hardening RBAC + Regras de Distribuição por Unidade)  
 > **Fonte:** Análise da codebase (controllers, services, middleware, config)  
 > **Propósito:** Referência canônica para treinamento de IAs e orientação de defensores
 
@@ -414,8 +414,9 @@ O campo `cargo` na tabela `defensores` define o nível de acesso. O cargo é inc
 | `requireSameUnit` | Bloqueia acesso a casos de outras unidades (IDOR) | Rotas de detalhe/edição |
 
 > **Middleware:** `requireWriteAccess` usa whitelist positiva. Qualquer cargo fora da lista recebe HTTP 403.
-> **Isolamento de Unidade:** Usuários (exceto Admins e Gestores) são restritos a casos de sua própria `unidade_id`. Admins e Gestores possuem bypass global para visualização e edição.
-> **Visibilidade de Equipe:** Gestores e Admins possuem visão global de todos os membros. Coordenadores listam apenas membros da sua própria unidade.
+> **Isolamento de Unidade:** Usuários (exceto Admins e Gestores) são restritos a casos de sua própria `unidade_id`. Admins e Gestores possuem bypass global para visualização e edição. **Novidade:** A busca por CPF filtra resultados pela unidade do profissional ou casos compartilhados.
+> **Regra de Distribuição:** Coordenadores e Defensores só podem distribuir casos para profissionais da mesma unidade. Distribuições entre sedes diferentes são permitidas apenas para Admins e Gestores.
+> **RBAC Case-Insensitive:** O sistema normaliza a verificação de cargos para letras minúsculas (`.toLowerCase()`), prevenindo falhas de permissão por divergência de casing no banco de dados.
 
 ### 5.3 Operações exclusivas de Admin
 

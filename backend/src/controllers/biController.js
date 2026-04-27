@@ -213,8 +213,12 @@ const fetchCasosMetadata = async ({ range, unidadeId }) => {
       if (range) {
         const start = range.gte.toISOString();
         const end = range.lte.toISOString();
-        // Simplificando o filtro OR para evitar erros de sintaxe em versoes antigas do PostgREST
-        query = query.gte("created_at", start).lte("created_at", end);
+        // Mantém paridade com a lógica Prisma: created_at OR updated_at OR protocolado_at
+        query = query.or(
+          `and(created_at.gte.${start},created_at.lte.${end}),` +
+          `and(updated_at.gte.${start},updated_at.lte.${end}),` +
+          `and(protocolado_at.gte.${start},protocolado_at.lte.${end})`
+        );
       }
 
       const { data, error } = await query;
@@ -364,7 +368,12 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
     ? await prisma.casos.groupBy({
         by: ['unidade_id'],
         _count: { id: true },
-        where: { status: "protocolado", protocolado_at: range ? { gte: range.gte, lte: range.lte } : undefined }
+        where: { 
+          status: "protocolado", 
+          arquivado: false,
+          ...(unidadeId !== "todas" ? { unidade_id: unidadeId } : {}),
+          ...(range ? { protocolado_at: { gte: range.gte, lte: range.lte } } : {})
+        }
       })
     : null;
 
@@ -708,12 +717,10 @@ export const getOverrides = async (req, res) => {
 };
 
 export const createOverride = async (req, res) => {
-  const { horas = 1, motivo = "Liberação emergencial" } = req.body;
+  const horas = Math.min(24, Math.max(1, Number(req.body.horas) || 1));
+  const motivo = (req.body.motivo || "Liberação emergencial").substring(0, 255);
   
   try {
-    const configs = await getConfiguracoes();
-    const overrides = JSON.parse(configs.bi_overrides || "[]");
-    
     const agora = new Date();
     const fim = new Date(agora.getTime() + (horas * 60 * 60 * 1000));
     
@@ -725,13 +732,28 @@ export const createOverride = async (req, res) => {
       fim: fim.toISOString(),
       motivo
     };
-    
-    const novosOverrides = [...overrides, novoOverride];
-    
-    await prisma.configuracoes_sistema.upsert({
-      where: { chave: "bi_overrides" },
-      update: { valor: JSON.stringify(novosOverrides) },
-      create: { chave: "bi_overrides", valor: JSON.stringify(novosOverrides) }
+
+    // Usando transação para garantir que a leitura e escrita sejam atômicas
+    await prisma.$transaction(async (tx) => {
+      const config = await tx.configuracoes_sistema.findUnique({
+        where: { chave: "bi_overrides" }
+      });
+      
+      let overrides = [];
+      try {
+        overrides = JSON.parse(config?.valor || "[]");
+        if (!Array.isArray(overrides)) overrides = [];
+      } catch (e) {
+        overrides = [];
+      }
+      
+      const novosOverrides = [...overrides, novoOverride];
+      
+      await tx.configuracoes_sistema.upsert({
+        where: { chave: "bi_overrides" },
+        update: { valor: JSON.stringify(novosOverrides) },
+        create: { chave: "bi_overrides", valor: JSON.stringify(novosOverrides) }
+      });
     });
     
     invalidarCache();

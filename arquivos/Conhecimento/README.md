@@ -2,7 +2,7 @@
 
 Esta pasta centraliza toda a documentação estratégica, técnica e histórica do projeto **Mães em Ação**. A estrutura está organizada em subcategorias para facilitar a navegação e a manutenção do contexto.
 
-> **Última atualização:** 2026-04-26 · Versão 4.1
+> **Última atualização:** 2026-04-26 · Versão 4.3
 
 ---
 
@@ -12,8 +12,8 @@ Esta pasta centraliza toda a documentação estratégica, técnica e histórica 
 
 Documentação do estado **atual** e regras fundamentais do sistema. Início obrigatório para qualquer IA ou desenvolvedor.
 
-- **[ARCHITECTURE.md](./01-Referencia/ARCHITECTURE.md)** `v4.1`: Visão técnica completa — stack, módulos, fluxo operacional, Docker, deploy. Hardening e RBAC Hierárquico.
-- **[BUSINESS_RULES.md](./01-Referencia/BUSINESS_RULES.md)** `v3.1`: Regras de negócio canônicas — tipos de ação, validações, permissões (RBAC Hierárquico), locking.
+- **[ARCHITECTURE.md](./01-Referencia/ARCHITECTURE.md)** `v4.3`: Visão técnica completa — stack, módulos, fluxo operacional, Docker, deploy. Hardening RBAC e Isolamento por Unidade.
+- **[BUSINESS_RULES.md](./01-Referencia/BUSINESS_RULES.md)** `v3.2`: Regras de negócio canônicas — tipos de ação, validações, permissões (RBAC Hierárquico), locking e regras de distribuição.
 - **[DATABASE_MODEL.md](./01-Referencia/DATABASE_MODEL.md)** `v2.1`: Schema de dados com todas as tabelas, incluindo `assistencia_casos` e `notificacoes`.
 - **[routes.md](./01-Referencia/routes.md)** `v4.0`: Referência completa da API (Scanner, Locking, Colaboração, Isolamento Global).
 - **[tags.md](./01-Referencia/tags.md)**: Mapeamento de tags para templates DOCX.
@@ -42,7 +42,8 @@ Recursos práticos para desenvolvimento e integração com IA.
 
 Registros de auditoria, relatórios passados e walkthroughs.
 
-- **[2026-04-26_hardening_backend_seguranca.md](./04-Historico/2026-04-26_hardening_backend_seguranca.md)** `NOVO`: Log detalhado de hardening do backend, isolamento de unidade, RBAC Hierárquico e Expansão de Permissões.
+- **[2026-04-26_estabilizacao_rbac_distribuicao.md](./04-Historico/2026-04-26_estabilizacao_rbac_distribuicao.md)** `NOVO`: Log de estabilização de RBAC (case-insensitivity), isolamento de unidade em busca/distribuição e transações Prisma.
+- **[2026-04-26_hardening_seguranca_gestor.md](./04-Historico/2026-04-26_hardening_seguranca_gestor.md)**: Log detalhado de hardening do backend, isolamento de unidade, RBAC Hierárquico e Expansão de Permissões.
 - **[walkthrough.md](./04-Historico/walkthrough.md)** `v4.1`: Histórico completo de evolução do sistema.
 - **[relatorio_modularizacao.md](./04-Historico/relatorio_modularizacao.md)** `v2.1`: Progresso completo da refatoração (Fases 1-6).
 - **[status_e_gaps_2026-04-13.md](./04-Historico/status_e_gaps_2026-04-13.md)**: Estado anterior do sistema e dívidas técnicas sanadas.

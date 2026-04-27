@@ -2782,7 +2782,8 @@ export const listarCasos = async (req, res) => {
     const baseWhere = { arquivado: statusFiltro };
 
     // Filtro para ocultar em_protocolo de servidor/estagiario
-    if (req.user && (req.user.cargo === "servidor" || req.user.cargo === "estagiario")) {
+    const cargoNormalizado = (req.user?.cargo || "").toLowerCase();
+    if (req.user && (cargoNormalizado === "servidor" || cargoNormalizado === "estagiario")) {
       baseWhere.status = { not: "em_protocolo" };
     }
 
@@ -2890,7 +2891,7 @@ export const resumoCasos = async (req, res) => {
     }
 
     // Filtro para ocultar em_protocolo de servidor/estagiario
-    if (req.user && (req.user.cargo === "servidor" || req.user.cargo === "estagiario")) {
+    if (req.user && (cargoNormalizado === "servidor" || cargoNormalizado === "estagiario")) {
       whereClause.status = { not: "em_protocolo" };
     }
 
@@ -3093,7 +3094,7 @@ export const obterDetalhesCaso = async (req, res) => {
         a.status === "aceito",
     );
 
-    const isServidorOrEstagiario = req.user.cargo === "servidor" || req.user.cargo === "estagiario";
+    const isServidorOrEstagiario = userCargo === "servidor" || userCargo === "estagiario";
     if (data.status === "em_protocolo" && isServidorOrEstagiario) {
       return res.status(403).json({ error: "Acesso Negado. Este caso está na etapa de protocolo e apenas defensores e coordenadores podem acessá-lo." });
     }
@@ -3138,14 +3139,48 @@ export const obterDetalhesCaso = async (req, res) => {
         data: updateData,
       });
 
-      // NOVO: Vincular automaticamente todos os outros casos da mesma família (Apenas se NÃO for colaboração)
-      const cpfRepresentante = data.representante_cpf || data.cpf_assistido;
-      if (cpfRepresentante) {
+      // NOVO: Vincular automaticamente todos os outros casos da mesma família
+      const cpfRepresentante = data.representante_cpf; // Usar exclusivamente cpf_representante
+      if (cpfRepresentante && isSupabaseConfigured) {
+        try {
+          // Busca casos irmãos via Supabase (mesma mãe/representante)
+          const { data: outrosCasos, error: searchError } = await supabase
+            .from("casos_partes")
+            .select("caso_id")
+            .eq("cpf_representante", cpfRepresentante);
+
+          if (!searchError && outrosCasos?.length > 0) {
+            const idsIrmaos = outrosCasos
+              .map((c) => String(c.caso_id))
+              .filter((cid) => cid !== String(id));
+
+            if (idsIrmaos.length > 0) {
+              // Só vincula se o caso irmão:
+              // 1. NÃO tiver um lock ativo (defensor/servidor)
+              // 2. Pertencer à mesma unidade do profissional (Isolamento de Unidades)
+              const { error: batchError } = await supabase
+                .from("casos")
+                .update(updateData)
+                .in("id", idsIrmaos)
+                .eq("unidade_id", req.user.unidade_id)
+                .is("defensor_id", null)
+                .is("servidor_id", null);
+
+              if (!batchError) {
+                logger.info(
+                  `Vinculado automaticamente ${idsIrmaos.length} caso(s) irmão(s) da unidade ${req.user.unidade_id} ao usuário ${req.user.id}`,
+                );
+              }
+            }
+          }
+        } catch (err) {
+          logger.error(`Erro ao vincular casos familiares: ${err.message}`);
+        }
+      } else if (cpfRepresentante && !isSupabaseConfigured) {
+        // Fallback Prisma (mantendo lógica segura)
         try {
           const outrosCasos = await prisma.casos_partes.findMany({
-            where: {
-              OR: [{ cpf_representante: cpfRepresentante }, { cpf_assistido: cpfRepresentante }],
-            },
+            where: { cpf_representante: cpfRepresentante },
             select: { caso_id: true },
           });
 
@@ -3157,16 +3192,15 @@ export const obterDetalhesCaso = async (req, res) => {
             await prisma.casos.updateMany({
               where: {
                 id: { in: idsIrmaos },
-                ...(isDefensor ? { defensor_id: null } : { servidor_id: null }),
+                unidade_id: req.user.unidade_id,
+                defensor_id: null,
+                servidor_id: null,
               },
               data: updateData,
             });
-            logger.info(
-              `Vinculado automaticamente ${idsIrmaos.length} caso(s) irmão(s) ao usuário ${req.user.id}`,
-            );
           }
         } catch (err) {
-          logger.error(`Erro ao vincular casos familiares: ${err.message}`);
+          logger.error(`Erro ao vincular casos familiares (Prisma): ${err.message}`);
         }
       }
     }
@@ -3228,6 +3262,25 @@ export const distribuirCaso = async (req, res) => {
 
     if (fetchError || !casoAtual) {
       return res.status(404).json({ error: "Caso não encontrado." });
+    }
+
+    // 1.1 Valida o usuário alvo (Prisma - RBAC/Equipe)
+    const usuarioAlvo = await prisma.defensores.findUnique({
+      where: { id: usuario_id },
+      select: { ativo: true, unidade_id: true, nome: true }
+    });
+
+    if (!usuarioAlvo || !usuarioAlvo.ativo) {
+      return res.status(400).json({ error: "Usuário alvo inexistente ou inativo." });
+    }
+
+    // Admins e Gestores podem distribuir para qualquer unidade. Coordenadores apenas para a própria.
+    const isPowerUser = ["admin", "gestor"].includes(req.user.cargo.toLowerCase());
+    if (!isPowerUser && String(usuarioAlvo.unidade_id) !== String(casoAtual.unidade_id)) {
+      return res.status(403).json({ 
+        error: "Acesso Negado", 
+        message: "Não é possível distribuir um caso para um profissional de outra unidade." 
+      });
     }
 
     // 2. Determina o campo alvo e o novo status com base no fluxo
@@ -3486,7 +3539,7 @@ export const regenerarDosFatos = async (req, res) => {
     }
 
     // Restrição: Apenas administradores OU o responsável pelo caso podem regenerar os fatos
-    const isAdmin = req.user && req.user.cargo === "admin";
+    const isAdmin = req.user && req.user.cargo.toLowerCase() === "admin";
     const isDono =
       req.user &&
       (String(caso.defensor_id) === String(req.user.id) ||
@@ -3585,7 +3638,7 @@ export const gerarTermoDeclaracao = async (req, res) => {
   const { id } = req.params;
   try {
     // Restrição: Apenas administradores podem gerar ou regerar o termo
-    if (!req.user || req.user.cargo !== "admin") {
+    if (!req.user || req.user.cargo.toLowerCase() !== "admin") {
       return res.status(403).json({
         error: "Acesso negado. Apenas administradores podem realizar esta operação.",
       });
@@ -3672,7 +3725,7 @@ export const regerarMinuta = async (req, res) => {
   const { id } = req.params;
   try {
     // Restrição: Apenas administradores
-    if (!req.user || req.user.cargo !== "admin") {
+    if (!req.user || req.user.cargo.toLowerCase() !== "admin") {
       return res.status(403).json({
         error: "Acesso negado. Apenas administradores podem regerar a minuta.",
       });
@@ -4093,6 +4146,7 @@ export const buscarPorCpf = async (req, res) => {
             id: true,
             protocolo: true,
             status: true,
+            unidade_id: true,
             numero_processo: true,
             numero_solar: true,
             url_capa_processual: true,
@@ -4104,12 +4158,39 @@ export const buscarPorCpf = async (req, res) => {
 
     const results = isSupabaseConfigured ? (await query).data : await query;
 
-    if (!results || results.length === 0) {
+    if (!results || results.length === 0) return res.status(200).json([]);
+
+    let filteredResults = results;
+
+    if (req.user) {
+      const isPowerUser = ["admin", "gestor"].includes(req.user.cargo?.toLowerCase());
+      
+      const collaborations = await prisma.assistencia_casos.findMany({
+        where: {
+          OR: [
+            { destinatario_id: req.user.id },
+            { remetente_id: req.user.id }
+          ],
+          acao: "aceito"
+        },
+        select: { caso_id: true }
+      });
+      const sharedIds = new Set(collaborations.map(c => String(c.caso_id)));
+
+      filteredResults = results.filter(caso => {
+        if (isPowerUser) return true;
+        if (String(caso.unidade_id) === String(req.user.unidade_id)) return true;
+        if (sharedIds.has(String(caso.id))) return true;
+        return false;
+      });
+    }
+
+    if (filteredResults.length === 0) {
       return res.status(200).json([]);
     }
 
     const normalizedData = await Promise.all(
-      (results || []).map(async (casoRaw) => {
+      filteredResults.map(async (casoRaw) => {
         const urlCapaProcessual = casoRaw.url_capa_processual
           ? await buildSignedUrl(storageBuckets.documentos, casoRaw.url_capa_processual)
           : null;
@@ -4216,7 +4297,7 @@ export const finalizarCasoSolar = async (req, res) => {
 };
 
 export const reverterFinalizacao = async (req, res) => {
-  if (!req.user || req.user.cargo !== "admin") {
+  if (!req.user || req.user.cargo.toLowerCase() !== "admin") {
     return res.status(403).json({
       error: "Acesso negado. Apenas administradores podem reverter a finalização.",
     });
@@ -4601,7 +4682,7 @@ export const deletarCaso = async (req, res) => {
   const { id } = req.params;
   try {
     // Verificação de permissão de admin
-    if (!req.user || req.user.cargo !== "admin") {
+    if (!req.user || req.user.cargo.toLowerCase() !== "admin") {
       return res.status(403).json({
         error: "Acesso negado. Apenas administradores podem excluir casos.",
       });

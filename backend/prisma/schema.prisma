@@ -303,7 +303,7 @@ model configuracoes_sistema {
   chave      String   @id @db.VarChar(100)
   valor      String
   descricao  String?
-  updated_at DateTime @default(now()) @updatedAt
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
 
   @@map("configuracoes_sistema")
 }

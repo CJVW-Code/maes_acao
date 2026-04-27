@@ -102,7 +102,7 @@ jobs:
         run: npx prisma generate
 
       - name: Run Jest tests with coverage
-        run: npm test -- --forceExit
+        run: npm test
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -117,7 +117,7 @@ jobs:
         run: |
           echo "## Backend Coverage" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat logs/coverage/coverage-summary.json 2>/dev/null | node -e "
+          cat backend/logs/coverage/coverage-summary.json 2>/dev/null | node -e "
             const data = require('fs').readFileSync('/dev/stdin','utf8');
             try {
               const j = JSON.parse(data).total;
