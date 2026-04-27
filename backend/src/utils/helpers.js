@@ -49,7 +49,7 @@ export const safeJsonParse = (input, fallback = null) => {
   }
   try {
     return JSON.parse(input);
-  } catch (e) {
+  } catch {
     return fallback;
   }
 };

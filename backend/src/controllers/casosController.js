@@ -444,13 +444,13 @@ const carregarCasoDetalhado = async (id, reqUser) => {
 
   data = mapCasoRelations(data);
 
-  const isAdmin = reqUser.cargo.toLowerCase() === "admin";
+  const isPowerUser = ["admin", "gestor"].includes(reqUser.cargo.toLowerCase());
   const isOwner =
     String(data.defensor_id) === String(reqUser.id) ||
     String(data.servidor_id) === String(reqUser.id);
   const isShared = (data.assistencia_casos || []).length > 0;
 
-  if (!isAdmin && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
+  if (!isPowerUser && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
     const holderName = data.defensor?.nome || data.servidor?.nome || "outro usuário";
     throw new HttpError(423, "Caso bloqueado", {
       message: `Este caso já está vinculado ao defensor(a) ${holderName}. Apenas o administrador pode liberar este caso.`,
@@ -2789,7 +2789,18 @@ export const listarCasos = async (req, res) => {
 
     // Filtro "Meus Atendimentos"
     if (meusAtendimentos === "true" && req.user) {
-      baseWhere.OR = [{ defensor_id: req.user.id }, { servidor_id: req.user.id }];
+      baseWhere.OR = [
+        { defensor_id: req.user.id },
+        { servidor_id: req.user.id },
+        {
+          assistencia_casos: {
+            some: {
+              destinatario_id: req.user.id,
+              status: "aceito",
+            },
+          },
+        },
+      ];
     } else if (req.user && !["admin", "gestor"].includes(req.user.cargo.toLowerCase()) && req.user.unidade_id) {
       // Filtro por unidade padrão (admin e gestor veem tudo)
       baseWhere.OR = [
@@ -2884,6 +2895,7 @@ export const listarCasos = async (req, res) => {
 export const resumoCasos = async (req, res) => {
   try {
     const whereClause = { arquivado: false };
+    const cargoNormalizado = (req.user?.cargo || "").toLowerCase();
 
     // Filtro por unidade: admin e gestor veem tudo, demais veem apenas sua unidade
     if (req.user && !["admin", "gestor"].includes(req.user.cargo.toLowerCase()) && req.user.unidade_id) {

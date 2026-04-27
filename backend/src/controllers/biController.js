@@ -94,6 +94,8 @@ const DEFAULT_WIDGETS = {
   throughputLine: true,
   rankingUnidades: true,
   arquivados: true,
+  produtividade: true,
+  acoesGestao: true,
 };
 
 const ARCHIVE_REASON_LABELS = {
@@ -711,7 +713,7 @@ export const getOverrides = async (req, res) => {
     const configs = await getConfiguracoes();
     const overrides = JSON.parse(configs.bi_overrides || "[]");
     res.status(200).json(overrides);
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: "Erro ao buscar registros de horários." });
   }
 };
@@ -739,11 +741,11 @@ export const createOverride = async (req, res) => {
         where: { chave: "bi_overrides" }
       });
       
-      let overrides = [];
+      let overrides;
       try {
         overrides = JSON.parse(config?.valor || "[]");
         if (!Array.isArray(overrides)) overrides = [];
-      } catch (e) {
+      } catch {
         overrides = [];
       }
       
@@ -802,7 +804,7 @@ export const deleteOverride = async (req, res) => {
     });
 
     res.status(200).json({ message: "Registro removido com sucesso." });
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: "Erro ao remover registro de horário." });
   }
 };

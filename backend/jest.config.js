@@ -26,7 +26,7 @@ export default {
       lines: 28,
     },
   },
-  coverageReporters: ["text", "lcov", "html"],
+  coverageReporters: ["text", "lcov", "html", "json-summary"],
   setupFilesAfterEnv: ["<rootDir>/tests/setup.js"],
   // Timeout maior para testes de integração
   testTimeout: 15000,
