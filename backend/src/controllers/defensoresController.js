@@ -8,7 +8,7 @@ import {  isSupabaseConfigured } from "../config/supabase.js";
 // --- FUNÇÃO DE CADASTRO (Atualizada com Cargo) ---
 export const registrarDefensor = async (req, res) => {
   try {
-    if (!req.user || req.user.cargo !== "admin") {
+    if (!req.user || req.user.cargo?.toLowerCase() !== "admin") {
       return res.status(403).json({
         error:
           "Acesso negado. Apenas administradores podem cadastrar novos membros.",
@@ -208,7 +208,7 @@ export const listarColegas = async (req, res) => {
 // --- ATUALIZAR MEMBRO (Apenas Admin) ---
 export const atualizarDefensor = async (req, res) => {
   try {
-    if (!req.user || req.user.cargo !== "admin") {
+    if (!req.user || req.user.cargo?.toLowerCase() !== "admin") {
       return res.status(403).json({ error: "Acesso negado." });
     }
 
@@ -247,7 +247,7 @@ export const atualizarDefensor = async (req, res) => {
 // --- DELETAR MEMBRO (Apenas Admin) ---
 export const deletarDefensor = async (req, res) => {
   try {
-    if (!req.user || req.user.cargo !== "admin") {
+    if (!req.user || req.user.cargo?.toLowerCase() !== "admin") {
       return res.status(403).json({ error: "Acesso negado." });
     }
 
@@ -273,7 +273,7 @@ export const deletarDefensor = async (req, res) => {
 // --- RESETAR SENHA (Apenas Admin) ---
 export const resetarSenhaDefensor = async (req, res) => {
   try {
-    if (!req.user || req.user.cargo !== "admin") {
+    if (!req.user || req.user.cargo?.toLowerCase() !== "admin") {
       return res.status(403).json({ error: "Acesso negado." });
     }
 

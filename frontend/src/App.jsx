@@ -75,7 +75,7 @@ const DefensorRoute = ({ children }) => {
 const GestorRoute = ({ children }) => {
   const { permissions, loading } = useAuth();
   if (loading) return null;
-  if (!permissions.canEditConfig) return <Navigate to="/painel" />;
+  if (!permissions?.canEditConfig) return <Navigate to="/painel" />;
   return children;
 };
 
@@ -83,7 +83,7 @@ const GestorRoute = ({ children }) => {
 const BiRoute = ({ children }) => {
   const { permissions, loading } = useAuth();
   if (loading) return null;
-  if (!permissions.canViewBi) return <Navigate to="/painel" />;
+  if (!permissions?.canViewBi) return <Navigate to="/painel" />;
   return children;
 };
 
@@ -91,7 +91,7 @@ const BiRoute = ({ children }) => {
 const TeamRoute = ({ children }) => {
   const { permissions, loading } = useAuth();
   if (loading) return null;
-  if (!permissions.canManageTeam) return <Navigate to="/painel" />;
+  if (!permissions?.canManageTeam) return <Navigate to="/painel" />;
   return children;
 };
 

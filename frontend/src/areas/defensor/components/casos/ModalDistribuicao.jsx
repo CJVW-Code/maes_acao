@@ -41,7 +41,7 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh }) => {
         onClose();
       } else {
         const err = await response.json();
-        addToast(err.message || "Erro ao distribuir.", "error");
+        addToast(err.error || err.message || "Erro ao distribuir.", "error");
       }
     } catch {
       addToast("Erro de conexão.", "error");
@@ -51,7 +51,7 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-lg rounded-4xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-primary/5">
@@ -105,7 +105,7 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh }) => {
                         {d.nome}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {d.cargo?.nome || "Profissional"} • {d.unidade?.nome || "Sem Unidade"}
+                        {(typeof d.cargo === "string" ? d.cargo : d.cargo?.nome) || "Profissional"} • {d.unidade_nome || d.unidade?.nome || "Sem Unidade"}
                       </p>
                     </div>
                   </div>

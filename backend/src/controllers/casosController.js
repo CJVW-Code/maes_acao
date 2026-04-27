@@ -3279,11 +3279,38 @@ export const distribuirCaso = async (req, res) => {
     // 1.1 Valida o usuário alvo (Prisma - RBAC/Equipe)
     const usuarioAlvo = await prisma.defensores.findUnique({
       where: { id: usuario_id },
-      select: { ativo: true, unidade_id: true, nome: true }
+      select: { 
+        ativo: true, 
+        unidade_id: true, 
+        nome: true,
+        cargo: { select: { nome: true } }
+      }
     });
 
     if (!usuarioAlvo || !usuarioAlvo.ativo) {
       return res.status(400).json({ error: "Usuário alvo inexistente ou inativo." });
+    }
+
+    const targetCargo = usuarioAlvo.cargo?.nome?.toLowerCase();
+
+    // 1.2 Validação de Nível de Lock (RBAC Rigoroso)
+    const ALVOS_ATENDIMENTO = ['servidor', 'estagiario', 'defensor', 'coordenador', 'admin', 'gestor'];
+    const ALVOS_PROTOCOLO = ['defensor', 'coordenador', 'admin', 'gestor'];
+
+    if (['pronto_para_analise', 'em_atendimento'].includes(casoAtual.status)) {
+      if (!ALVOS_ATENDIMENTO.includes(targetCargo)) {
+        return res.status(403).json({ 
+          error: "Acesso Negado", 
+          message: `O cargo '${targetCargo}' não pode assumir atendimentos nesta fase.` 
+        });
+      }
+    } else if (['liberado_para_protocolo', 'em_protocolo'].includes(casoAtual.status)) {
+      if (!ALVOS_PROTOCOLO.includes(targetCargo)) {
+        return res.status(403).json({ 
+          error: "Acesso Negado", 
+          message: `O cargo '${targetCargo}' não pode realizar protocolos.` 
+        });
+      }
     }
 
     // Admins e Gestores podem distribuir para qualquer unidade. Coordenadores apenas para a própria.
@@ -3315,29 +3342,45 @@ export const distribuirCaso = async (req, res) => {
       });
     }
 
-    // 3. Executa a mutação atômica no Supabase
+    // 3. Executa a mutação atômica
     const updateData = {
       [campoAlvo]: usuario_id,
       [`${campoAlvo.split('_')[0]}_at`]: new Date().toISOString(),
       status: novoStatus
     };
 
-    const { data: casoAtualizado, error: updateError } = await supabase
-      .from('casos')
-      .update(updateData)
-      .eq('id', id)
-      .in('status', statusPermitidos) // Segurança da máquina de estados
-      .select()
-      .single();
+    let casoAtualizado = null;
 
-    if (updateError || !casoAtualizado) {
+    if (isSupabaseConfigured) {
+      const { data, error: updateError } = await supabase
+        .from('casos')
+        .update(updateData)
+        .eq('id', id)
+        .in('status', statusPermitidos) // Segurança da máquina de estados
+        .select()
+        .single();
+      
+      if (updateError) throw updateError;
+      casoAtualizado = data;
+    } else {
+      // Fallback Prisma
+      casoAtualizado = await prisma.casos.update({
+        where: { 
+          id: BigInt(id),
+          status: { in: statusPermitidos }
+        },
+        data: updateData
+      });
+    }
+
+    if (!casoAtualizado) {
       return res.status(409).json({ 
         error: "Conflito", 
         message: "O caso foi alterado por outro usuário ou não pôde ser distribuído." 
       });
     }
 
-    // 4. Log de Auditoria via Prisma
+    // 4. Log de Auditoria via Prisma (LGPD: Sem nomes ou CPFs)
     await prisma.logs_auditoria.create({
       data: {
         usuario_id: req.user.id,
@@ -4183,7 +4226,7 @@ export const buscarPorCpf = async (req, res) => {
             { destinatario_id: req.user.id },
             { remetente_id: req.user.id }
           ],
-          acao: "aceito"
+          status: "aceito"
         },
         select: { caso_id: true }
       });

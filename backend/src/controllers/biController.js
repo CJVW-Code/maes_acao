@@ -1,8 +1,21 @@
+import { randomUUID } from "node:crypto";
 import ExcelJS from "exceljs";
 import { prisma } from "../config/prisma.js";
 import { supabase, isSupabaseConfigured } from "../config/supabase.js";
 import logger from "../utils/logger.js";
 import { getConfiguracoes, invalidarCache } from "../utils/configCache.js";
+
+/**
+ * Utilitário para realizar parse de JSON com segurança, retornando um array vazio em caso de erro.
+ */
+const safeParseArray = (raw) => {
+  try {
+    const parsed = JSON.parse(raw || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
 
 /**
  * Verifica se o acesso ao BI está liberado no horário atual.
@@ -25,7 +38,7 @@ const verificarBloqueioHorario = async (user) => {
     };
   }
 
-  const biHorarios = JSON.parse(configs.bi_horarios || "[]");
+  const biHorarios = safeParseArray(configs.bi_horarios);
   const timezone = configs.bi_timezone || "America/Bahia";
   const liberadoAte = configs.bi_liberado_ate ? new Date(configs.bi_liberado_ate) : null;
 
@@ -35,7 +48,7 @@ const verificarBloqueioHorario = async (user) => {
   }
 
   // 3. Verifica Registro de Horários (Overrides Ativos)
-  const overrides = JSON.parse(configs.bi_overrides || "[]");
+  const overrides = safeParseArray(configs.bi_overrides);
   const agoraDate = new Date();
   const overrideAtivo = overrides.find(ov => {
     const inicio = new Date(ov.inicio);
@@ -321,6 +334,10 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
   
   // Busca nomes e cargos de todos os defensores/servidores para o ranking de produtividade
   const defensoresDB = await prisma.defensores.findMany({
+    where: { 
+      ativo: true,
+      ...(isAdminOrGestor ? {} : { unidade_id: user.unidade_id })
+    },
     select: { 
       id: true, 
       nome: true,
@@ -341,7 +358,7 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
 
   const ativos = rows.filter((row) => row.arquivado === false && filterByDate(row, "created_at", range));
   const arquivados = rows.filter((row) => row.arquivado === true && filterByDate(row, "updated_at", range));
-  const protocolosNoPeriodo = rows.filter((row) => row.status === "protocolado" && filterByDate(row, "protocolado_at", range));
+  const protocolosNoPeriodo = rows.filter((row) => row.status === "protocolado" && row.arquivado === false && filterByDate(row, "protocolado_at", range));
 
   const porStatusMap = new Map();
   const porTipoMap = new Map();
@@ -396,7 +413,10 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
       const whereGestao = {
         criado_em: range ? { gte: range.gte, lte: range.lte } : undefined,
         acao: { in: ["distribuicao_caso", "redistribuicao_caso", "lock_removido_admin", "lock_removido_coordenador", "arquivamento_manual", "desarquivamento_manual"] },
-        usuario_id: { not: null }
+        usuario_id: { 
+          not: null,
+          ...(isAdminOrGestor ? {} : { in: defensoresDB.map(u => u.id) })
+        }
       };
 
       const logsAgregados = await prisma.logs_auditoria.groupBy({
@@ -412,15 +432,10 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
       });
 
       logsAgregados.forEach(log => {
-        // Filtro de unidade para coordenadores
-        if (userCargo === "coordenador" && user.unidade_id) {
-          const logUser = defensoresDB.find(u => u.id === log.usuario_id);
-          if (logUser?.unidade_id !== user.unidade_id) return;
-        }
         acoesGestaoMap.set(log.usuario_id, log._count.id);
       });
     } catch (err) {
-      console.error("[BI] Erro ao agregar logs de gestao:", err);
+      logger.error(`[BI] Erro ao agregar logs de gestao: ${err.message}`);
       // Nao quebra o relatorio inteiro se os logs falharem
     }
   }
@@ -619,10 +634,10 @@ export const gerarRelatorio = async (req, res) => {
     const relatorio = await montarRelatorio(req.body, req.user);
     res.status(200).json(relatorio);
   } catch (error) {
-    console.error("[BI] Erro critico ao gerar relatorio:", error);
-    res.status(error.statusCode || 500).json({ 
-      error: "Erro ao gerar relatorio de BI.",
-      details: error.message 
+    logger.error(`[BI] Erro critico ao gerar relatorio: ${error.message}`);
+    const status = error.statusCode || 500;
+    res.status(status).json({ 
+      error: status === 500 ? "Erro ao gerar relatorio de BI." : error.message
     });
   }
 };
@@ -711,7 +726,7 @@ export const exportarXlsxLote = async (req, res) => {
 export const getOverrides = async (req, res) => {
   try {
     const configs = await getConfiguracoes();
-    const overrides = JSON.parse(configs.bi_overrides || "[]");
+    const overrides = safeParseArray(configs.bi_overrides);
     res.status(200).json(overrides);
   } catch {
     res.status(500).json({ error: "Erro ao buscar registros de horários." });
@@ -727,7 +742,7 @@ export const createOverride = async (req, res) => {
     const fim = new Date(agora.getTime() + (horas * 60 * 60 * 1000));
     
     const novoOverride = {
-      id: Date.now().toString(),
+      id: randomUUID(),
       usuario: req.user.nome,
       usuario_id: req.user.id,
       inicio: agora.toISOString(),
@@ -770,7 +785,7 @@ export const createOverride = async (req, res) => {
 
     res.status(201).json(novoOverride);
   } catch (error) {
-    console.error("[BI] Erro ao criar override:", error);
+    logger.error(`[BI] Erro ao criar override: ${error.message}`);
     res.status(500).json({ error: "Erro ao criar registro de horário." });
   }
 };
@@ -779,19 +794,27 @@ export const deleteOverride = async (req, res) => {
   const { id } = req.params;
   
   try {
-    const configs = await getConfiguracoes();
-    const overrides = JSON.parse(configs.bi_overrides || "[]");
-    
-    const novosOverrides = overrides.filter(ov => ov.id !== id);
-    
-    if (overrides.length === novosOverrides.length) {
+    let removed = false;
+    await prisma.$transaction(async (tx) => {
+      const config = await tx.configuracoes_sistema.findUnique({
+        where: { chave: "bi_overrides" },
+      });
+      
+      const overrides = safeParseArray(config?.valor);
+      const novosOverrides = overrides.filter((ov) => ov.id !== id);
+      
+      if (overrides.length === novosOverrides.length) return;
+      
+      await tx.configuracoes_sistema.update({
+        where: { chave: "bi_overrides" },
+        data: { valor: JSON.stringify(novosOverrides) },
+      });
+      removed = true;
+    });
+
+    if (!removed) {
       return res.status(404).json({ error: "Registro não encontrado." });
     }
-    
-    await prisma.configuracoes_sistema.update({
-      where: { chave: "bi_overrides" },
-      data: { valor: JSON.stringify(novosOverrides) }
-    });
     
     invalidarCache();
     
@@ -804,7 +827,8 @@ export const deleteOverride = async (req, res) => {
     });
 
     res.status(200).json({ message: "Registro removido com sucesso." });
-  } catch {
+  } catch (error) {
+    logger.error(`[BI] Erro ao remover override: ${error.message}`);
     res.status(500).json({ error: "Erro ao remover registro de horário." });
   }
 };

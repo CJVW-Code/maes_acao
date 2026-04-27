@@ -111,7 +111,7 @@ export function AuthProvider({ children }) {
   };
 
   const permissions = useMemo(() => ({
-    canManageTeam: (user?.cargo || "").toLowerCase() === "admin",
+    canManageTeam: ["admin", "gestor", "coordenador"].includes((user?.cargo || "").toLowerCase()),
     canViewBi: ["admin", "gestor", "coordenador"].includes((user?.cargo || "").toLowerCase()),
     canEditConfig: ["admin", "gestor"].includes((user?.cargo || "").toLowerCase()),
     canDistribuir: ["admin", "gestor", "coordenador"].includes((user?.cargo || "").toLowerCase()),

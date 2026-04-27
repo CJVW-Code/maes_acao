@@ -1,6 +1,6 @@
 # Regras de Negócio — Mães em Ação · DPE-BA
 
-> **Versão:** 3.3 · **Atualizado em:** 2026-04-26 (RBAC Gestor Bypass + BI Premium Widgets)  
+> **Versão:** 3.4 · **Atualizado em:** 2026-04-27 (Security Hardening Audit + Case Distribution L1/L2)  
 > **Fonte:** Análise da codebase (controllers, services, middleware, config)  
 > **Propósito:** Referência canônica para treinamento de IAs e orientação de defensores
 
@@ -233,6 +233,7 @@ Para garantir que a busca seja resiliente a diferentes formatos de entrada, o si
 | **Normalização** | CPFs informados na busca são limpos (removendo `.` e `-`) antes da consulta. |
 | **Busca Resiliente** | O backend consulta simultaneamente o CPF "sujo" (como digitado) e o CPF "limpo" na tabela `casos_partes`. |
 | **Escopo de Busca** | A busca verifica os campos `cpf_assistido` e `representante_cpf` para garantir que o caso seja encontrado independente de quem iniciou o processo. |
+| **Filtro de Unidade** | **Segurança:** A busca por CPF no painel administrativo filtra resultados pela unidade do profissional logado ou casos explicitamente compartilhados com ele (salvo bypass global para Admins e Gestores). |
 | **Validação** | CPF do assistido e do representante são **obrigatórios e validados** algoritmicamente (Bloqueante). |
 
 ### 3.2 Unicidade de CPF e Arquitetura Multi-Casos
@@ -391,14 +392,14 @@ O sistema agora suporta a geração e visualização simultânea de múltiplos d
 
 O campo `cargo` na tabela `defensores` define o nível de acesso. O cargo é incluído no token JWT no login.
 
-| Cargo | Acesso de Leitura | Acesso de Escrita | Operações Admin/Global | Unlock |
-|:------|:-------------------|:-------------------|:-----------------------|:-------|
-| `admin` | ✅ | ✅ | ✅ | ✅ |
-| `gestor` | ✅ | ✅ | ✅ | ✅ |
-| `coordenador` | ✅ | ✅ | ❌ | ✅ |
-| `defensor` | ✅ | ✅ | ❌ | ❌ |
-| `servidor` | ✅ | ✅ | ❌ | ❌ |
-| `estagiario` | ✅ | ✅ | ❌ | ❌ |
+| Cargo | Leitura | Escrita | Protocolo/Finalizar | Admin/Global | Unlock | Gerenciar Equipe |
+|:------|:--------|:--------|:--------------------|:-------------|:-------|:-----------------|
+| `admin` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `gestor` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `coordenador` | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
+| `defensor` | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `servidor` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `estagiario` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 > O cargo padrão ao cadastrar um novo membro é `"estagiario"`. Apenas o admin pode criar cadastros e deve selecionar entre as opções disponíveis no formulário.
 
@@ -415,8 +416,8 @@ O campo `cargo` na tabela `defensores` define o nível de acesso. O cargo é inc
 
 > **Middleware:** `requireWriteAccess` usa whitelist positiva. Qualquer cargo fora da lista recebe HTTP 403.
 > **Isolamento de Unidade:** Usuários (exceto Admins e Gestores) são restritos a casos de sua própria `unidade_id`. Admins e Gestores possuem bypass global para visualização e edição. **Novidade:** A busca por CPF filtra resultados pela unidade do profissional ou casos compartilhados.
-> **Regra de Distribuição:** Coordenadores e Defensores só podem distribuir casos para profissionais da mesma unidade. Distribuições entre sedes diferentes são permitidas apenas para Admins e Gestores.
-> **RBAC Case-Insensitive:** O sistema normaliza a verificação de cargos para letras minúsculas (`.toLowerCase()`), prevenindo falhas de permissão por divergência de casing no banco de dados.
+> **Hierarquia de Distribuição:** A distribuição de casos valida o cargo do alvo. Casos em fase de Protocolo só podem ser distribuídos para cargos de nível superior (Defensor, Coordenador, Gestor, Admin). Atendimentos (L1) são abertos a todos os cargos operacionais.
+> **RBAC Case-Insensitive:** O sistema normaliza a verificação de cargos para letras minúsculas (`.toLowerCase()`), prevenindo falhas de permissão por divergência de casing no banco de dados e garantindo integridade no controle de acesso.
 
 ### 5.3 Operações exclusivas de Admin
 

@@ -1,6 +1,6 @@
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 4.4 · **Atualizado em:** 2026-04-26 (RBAC Gestor Bypass + CI Coverage Summary)
+> **Versão:** 4.5 · **Atualizado em:** 2026-04-27 (Security Hardening Audit + Case Distribution L1/L2)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
@@ -329,18 +329,19 @@ sequenceDiagram
 
 ### Permissões por Cargo (RBAC)
 
-| Cargo | Leitura | Escrita | Protocolo/Finalizar | Admin/Global | Unlock |
-|:------|:--------|:--------|:--------------------|:-------------|:-------|
-| `admin` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `gestor` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `coordenador` | ✅ | ✅ | ✅ | ❌ | ✅ |
-| `defensor` | ✅ | ✅ | ✅ | ❌ | ❌ |
-| `servidor` | ✅ | ✅ | ❌ | ❌ | ❌ |
-| `estagiario` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Cargo | Leitura | Escrita | Protocolo/Finalizar | Admin/Global | Unlock | Gerenciar Equipe |
+|:------|:--------|:--------|:--------------------|:-------------|:-------|:-----------------|
+| `admin` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `gestor` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `coordenador` | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
+| `defensor` | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `servidor` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `estagiario` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 > **Middleware:** `requireWriteAccess` usa whitelist positiva: apenas `admin`, `gestor`, `coordenador`, `defensor`, `servidor`, `estagiario` passam.
 > **Isolamento de Unidade:** Middleware `requireSameUnit` bloqueia IDOR. Admins e Gestores possuem bypass global. **Novidade:** A busca por CPF e a distribuição de casos agora validam a unidade do profissional, restringindo o acesso apenas à sede de atuação (salvo bypass global).
-> **RBAC Case-Insensitive:** Todas as verificações de cargo no backend agora utilizam `.toLowerCase()` para garantir consistência entre o banco de dados e a lógica de aplicação.
+> **Distribuição de Casos (L1/L2):** O sistema agora valida o cargo do usuário alvo na distribuição. Atendimentos (L1) podem ser distribuídos para qualquer cargo operacional. Protocolos (L2) são restritos a Defensores, Coordenadores, Gestores e Admins.
+> **RBAC Case-Insensitive:** Todas as verificações de cargo no backend agora utilizam `.toLowerCase()` para garantir consistência entre o banco de dados e a lógica de aplicação, evitando bloqueios indevidos por capitalização.
 > **Power User Bypass:** O cargo `gestor` foi adicionado ao bypass de lock na função `carregarCasoDetalhado`, permitindo auditoria e downloads administrativos de casos bloqueados por outros usuários.
 
 ---
@@ -467,7 +468,7 @@ services:
 3. **`coverage_summary`** → O sistema agora gera um reporter `json-summary` no Jest (backend) e Vitest (frontend) para facilitar a integração com dashboards de qualidade no CI/CD.
 
 > [!CAUTION]
-> **LGPD:** NUNCA grave CPFs, nomes ou dados pessoais nas colunas de `detalhes` dos logs. Use apenas IDs e referências genéricas.
+> **LGPD:** NUNCA grave CPFs, nomes ou dados pessoais nas colunas de `detalhes` dos logs. Use apenas IDs e referências genéricas. A distribuição de casos foi auditada para remover PII dos metadados de auditoria.
 
 ---
 
