@@ -1,6 +1,6 @@
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 3.2 · **Atualizado em:** 2026-04-24 (CodeRabbit Audit + Dashboard v3.0 + CPF Mandatory)
+> **Versão:** 4.5 · **Atualizado em:** 2026-04-27 (Security Hardening Audit + Case Distribution L1/L2)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
@@ -180,12 +180,14 @@ stateDiagram-v2
 
 ### Locking — Sessões e Concorrência
 
-- **Nível 1 (Servidor):** Bloqueia edição de dados jurídicos e relato
-- **Nível 2 (Defensor):** Bloqueia a etapa de protocolo e finalização
-- **HTTP 423 (Locked):** Retorno padrão quando outro usuário detém o lock
-- **Admin Bypass:** Administradores podem forçar destravamento via painel
+- **Nível 1 (Servidor/Estagiário/Defensor/Coordenador):** Atribuição de `servidor_id` — bloqueia edição de dados jurídicos e relato. Ativo em `pronto_para_analise` e `em_atendimento`.
+- **Nível 2 (Defensor/Coordenador/Admin):** Atribuição de `defensor_id` — bloqueia etapa de protocolo e finalização. Ativo em `liberado_para_protocolo` e `em_protocolo`. **`servidor` e `estagiario` NUNCA adquirem Nível 2.**
+- **Isolamento de Unidade:** Middleware `requireSameUnit` bloqueia IDOR. **Admin e Gestor** possuem bypass global.
+- **HTTP 423 (Locked):** Retorno padrão quando outro usuário detém o lock.
+- **Unlock Privilegiado:** Administradores, Gestores e Coordenadores podem forçar destravamento via painel.
+- **Distribuição Protegida:** Apenas `admin`, `gestor` e `coordenador` podem distribuir casos. Servidores e estagiários são bloqueados com HTTP 403.
+- **Concorrência Atômica (Fallback Prisma):** Operações críticas de status (como distribuição) utilizam `updateMany` com cláusula `where` composta (ID + Status Permitido) para evitar condições de corrida (Race Conditions). Retorna HTTP 409 em caso de conflito.
 - **Auto-release:** Lock liberado após 30min de inatividade.
-- **Manual Unlock:** Administradores podem forçar destravamento via painel.
 
 ---
 
@@ -329,15 +331,20 @@ sequenceDiagram
 
 ### Permissões por Cargo (RBAC)
 
-| Cargo | Leitura | Escrita | Admin |
-|:------|:--------|:--------|:------|
-| `admin` | ✅ | ✅ | ✅ |
-| `defensor` | ✅ | ✅ | ❌ |
-| `estagiario` | ✅ | ✅ | ❌ |
-| `recepcao` | ✅ | ✅ | ❌ |
-| `visualizador` | ✅ | ❌ | ❌ |
+| Cargo | Leitura | Escrita | Protocolo/Finalizar | Admin/Global | Unlock | Gerenciar Equipe |
+|:------|:--------|:--------|:--------------------|:-------------|:-------|:-----------------|
+| `admin` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `gestor` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `coordenador` | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
+| `defensor` | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `servidor` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `estagiario` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 
-> **Middleware:** `requireWriteAccess` bloqueia `visualizador` de operações POST/PATCH/DELETE com HTTP 403.
+> **Middleware:** `requireWriteAccess` usa whitelist positiva: apenas `admin`, `gestor`, `coordenador`, `defensor`, `servidor`, `estagiario` passam.
+> **Isolamento de Unidade:** Middleware `requireSameUnit` bloqueia IDOR. Admins e Gestores possuem bypass global. **Novidade:** A busca por CPF e a distribuição de casos agora validam a unidade do profissional, restringindo o acesso apenas à sede de atuação (salvo bypass global).
+> **Distribuição de Casos (L1/L2):** O sistema agora valida o cargo do usuário alvo na distribuição. Atendimentos (L1) podem ser distribuídos para qualquer cargo operacional. Protocolos (L2) são restritos a Defensores, Coordenadores, Gestores e Admins.
+> **RBAC Case-Insensitive:** Todas as verificações de cargo no backend agora utilizam `.toLowerCase()` para garantir consistência entre o banco de dados e a lógica de aplicação, evitando bloqueios indevidos por capitalização.
+> **Power User Bypass:** O cargo `gestor` foi adicionado ao bypass de lock na função `carregarCasoDetalhado`, permitindo auditoria e downloads administrativos de casos bloqueados por outros usuários.
 
 ---
 
@@ -460,9 +467,10 @@ services:
 
 1. **`logs_auditoria`** → Rastreia ações humanas (quem fez o quê e quando)
 2. **`logs_pipeline`** → Rastreia falhas técnicas na IA (etapa, erro, timestamp)
+3. **`coverage_summary`** → O sistema agora gera um reporter `json-summary` no Jest (backend) e Vitest (frontend) para facilitar a integração com dashboards de qualidade no CI/CD.
 
 > [!CAUTION]
-> **LGPD:** NUNCA grave CPFs, nomes ou dados pessoais nas colunas de `detalhes` dos logs. Use apenas IDs e referências genéricas.
+> **LGPD:** NUNCA grave CPFs, nomes ou dados pessoais nas colunas de `detalhes` dos logs. Use apenas IDs e referências genéricas. A distribuição de casos foi auditada para remover PII dos metadados de auditoria.
 
 ---
 
@@ -489,6 +497,7 @@ QSTASH_NEXT_SIGNING_KEY=...
 JWT_SECRET=64_chars_random_string
 API_KEY_SERVIDORES=64_chars_random
 SALARIO_MINIMO_ATUAL=1621.00
+ALLOWED_ORIGINS=https://maesemacao.defsulbahia.com.br,https://maes-acao.vercel.app
 
 # Frontend
 VITE_API_URL=https://api.mutirao.dpe.ba.gov.br

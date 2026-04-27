@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { jest } from "@jest/globals";
 
 // Mock logger para não poluir output dos testes

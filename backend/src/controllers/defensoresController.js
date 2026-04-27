@@ -1,20 +1,21 @@
+/* eslint-disable no-unused-vars */
 import { prisma } from "../config/prisma.js";
 import { hashPassword, verifyPassword } from "../services/securityService.js";
 import { generateToken } from "../config/jwt.js";
 import logger from "../utils/logger.js";
-import { supabase, isSupabaseConfigured } from "../config/supabase.js";
+import {  isSupabaseConfigured } from "../config/supabase.js";
 
 // --- FUNÇÃO DE CADASTRO (Atualizada com Cargo) ---
 export const registrarDefensor = async (req, res) => {
   try {
-    if (!req.user || req.user.cargo !== "admin") {
+    if (!req.user || req.user.cargo?.toLowerCase() !== "admin") {
       return res.status(403).json({
         error:
           "Acesso negado. Apenas administradores podem cadastrar novos membros.",
       });
     }
 
-    const { nome, email, senha, cargo = "operador", unidade_id } = req.body;
+    const { nome, email, senha, cargo = "servidor", unidade_id } = req.body;
 
     const cargoDb = await prisma.cargos.findFirst({
       where: { nome: cargo.toLowerCase() },
@@ -129,14 +130,22 @@ export const loginDefensor = async (req, res) => {
   }
 };
 
-// --- LISTAR EQUIPE (Apenas Admin) ---
+// --- LISTAR EQUIPE (Admin vê tudo, Gestor/Coordenador vê unidade) ---
 export const listarDefensores = async (req, res) => {
   try {
-    if (!req.user || req.user.cargo !== "admin") {
-      return res.status(403).json({ error: "Acesso negado." });
+    const CARGOS_VIEW_TEAM = ["admin", "gestor", "coordenador"];
+    const userCargo = req.user?.cargo?.toLowerCase();
+
+    if (!req.user || !CARGOS_VIEW_TEAM.includes(userCargo)) {
+      return res.status(403).json({ error: "Acesso negado. Apenas administradores e gestores podem visualizar a equipe." });
     }
 
+    const whereClause = ["admin", "gestor"].includes(userCargo) 
+      ? {} 
+      : { unidade_id: req.user.unidade_id };
+
     const equipe = await prisma.defensores.findMany({
+      where: whereClause,
       select: {
         id: true,
         nome: true,
@@ -162,6 +171,7 @@ export const listarDefensores = async (req, res) => {
 
     res.json(data);
   } catch (err) {
+    logger.error(`Erro ao listar equipe: ${err.message}`);
     res.status(500).json({ error: "Erro ao buscar membros da equipe." });
   }
 };
@@ -198,7 +208,7 @@ export const listarColegas = async (req, res) => {
 // --- ATUALIZAR MEMBRO (Apenas Admin) ---
 export const atualizarDefensor = async (req, res) => {
   try {
-    if (!req.user || req.user.cargo !== "admin") {
+    if (!req.user || req.user.cargo?.toLowerCase() !== "admin") {
       return res.status(403).json({ error: "Acesso negado." });
     }
 
@@ -237,7 +247,7 @@ export const atualizarDefensor = async (req, res) => {
 // --- DELETAR MEMBRO (Apenas Admin) ---
 export const deletarDefensor = async (req, res) => {
   try {
-    if (!req.user || req.user.cargo !== "admin") {
+    if (!req.user || req.user.cargo?.toLowerCase() !== "admin") {
       return res.status(403).json({ error: "Acesso negado." });
     }
 
@@ -263,7 +273,7 @@ export const deletarDefensor = async (req, res) => {
 // --- RESETAR SENHA (Apenas Admin) ---
 export const resetarSenhaDefensor = async (req, res) => {
   try {
-    if (!req.user || req.user.cargo !== "admin") {
+    if (!req.user || req.user.cargo?.toLowerCase() !== "admin") {
       return res.status(403).json({ error: "Acesso negado." });
     }
 

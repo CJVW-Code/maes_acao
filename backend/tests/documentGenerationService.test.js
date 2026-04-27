@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { jest } from "@jest/globals";
 import fs from "fs/promises";
 import path from "path";

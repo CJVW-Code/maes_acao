@@ -1,6 +1,6 @@
 # Referência da API — Mães em Ação · DPE-BA
 
-> **Versão:** 3.1 · **Atualizado em:** 2026-04-23 (Download Hardening + A11y)
+> **Versão:** 4.2 · **Atualizado em:** 2026-04-27 (RBAC Distribuição + Concorrência Atômica)
 
 Esta documentação lista as principais rotas do backend do Mães em Ação.  
 Todas as rotas são prefixadas com `/api`. Exemplo: `https://api.mutirao.dpe.ba.gov.br/api/casos`.
@@ -14,9 +14,12 @@ Para rotas marcadas como **Protegidas**, é exigido o envio de um token JWT no c
 
 ### Cargos e Permissões (`cargo`)
 O sistema utiliza os seguintes cargos, extraídos do JWT:
-* `admin`: Acesso total (leitura, escrita e ações críticas/destrutivas, como criação de perfis).
-* `defensor`, `estagiario`, `recepcao`: Acesso de leitura e escrita (exceto exclusões e recriação IA).
-* `visualizador`: Apenas leitura (bloqueado pelo middleware `requireWriteAccess`).
+* `admin`, `gestor`: Acesso total (leitura, escrita e ações críticas/destrutivas). Bypass global de unidade. Pode listar e gerenciar defensores de todas as sedes.
+* `coordenador`: Acesso de leitura e escrita. Restricted a casos da própria unidade via `requireSameUnit`. Pode gerenciar defensores da sua própria unidade.
+* `defensor`, `servidor`, `estagiario`: Acesso de leitura e escrita. Restricted a casos da própria unidade. **Novidade:** Distribuição de casos agora valida o cargo do profissional alvo conforme o nível de atendimento (L1/L2).
+* `visualizador`: Apenas leitura (bloqueado pelo middleware `requireWriteAccess`). Restricted a casos da própria unidade.
+
+> **RBAC Case-Insensitive:** O sistema normaliza todos os cargos para minúsculas antes da validação, garantindo consistência técnica independente da entrada no banco de dados.
 
 ---
 
@@ -39,6 +42,8 @@ Exigem autenticação. Fundamentais para evitar edição concorrente.
 | :----- | :-------------- | :------------------------------------------------------- |
 | `PATCH`| `/:id/lock`     | Tenta travar o caso para o usuário (Retorna 423 se ocupado)|
 | `PATCH`| `/:id/unlock`   | Libera o caso manualmente para outros usuários           |
+
+> **Nota:** Todas as rotas que utilizam o parâmetro `/:id` (exceto uploads públicos) aplicam o middleware `requireSameUnit`, impedindo acesso cruzado entre unidades.
 
 ### Rotas de Scanner (Balcão)
 Endpoint otimizado para alto volume.
@@ -78,6 +83,7 @@ Exigem autenticação e permissão de modificação.
 | `POST`   | `/:id/reprocessar`          | Reprocessa arquivos do caso na fila.                                   |
 | `PATCH`  | `/:id/documento/renomear`   | Renomeia um documento específico do caso.                              |
 | `PATCH`  | `/:id/arquivar`             | Arquiva ou desarquiva um caso.                                         |
+| `POST`   | `/:id/distribuir`           | Distribui o caso para um profissional. Exige cargo privilegiado.       |
 
 ### Rotas de Download Seguro (Ticket JWT)
 Um ticket de curta duração deve ser obtido via `POST /:id/gerar-ticket-download` e usado nas rotas abaixo. O ticket evita expor o JWT principal em URLs de download.
@@ -135,6 +141,7 @@ Um ticket de curta duração deve ser obtido via `POST /:id/gerar-ticket-downloa
 *Protegida*
 * **Request:** Query Params: `entidade` (default: "casos").
 * **Response (200 OK):** Array de logs de auditoria mostrando `acao`, `entidade` e nome preenchido do defensor vinculados àquele caso.
+* **Segurança LGPD:** Metadados de auditoria em operações de distribuição e arquivamento são sanitizados para remover nomes e CPFs das partes, mantendo apenas IDs técnicos.
 
 #### `PATCH /notificacoes/:id/lida`
 *Protegida*
@@ -210,8 +217,9 @@ Gerenciamento de acesso e contas dos Defensores Públicos.
 * **Request:** JSON: `nome`, `email` (único na view constraint DB), `senha` (>= 6 chr), `cargo` (válidos, bloqueado para 'operador', que inexiste dinamicamente), `unidade_id` (obrigatório — selecionar unidade de lotação).
 
 #### `GET /`
-*Protegida (Exclusiva para `admin`)*
-* **Response (200 OK):** Lista de perfis do time com `unidade_nome` e `unidade_id`, dados de senha restritos.
+*Protegida (Acesso: `admin`, `coordenador`, `gestor`)*
+* **Response (200 OK):** Lista de perfis do time. Se o cargo for `admin`, vê todas as sedes. Se for `coordenador` ou `gestor`, vê apenas membros da própria `unidade_id`.
+* **Observação:** Dados de senha são restritos. Senha_hash nunca é exposta.
 
 #### `PUT /:id`
 *Protegida*

@@ -9,25 +9,23 @@ import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  Settings
 } from "lucide-react";
 
 export const Sidebar = ({ isExpanded, setIsExpanded }) => {
   const auth = useAuth();
-  const { logout, user } = auth || {};
+  const { logout, permissions } = auth || {};
 
   if (!auth) return null;
 
-  const userCargo = user?.cargo || "estagiario";
-  const isAdmin = userCargo === "admin";
-  const isJuridico = ["admin", "defensor", "estagiario", "visualizador"].includes(userCargo);
-
   const navItems = [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/painel", show: isJuridico },
-    { icon: FolderKanban, label: "Casos e Triagem", path: "/painel/casos", show: isJuridico },
-    { icon: Archive, label: "Arquivo Morto", path: "/painel/casos/arquivados", show: isJuridico },
-    { icon: BarChart3, label: "Relatorios", path: "/painel/relatorios", show: isAdmin },
-    { icon: UserPlus, label: "Gerenciar Equipe", path: "/painel/equipe", show: isAdmin },
+    { icon: LayoutDashboard, label: "Dashboard", path: "/painel", show: true },
+    { icon: FolderKanban, label: "Casos e Triagem", path: "/painel/casos", show: true },
+    { icon: Archive, label: "Arquivo Morto", path: "/painel/casos/arquivados", show: true },
+    { icon: BarChart3, label: "Relatórios", path: "/painel/relatorios", show: permissions.canViewBi },
+    { icon: UserPlus, label: "Gerenciar Equipe", path: "/painel/equipe", show: permissions.canManageTeam },
+    { icon: Settings, label: "Configurações", path: "/painel/configuracoes", show: permissions.canEditConfig },
   ].filter(item => item.show);
 
   const mobileLinkClass = ({ isActive }) =>

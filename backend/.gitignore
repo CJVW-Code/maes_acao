@@ -1,8 +1,25 @@
-#
+# Dependências
 node_modules/
+
+# Ambiente e Segredos
 .env
-dist/
-build/
+.env.test
+
+# Logs e Relatórios
+logs/
 *.log
 coverage/
-#
+*.txt
+
+# Uploads e Arquivos Temporários
+uploads/
+scratch/
+temp/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/

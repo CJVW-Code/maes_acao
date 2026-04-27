@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 // @ts-nocheck
 import { generateLegalText } from "./aiService.js";
 import dotenv from "dotenv";
@@ -159,7 +160,7 @@ const parseBankData = (raw) => {
   };
 };
 
-const valueOrPlaceholder = (value, fallback = PLACEHOLDER_FIELD) => {
+const _valueOrPlaceholder = (value, fallback = PLACEHOLDER_FIELD) => {
   if (value === undefined || value === null) return fallback;
   const trimmed = `${value}`.trim();
   return trimmed ? trimmed : fallback;

@@ -1,6 +1,6 @@
 import winston from "winston";
-import { Logtail } from "@logtail/node";
-import { LogtailTransport } from "@logtail/winston";
+
+
 import dotenv from "dotenv";
 
 dotenv.config();

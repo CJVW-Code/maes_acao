@@ -23,7 +23,6 @@ export const processSubmission = async ({
   const nomeRequeridoTrim = (formState.REQUERIDO_NOME || "").trim();
   const enderecoRequeridoTrim = (formState.executado_endereco_residencial || "").trim();
   const telefoneRequeridoDigits = stripNonDigits(formState.executado_telefone || "");
-  const requeridoEmailTrim = (formState.executado_email || "").trim();
 
   if (!isAlvaraContext) {
     if (!nomeRequeridoTrim) {

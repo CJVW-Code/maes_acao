@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 // @ts-nocheck
 import { supabase, isSupabaseConfigured } from "../config/supabase.js";
 import { prisma } from "../config/prisma.js";
@@ -35,11 +36,13 @@ import {
   generateTermoDeclaracao,
   generateMultiplosDocx,
 } from "../services/documentGenerationService.js";
-import { analyzeCase, generateDosFatos } from "../services/geminiService.js";
+import {  generateDosFatos } from "../services/geminiService.js";
 import { getVaraByTipoAcao } from "../config/varasMapping.js";
 import logger from "../utils/logger.js";
 import { Client } from "@upstash/qstash";
 import { TAGS_OFICIAIS } from "../config/dicionarioTags.js";
+import { safeFormData } from "../utils/helpers.js";
+import { validateTransition } from "../utils/stateMachine.js";
 
 // Colunas físicas da tabela casos_ia que podem ser atualizadas diretamente
 const DIRECT_COLUMN_KEYS = new Set(["url_peticao", "url_peticao_penhora", "url_peticao_prisao"]);
@@ -137,6 +140,8 @@ const mapCasoRelations = (caso) => {
     enriched.emissor_rg_exequente = partes.emissor_rg_representante || partes.emissor_rg_assistido;
     enriched.nome_mae_representante = partes.nome_mae_representante;
     enriched.nome_pai_representante = partes.nome_pai_representante;
+    enriched.nome_mae_assistido = partes.nome_mae_assistido || partes.nome_mae_representante;
+    enriched.nome_pai_assistido = partes.nome_pai_assistido || partes.nome_pai_representante;
 
     enriched.REQUERIDO_NOME = partes.nome_requerido;
     enriched.nome_requerido = partes.nome_requerido;
@@ -439,13 +444,13 @@ const carregarCasoDetalhado = async (id, reqUser) => {
 
   data = mapCasoRelations(data);
 
-  const isAdmin = reqUser.cargo.toLowerCase() === "admin";
+  const isPowerUser = ["admin", "gestor"].includes(reqUser.cargo.toLowerCase());
   const isOwner =
     String(data.defensor_id) === String(reqUser.id) ||
     String(data.servidor_id) === String(reqUser.id);
   const isShared = (data.assistencia_casos || []).length > 0;
 
-  if (!isAdmin && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
+  if (!isPowerUser && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
     const holderName = data.defensor?.nome || data.servidor?.nome || "outro usuário";
     throw new HttpError(423, "Caso bloqueado", {
       message: `Este caso já está vinculado ao defensor(a) ${holderName}. Apenas o administrador pode liberar este caso.`,
@@ -679,7 +684,7 @@ const parseCurrencyToNumber = (value) => {
   return Number.isNaN(result) ? 0 : result;
 };
 
-const calcularValorCausa = (valorMensal) => {
+const _calcularValorCausa = (valorMensal) => {
   const valorNumerico = parseCurrencyToNumber(valorMensal);
   if (!valorNumerico) return 0;
   return valorNumerico * 12;
@@ -968,7 +973,7 @@ const sanitizeInlineText = (value) => {
     .trim();
 };
 
-const ensureInlineValue = (value) => {
+const _ensureInlineValue = (value) => {
   const ensured = ensureText(value);
   return ensured;
 };
@@ -1024,6 +1029,16 @@ const buildSolarExportPayload = (caso = {}) => {
       caso.nascimento ||
       formatDateBr(caso.partes?.data_nascimento_assistido) ||
       "",
+    data_nascimento_assistido:
+      caso.assistido_data_nascimento ||
+      caso.nascimento ||
+      formatDateBr(caso.partes?.data_nascimento_assistido) ||
+      "",
+    nome_mae_assistido:
+      caso.nome_mae_assistido || caso.partes?.nome_mae_assistido || caso.nome_mae_representante || "",
+    nome_pai_assistido:
+      caso.nome_pai_assistido || caso.partes?.nome_pai_assistido || caso.nome_pai_representante || "",
+    filiacao: `Mãe: ${caso.nome_mae_assistido || caso.partes?.nome_mae_assistido || caso.nome_mae_representante || "N/I"}, Pai: ${caso.nome_pai_assistido || caso.partes?.nome_pai_assistido || caso.nome_pai_representante || "N/I"}`,
     representante_estado_civil:
       caso.assistido_estado_civil ||
       caso.representante_estado_civil ||
@@ -1305,11 +1320,11 @@ const processarDadosFilhosParaPeticao = (baseData = {}, normalizedData = {}) => 
     termo_representacao = ` ${termo_representacao}`;
   }
 
-  const assistidoCpf =
+  const _assistidoCpf =
     lista_filhos.length > 0
       ? lista_filhos[0].cpf
       : baseData.cpf_assistido || baseData.cpf || normalizedData.requerente_cpf;
-  const dataNascimentoAssistidoBr =
+  const _dataNascimentoAssistidoBr =
     lista_filhos.length > 0
       ? lista_filhos[0].nascimento
       : formatDateBr(
@@ -2188,6 +2203,20 @@ export const baixarTodosDocumentosZip = async (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename="${caso.protocolo}_documentos.zip"`);
 
     archive.pipe(res);
+    
+    // [AUTOMACAO] Injeta JSON de dados para a extensão (atendimento.json)
+    const exportData = {
+      caso: {
+        id: caso.id,
+        protocolo: caso.protocolo,
+        tipo_acao: caso.tipo_acao,
+        status: caso.status,
+      },
+      solar: buildSolarExportPayload(caso),
+    };
+    archive.append(JSON.stringify(stringifyBigInts(exportData), null, 2), {
+      name: "atendimento.json",
+    });
 
     const arquivosFalharam = [];
 
@@ -2753,15 +2782,27 @@ export const listarCasos = async (req, res) => {
     const baseWhere = { arquivado: statusFiltro };
 
     // Filtro para ocultar em_protocolo de servidor/estagiario
-    if (req.user && (req.user.cargo === "servidor" || req.user.cargo === "estagiario")) {
+    const cargoNormalizado = (req.user?.cargo || "").toLowerCase();
+    if (req.user && (cargoNormalizado === "servidor" || cargoNormalizado === "estagiario")) {
       baseWhere.status = { not: "em_protocolo" };
     }
 
     // Filtro "Meus Atendimentos"
     if (meusAtendimentos === "true" && req.user) {
-      baseWhere.OR = [{ defensor_id: req.user.id }, { servidor_id: req.user.id }];
-    } else if (req.user && req.user.cargo !== "admin" && req.user.unidade_id) {
-      // Filtro por unidade padrão (admin vê tudo)
+      baseWhere.OR = [
+        { defensor_id: req.user.id },
+        { servidor_id: req.user.id },
+        {
+          assistencia_casos: {
+            some: {
+              destinatario_id: req.user.id,
+              status: "aceito",
+            },
+          },
+        },
+      ];
+    } else if (req.user && !["admin", "gestor"].includes(req.user.cargo.toLowerCase()) && req.user.unidade_id) {
+      // Filtro por unidade padrão (admin e gestor veem tudo)
       baseWhere.OR = [
         { unidade_id: req.user.unidade_id },
         {
@@ -2854,14 +2895,15 @@ export const listarCasos = async (req, res) => {
 export const resumoCasos = async (req, res) => {
   try {
     const whereClause = { arquivado: false };
+    const cargoNormalizado = (req.user?.cargo || "").toLowerCase();
 
-    // Filtro por unidade: admin vê tudo, demais veem apenas sua unidade
-    if (req.user && req.user.cargo !== "admin" && req.user.unidade_id) {
+    // Filtro por unidade: admin e gestor veem tudo, demais veem apenas sua unidade
+    if (req.user && !["admin", "gestor"].includes(req.user.cargo.toLowerCase()) && req.user.unidade_id) {
       whereClause.unidade_id = req.user.unidade_id;
     }
 
     // Filtro para ocultar em_protocolo de servidor/estagiario
-    if (req.user && (req.user.cargo === "servidor" || req.user.cargo === "estagiario")) {
+    if (req.user && (cargoNormalizado === "servidor" || cargoNormalizado === "estagiario")) {
       whereClause.status = { not: "em_protocolo" };
     }
 
@@ -2881,7 +2923,8 @@ export const resumoCasos = async (req, res) => {
     };
 
     const vinteMinsAgo = new Date(Date.now() - 20 * 60 * 1000);
-    const partesWhere = req.user?.cargo !== "admin" && req.user?.unidade_id
+    const isPowerUser = req.user?.cargo === "admin" || req.user?.cargo === "gestor";
+    const partesWhere = !isPowerUser && req.user?.unidade_id
       ? { caso: { unidade_id: req.user.unidade_id, arquivado: false } }
       : { caso: { arquivado: false } };
 
@@ -3047,7 +3090,8 @@ export const obterDetalhesCaso = async (req, res) => {
     data = mapCasoRelations(data);
 
     // --- Lógica de Travamento (Locking) e Vínculo Automático ---
-    const isAdmin = req.user.cargo.toLowerCase() === "admin";
+    const userCargo = req.user.cargo.toLowerCase();
+    const isPowerUser = ["admin", "gestor"].includes(userCargo);
 
     // [EIXO 1] Lock Permanente: Uma vez vinculado, apenas o dono ou Admin acessa.
     // Não expira em 30 min. Somente Admin pode liberar via /unlock.
@@ -3062,23 +3106,25 @@ export const obterDetalhesCaso = async (req, res) => {
         a.status === "aceito",
     );
 
-    const isServidorOrEstagiario = req.user.cargo === "servidor" || req.user.cargo === "estagiario";
+    const isServidorOrEstagiario = userCargo === "servidor" || userCargo === "estagiario";
     if (data.status === "em_protocolo" && isServidorOrEstagiario) {
       return res.status(403).json({ error: "Acesso Negado. Este caso está na etapa de protocolo e apenas defensores e coordenadores podem acessá-lo." });
     }
 
-    if (!isAdmin && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
+    if (!isPowerUser && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
       const holderName = data.defensor?.nome || data.servidor?.nome || "outro usuário";
+      const holderId = data.defensor_id || data.servidor_id;
+      logger.warn(`[Lock Contention]: Usuário ${req.user.id} tentou acessar caso ${id} bloqueado por ID ${holderId}`);
       return res.status(423).json({
         error: "Caso bloqueado",
-        message: `Este caso já está vinculado ao defensor(a) ${holderName}. Apenas o administrador pode liberar este caso.`,
+        message: `Este caso já está vinculado ao profissional ${holderName}. Apenas o administrador pode liberar este caso.`,
         holder: holderName,
       });
     }
 
     // Vínculo Automático (Apenas para o dono primário, colaboradores NÃO vinculam irmãos)
     // SEGURANÇA: Só pode assumir a autoria de um caso se ele pertencer à sua própria unidade.
-    if (!isAdmin && !data.defensor_id && !data.servidor_id && !isShared) {
+    if (!isPowerUser && !data.defensor_id && !data.servidor_id && !isShared) {
       if (String(req.user.unidade_id) !== String(data.unidade_id)) {
         return res.status(403).json({
           error: "Acesso Negado",
@@ -3105,14 +3151,48 @@ export const obterDetalhesCaso = async (req, res) => {
         data: updateData,
       });
 
-      // NOVO: Vincular automaticamente todos os outros casos da mesma família (Apenas se NÃO for colaboração)
-      const cpfRepresentante = data.representante_cpf || data.cpf_assistido;
-      if (cpfRepresentante) {
+      // NOVO: Vincular automaticamente todos os outros casos da mesma família
+      const cpfRepresentante = data.representante_cpf; // Usar exclusivamente cpf_representante
+      if (cpfRepresentante && isSupabaseConfigured) {
+        try {
+          // Busca casos irmãos via Supabase (mesma mãe/representante)
+          const { data: outrosCasos, error: searchError } = await supabase
+            .from("casos_partes")
+            .select("caso_id")
+            .eq("cpf_representante", cpfRepresentante);
+
+          if (!searchError && outrosCasos?.length > 0) {
+            const idsIrmaos = outrosCasos
+              .map((c) => String(c.caso_id))
+              .filter((cid) => cid !== String(id));
+
+            if (idsIrmaos.length > 0) {
+              // Só vincula se o caso irmão:
+              // 1. NÃO tiver um lock ativo (defensor/servidor)
+              // 2. Pertencer à mesma unidade do profissional (Isolamento de Unidades)
+              const { error: batchError } = await supabase
+                .from("casos")
+                .update(updateData)
+                .in("id", idsIrmaos)
+                .eq("unidade_id", req.user.unidade_id)
+                .is("defensor_id", null)
+                .is("servidor_id", null);
+
+              if (!batchError) {
+                logger.info(
+                  `Vinculado automaticamente ${idsIrmaos.length} caso(s) irmão(s) da unidade ${req.user.unidade_id} ao usuário ${req.user.id}`,
+                );
+              }
+            }
+          }
+        } catch (err) {
+          logger.error(`Erro ao vincular casos familiares: ${err.message}`);
+        }
+      } else if (cpfRepresentante && !isSupabaseConfigured) {
+        // Fallback Prisma (mantendo lógica segura)
         try {
           const outrosCasos = await prisma.casos_partes.findMany({
-            where: {
-              OR: [{ cpf_representante: cpfRepresentante }, { cpf_assistido: cpfRepresentante }],
-            },
+            where: { cpf_representante: cpfRepresentante },
             select: { caso_id: true },
           });
 
@@ -3124,16 +3204,15 @@ export const obterDetalhesCaso = async (req, res) => {
             await prisma.casos.updateMany({
               where: {
                 id: { in: idsIrmaos },
-                ...(isDefensor ? { defensor_id: null } : { servidor_id: null }),
+                unidade_id: req.user.unidade_id,
+                defensor_id: null,
+                servidor_id: null,
               },
               data: updateData,
             });
-            logger.info(
-              `Vinculado automaticamente ${idsIrmaos.length} caso(s) irmão(s) ao usuário ${req.user.id}`,
-            );
           }
         } catch (err) {
-          logger.error(`Erro ao vincular casos familiares: ${err.message}`);
+          logger.error(`Erro ao vincular casos familiares (Prisma): ${err.message}`);
         }
       }
     }
@@ -3173,6 +3252,177 @@ export const obterDetalhesCaso = async (req, res) => {
   } catch (error) {
     logger.error(`Erro ao obter detalhes do caso ${id}: ${error.message}`);
     res.status(500).json({ error: "Erro ao obter detalhes." });
+  }
+};
+
+export const distribuirCaso = async (req, res) => {
+  const { id } = req.params;
+  const { usuario_id } = req.body;
+  if (!usuario_id) {
+    return res.status(400).json({ error: "ID do usuário alvo é obrigatório." });
+  }
+
+  // 0. Verificação de Cargo do Distribuidor (RBAC Explícito)
+  const allowedDistributors = ["admin", "gestor", "coordenador"];
+  if (!allowedDistributors.includes(req.user.cargo.toLowerCase())) {
+    return res.status(403).json({ 
+      error: "Acesso Negado", 
+      message: "Seu cargo não possui permissão para distribuir casos." 
+    });
+  }
+
+  try {
+    // 1. Busca status atual via Supabase (garantindo dados mais recentes)
+    const { data: casoAtual, error: fetchError } = await supabase
+      .from('casos')
+      .select('status, unidade_id')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !casoAtual) {
+      return res.status(404).json({ error: "Caso não encontrado." });
+    }
+
+    // 1.1 Valida o usuário alvo (Prisma - RBAC/Equipe)
+    const usuarioAlvo = await prisma.defensores.findUnique({
+      where: { id: usuario_id },
+      select: { 
+        ativo: true, 
+        unidade_id: true, 
+        nome: true,
+        cargo: { select: { nome: true } }
+      }
+    });
+
+    if (!usuarioAlvo || !usuarioAlvo.ativo) {
+      return res.status(400).json({ error: "Usuário alvo inexistente ou inativo." });
+    }
+
+    const targetCargo = usuarioAlvo.cargo?.nome?.toLowerCase();
+
+    // 1.2 Validação de Nível de Lock (RBAC Rigoroso)
+    const ALVOS_ATENDIMENTO = ['servidor', 'estagiario', 'defensor', 'coordenador', 'admin', 'gestor'];
+    const ALVOS_PROTOCOLO = ['defensor', 'coordenador', 'admin', 'gestor'];
+
+    if (['pronto_para_analise', 'em_atendimento'].includes(casoAtual.status)) {
+      if (!ALVOS_ATENDIMENTO.includes(targetCargo)) {
+        return res.status(403).json({ 
+          error: "Acesso Negado", 
+          message: `O cargo '${targetCargo}' não pode assumir atendimentos nesta fase.` 
+        });
+      }
+    } else if (['liberado_para_protocolo', 'em_protocolo'].includes(casoAtual.status)) {
+      if (!ALVOS_PROTOCOLO.includes(targetCargo)) {
+        return res.status(403).json({ 
+          error: "Acesso Negado", 
+          message: `O cargo '${targetCargo}' não pode realizar protocolos.` 
+        });
+      }
+    }
+
+    // Admins e Gestores podem distribuir para qualquer unidade. Coordenadores apenas para a própria.
+    const isPowerUser = ["admin", "gestor"].includes(req.user.cargo.toLowerCase());
+    if (!isPowerUser && String(usuarioAlvo.unidade_id) !== String(casoAtual.unidade_id)) {
+      return res.status(403).json({ 
+        error: "Acesso Negado", 
+        message: "Não é possível distribuir um caso para um profissional de outra unidade." 
+      });
+    }
+
+    // 2. Determina o campo alvo e o novo status com base no fluxo
+    let campoAlvo = null;
+    let novoStatus = null;
+    let statusPermitidos = [];
+
+    if (['pronto_para_analise', 'em_atendimento'].includes(casoAtual.status)) {
+      campoAlvo = 'servidor_id';
+      novoStatus = 'em_atendimento';
+      statusPermitidos = ['pronto_para_analise', 'em_atendimento'];
+    } else if (['liberado_para_protocolo', 'em_protocolo'].includes(casoAtual.status)) {
+      campoAlvo = 'defensor_id';
+      novoStatus = 'em_protocolo';
+      statusPermitidos = ['liberado_para_protocolo', 'em_protocolo'];
+    } else {
+      return res.status(409).json({ 
+        error: "Operação inválida", 
+        message: `Não é possível distribuir um caso com status '${casoAtual.status}'.` 
+      });
+    }
+
+    // 3. Executa a mutação atômica
+    const updateData = {
+      [campoAlvo]: usuario_id,
+      [`${campoAlvo.split('_')[0]}_at`]: new Date().toISOString(),
+      status: novoStatus
+    };
+
+    let casoAtualizado = null;
+
+    if (isSupabaseConfigured) {
+      const { data, error: updateError } = await supabase
+        .from('casos')
+        .update(updateData)
+        .eq('id', id)
+        .in('status', statusPermitidos) // Segurança da máquina de estados
+        .select()
+        .single();
+      
+      if (updateError) throw updateError;
+      casoAtualizado = data;
+    } else {
+      // Fallback Prisma - Operação Atômica para evitar condições de corrida
+      const { count } = await prisma.casos.updateMany({
+        where: { 
+          id: BigInt(id),
+          status: { in: statusPermitidos }
+        },
+        data: updateData
+      });
+
+      if (count === 0) {
+        return res.status(409).json({ 
+          error: "Conflito", 
+          message: "O caso foi alterado por outro usuário ou não pôde ser distribuído." 
+        });
+      }
+
+      casoAtualizado = await prisma.casos.findUnique({
+        where: { id: BigInt(id) }
+      });
+    }
+
+    // 4. Log de Auditoria via Prisma (LGPD: Sem nomes ou CPFs)
+    await prisma.logs_auditoria.create({
+      data: {
+        usuario_id: req.user.id,
+        caso_id: BigInt(id),
+        acao: 'distribuicao_caso',
+        detalhes: {
+          alvo_id: usuario_id,
+          campo_atualizado: campoAlvo,
+          status_anterior: casoAtual.status,
+          status_novo: novoStatus
+        }
+      }
+    });
+
+    return res.status(200).json({ 
+      message: "Caso distribuído com sucesso.", 
+      caso: stringifyBigInts(casoAtualizado) 
+    });
+
+  } catch (error) {
+    logger.error(`Erro ao distribuir caso ${id}: ${error.message}`);
+    
+    // Mapeamento de Erro de Concorrência do Prisma (P2025: Record not found)
+    if (error.code === 'P2025') {
+      return res.status(409).json({ 
+        error: "Conflito", 
+        message: "O caso foi alterado por outro usuário ou não pôde ser distribuído." 
+      });
+    }
+
+    return res.status(500).json({ error: "Erro interno ao distribuir caso." });
   }
 };
 
@@ -3227,38 +3477,30 @@ export const atualizarStatusCaso = async (req, res) => {
     // 2. Normalização
     if (status === "aguardando_docs") status = "aguardando_documentos";
 
-    // 3. Máquina de Estados Básica
-    const transicoesPermitidas = {
-      aguardando_documentos: ["documentacao_completa", "erro_processamento"],
-      documentacao_completa: ["processando_ia", "pronto_para_analise", "aguardando_documentos"],
-      processando_ia: ["pronto_para_analise", "erro_processamento"],
-      pronto_para_analise: ["em_atendimento", "aguardando_documentos", "processando_ia"],
-      em_atendimento: ["liberado_para_protocolo", "aguardando_documentos", "pronto_para_analise"],
-      liberado_para_protocolo: ["em_protocolo", "em_atendimento"],
-      em_protocolo: ["liberado_para_protocolo"], // protocolado removido da transição genérica
-      protocolado: ["aguardando_documentos"], // Caso precise reabrir por erro
-      erro_processamento: ["processando_ia", "aguardando_documentos"],
-    };
+    // Validação centralizada via State Machine
+    const transition = validateTransition(casoAtual.status, status, req.user?.cargo);
 
-    if (status && status !== casoAtual.status) {
-      const permitidas = transicoesPermitidas[casoAtual.status] || [];
-      const isAdmin = req.user?.cargo === "admin";
-
-      if (!permitidas.includes(status) && !isAdmin) {
-        logger.warn(
-          `[Status Machine] Bloqueada transição inválida: ${casoAtual.status} -> ${status} (Usuário: ${req.user?.id})`,
-        );
-        return res.status(400).json({
-          error: "Transição de status não permitida.",
-          currentStatus: casoAtual.status,
-          requestedStatus: status,
-        });
-      }
+    if (!transition.ok && status !== undefined && status !== casoAtual.status) {
+      logger.warn(
+        `[Status Machine] Bloqueada: ${casoAtual.status} -> ${status} (user: ${req.user?.id})`,
+      );
+      return res
+        .status(400)
+        .json({ error: transition.reason, currentStatus: casoAtual.status });
     }
 
-    const isServidorOrEstagiario = req.user?.cargo === "servidor" || req.user?.cargo === "estagiario";
+    if (transition.adminBypass) {
+      logger.warn(
+        `[Status Machine] Admin bypass: ${casoAtual.status} -> ${status} (user: ${req.user?.id})`,
+      );
+    }
+
+    const isServidorOrEstagiario =
+      req.user?.cargo === "servidor" || req.user?.cargo === "estagiario";
     if (status === "em_protocolo" && isServidorOrEstagiario) {
-      return res.status(403).json({ error: "Acesso Negado. Seu cargo não permite enviar casos para protocolo." });
+      return res.status(403).json({
+        error: "Acesso Negado. Seu cargo não permite enviar casos para protocolo.",
+      });
     }
 
     const updateData = {};
@@ -3372,7 +3614,7 @@ export const regenerarDosFatos = async (req, res) => {
     }
 
     // Restrição: Apenas administradores OU o responsável pelo caso podem regenerar os fatos
-    const isAdmin = req.user && req.user.cargo === "admin";
+    const isAdmin = req.user && req.user.cargo.toLowerCase() === "admin";
     const isDono =
       req.user &&
       (String(caso.defensor_id) === String(req.user.id) ||
@@ -3402,8 +3644,10 @@ export const regenerarDosFatos = async (req, res) => {
       caso = mapCasoRelations(dataRaw);
     }
 
-    const dados = caso.dados_formulario;
-    if (!dados.relato_texto && caso.relato_texto) dados.relato_texto = caso.relato_texto;
+    const dados = safeFormData(caso);
+    if (!Object.keys(dados).length) {
+      logger.warn(`[regenerarDosFatos] dados_formulario vazio para caso ${id}`);
+    }
 
     let acaoRaw =
       dados.acaoEspecifica ||
@@ -3469,7 +3713,7 @@ export const gerarTermoDeclaracao = async (req, res) => {
   const { id } = req.params;
   try {
     // Restrição: Apenas administradores podem gerar ou regerar o termo
-    if (!req.user || req.user.cargo !== "admin") {
+    if (!req.user || req.user.cargo.toLowerCase() !== "admin") {
       return res.status(403).json({
         error: "Acesso negado. Apenas administradores podem realizar esta operação.",
       });
@@ -3556,7 +3800,7 @@ export const regerarMinuta = async (req, res) => {
   const { id } = req.params;
   try {
     // Restrição: Apenas administradores
-    if (!req.user || req.user.cargo !== "admin") {
+    if (!req.user || req.user.cargo.toLowerCase() !== "admin") {
       return res.status(403).json({
         error: "Acesso negado. Apenas administradores podem regerar a minuta.",
       });
@@ -3977,6 +4221,7 @@ export const buscarPorCpf = async (req, res) => {
             id: true,
             protocolo: true,
             status: true,
+            unidade_id: true,
             numero_processo: true,
             numero_solar: true,
             url_capa_processual: true,
@@ -3988,12 +4233,39 @@ export const buscarPorCpf = async (req, res) => {
 
     const results = isSupabaseConfigured ? (await query).data : await query;
 
-    if (!results || results.length === 0) {
+    if (!results || results.length === 0) return res.status(200).json([]);
+
+    let filteredResults = results;
+
+    if (req.user) {
+      const isPowerUser = ["admin", "gestor"].includes(req.user.cargo?.toLowerCase());
+      
+      const collaborations = await prisma.assistencia_casos.findMany({
+        where: {
+          OR: [
+            { destinatario_id: req.user.id },
+            { remetente_id: req.user.id }
+          ],
+          status: "aceito"
+        },
+        select: { caso_id: true }
+      });
+      const sharedIds = new Set(collaborations.map(c => String(c.caso_id)));
+
+      filteredResults = results.filter(caso => {
+        if (isPowerUser) return true;
+        if (String(caso.unidade_id) === String(req.user.unidade_id)) return true;
+        if (sharedIds.has(String(caso.id))) return true;
+        return false;
+      });
+    }
+
+    if (filteredResults.length === 0) {
       return res.status(200).json([]);
     }
 
     const normalizedData = await Promise.all(
-      (results || []).map(async (casoRaw) => {
+      filteredResults.map(async (casoRaw) => {
         const urlCapaProcessual = casoRaw.url_capa_processual
           ? await buildSignedUrl(storageBuckets.documentos, casoRaw.url_capa_processual)
           : null;
@@ -4100,7 +4372,7 @@ export const finalizarCasoSolar = async (req, res) => {
 };
 
 export const reverterFinalizacao = async (req, res) => {
-  if (!req.user || req.user.cargo !== "admin") {
+  if (!req.user || req.user.cargo.toLowerCase() !== "admin") {
     return res.status(403).json({
       error: "Acesso negado. Apenas administradores podem reverter a finalização.",
     });
@@ -4485,7 +4757,7 @@ export const deletarCaso = async (req, res) => {
   const { id } = req.params;
   try {
     // Verificação de permissão de admin
-    if (!req.user || req.user.cargo !== "admin") {
+    if (!req.user || req.user.cargo.toLowerCase() !== "admin") {
       return res.status(403).json({
         error: "Acesso negado. Apenas administradores podem excluir casos.",
       });

@@ -1,9 +1,9 @@
 import express from "express";
 import cors from "cors";
-import logger from "./src/utils/logger.js";
+
 import dotenv from "dotenv";
 import path from "path";
-import fs from "fs";
+
 import statusRoutes from "./src/routes/status.js";
 import casosRoutes from "./src/routes/casos.js";
 import defensoresRoutes from "./src/routes/defensores.js";
@@ -12,6 +12,7 @@ import jobsRoutes from "./src/routes/jobs.js";
 import unidadesRoutes from "./src/routes/unidades.js";
 import scannerRoutes from "./src/routes/scanner.js";
 import biRoutes from "./src/routes/bi.js";
+import configRoutes from "./src/routes/config.js";
 import helmet from "helmet";
 import { globalLimiter } from "./src/middleware/rateLimiter.js";
 
@@ -45,6 +46,7 @@ app.use((req, res, next) => {
 // 2. CONFIGURAÇÃO DE CORS DETALHADA
 const allowedOrigins = [
   "https://maes-acao.vercel.app",
+  "https://maesemacao.defsulbahia.com.br",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
 ];
@@ -114,6 +116,7 @@ app.use("/api/debug", debugRoutes);
 app.use("/api/unidades", unidadesRoutes);
 app.use("/api/scanner", scannerRoutes);
 app.use("/api/bi", biRoutes);
+app.use("/api/config", configRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", message: "Mães em Ação API is running" });

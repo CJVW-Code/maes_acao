@@ -14,10 +14,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { BarChart3, Download, FileSpreadsheet, FileText, Filter, RefreshCw, Settings2 } from "lucide-react";
+import { BarChart3, Clock, Download, FileSpreadsheet, FileText, Filter, RefreshCw, Settings2, TrendingUp } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useBiData } from "../hooks/useBiData";
 import { authFetch } from "../../../utils/apiBase";
+import { useToast } from "../../../contexts/ToastContext";
 
 const COLORS = [
   "var(--color-primary)",
@@ -35,6 +36,8 @@ const widgetLabels = {
   throughputLine: "Throughput diario",
   rankingUnidades: "Ranking de sedes",
   arquivados: "Arquivados",
+  produtividade: "Produtividade individual",
+  acoesGestao: "Acoes de gestao",
 };
 
 const numberFormat = new Intl.NumberFormat("pt-BR");
@@ -96,7 +99,8 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 const Relatorios = () => {
-  const { user } = useAuth();
+  const { user, permissions } = useAuth();
+  const { toast } = useToast();
   const {
     data,
     loading,
@@ -114,15 +118,15 @@ const Relatorios = () => {
   const [unidades, setUnidades] = useState([]);
   const [showPrefs, setShowPrefs] = useState(false);
 
-  const isAdmin = user?.cargo === "admin";
+  const canSeeAllUnidades = user?.cargo === "admin" || user?.cargo === "gestor";
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!canSeeAllUnidades) return;
     authFetch("/unidades")
       .then((response) => (response.ok ? response.json() : []))
       .then((result) => setUnidades(result.filter((unidade) => unidade.ativo)))
       .catch(() => setUnidades([]));
-  }, [isAdmin]);
+  }, [canSeeAllUnidades]);
 
   const kpiCards = useMemo(() => {
     if (!data) return [];
@@ -136,7 +140,62 @@ const Relatorios = () => {
     ];
   }, [data]);
 
-  if (!isAdmin) {
+  // Auto-filtro: Se ja tem dados, atualiza ao mudar filtros importantes
+  useEffect(() => {
+    if (data && !loading) {
+      gerar().catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtros.periodo, filtros.dataInicio, filtros.dataFim, filtros.unidade_id, filtros.topN]);
+
+  if (data?.bloqueadoPorHorario) {
+    const canUnlock = user?.cargo === "admin" || user?.cargo === "gestor";
+    
+    const handleLiberarAgora = async () => {
+      try {
+        const response = await authFetch("/bi/overrides", {
+          method: "POST",
+          body: JSON.stringify({
+            horas: 1,
+            motivo: "Liberação rápida via tela de bloqueio do BI"
+          }),
+        });
+        if (response.ok) {
+          toast.success("Acesso liberado! Recarregando...");
+          setTimeout(() => window.location.reload(), 1500);
+        } else {
+          const err = await response.json();
+          toast.error(err.error || "Erro ao liberar BI.");
+        }
+      } catch (err) {
+        console.error("Erro ao liberar BI:", err);
+        toast.error("Erro de conexão ao tentar liberar o BI.");
+      }
+    };
+
+    return (
+      <div className="flex flex-col items-center justify-center py-24 px-6 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 mb-6 shadow-inner">
+          <Clock size={48} />
+        </div>
+        <h2 className="heading-1 text-amber-900 mb-2">Acesso Temporariamente Restrito</h2>
+        <p className="text-amber-800 max-w-md mx-auto leading-relaxed mb-8">
+          O módulo de BI está configurado para acesso apenas em horários específicos ou foi bloqueado manualmente pela administração.
+        </p>
+        
+        {canUnlock && (
+          <button 
+            onClick={handleLiberarAgora}
+            className="btn btn-primary bg-amber-600 hover:bg-amber-700 border-none shadow-lg shadow-amber-600/20 px-8 py-4 text-lg"
+          >
+            <Clock size={20} /> Liberar Acesso por 1 Hora
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  if (!permissions?.canViewBi) {
     return <Navigate to="/painel" replace />;
   }
 
@@ -339,6 +398,72 @@ const Relatorios = () => {
                     <span className="text-muted">{item.qtd}</span>
                   </div>
                 ))}
+              </div>
+            </BiWidget>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-2">
+            <BiWidget id="produtividade" title="Produtividade Individual" subtitle="Ranking de atendimentos finalizados." enabled={prefs.widgets.produtividade} onToggle={toggleWidget}>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted mb-4">Defensores (Protocolos)</h3>
+                  <div className="space-y-1">
+                    {data.produtividade?.defensores?.map((p, idx) => (
+                      <div key={p.usuario_id} className="bi-user-rank-item">
+                        <div className="flex items-center gap-3">
+                          <span className="bi-rank-number">{idx + 1}</span>
+                          <span className="text-sm font-bold text-main">{p.nome}</span>
+                        </div>
+                        <span className="bi-stat-badge-premium">{p.qtd}</span>
+                      </div>
+                    ))}
+                    {(!data.produtividade?.defensores || data.produtividade.defensores.length === 0) && <p className="text-xs text-muted py-4">Nenhum protocolo disponivel.</p>}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted mb-4">Servidores (Atendimentos)</h3>
+                  <div className="space-y-1">
+                    {data.produtividade?.servidores?.map((p, idx) => (
+                      <div key={p.usuario_id} className="bi-user-rank-item">
+                        <div className="flex items-center gap-3">
+                          <span className="bi-rank-number bg-highlight/10 text-highlight">{idx + 1}</span>
+                          <span className="text-sm font-bold text-main">{p.nome}</span>
+                        </div>
+                        <span className="bi-stat-badge-highlight">{p.qtd}</span>
+                      </div>
+                    ))}
+                    {(!data.produtividade?.servidores || data.produtividade.servidores.length === 0) && <p className="text-xs text-muted py-4">Nenhum atendimento disponivel.</p>}
+                  </div>
+                </div>
+              </div>
+            </BiWidget>
+
+            <BiWidget id="acoesGestao" title="Acoes de Gestao" subtitle="Redistribuicoes e destravamentos manuais." enabled={prefs.widgets.acoesGestao} onToggle={toggleWidget}>
+              <div className="space-y-2">
+                {data.acoes_gestao?.map((p) => (
+                  <div key={p.usuario_id} className="bi-management-widget flex items-center justify-between !p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600">
+                        <TrendingUp size={18} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-main">{p.nome}</p>
+                        <p className="text-[10px] text-muted uppercase font-bold tracking-wider">Coordenador / Gestor</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-black text-amber-600 leading-none">{p.qtd}</p>
+                      <p className="text-[9px] text-muted font-bold mt-1">ACOES</p>
+                    </div>
+                  </div>
+                ))}
+                {(!data.acoes_gestao || data.acoes_gestao.length === 0) && (
+                  <div className="p-8 text-center bg-app/20 rounded-3xl border border-soft border-dashed">
+                    <Settings2 size={32} className="mx-auto text-soft mb-2" />
+                    <p className="text-xs text-muted">Nenhuma acao de gestao registrada.</p>
+                  </div>
+                )}
               </div>
             </BiWidget>
           </div>

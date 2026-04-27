@@ -90,6 +90,7 @@ Após a análise, gere um Implementation Plan estruturado em:
 
 4. Step-by-Step Strategy
    - Sequência lógica de modificação (dependências primeiro).
+5. solucoes para o premortem
 
 Não gere código funcional ainda. Foque na estratégia.
 ```
@@ -236,23 +237,23 @@ Antes de aprovar qualquer código gerado por IA, cheque a lista abaixo:
 
 ## 📁 Referência Rápida — Arquivos Críticos
 
-| Arquivo                                                | Responsabilidade                                          |
-| :----------------------------------------------------- | :-------------------------------------------------------- |
-| `backend/src/controllers/casosController.js`           | CRUD de casos, locking, geração DOCX, pipeline IA        |
-| `backend/src/config/dicionarioAcoes.js`                | Mapeamento acaoKey → template + config de geração        |
-| `backend/src/config/dicionarioTags.js`                 | Mapeamento de tags DOCX para docxtemplater               |
-| `backend/src/controllers/scannerController.js`         | Upload em lote via balcão (ScannerBalcao.jsx)            |
-| `backend/src/controllers/lockController.js`            | Lock/unlock de sessão (Níveis 1 e 2)                     |
-| `backend/src/middleware/auth.js`                       | JWT (`authMiddleware`), ticket download, RBAC            |
-| `backend/src/middleware/requireWriteAcess.js`          | Bloqueia `visualizador` de operações de escrita           |
-| `backend/src/routes/casos.js`                          | Roteamento + middleware por endpoint                     |
-| `frontend/src/index.css`                               | Design system: tokens, Tailwind v4, `@layer components`  |
-| `frontend/src/areas/servidor/pages/TriagemCaso.jsx`    | Formulário multi-step (triagem)                           |
-| `frontend/src/areas/servidor/pages/ScannerBalcao.jsx`  | Tela dedicada de scanner de documentos                   |
-| `frontend/src/areas/defensor/pages/DetalhesCaso.jsx`   | Detalhes + minutas + download seguro + ações             |
-| `frontend/src/areas/defensor/contexts/AuthContext.jsx` | JWT, cargo, unidade                                      |
-| `frontend/src/config/formularios/acoes/familia.js`     | Config declarativa de ações                               |
-| `prisma/schema.prisma`                                 | Schema do banco de dados                                  |
+| Arquivo                                                | Responsabilidade                                       |
+| :----------------------------------------------------- | :----------------------------------------------------- |
+| `backend/src/controllers/casosController.js`           | CRUD de casos, locking, geração DOCX, pipeline IA      |
+| `backend/src/config/dicionarioAcoes.js`                | Mapeamento acaoKey → template + config de geração      |
+| `backend/src/config/dicionarioTags.js`                 | Mapeamento de tags DOCX para docxtemplater             |
+| `backend/src/controllers/scannerController.js`         | Upload em lote via balcão (ScannerBalcao.jsx)          |
+| `backend/src/controllers/lockController.js`            | Lock/unlock de sessão (Níveis 1 e 2)                   |
+| `backend/src/middleware/auth.js`                       | JWT (`authMiddleware`), ticket download, RBAC          |
+| `backend/src/middleware/requireWriteAcess.js`          | Bloqueia `visualizador` de operações de escrita        |
+| `backend/src/routes/casos.js`                          | Roteamento + middleware por endpoint                   |
+| `frontend/src/index.css`                               | Design system: tokens, Tailwind v4,`@layer components` |
+| `frontend/src/areas/servidor/pages/TriagemCaso.jsx`    | Formulário multi-step (triagem)                        |
+| `frontend/src/areas/servidor/pages/ScannerBalcao.jsx`  | Tela dedicada de scanner de documentos                 |
+| `frontend/src/areas/defensor/pages/DetalhesCaso.jsx`   | Detalhes + minutas + download seguro + ações           |
+| `frontend/src/areas/defensor/contexts/AuthContext.jsx` | JWT, cargo, unidade                                    |
+| `frontend/src/config/formularios/acoes/familia.js`     | Config declarativa de ações                            |
+| `prisma/schema.prisma`                                 | Schema do banco de dados                               |
 
 ---
 
@@ -303,6 +304,7 @@ O sistema **não expõe URLs de Storage diretamente**. Todo download de document
 ```
 
 **Regras para a IA:**
+
 - NUNCA gerar código que acesse `supabase.storage.createSignedUrl` diretamente no frontend
 - NUNCA retornar `url_peticao` ou `url_documento_gerado` como URL pública
 - Downloads de minuta usam `POST /:id/upload-minuta` para substituição (autenticado + `requireWriteAccess`)

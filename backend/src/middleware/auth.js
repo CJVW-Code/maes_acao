@@ -35,12 +35,11 @@ export const authMiddleware = async (req, res, next) => {
         .json({ error: "Usuário não autorizado ou inativo no sistema." });
     }
 
-    // 5. Injeta no req.user o formato esperado pelos controllers
     req.user = {
       id: profile.id,
       nome: profile.nome,
       email: profile.email,
-      cargo: profile.cargo?.nome || "operador",
+      cargo: (profile.cargo?.nome || "visualizador").toLowerCase(),
       unidade_id: profile.unidade_id,
       unidade_nome: profile.unidade?.nome,
     };
@@ -74,12 +73,11 @@ export const validateDownloadTicket = async (req, res, next) => {
       return res.status(403).json({ error: "Ticket inválido para esta operação." });
     }
 
-    // Reconstrói req.user a partir dos dados do payload
     req.user = {
       id: decoded.user.id,
       nome: decoded.user.nome,
       email: decoded.user.email,
-      cargo: decoded.user.cargo,
+      cargo: (decoded.user.cargo || "visualizador").toLowerCase(),
       unidade_id: decoded.user.unidade_id,
     };
 

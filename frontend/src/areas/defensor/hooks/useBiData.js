@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import { API_BASE, authFetch } from "../../../utils/apiBase";
 
 const PREFS_KEY = "bi_prefs_v1";
@@ -21,6 +21,8 @@ const defaultPrefs = {
     throughputLine: true,
     rankingUnidades: true,
     arquivados: true,
+    produtividade: true,
+    acoesGestao: true,
   },
 };
 
@@ -71,10 +73,31 @@ const sanitizePdfClone = (documentClone) => {
   });
 };
 
+const DATA_CACHE_KEY = "bi_data_cache_v2";
+const FILTROS_CACHE_KEY = "bi_filtros_cache_v2";
+
+const loadDataCache = () => {
+  try {
+    const stored = sessionStorage.getItem(DATA_CACHE_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+};
+
+const loadFiltrosCache = () => {
+  try {
+    const stored = sessionStorage.getItem(FILTROS_CACHE_KEY);
+    return stored ? JSON.parse(stored) : defaultFiltros;
+  } catch {
+    return defaultFiltros;
+  }
+};
+
 export const useBiData = () => {
-  const [filtros, setFiltros] = useState(defaultFiltros);
+  const [filtros, setFiltros] = useState(loadFiltrosCache);
   const [prefs, setPrefs] = useState(loadPrefs);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(loadDataCache);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
@@ -82,6 +105,16 @@ export const useBiData = () => {
   useEffect(() => {
     localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
   }, [prefs]);
+
+  useEffect(() => {
+    sessionStorage.setItem(FILTROS_CACHE_KEY, JSON.stringify(filtros));
+  }, [filtros]);
+
+  useEffect(() => {
+    if (data) {
+      sessionStorage.setItem(DATA_CACHE_KEY, JSON.stringify(data));
+    }
+  }, [data]);
 
   const payload = () => ({
     ...filtros,
@@ -97,7 +130,10 @@ export const useBiData = () => {
         body: JSON.stringify(payload()),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Falha ao gerar relatorio.");
+      if (!response.ok) {
+        const msg = result.details ? `${result.error} (${result.details})` : (result.error || "Falha ao gerar relatorio.");
+        throw new Error(msg);
+      }
       setData(result);
       return result;
     } catch (err) {

@@ -74,15 +74,16 @@ export const authFetch = async (endpoint, options = {}) => {
       if (typeof window !== "undefined") {
         let event;
         try {
-          event = new CustomEvent("auth:session-expired");
-        } catch {
+          // Fallback seguro para navegadores que falham com 'new CustomEvent'
           event = document.createEvent("Event");
           event.initEvent("auth:session-expired", true, true);
+          window.dispatchEvent(event);
+        } catch (e) {
+          console.error("Erro ao despachar evento de sessão expirada:", e);
         }
-        window.dispatchEvent(event);
       }
     } catch (e) {
-      console.warn("Falha crítica ao disparar evento de expiração:", e);
+      console.warn("Falha ao disparar evento de expiração:", e);
     }
 
     // 3. Lança erro padronizado

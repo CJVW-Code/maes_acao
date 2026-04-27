@@ -299,6 +299,15 @@ model assistencia_casos {
   @@index([destinatario_id])
 }
 
+model configuracoes_sistema {
+  chave      String   @id @db.VarChar(100)
+  valor      String
+  descricao  String?
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@map("configuracoes_sistema")
+}
+
 model notificacoes {
   id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   usuario_id    String     @db.Uuid

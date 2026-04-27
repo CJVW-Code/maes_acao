@@ -1,7 +1,101 @@
+import { randomUUID } from "node:crypto";
 import ExcelJS from "exceljs";
 import { prisma } from "../config/prisma.js";
 import { supabase, isSupabaseConfigured } from "../config/supabase.js";
 import logger from "../utils/logger.js";
+import { getConfiguracoes, invalidarCache } from "../utils/configCache.js";
+
+/**
+ * Utilitário para realizar parse de JSON com segurança, retornando um array vazio em caso de erro.
+ */
+const safeParseArray = (raw) => {
+  try {
+    const parsed = JSON.parse(raw || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * Verifica se o acesso ao BI está liberado no horário atual.
+ * Admins e Gestores possuem bypass.
+ */
+/**
+ * Verifica se o acesso ao BI está liberado no horário atual.
+ * Admins e Gestores possuem bypass.
+ */
+const verificarBloqueioHorario = async (user) => {
+  if (["admin", "gestor"].includes(user.cargo.toLowerCase())) return { bloqueado: false };
+
+  const configs = await getConfiguracoes();
+  
+  // 1. Bloqueio Manual Global (Admin)
+  if (configs.bi_bloqueado === "true") {
+    return {
+      bloqueado: true,
+      mensagem: "Acesso ao BI bloqueado manualmente pela administração.",
+    };
+  }
+
+  const biHorarios = safeParseArray(configs.bi_horarios);
+  const timezone = configs.bi_timezone || "America/Bahia";
+  const liberadoAte = configs.bi_liberado_ate ? new Date(configs.bi_liberado_ate) : null;
+
+  // 2. Verifica Bypass Temporário Legado (Liberar Agora)
+  if (liberadoAte && new Date() < liberadoAte) {
+    return { bloqueado: false };
+  }
+
+  // 3. Verifica Registro de Horários (Overrides Ativos)
+  const overrides = safeParseArray(configs.bi_overrides);
+  const agoraDate = new Date();
+  const overrideAtivo = overrides.find(ov => {
+    const inicio = new Date(ov.inicio);
+    const fim = new Date(ov.fim);
+    return agoraDate >= inicio && agoraDate <= fim;
+  });
+
+  if (overrideAtivo) {
+    return { bloqueado: false };
+  }
+
+  if (biHorarios.length === 0) return { bloqueado: false };
+
+  // 4. Obtém hora e dia atual no timezone configurado
+  const agora = new Date();
+  const formatadorHora = new Intl.DateTimeFormat("en-GB", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const formatadorDia = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: timezone,
+    weekday: "long"
+  });
+
+  const horaAtualStr = formatadorHora.format(agora); // "HH:mm"
+  const diaAtual = formatadorDia.format(agora).toLowerCase(); // "segunda-feira"
+
+  const estaNoHorario = biHorarios.some((janela) => {
+    // Se a janela especifica um dia, verifica se coincide (ou se é 'todos')
+    const diaMatch = !janela.dia || janela.dia === "todos" || diaAtual.includes(janela.dia.toLowerCase());
+    const horaMatch = horaAtualStr >= janela.inicio && horaAtualStr <= janela.fim;
+    return diaMatch && horaMatch;
+  });
+
+  if (!estaNoHorario) {
+    const formatarJanelas = biHorarios.map(j => `${j.dia || 'todos'}: ${j.inicio}-${j.fim}`).join(", ");
+    return {
+      bloqueado: true,
+      mensagem: `Acesso ao BI bloqueado fora do horário permitido (${formatarJanelas}).`,
+    };
+  }
+
+  return { bloqueado: false };
+};
+
 
 const DEFAULT_TOP_N = 10;
 const PAGE_SIZE = 1000;
@@ -13,6 +107,8 @@ const DEFAULT_WIDGETS = {
   throughputLine: true,
   rankingUnidades: true,
   arquivados: true,
+  produtividade: true,
+  acoesGestao: true,
 };
 
 const ARCHIVE_REASON_LABELS = {
@@ -110,7 +206,7 @@ const filterByDate = (row, field, range) => {
   return true;
 };
 
-const buildPrismaWhere = ({ range, unidadeId, arquivado = false, dateField = "created_at" }) => {
+const _buildPrismaWhere = ({ range, unidadeId, arquivado = false, dateField = "created_at" }) => {
   const where = { arquivado };
   if (unidadeId && unidadeId !== "todas") where.unidade_id = unidadeId;
   if (range) where[dateField] = { gte: range.gte, lte: range.lte };
@@ -118,7 +214,7 @@ const buildPrismaWhere = ({ range, unidadeId, arquivado = false, dateField = "cr
 };
 
 const fetchCasosMetadata = async ({ range, unidadeId }) => {
-  const columns = "status,tipo_acao,unidade_id,arquivado,motivo_arquivamento,created_at,updated_at,protocolado_at,processed_at,processing_started_at";
+  const columns = "status,tipo_acao,unidade_id,arquivado,motivo_arquivamento,created_at,updated_at,protocolado_at,processed_at,processing_started_at,servidor_id,defensor_id";
 
   if (isSupabaseConfigured) {
     const rows = [];
@@ -132,7 +228,12 @@ const fetchCasosMetadata = async ({ range, unidadeId }) => {
       if (range) {
         const start = range.gte.toISOString();
         const end = range.lte.toISOString();
-        query = query.or(`and(created_at.gte.${start},created_at.lte.${end}),and(updated_at.gte.${start},updated_at.lte.${end}),and(protocolado_at.gte.${start},protocolado_at.lte.${end})`);
+        // Mantém paridade com a lógica Prisma: created_at OR updated_at OR protocolado_at
+        query = query.or(
+          `and(created_at.gte.${start},created_at.lte.${end}),` +
+          `and(updated_at.gte.${start},updated_at.lte.${end}),` +
+          `and(protocolado_at.gte.${start},protocolado_at.lte.${end})`
+        );
       }
 
       const { data, error } = await query;
@@ -167,6 +268,8 @@ const fetchCasosMetadata = async ({ range, unidadeId }) => {
       protocolado_at: true,
       processed_at: true,
       processing_started_at: true,
+      servidor_id: true,
+      defensor_id: true,
     },
   });
 };
@@ -201,11 +304,17 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
   const { range, periodo, warning } = buildDateRange(body);
   const topN = body.topN ?? DEFAULT_TOP_N;
   const requestedUnidade = body.unidade_id || "todas";
-  const unidadeId = user.cargo === "admin" ? requestedUnidade : user.unidade_id;
+  
+  // Escopo de Unidade por Cargo
+  // Admin e Gestor: Podem ver todas ou uma específica.
+  // Coordenador: Sempre restrito à sua própria unidade.
+  const userCargo = user.cargo.toLowerCase();
+  const isAdminOrGestor = ["admin", "gestor"].includes(userCargo);
+  const unidadeId = isAdminOrGestor ? requestedUnidade : user.unidade_id;
 
   const unidadeValida = await validateUnidade(unidadeId);
   if (unidadeId !== "todas" && !unidadeValida) {
-    const error = new Error("Unidade invalida ou inativa.");
+    const error = new Error("Unidade inválida ou inativa.");
     error.statusCode = 400;
     throw error;
   }
@@ -222,9 +331,34 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
 
   const tempoMedioIa = calcularTempoMedioIa(rows, range);
   const unidadeNomeById = new Map(unidades.map((unidade) => [unidade.id, unidade.nome]));
+  
+  // Busca nomes e cargos de todos os defensores/servidores para o ranking de produtividade
+  const defensoresDB = await prisma.defensores.findMany({
+    where: { 
+      ativo: true,
+      ...(isAdminOrGestor ? {} : { unidade_id: user.unidade_id })
+    },
+    select: { 
+      id: true, 
+      nome: true,
+      unidade_id: true,
+      cargo: { select: { nome: true } }
+    }
+  });
+  
+  const usuarioInfoById = new Map(
+    defensoresDB.map(u => [
+      u.id, 
+      { 
+        nome: u.nome, 
+        cargo: u.cargo?.nome?.toLowerCase() || "servidor" 
+      }
+    ])
+  );
+
   const ativos = rows.filter((row) => row.arquivado === false && filterByDate(row, "created_at", range));
   const arquivados = rows.filter((row) => row.arquivado === true && filterByDate(row, "updated_at", range));
-  const protocolosNoPeriodo = rows.filter((row) => row.status === "protocolado" && filterByDate(row, "protocolado_at", range));
+  const protocolosNoPeriodo = rows.filter((row) => row.status === "protocolado" && row.arquivado === false && filterByDate(row, "protocolado_at", range));
 
   const porStatusMap = new Map();
   const porTipoMap = new Map();
@@ -233,22 +367,83 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
   const protocoloDiaMap = new Map();
   const arquivadosMotivoMap = new Map();
   const arquivadosTipoMap = new Map();
+  
+  // Métricas de Produtividade: Agrupamento por Defensor e Servidor
+  const produtividadeServidoresMap = new Map();
+  const produtividadeDefensoresMap = new Map();
 
   ativos.forEach((row) => {
     increment(porStatusMap, row.status);
     increment(porTipoMap, row.tipo_acao);
     increment(triagemDiaMap, toDateOnly(row.created_at));
+    
+    // Contabiliza quem está trabalhando no caso (Servidor/Estagiário)
+    if (row.servidor_id && ["em_atendimento", "liberado_para_protocolo", "em_protocolo", "protocolado"].includes(row.status)) {
+      increment(produtividadeServidoresMap, row.servidor_id);
+    }
   });
 
+  const rankingUnidadesAgregado = !preFetchedRows && !preFetchedUnidades
+    ? await prisma.casos.groupBy({
+        by: ['unidade_id'],
+        _count: { id: true },
+        where: { 
+          status: "protocolado", 
+          arquivado: false,
+          ...(unidadeId !== "todas" ? { unidade_id: unidadeId } : {}),
+          ...(range ? { protocolado_at: { gte: range.gte, lte: range.lte } } : {})
+        }
+      })
+    : null;
+
   protocolosNoPeriodo.forEach((row) => {
-    increment(rankingMap, row.unidade_id);
+    if (!rankingUnidadesAgregado) increment(rankingMap, row.unidade_id);
     increment(protocoloDiaMap, toDateOnly(row.protocolado_at));
+    
+    // Contabiliza quem efetivamente protocolou (Defensor)
+    if (row.defensor_id) {
+      increment(produtividadeDefensoresMap, row.defensor_id);
+    }
   });
+
+  // Ações de Gestão (Coordenadores) via logs_auditoria - Agregação direta no DB
+  const acoesGestaoMap = new Map();
+  if (["admin", "gestor", "coordenador"].includes(userCargo)) {
+    try {
+      const whereGestao = {
+        criado_em: range ? { gte: range.gte, lte: range.lte } : undefined,
+        acao: { in: ["distribuicao_caso", "redistribuicao_caso", "lock_removido_admin", "lock_removido_coordenador", "arquivamento_manual", "desarquivamento_manual"] },
+        usuario_id: { 
+          not: null,
+          ...(isAdminOrGestor ? {} : { in: defensoresDB.map(u => u.id) })
+        }
+      };
+
+      const logsAgregados = await prisma.logs_auditoria.groupBy({
+        by: ['usuario_id'],
+        _count: { id: true },
+        where: whereGestao,
+        orderBy: {
+          _count: {
+            id: 'desc'
+          }
+        },
+        take: 200 // Ranking Top 200 gestores
+      });
+
+      logsAgregados.forEach(log => {
+        acoesGestaoMap.set(log.usuario_id, log._count.id);
+      });
+    } catch (err) {
+      logger.error(`[BI] Erro ao agregar logs de gestao: ${err.message}`);
+      // Nao quebra o relatorio inteiro se os logs falharem
+    }
+  }
 
   arquivados.forEach((row) => {
     increment(
       arquivadosMotivoMap,
-      ARCHIVE_REASON_LABELS[row.motivo_arquivamento] || row.motivo_arquivamento || "Motivo nao registrado",
+      ARCHIVE_REASON_LABELS[row.motivo_arquivamento] || row.motivo_arquivamento || "Motivo não registrado",
     );
     increment(arquivadosTipoMap, row.tipo_acao);
   });
@@ -260,9 +455,28 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
     protocolados: protocoloDiaMap.get(dia) || 0,
   }));
 
-  const rankingUnidades = applyTopN(mapToSortedArray(rankingMap, "unidade_id"), topN).map((item) => ({
+  const baseRankingUnidades = rankingUnidadesAgregado
+    ? rankingUnidadesAgregado.map(item => ({ unidade_id: item.unidade_id, qtd: item._count.id }))
+    : mapToSortedArray(rankingMap, "unidade_id");
+
+  const rankingUnidades = applyTopN(baseRankingUnidades, topN).map((item) => ({
     ...item,
-    unidade: unidadeNomeById.get(item.unidade_id) || "Unidade nao identificada",
+    unidade: unidadeNomeById.get(item.unidade_id) || "Unidade não identificada",
+  }));
+
+  const rankingDefensores = applyTopN(mapToSortedArray(produtividadeDefensoresMap, "usuario_id"), topN).map((item) => ({
+    ...item,
+    nome: usuarioInfoById.get(item.usuario_id)?.nome || "Usuário não identificado",
+  }));
+
+  const rankingServidores = applyTopN(mapToSortedArray(produtividadeServidoresMap, "usuario_id"), topN).map((item) => ({
+    ...item,
+    nome: usuarioInfoById.get(item.usuario_id)?.nome || "Usuário não identificado",
+  }));
+
+  const rankingGestao = applyTopN(mapToSortedArray(acoesGestaoMap, "usuario_id"), topN).map((item) => ({
+    ...item,
+    nome: usuarioInfoById.get(item.usuario_id)?.nome || "Gestor não identificado",
   }));
 
   const porStatus = mapToSortedArray(porStatusMap, "status");
@@ -293,6 +507,11 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
     },
     throughput,
     ranking_unidades: rankingUnidades,
+    produtividade: {
+      defensores: rankingDefensores,
+      servidores: rankingServidores,
+    },
+    acoes_gestao: rankingGestao,
     arquivados: {
       total: arquivados.length,
       por_motivo: mapToSortedArray(arquivadosMotivoMap, "motivo"),
@@ -370,20 +589,66 @@ const preencherWorkbook = (workbook, relatorio, widgets = DEFAULT_WIDGETS) => {
   if (enabled.arquivados) {
     addRowsSheet(workbook, "Arquivados Motivos", [{ header: "Motivo", key: "motivo", width: 44 }, { header: "Qtd", key: "qtd", width: 12 }], relatorio.arquivados.por_motivo);
   }
+
+  if (enabled.produtividade) {
+    addRowsSheet(
+      workbook,
+      "Produtividade Defensores",
+      [
+        { header: "Defensor", key: "nome", width: 36 },
+        { header: "Protocolos", key: "qtd", width: 14 }
+      ],
+      relatorio.produtividade.defensores
+    );
+    addRowsSheet(
+      workbook,
+      "Produtividade Servidores",
+      [
+        { header: "Servidor/Estagiário", key: "nome", width: 36 },
+        { header: "Atendimentos", key: "qtd", width: 14 }
+      ],
+      relatorio.produtividade.servidores
+    );
+  }
+
+  if (enabled.acoesGestao) {
+    addRowsSheet(
+      workbook,
+      "Ações de Gestão",
+      [
+        { header: "Gestor", key: "nome", width: 36 },
+        { header: "Ações", key: "qtd", width: 14 }
+      ],
+      relatorio.acoes_gestao
+    );
+  }
 };
 
 export const gerarRelatorio = async (req, res) => {
   try {
+    const bloqueio = await verificarBloqueioHorario(req.user);
+    if (bloqueio.bloqueado) {
+      return res.status(200).json({ bloqueadoPorHorario: true, mensagem: bloqueio.mensagem });
+    }
+
     const relatorio = await montarRelatorio(req.body, req.user);
     res.status(200).json(relatorio);
   } catch (error) {
-    logger.error(`[BI] Falha ao gerar relatorio: ${error.message}`);
-    res.status(error.statusCode || 500).json({ error: error.statusCode ? error.message : "Erro ao gerar relatorio de BI." });
+    logger.error(`[BI] Erro critico ao gerar relatorio: ${error.message}`);
+    const status = error.statusCode || 500;
+    res.status(status).json({ 
+      error: status === 500 ? "Erro ao gerar relatorio de BI." : error.message
+    });
   }
 };
 
 export const exportarXlsx = async (req, res) => {
   try {
+    const bloqueio = await verificarBloqueioHorario(req.user);
+    if (bloqueio.bloqueado) {
+      return res.status(200).json({ bloqueadoPorHorario: true, mensagem: bloqueio.mensagem });
+    }
+
     const relatorio = await montarRelatorio(req.body, req.user);
     const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: res });
     const filename = `bi-${new Date().toISOString().slice(0, 10)}.xlsx`;
@@ -423,7 +688,7 @@ export const exportarXlsxLote = async (req, res) => {
     for (const unidade of unidades) {
       const relatorio = await montarRelatorio({ ...req.body, unidade_id: unidade.id }, req.user, preFetchedRows, unidades);
       
-      let baseName = unidade.nome.replace(/[\/\\*?\[\]:]/g, "").slice(0, 31).trim();
+      let baseName = unidade.nome.replace(/[/\\*?[\]:]/g, "").slice(0, 31).trim();
       if (!baseName) baseName = "Unidade";
       let finalName = baseName;
       let counter = 1;
@@ -456,5 +721,114 @@ export const exportarXlsxLote = async (req, res) => {
     if (!res.headersSent) {
       res.status(500).json({ error: "Erro ao exportar XLSX em lote." });
     }
+  }
+};
+export const getOverrides = async (req, res) => {
+  try {
+    const configs = await getConfiguracoes();
+    const overrides = safeParseArray(configs.bi_overrides);
+    res.status(200).json(overrides);
+  } catch {
+    res.status(500).json({ error: "Erro ao buscar registros de horários." });
+  }
+};
+
+export const createOverride = async (req, res) => {
+  const horas = Math.min(24, Math.max(1, Number(req.body.horas) || 1));
+  const motivo = (req.body.motivo || "Liberação emergencial").substring(0, 255);
+  
+  try {
+    const agora = new Date();
+    const fim = new Date(agora.getTime() + (horas * 60 * 60 * 1000));
+    
+    const novoOverride = {
+      id: randomUUID(),
+      usuario: req.user.nome,
+      usuario_id: req.user.id,
+      inicio: agora.toISOString(),
+      fim: fim.toISOString(),
+      motivo
+    };
+
+    // Usando transação para garantir que a leitura e escrita sejam atômicas
+    await prisma.$transaction(async (tx) => {
+      const config = await tx.configuracoes_sistema.findUnique({
+        where: { chave: "bi_overrides" }
+      });
+      
+      let overrides;
+      try {
+        overrides = JSON.parse(config?.valor || "[]");
+        if (!Array.isArray(overrides)) overrides = [];
+      } catch {
+        overrides = [];
+      }
+      
+      const novosOverrides = [...overrides, novoOverride];
+      
+      await tx.configuracoes_sistema.upsert({
+        where: { chave: "bi_overrides" },
+        update: { valor: JSON.stringify(novosOverrides) },
+        create: { chave: "bi_overrides", valor: JSON.stringify(novosOverrides) }
+      });
+    });
+    
+    invalidarCache();
+    
+    await prisma.logs_auditoria.create({
+      data: {
+        usuario_id: req.user.id,
+        acao: "bi_override_criado",
+        detalhes: { override_id: novoOverride.id, horas, motivo }
+      }
+    });
+
+    res.status(201).json(novoOverride);
+  } catch (error) {
+    logger.error(`[BI] Erro ao criar override: ${error.message}`);
+    res.status(500).json({ error: "Erro ao criar registro de horário." });
+  }
+};
+
+export const deleteOverride = async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    let removed = false;
+    await prisma.$transaction(async (tx) => {
+      const config = await tx.configuracoes_sistema.findUnique({
+        where: { chave: "bi_overrides" },
+      });
+      
+      const overrides = safeParseArray(config?.valor);
+      const novosOverrides = overrides.filter((ov) => ov.id !== id);
+      
+      if (overrides.length === novosOverrides.length) return;
+      
+      await tx.configuracoes_sistema.update({
+        where: { chave: "bi_overrides" },
+        data: { valor: JSON.stringify(novosOverrides) },
+      });
+      removed = true;
+    });
+
+    if (!removed) {
+      return res.status(404).json({ error: "Registro não encontrado." });
+    }
+    
+    invalidarCache();
+    
+    await prisma.logs_auditoria.create({
+      data: {
+        usuario_id: req.user.id,
+        acao: "bi_override_removido",
+        detalhes: { override_id: id }
+      }
+    });
+
+    res.status(200).json({ message: "Registro removido com sucesso." });
+  } catch (error) {
+    logger.error(`[BI] Erro ao remover override: ${error.message}`);
+    res.status(500).json({ error: "Erro ao remover registro de horário." });
   }
 };

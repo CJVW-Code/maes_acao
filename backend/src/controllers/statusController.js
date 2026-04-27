@@ -1,4 +1,5 @@
-import { supabase, isSupabaseConfigured } from "../config/supabase.js";
+/* eslint-disable no-unused-vars */
+import {  isSupabaseConfigured } from "../config/supabase.js";
 import { prisma } from "../config/prisma.js";
 
 import logger from "../utils/logger.js";

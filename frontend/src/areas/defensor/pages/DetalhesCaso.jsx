@@ -28,7 +28,9 @@ import {
   Eye,
   Paperclip,
   Search,
+  UserPlus,
 } from "lucide-react";
+import { ModalDistribuicao } from "../components/casos/ModalDistribuicao";
 import { API_BASE } from "../../../utils/apiBase";
 import { formatTipoAcaoLabel } from "../../../utils/caseUtils";
 import { useToast } from "../../../contexts/ToastContext";
@@ -167,7 +169,7 @@ const CollapsibleText = ({
 
 export const DetalhesCaso = () => {
   const { id } = useParams();
-  const { token, user } = useAuth();
+  const { token, user, permissions } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { confirm } = useConfirm();
@@ -206,6 +208,7 @@ export const DetalhesCaso = () => {
   const [buscaColega, setBuscaColega] = useState("");
   const [autosType, setAutosType] = useState(null); // 'apartados' ou 'proprios_autos'
   const [autosSubtype, setAutosSubtype] = useState(null); // 'provisorio' ou 'definitivo'
+  const [isDistribuirOpen, setIsDistribuirOpen] = useState(false);
 
   // Novos campos financeiros para rito cumulado
   const [debitoPenhoraValor, setDebitoPenhoraValor] = useState("");
@@ -1988,6 +1991,16 @@ export const DetalhesCaso = () => {
             </div>
             )}
 
+            {permissions.canDistribuir && (
+              <button
+                onClick={() => setIsDistribuirOpen(true)}
+                className="btn btn-primary w-full py-3 mb-4 flex items-center justify-center gap-2"
+              >
+                <UserPlus size={18} />
+                Distribuir Caso
+              </button>
+            )}
+
             {/* Botão de Arquivar (Movido para Gestão) */}
             <button
               onClick={handleArquivarClick}
@@ -2195,6 +2208,13 @@ export const DetalhesCaso = () => {
           </div>
         </div>
       )}
+
+      <ModalDistribuicao
+        caso={caso}
+        isOpen={isDistribuirOpen}
+        onClose={() => setIsDistribuirOpen(false)}
+        onRefresh={() => mutate()}
+      />
     </div>
   );
 };

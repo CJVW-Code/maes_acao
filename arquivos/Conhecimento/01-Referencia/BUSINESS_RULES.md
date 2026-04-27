@@ -1,6 +1,6 @@
 # Regras de Negócio — Mães em Ação · DPE-BA
 
-> **Versão:** 2.4 · **Atualizado em:** 2026-04-24 (CPF Representante Obrigatório + BI Categories)  
+> **Versão:** 3.5 · **Atualizado em:** 2026-04-27 (Hardening Distribuição + RBAC Solicitante)  
 > **Fonte:** Análise da codebase (controllers, services, middleware, config)  
 > **Propósito:** Referência canônica para treinamento de IAs e orientação de defensores
 
@@ -233,6 +233,7 @@ Para garantir que a busca seja resiliente a diferentes formatos de entrada, o si
 | **Normalização** | CPFs informados na busca são limpos (removendo `.` e `-`) antes da consulta. |
 | **Busca Resiliente** | O backend consulta simultaneamente o CPF "sujo" (como digitado) e o CPF "limpo" na tabela `casos_partes`. |
 | **Escopo de Busca** | A busca verifica os campos `cpf_assistido` e `representante_cpf` para garantir que o caso seja encontrado independente de quem iniciou o processo. |
+| **Filtro de Unidade** | **Segurança:** A busca por CPF no painel administrativo filtra resultados pela unidade do profissional logado ou casos explicitamente compartilhados com ele (salvo bypass global para Admins e Gestores). |
 | **Validação** | CPF do assistido e do representante são **obrigatórios e validados** algoritmicamente (Bloqueante). |
 
 ### 3.2 Unicidade de CPF e Arquitetura Multi-Casos
@@ -391,13 +392,14 @@ O sistema agora suporta a geração e visualização simultânea de múltiplos d
 
 O campo `cargo` na tabela `defensores` define o nível de acesso. O cargo é incluído no token JWT no login.
 
-| Cargo | Acesso de Leitura | Acesso de Escrita | Operações Admin |
-|:------|:-------------------|:-------------------|:----------------|
-| `admin` | ✅ | ✅ | ✅ |
-| `defensor` | ✅ | ✅ | ❌ |
-| `estagiario` | ✅ | ✅ | ❌ |
-| `recepcao` | ✅ | ✅ | ❌ |
-| `visualizador` | ✅ | ❌ | ❌ |
+| Cargo | Leitura | Escrita | Protocolo/Finalizar | Admin/Global | Unlock | Gerenciar Equipe |
+|:------|:--------|:--------|:--------------------|:-------------|:-------|:-----------------|
+| `admin` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `gestor` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `coordenador` | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
+| `defensor` | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `servidor` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `estagiario` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 > O cargo padrão ao cadastrar um novo membro é `"estagiario"`. Apenas o admin pode criar cadastros e deve selecionar entre as opções disponíveis no formulário.
 
@@ -407,26 +409,35 @@ O campo `cargo` na tabela `defensores` define o nível de acesso. O cargo é inc
 
 | Middleware | Função | Aplicação |
 |:-----------|:-------|:----------|
-| `authMiddleware` | Verifica JWT e injeta `req.user` | Todas as rotas protegidas (após rotas públicas) |
-| `requireWriteAccess` | Bloqueia cargo `visualizador` de operações de escrita (403) | Todas as rotas de escrita (POST, PATCH, DELETE protegidas) |
+| `authMiddleware` | Verifica JWT e injeta `req.user` | Todas as rotas protegidas |
+| `requireWriteAccess` | Bloqueia operações de escrita para cargos não autorizados | Todas as rotas de escrita |
 | `auditMiddleware` | Registra operações de escrita na tabela `logs_auditoria` | Todas as rotas protegidas |
+| `requireSameUnit` | Bloqueia acesso a casos de outras unidades (IDOR) | Rotas de detalhe/edição |
+
+> **Middleware:** `requireWriteAccess` usa whitelist positiva. Qualquer cargo fora da lista recebe HTTP 403.
+> **Isolamento de Unidade:** Usuários (exceto Admins e Gestores) são restritos a casos de sua própria `unidade_id`. Admins e Gestores possuem bypass global para visualização e edição. **Novidade:** A busca por CPF filtra resultados pela unidade do profissional ou casos compartilhados.
+> **Hierarquia de Distribuição:** 
+> 1. **Quem pode distribuir:** Apenas usuários com cargo `admin`, `gestor` ou `coordenador`. Outros cargos recebem HTTP 403.
+> 2. **Alvos da Distribuição:** Atendimentos (L1) são abertos a todos os cargos operacionais. Casos em fase de Protocolo (L2) só podem ser distribuídos para Defensor, Coordenador, Gestor ou Admin.
+> 3. **Concorrência:** A distribuição utiliza `updateMany` para garantir atomicidade. Se o status do caso mudar durante a operação, o sistema retorna `409 Conflict`.
+> **RBAC Case-Insensitive:** O sistema normaliza a verificação de cargos para letras minúsculas (`.toLowerCase()`), prevenindo falhas de permissão por divergência de casing no banco de dados e garantindo integridade no controle de acesso.
 
 ### 5.3 Operações exclusivas de Admin
 
-As seguintes operações verificam **explicitamente** `req.user.cargo === "admin"` no controller:
+As seguintes operações verificam **explicitamente** cargo privilegiado no controller:
 
-| Operação | Endpoint | Justificativa |
-|:---------|:---------|:-------------|
-| Regenerar Dos Fatos | `POST /:id/gerar-fatos` | Consome créditos de IA |
-| Gerar Termo de Declaração | `POST /:id/gerar-termo` | Documento formal |
-| Regerar Minuta DOCX | `POST /:id/regerar-minuta` | Consome créditos de IA |
-| Reverter Finalização | `POST /:id/reverter-finalizacao` | Ação destrutiva (remove dados Solar) |
-| Deletar Caso | `DELETE /:id` | Ação irreversível (exclui do banco e Storage) |
-| Registrar novo membro | `POST /api/defensores/cadastro` | Gestão de equipe |
-| Listar equipe | `GET /api/defensores` | Dados sensíveis da equipe |
-| Atualizar membro | `PATCH /api/defensores/:id` | Gestão de equipe |
-| Deletar membro | `DELETE /api/defensores/:id` | Gestão de equipe (não pode deletar a si mesmo) |
-| Resetar senha de membro | `POST /api/defensores/:id/resetar-senha` | Segurança |
+| Operação | Endpoint | Cargos Autorizados |
+|:---------|:---------|:-------------------|
+| Regenerar Dos Fatos | `POST /:id/gerar-fatos` | `admin` |
+| Gerar Termo de Declaração | `POST /:id/gerar-termo` | `admin` |
+| Regerar Minuta DOCX | `POST /:id/regerar-minuta` | `admin` |
+| Reverter Finalização | `POST /:id/reverter-finalizacao` | `admin` |
+| Deletar Caso | `DELETE /:id` | `admin` |
+| Liberar Caso (Unlock) | `PATCH /lock/unlock` | `admin`, `gestor`, `coordenador` |
+| Registrar novo membro | `POST /api/defensores/register` | `admin` |
+| Listar equipe global | `GET /api/defensores` | `admin`, `gestor` |
+| Listar equipe local | `GET /api/defensores` | `coordenador` (filtra por unidade) |
+| Resetar senha de membro | `POST /api/defensores/:id/reset-password` | `admin` |
 
 ### 5.4 Acesso público (sem autenticação)
 
@@ -651,8 +662,6 @@ O módulo de BI é restrito exclusivamente a administradores e foca em métricas
 - **Exportação Segura:** O arquivo XLSX gerado para download segue as mesmas restrições de vedação de dados pessoais.
 
 ### 12.2 Métricas Monitoradas
-- **Throughput de Triagem:** Casos criados por dia/sede.
-- **Conversão de Protocolo:** Percentual de casos que chegam ao status `protocolado`.
-- **Eficiência da IA:** Tempo médio entre `processing_started_at` e `processed_at`.
-- **Motivos de Arquivamento:** Categorias controladas (ex: Falta de Documentos, Desistência, Conciliação Extrajudicial) e contagens agregadas.
-- **Distribuição por Unidade:** Ranking de sedes com maior volume de atendimento.
+- **Métricas de Produtividade:** Ranking de profissionais por casos protocolados e atendimentos realizados.
+- **Ações de Gestão:** Histórico de auditoria de distribuições e movimentações manuais de status.
+- **Exportação Padrão:** O arquivo XLSX gerado agora inclui automaticamente as abas de Produtividade e Gestão para usuários com cargo `admin` ou `gestor`.

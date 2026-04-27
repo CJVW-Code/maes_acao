@@ -3,7 +3,7 @@ export const requireWriteAccess = (req, res, next) => {
     return res.status(401).json({ error: "Usuário não autenticado." });
   }
 
-  const allowedRoles = ["admin", "coordenador", "defensor", "servidor", "estagiario"];
+  const allowedRoles = ["admin", "gestor", "coordenador", "defensor", "servidor", "estagiario"];
   const userCargo = typeof req.user?.cargo === "string" ? req.user.cargo.toLowerCase() : "";
 
   if (!allowedRoles.includes(userCargo)) {

@@ -15,6 +15,8 @@ jest.unstable_mockModule("../src/config/supabase.js", () => ({
     insert: jest.fn().mockResolvedValue({ error: null }),
     update: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
+    in: jest.fn().mockReturnThis(),
+    is: jest.fn().mockReturnThis(),
     single: jest.fn().mockResolvedValue({ data: { protocolo: "SETUP-123" }, error: null }),
     select: jest.fn().mockReturnThis(),
     storage: { 
@@ -23,11 +25,13 @@ jest.unstable_mockModule("../src/config/supabase.js", () => ({
       download: jest.fn().mockResolvedValue({ data: { arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)) }, error: null })
     },
   },
+  isSupabaseConfigured: true,
   __esModule: true
 }));
 
-jest.unstable_mockModule("../src/services/aiService.js", () => ({
-  generateLegalText: jest.fn().mockResolvedValue("Texto IA (Setup Mock)"),
-  visionOCR: jest.fn().mockResolvedValue("Texto OCR (Setup Mock)"),
-  __esModule: true
-}));
+import { prisma } from "../src/config/prisma.js";
+
+afterAll(async () => {
+  await prisma.$disconnect();
+});
+
