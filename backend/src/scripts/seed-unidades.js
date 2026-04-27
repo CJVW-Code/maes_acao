@@ -37,6 +37,7 @@ async function main() {
         where: { id: unit.id },
         data: {
           regional,
+          ativo: true,
           // Atualiza comarca se estiver vazio, mas preserva nome se já existir um rótulo personalizado
           ...(unit.comarca ? {} : { comarca: cidade }),
         }

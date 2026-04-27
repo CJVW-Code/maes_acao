@@ -21,10 +21,18 @@ export const registrarDefensor = async (req, res) => {
 
     // Se for coordenador, valida se a unidade alvo pertence à sua regional
     if (userCargo === "coordenador") {
+      if (!req.user.unidade_id) {
+        return res.status(403).json({ error: "Sua conta de Coordenador não possui uma unidade vinculada." });
+      }
+
       const userUnidade = await prisma.unidades.findUnique({
         where: { id: req.user.unidade_id },
         select: { regional: true }
-      });
+      }).catch(() => null);
+
+      if (!userUnidade) {
+        return res.status(403).json({ error: "Sua unidade de atuação não foi encontrada ou está inativa." });
+      }
       
       if (unidade_id) {
         const targetUnidade = await prisma.unidades.findUnique({
@@ -164,13 +172,21 @@ export const listarDefensores = async (req, res) => {
     let whereClause = {};
 
     if (userCargo === "coordenador") {
+      if (!req.user.unidade_id) {
+        return res.status(403).json({ error: "Sua conta de Coordenador não possui uma unidade vinculada." });
+      }
+
       // 1. Busca a regional da unidade do coordenador
       const userUnidade = await prisma.unidades.findUnique({
         where: { id: req.user.unidade_id },
         select: { regional: true }
-      });
+      }).catch(() => null);
 
-      if (userUnidade?.regional) {
+      if (!userUnidade) {
+        return res.status(403).json({ error: "Sua unidade de atuação não foi encontrada ou está inativa." });
+      }
+
+      if (userUnidade.regional) {
         // 2. Filtra membros cujas unidades pertencem à mesma regional
         whereClause = {
           unidade: {
