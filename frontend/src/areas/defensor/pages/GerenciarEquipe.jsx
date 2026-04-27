@@ -18,7 +18,7 @@ import { API_BASE } from "../../../utils/apiBase";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../../../contexts/ToastContext";
 import { useConfirm } from "../../../contexts/ConfirmContext";
-import { cidadesBahia } from "../../../utils/formOptions";
+import { cidadesBahia, regionalOptions } from "../../../utils/formOptions";
 
 export const GerenciarEquipe = () => {
   const { token } = useAuth();
@@ -40,7 +40,7 @@ export const GerenciarEquipe = () => {
   // --- ESTADOS DE UNIDADES ---
   const [editingUnidade, setEditingUnidade] = useState(null);
   const [novaUnidade, setNovaUnidade] = useState(false);
-  const [unidadeForm, setUnidadeForm] = useState({ nome: "", comarca: "", sistema: "solar" });
+  const [unidadeForm, setUnidadeForm] = useState({ nome: "", comarca: "", sistema: "solar", regional: "" });
   const [loadingUnidade, setLoadingUnidade] = useState(false);
 
   // --- FILTRO DE UNIDADE NA EQUIPE ---
@@ -155,11 +155,11 @@ export const GerenciarEquipe = () => {
   const abrirFormUnidade = (unidade = null) => {
     if (unidade) {
       setEditingUnidade(unidade);
-      setUnidadeForm({ nome: unidade.nome, comarca: unidade.comarca, sistema: unidade.sistema || "solar" });
+      setUnidadeForm({ nome: unidade.nome, comarca: unidade.comarca, sistema: unidade.sistema || "solar", regional: unidade.regional || "" });
       setNovaUnidade(false);
     } else {
       setEditingUnidade(null);
-      setUnidadeForm({ nome: "", comarca: "", sistema: "solar" });
+      setUnidadeForm({ nome: "", comarca: "", sistema: "solar", regional: "" });
       setNovaUnidade(true);
     }
   };
@@ -167,7 +167,7 @@ export const GerenciarEquipe = () => {
   const fecharFormUnidade = () => {
     setEditingUnidade(null);
     setNovaUnidade(false);
-    setUnidadeForm({ nome: "", comarca: "", sistema: "solar" });
+    setUnidadeForm({ nome: "", comarca: "", sistema: "solar", regional: "" });
   };
 
   const handleSalvarUnidade = async (e) => {
@@ -413,6 +413,9 @@ export const GerenciarEquipe = () => {
                       <p className="text-sm text-muted flex items-center gap-1 mt-1">
                         <MapPin size={14} /> {u.comarca}
                       </p>
+                      <p className="text-[10px] text-primary/70 font-bold uppercase tracking-wider mt-1">
+                        {u.regional || "Sem Regional"}
+                      </p>
                     </div>
                     <span className={`badge text-xs ${u.ativo ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
                       {u.ativo ? "ATIVA" : "INATIVA"}
@@ -590,6 +593,20 @@ export const GerenciarEquipe = () => {
                 >
                   <option value="solar">Solar</option>
                   <option value="sigad">SIGAD</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Regional</label>
+                <select
+                  value={unidadeForm.regional}
+                  onChange={(e) => setUnidadeForm({ ...unidadeForm, regional: e.target.value })}
+                  className="input"
+                >
+                  {regionalOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 

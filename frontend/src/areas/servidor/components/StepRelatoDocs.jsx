@@ -29,7 +29,7 @@ export const StepRelatoDocs = React.memo(
           <div>
             <div className="flex justify-between items-end mb-2">
               <label htmlFor="relato" className="label font-bold mb-0">
-                Relato dos Fatos (O que aconteceu?)
+                Relato dos Fatos (O que aconteceu?) *
               </label>
             </div>
             <textarea

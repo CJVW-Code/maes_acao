@@ -8,14 +8,35 @@ import {  isSupabaseConfigured } from "../config/supabase.js";
 // --- FUNÇÃO DE CADASTRO (Atualizada com Cargo) ---
 export const registrarDefensor = async (req, res) => {
   try {
-    if (!req.user || req.user.cargo?.toLowerCase() !== "admin") {
+    const userCargo = req.user?.cargo?.toLowerCase();
+    const ALLOWED_MANAGERS = ["admin", "gestor", "coordenador"];
+
+    if (!req.user || !ALLOWED_MANAGERS.includes(userCargo)) {
       return res.status(403).json({
-        error:
-          "Acesso negado. Apenas administradores podem cadastrar novos membros.",
+        error: "Acesso negado. Apenas administradores, gestores e coordenadores podem cadastrar novos membros.",
       });
     }
 
     const { nome, email, senha, cargo = "servidor", unidade_id } = req.body;
+
+    // Se for coordenador, valida se a unidade alvo pertence à sua regional
+    if (userCargo === "coordenador") {
+      const userUnidade = await prisma.unidades.findUnique({
+        where: { id: req.user.unidade_id },
+        select: { regional: true }
+      });
+      
+      if (unidade_id) {
+        const targetUnidade = await prisma.unidades.findUnique({
+          where: { id: unidade_id },
+          select: { regional: true }
+        });
+        
+        if (targetUnidade?.regional !== userUnidade?.regional) {
+          return res.status(403).json({ error: "Você só pode cadastrar membros para unidades da sua regional." });
+        }
+      }
+    }
 
     const cargoDb = await prisma.cargos.findFirst({
       where: { nome: cargo.toLowerCase() },
@@ -130,7 +151,7 @@ export const loginDefensor = async (req, res) => {
   }
 };
 
-// --- LISTAR EQUIPE (Admin vê tudo, Gestor/Coordenador vê unidade) ---
+// --- LISTAR EQUIPE (Admin/Gestor vê tudo, Coordenador vê regional, Outros veem unidade) ---
 export const listarDefensores = async (req, res) => {
   try {
     const CARGOS_VIEW_TEAM = ["admin", "gestor", "coordenador"];
@@ -140,9 +161,30 @@ export const listarDefensores = async (req, res) => {
       return res.status(403).json({ error: "Acesso negado. Apenas administradores e gestores podem visualizar a equipe." });
     }
 
-    const whereClause = ["admin", "gestor"].includes(userCargo) 
-      ? {} 
-      : { unidade_id: req.user.unidade_id };
+    let whereClause = {};
+
+    if (userCargo === "coordenador") {
+      // 1. Busca a regional da unidade do coordenador
+      const userUnidade = await prisma.unidades.findUnique({
+        where: { id: req.user.unidade_id },
+        select: { regional: true }
+      });
+
+      if (userUnidade?.regional) {
+        // 2. Filtra membros cujas unidades pertencem à mesma regional
+        whereClause = {
+          unidade: {
+            regional: userUnidade.regional
+          }
+        };
+      } else {
+        // Fallback: se a unidade do coordenador não tiver regional, vê só a dele
+        whereClause = { unidade_id: req.user.unidade_id };
+      }
+    } else if (userCargo !== "admin" && userCargo !== "gestor") {
+      // Outros cargos que tenham permissão mas não são admin/gestor/coordenador (ex: recepção se permitido)
+      whereClause = { unidade_id: req.user.unidade_id };
+    }
 
     const equipe = await prisma.defensores.findMany({
       where: whereClause,
@@ -157,7 +199,7 @@ export const listarDefensores = async (req, res) => {
           select: { nome: true },
         },
         unidade: {
-          select: { id: true, nome: true, comarca: true },
+          select: { id: true, nome: true, comarca: true, regional: true },
         },
       },
       orderBy: { nome: "asc" },
@@ -167,6 +209,7 @@ export const listarDefensores = async (req, res) => {
       ...d,
       cargo: d.cargo.nome,
       unidade_nome: d.unidade?.nome || "Sem unidade",
+      regional: d.unidade?.regional || "N/A"
     }));
 
     res.json(data);
@@ -208,11 +251,32 @@ export const listarColegas = async (req, res) => {
 // --- ATUALIZAR MEMBRO (Apenas Admin) ---
 export const atualizarDefensor = async (req, res) => {
   try {
-    if (!req.user || req.user.cargo?.toLowerCase() !== "admin") {
+    const userCargo = req.user?.cargo?.toLowerCase();
+    const ALLOWED_MANAGERS = ["admin", "gestor", "coordenador"];
+
+    if (!req.user || !ALLOWED_MANAGERS.includes(userCargo)) {
       return res.status(403).json({ error: "Acesso negado." });
     }
 
     const { id } = req.params;
+
+    // Se for coordenador, valida se o membro alvo pertence à sua regional
+    if (userCargo === "coordenador") {
+      const targetMember = await prisma.defensores.findUnique({
+        where: { id },
+        include: { unidade: true }
+      });
+      
+      const userUnidade = await prisma.unidades.findUnique({
+        where: { id: req.user.unidade_id },
+        select: { regional: true }
+      });
+
+      if (targetMember?.unidade?.regional !== userUnidade?.regional) {
+        return res.status(403).json({ error: "Você só pode editar membros da sua regional." });
+      }
+    }
+
     const { nome, email, cargo, ativo, unidade_id } = req.body;
 
     let updateData = { nome, email, ativo };
@@ -247,16 +311,34 @@ export const atualizarDefensor = async (req, res) => {
 // --- DELETAR MEMBRO (Apenas Admin) ---
 export const deletarDefensor = async (req, res) => {
   try {
-    if (!req.user || req.user.cargo?.toLowerCase() !== "admin") {
+    const userCargo = req.user?.cargo?.toLowerCase();
+    const ALLOWED_MANAGERS = ["admin", "gestor", "coordenador"];
+
+    if (!req.user || !ALLOWED_MANAGERS.includes(userCargo)) {
       return res.status(403).json({ error: "Acesso negado." });
     }
 
     const { id } = req.params;
 
     if (id === req.user.id) {
-      return res
-        .status(400)
-        .json({ error: "Você não pode excluir sua própria conta." });
+      return res.status(400).json({ error: "Você não pode excluir seu próprio usuário." });
+    }
+
+    // Se for coordenador, valida se o membro alvo pertence à sua regional
+    if (userCargo === "coordenador") {
+      const targetMember = await prisma.defensores.findUnique({
+        where: { id },
+        include: { unidade: true }
+      });
+      
+      const userUnidade = await prisma.unidades.findUnique({
+        where: { id: req.user.unidade_id },
+        select: { regional: true }
+      });
+
+      if (targetMember?.unidade?.regional !== userUnidade?.regional) {
+        return res.status(403).json({ error: "Você só pode excluir membros da sua regional." });
+      }
     }
 
     await prisma.defensores.delete({

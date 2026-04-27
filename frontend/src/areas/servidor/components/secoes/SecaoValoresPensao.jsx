@@ -9,6 +9,7 @@ export const SecaoValoresPensao = ({
   handleCurrencyChange,
   handleRestrictedAlphanumeric,
   validar,
+  formErrors = {},
 }) => {
   const isExecucaoAlimentos = formState?.acaoEspecifica === "execucao_alimentos";
 
@@ -32,9 +33,14 @@ export const SecaoValoresPensao = ({
             name="VARA"
             value={formState.VARA}
             onChange={handleFieldChange}
-            className="input border-primary/50"
+            className={`input ${formErrors.VARA ? "border-error ring-1 ring-error" : "border-primary/50"}`}
             {...validar("Informe a vara para esta petição.")}
           />
+          {formErrors.VARA && (
+            <span className="text-xs text-error mt-1 ml-1">
+              {formErrors.VARA}
+            </span>
+          )}
         </div>
       )}
 
@@ -56,10 +62,15 @@ export const SecaoValoresPensao = ({
                 value={formState.valor_pensao}
                 onChange={handleCurrencyChange("valor_pensao")}
                 placeholder="0,00 *"
-                className="input pl-12"
+                className={`input pl-12 ${formErrors.valor_pensao ? "border-error ring-1 ring-error" : ""}`}
                 {...validar("Informe o valor da pensão.")}
               />
             </div>
+            {formErrors.valor_pensao && (
+              <span className="text-xs text-error mt-1 ml-1">
+                {formErrors.valor_pensao}
+              </span>
+            )}
           </div>
         </div>
       )}

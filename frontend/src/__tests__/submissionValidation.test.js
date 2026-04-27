@@ -37,6 +37,8 @@ function makeFormState(overrides = {}) {
     outrosFilhos: [],
     enviarDocumentosDepois: false,
     calculo_arquivo: null,
+    CIDADEASSINATURA: "Teixeira de Freitas",
+    VARA: "1",
     ...overrides,
   };
 }
