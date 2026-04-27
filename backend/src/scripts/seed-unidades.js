@@ -6,14 +6,15 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Iniciando seed de unidades (Limpando duplicatas)...');
 
-  // Remove todas as unidades que não estão no mapeamento oficial
+  // Marcar como inativo as unidades que não estão no mapeamento oficial (Soft Delete)
   const nomesOficiais = Object.keys(MAPEAMENTO_CIDADES);
-  const deleted = await prisma.unidades.deleteMany({
+  const desativadas = await prisma.unidades.updateMany({
     where: {
       nome: { notIn: nomesOficiais }
-    }
+    },
+    data: { ativo: false }
   });
-  console.log(`🗑️ Removidas ${deleted.count} unidades não oficiais ou duplicadas.`);
+  console.log(`🗑️ Desativadas ${desativadas.count} unidades não oficiais ou duplicadas.`);
 
   let criadas = 0;
   let atualizadas = 0;
@@ -21,19 +22,24 @@ async function main() {
   for (const [cidade, regional] of Object.entries(MAPEAMENTO_CIDADES)) {
     const sistema = cidade.toLowerCase().includes('salvador') ? 'sigad' : 'solar';
 
-    const existing = await prisma.unidades.findUnique({
-      where: { comarca: cidade } // Usamos comarca como chave única se possível
-    }).catch(() => null);
-
-    // Se falhar findUnique (comarca não é unique no schema?), usamos findFirst
-    const unit = existing || await prisma.unidades.findFirst({
-      where: { nome: cidade }
+    // Busca por nome ou comarca
+    const unit = await prisma.unidades.findFirst({
+      where: {
+        OR: [
+          { nome: cidade },
+          { comarca: cidade }
+        ]
+      }
     });
 
     if (unit) {
       await prisma.unidades.update({
         where: { id: unit.id },
-        data: { regional, nome: cidade, comarca: cidade }
+        data: {
+          regional,
+          // Atualiza comarca se estiver vazio, mas preserva nome se já existir um rótulo personalizado
+          ...(unit.comarca ? {} : { comarca: cidade }),
+        }
       });
       atualizadas++;
     } else {

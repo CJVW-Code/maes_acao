@@ -70,11 +70,24 @@ export const requireSameUnit = async (req, res, next) => {
 
     // 5. Verifica Regional (Para Coordenadores)
     let isSameRegional = false;
-    if (userCargo === "coordenador") {
-      const userUnidade = await prisma.unidades.findUnique({
-        where: { id: user.unidade_id },
-        select: { regional: true }
-      });
+    if (userCargo === "coordenador" && user.unidade_id) {
+      let userUnidade;
+      
+      if (isSupabaseConfigured) {
+        const { data: fetchUnidade, error: fetchUnidadeError } = await supabase
+          .from("unidades")
+          .select("regional")
+          .eq("id", user.unidade_id)
+          .single();
+        
+        if (fetchUnidadeError) throw fetchUnidadeError;
+        userUnidade = fetchUnidade;
+      } else {
+        userUnidade = await prisma.unidades.findUnique({
+          where: { id: user.unidade_id },
+          select: { regional: true }
+        });
+      }
       
       const casoRegional = caso.unidades?.regional || caso.unidade?.regional;
       if (userUnidade?.regional && casoRegional && userUnidade.regional === casoRegional) {

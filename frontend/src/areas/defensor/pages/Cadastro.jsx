@@ -32,13 +32,16 @@ export const Cadastro = () => {
           
           const userCargo = (user?.cargo || "").toLowerCase();
           
-          if (userCargo === "coordenador" && user?.unidade_id) {
-            // Encontra a unidade do coordenador para saber a regional
-            const userUnit = activeUnits.find(u => u.id === user.unidade_id);
-            if (userUnit?.regional) {
-              setUnidades(activeUnits.filter(u => u.regional === userUnit.regional));
+          if (userCargo === "coordenador") {
+            if (!user?.unidade_id) {
+              setUnidades([]);
             } else {
-              setUnidades(activeUnits.filter(u => u.id === user.unidade_id));
+              const userUnit = activeUnits.find(u => u.id === user.unidade_id);
+              if (userUnit?.regional) {
+                setUnidades(activeUnits.filter(u => u.regional === userUnit.regional));
+              } else {
+                setUnidades(activeUnits.filter(u => u.id === user.unidade_id));
+              }
             }
           } else {
             setUnidades(activeUnits);

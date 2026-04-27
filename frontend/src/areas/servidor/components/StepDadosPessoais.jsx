@@ -581,6 +581,7 @@ export const StepDadosPessoais = React.memo(({
                 name="requerente_telefone"
                 value={requerenteTelefone}
                 onChange={handlePhoneChange("requerente_telefone")}
+                {...validar("Informe um telefone para contato.")}
                 className={`input ${formErrors.requerente_telefone ? "border-error ring-1 ring-error" : ""}`}
               />
               {formErrors.requerente_telefone && (

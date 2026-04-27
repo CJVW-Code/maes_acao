@@ -51,12 +51,11 @@ export const processSubmission = async ({
   }
 
   // Validação de Endereço e CEP do Representante (Obrigatório para todos os casos)
-  if (!formState.requerente_endereco_residencial || formState.requerente_endereco_residencial.trim() === "") {
+  const enderecoResidencial = (formState.requerente_endereco_residencial || "").trim();
+  if (!enderecoResidencial) {
     validationErrors.requerente_endereco_residencial = "O endereço residencial é obrigatório.";
-  } else if (!formState.requerente_endereco_residencial.includes("CEP")) {
-    validationErrors.requerente_endereco_residencial = "O CEP é obrigatório no endereço.";
-  } else if (!/\b\d{5}-?\d{3}\b/.test(formState.requerente_endereco_residencial)) {
-    validationErrors.requerente_endereco_residencial = "CEP inválido. Use o formato 00000-000.";
+  } else if (!/\b\d{5}-?\d{3}\b/.test(enderecoResidencial)) {
+    validationErrors.requerente_endereco_residencial = "CEP inválido ou ausente no endereço. Use o formato 00000-000.";
   }
 
   if (!formState.requerente_telefone) {
