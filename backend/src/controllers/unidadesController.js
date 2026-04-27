@@ -20,6 +20,7 @@ export const listarUnidades = async (req, res) => {
       id: u.id,
       nome: u.nome,
       comarca: u.comarca,
+      regional: u.regional,
       sistema: u.sistema,
       ativo: u.ativo,
       created_at: u.created_at,
@@ -41,7 +42,7 @@ export const criarUnidade = async (req, res) => {
       return res.status(403).json({ error: "Acesso negado." });
     }
 
-    const { nome, comarca, sistema } = req.body;
+    const { nome, comarca, sistema, regional } = req.body;
 
     if (!nome || !comarca) {
       return res.status(400).json({ error: "Nome e comarca são obrigatórios." });
@@ -52,6 +53,7 @@ export const criarUnidade = async (req, res) => {
         nome,
         comarca,
         sistema: sistema || "solar",
+        regional: regional || null,
         ativo: true,
       },
     });
@@ -72,7 +74,7 @@ export const atualizarUnidade = async (req, res) => {
     }
 
     const { id } = req.params;
-    const { nome, comarca, sistema, ativo } = req.body;
+    const { nome, comarca, sistema, ativo, regional } = req.body;
 
     const unidade = await prisma.unidades.update({
       where: { id },
@@ -81,6 +83,7 @@ export const atualizarUnidade = async (req, res) => {
         ...(comarca !== undefined && { comarca }),
         ...(sistema !== undefined && { sistema }),
         ...(ativo !== undefined && { ativo }),
+        ...(regional !== undefined && { regional }),
       },
     });
 

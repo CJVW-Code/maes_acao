@@ -6,7 +6,7 @@ import { API_BASE } from "../../../utils/apiBase";
 import { useAuth } from "../contexts/AuthContext";
 
 export const Cadastro = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -28,14 +28,31 @@ export const Cadastro = () => {
         });
         if (response.ok) {
           const data = await response.json();
-          setUnidades(data);
+          const activeUnits = data.filter(u => u.ativo);
+          
+          const userCargo = (user?.cargo || "").toLowerCase();
+          
+          if (userCargo === "coordenador") {
+            if (!user?.unidade_id) {
+              setUnidades([]);
+            } else {
+              const userUnit = activeUnits.find(u => u.id === user.unidade_id);
+              if (userUnit?.regional) {
+                setUnidades(activeUnits.filter(u => u.regional === userUnit.regional));
+              } else {
+                setUnidades(activeUnits.filter(u => u.id === user.unidade_id));
+              }
+            }
+          } else {
+            setUnidades(activeUnits);
+          }
         }
       } catch (err) {
         console.error("Erro ao carregar unidades:", err);
       }
     };
     if (token) fetchUnidades();
-  }, [token]);
+  }, [token, user]);
 
   useEffect(() => {
     let timer;
@@ -188,7 +205,7 @@ export const Cadastro = () => {
                 <option value="">Selecione a unidade</option>
                 {unidades.map((u) => (
                   <option key={u.id} value={u.id}>
-                    {u.nome} — {u.comarca}
+                    {u.nome} — {u.comarca} {u.regional ? `(${u.regional})` : ""}
                   </option>
                 ))}
               </select>

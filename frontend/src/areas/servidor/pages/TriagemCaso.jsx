@@ -1,4 +1,4 @@
-import React, { useReducer } from "react";
+import React, { useReducer, useState, useEffect } from "react";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "motion/react";
 import { Upload, AlertTriangle } from "lucide-react";
@@ -27,6 +27,22 @@ export const FormularioSubmissao = () => {
   const { confirm } = useConfirm();
   const location = useLocation();
   const [formState, dispatch] = useReducer(formReducer, initialState);
+  const [unidades, setUnidades] = useState([]);
+
+  useEffect(() => {
+    const fetchUnidades = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/unidades`);
+        if (response.ok) {
+          const data = await response.json();
+          setUnidades(data.filter(u => u.ativo));
+        }
+      } catch (error) {
+        console.error("Erro ao buscar unidades:", error);
+      }
+    };
+    fetchUnidades();
+  }, []);
   
   const today = new Date().toISOString().split("T")[0];
   const configAcao = getConfigAcao(formState.tipoAcao, formState.acaoEspecifica);
@@ -64,12 +80,7 @@ export const FormularioSubmissao = () => {
     startRecording,
     stopRecording,
     removeAudioRecording,
-    mostrarSugestoes,
-    setMostrarSugestoes,
-    sugestoesCidades,
     handleFieldChange,
-    handleCidadeChange,
-    handleSelecionaCidade,
     handleCpfChangeAndValidate,
     handlePhoneChange,
     handleDateChange,
@@ -272,11 +283,9 @@ export const FormularioSubmissao = () => {
 
             <StepDadosProcessuais 
                CIDADEASSINATURA={formState.CIDADEASSINATURA}
-               handleCidadeChange={handleCidadeChange}
-               mostrarSugestoes={mostrarSugestoes}
-               sugestoesCidades={sugestoesCidades}
-               handleSelecionaCidade={handleSelecionaCidade}
-               setMostrarSugestoes={setMostrarSugestoes}
+               handleFieldChange={handleFieldChange}
+               unidades={unidades}
+               formErrors={formErrors}
             />
 
 

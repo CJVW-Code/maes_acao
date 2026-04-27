@@ -1,5 +1,8 @@
 import { supabase } from "../config/supabase.js";
+import { prisma } from "../config/prisma.js";
 import logger from "../utils/logger.js";
+
+const isSupabaseConfigured = !!process.env.SUPABASE_URL;
 
 /**
  * Middleware para garantir que o usuário só acesse casos da sua própria unidade.
@@ -27,41 +30,80 @@ export const requireSameUnit = async (req, res, next) => {
   }
 
   try {
-    // 3. Busca minimalista via Supabase (Core de Casos)
-    // Selecionamos unidade_id e a relação de assistência para validar acesso
-    const { data: caso, error: fetchError } = await supabase
-      .from("casos")
-      .select(`
-        id, 
-        unidade_id, 
-        status,
-        assistencia_casos!assistencia_casos_caso_id_fkey (
-          destinatario_id,
-          status
-        )
-      `)
-      .eq("id", id)
-      .single();
+    // 3. Busca minimalista via Supabase ou Prisma (Core de Casos)
+    let caso;
+    
+    if (isSupabaseConfigured) {
+      const { data: fetchCaso, error: fetchError } = await supabase
+        .from("casos")
+        .select(`
+          id, 
+          unidade_id, 
+          status,
+          unidades ( regional ),
+          assistencia_casos (
+            destinatario_id,
+            status
+          )
+        `)
+        .eq("id", id)
+        .single();
+      
+      if (fetchError && fetchError.code !== "PGRST116") throw fetchError;
+      caso = fetchCaso;
+    } else {
+      caso = await prisma.casos.findUnique({
+        where: { id: BigInt(id) },
+        include: {
+          unidade: { select: { regional: true } },
+          assistencia_casos: { select: { destinatario_id: true, status: true } }
+        }
+      });
+    }
 
-    if (fetchError || !caso) {
-      if (fetchError?.code === "PGRST116") {
-        return res.status(404).json({ error: "Caso não encontrado." });
-      }
-      throw fetchError || new Error("Falha ao buscar caso");
+    if (!caso) {
+      return res.status(404).json({ error: "Caso não encontrado." });
     }
 
     // 4. Verifica pertencimento de unidade
     const isSameUnit = caso.unidade_id === user.unidade_id;
 
-    // 5. Verifica se é um colaborador aceito (Assistência Compartilhada)
+    // 5. Verifica Regional (Para Coordenadores)
+    let isSameRegional = false;
+    if (userCargo === "coordenador" && user.unidade_id) {
+      let userUnidade;
+      
+      if (isSupabaseConfigured) {
+        const { data: fetchUnidade, error: fetchUnidadeError } = await supabase
+          .from("unidades")
+          .select("regional")
+          .eq("id", user.unidade_id)
+          .single();
+        
+        if (fetchUnidadeError) throw fetchUnidadeError;
+        userUnidade = fetchUnidade;
+      } else {
+        userUnidade = await prisma.unidades.findUnique({
+          where: { id: user.unidade_id },
+          select: { regional: true }
+        });
+      }
+      
+      const casoRegional = caso.unidades?.regional || caso.unidade?.regional;
+      if (userUnidade?.regional && casoRegional && userUnidade.regional === casoRegional) {
+        isSameRegional = true;
+      }
+    }
+
+    // 6. Verifica se é um colaborador aceito (Assistência Compartilhada)
     const isCollaborator = (caso.assistencia_casos || []).some(
       (a) => a.destinatario_id === user.id && a.status === "aceito"
     );
 
-    if (!isSameUnit && !isCollaborator) {
-      logger.warn(`[Acesso Negado]: Usuário ${user.id} (${userCargo}) tentou acessar caso ${id} de outra unidade.`);
+    if (!isSameUnit && !isCollaborator && !isSameRegional) {
+      logger.warn(`[Acesso Negado]: Usuário ${user.id} (${userCargo}) tentou acessar caso ${id} de outra unidade/regional.`);
       return res.status(403).json({ 
-        error: "Acesso negado. Este caso pertence a outra unidade e você não é um colaborador ativo." 
+        error: "Acesso negado. Este caso pertence a outra unidade e você não tem permissão regional." 
       });
     }
 

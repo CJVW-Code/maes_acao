@@ -24,9 +24,14 @@ export const SecaoProcessoOriginal = ({
             name="VARA"
             value={formState.VARA}
             onChange={handleFieldChange}
-            className="input border-primary/50"
+            className={`input ${formErrors.VARA ? "border-error ring-1 ring-error" : "border-primary/50"}`}
             {...validar("Informe a vara para esta petição.")}
           />
+          {formErrors.VARA && (
+            <span className="text-xs text-error mt-1 ml-1">
+              {formErrors.VARA}
+            </span>
+          )}
         </div>
         <div>
           <label htmlFor="percentualSalarioMinimo" className="label font-bold text-">
@@ -171,7 +176,7 @@ export const SecaoProcessoOriginal = ({
             name="data_inicio_debito"
             value={formState.data_inicio_debito || ""}
             onChange={handleMonthYearChange("data_inicio_debito")}
-            className="input"
+            className={`input ${formErrors.data_inicio_debito ? "border-error ring-1 ring-error" : ""}`}
             {...validar("Informe o mês e ano inicial do débito (MM/AAAA).")}
           />
           {formErrors.data_inicio_debito && (
@@ -190,7 +195,7 @@ export const SecaoProcessoOriginal = ({
             name="data_fim_debito"
             value={formState.data_fim_debito || ""}
             onChange={handleMonthYearChange("data_fim_debito")}
-            className="input"
+            className={`input ${formErrors.data_fim_debito ? "border-error ring-1 ring-error" : ""}`}
             {...validar("Informe o mês e ano final do débito (MM/AAAA).")}
           />
           {formErrors.data_fim_debito && (
@@ -213,7 +218,7 @@ export const SecaoProcessoOriginal = ({
               name="valor_debito"
               value={formState.valor_debito}
               onChange={handleCurrencyChange("valor_debito")}
-              className="input pl-12"
+              className={`input pl-12 ${formErrors.valor_debito ? "border-error ring-1 ring-error" : ""}`}
               {...validar("Informe o valor total do débito.")}
             />
           </div>
@@ -236,7 +241,7 @@ export const SecaoProcessoOriginal = ({
                 });
               }
             }}
-            className="input py-2 text-sm"
+            className={`input py-2 text-sm ${formErrors.calculo_arquivo ? "border-error ring-1 ring-error" : ""}`}
           />
           {formErrors.calculo_arquivo && (
             <p className="text-xs text-error font-medium mt-1">{formErrors.calculo_arquivo}</p>

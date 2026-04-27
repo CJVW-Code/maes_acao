@@ -257,20 +257,12 @@ export const generateDosFatos = async (caseData = {}, acaoKey) => {
       .join(", ");
 
     const isPlural = todosAutores.length > 1;
-    const termoAutor = isPlural ? "Os autores" : "O autor";
-    const termoFilho = isPlural ? "são filhos" : "é filho";
 
-    let filhosInfo = cleanText(
+    // Dados de guarda e filhos (se existirem nos campos legados ou específicos)
+    const contextFilhosGuarda = cleanText(
       caseData.filhos_info || caseData.filhosInfo || caseData.descricao_guarda,
-      "Informações sobre filhos não foram apresentadas.",
+      "",
     );
-
-    if (todosAutores.length > 0) {
-      const detalhes = todosAutores
-        .map((a) => `${a.nome} (Nasc: ${a.nascimento || "?"})`)
-        .join("; ");
-      filhosInfo = `${filhosInfo}. Detalhes: ${detalhes}`;
-    }
 
     // Preparação dos textos descritivos
     let situacaoAssistido = "";
@@ -325,6 +317,10 @@ export const generateDosFatos = async (caseData = {}, acaoKey) => {
       }
     };
 
+    addToPii(normalized.requerente?.nome, "[NOME_AUTOR_PRINCIPAL]");
+    addToPii(normalized.requerente?.cpf, "[CPF_AUTOR_PRINCIPAL]");
+    addToPii(normalized.requerente?.representante, "[NOME_REPRESENTANTE]");
+
     todosAutores.forEach((autor, index) => {
       const num = index + 1;
       addToPii(autor.nome, `[NOME_AUTOR_${num}]`);
@@ -351,34 +347,30 @@ Não use listas ou tópicos na resposta final. Escreva apenas parágrafos coesos
 
     const systemPrompt = configBackend?.promptIA?.systemPrompt || SYSTEM_PROMPT_LEGADO;
 
-    // No userPrompt, instruímos a IA a usar os placeholders que ela vai receber
-    // Ex: Ela vai receber "O autor [NOME_AUTOR]..." em vez de "O autor João..."
-    const userPrompt = `Redija APENAS o conteúdo textual da seção "DOS FATOS" de uma ${
-      normalized.tipo_acao || "petição inicial"
-    }.
+    const userPrompt = `Abaixo estão os dados para a redação da seção "DOS FATOS". 
+LEIA atentamente o "Relato Informal" e EXTRAIA dele os detalhes sobre trabalho, renda, necessidades e o histórico do conflito para enriquecer o texto, seguindo a estrutura de parágrafos solicitada no System Prompt.
 
-ATENÇÃO: NÃO inclua o título "DOS FATOS", "DOS FATOS E FUNDAMENTOS" ou qualquer cabeçalho. Comece diretamente pelo texto.
+TIPO DE AÇÃO: ${normalized.tipo_acao || "Fixação de Alimentos"}
 
-Estrutura Lógica Obrigatória:
-1. **Vínculo:** "${termoAutor} (${listaAutoresTexto}) ${termoFilho} do requerido ([NOME_REU]), conforme é possível aduzir..."
-2. **Necessidade:** "Ocorre que, no caso em tela..."
-3. **Dever:** "Como é sabido..."
-4. **Conflito:** "Insta salientar..."
+DADOS DOS ENVOLVIDOS:
+- Assistidos (Autores): ${listaAutoresTexto} (Total: ${todosAutores.length})
+- Representante Legal: ${normalized.requerente?.representante || "Não informado"}
+- Requerido (Parte Contrária): ${cleanText(normalized.requerido?.nome)}
 
-DADOS DO CASO:
-- Assistidos (Autores): ${listaAutoresTexto}
-- Requerido: ${cleanText(normalized.requerido?.nome)} (CPF: ${cleanText(
-      normalized.requerido?.cpf,
-    )})
-- Filhos/Guarda: ${filhosInfo}
-- Situação Mãe: ${situacaoAssistido}
-- Situação Pai: ${situacaoRequerido}
-- Valor Pedido: R$ ${valorPensao}
-- Relato Informal: """${relatoBase}"""
-- Documentos: ${documentosList}
+CONTEXTO DE TRIAGEM (DADOS ESTRUTURADOS):
+- Necessidades/Guarda: ${contextFilhosGuarda || "Ver relato informal"}
+- Situação da Autora/Mãe: ${situacaoAssistido}
+- Situação do Requerido/Pai: ${situacaoRequerido}
+- Valor do Pedido: R$ ${valorPensao}
+- Documentos Fornecidos: ${documentosList}
 ${contextoExtra}
 
-Adapte o texto se o relato informal contradizer o modelo padrão (ex: pai já paga algo), mas mantenha o tom formal.`;
+RELATO INFORMAL (FONTE PRINCIPAL DE FATOS):
+"""
+${relatoBase}
+"""
+
+INSTRUÇÃO FINAL: Se o relato informal contiver detalhes sobre o trabalho do requerido ou despesas específicas da criança, esses detalhes DEVEM ser incluídos nos parágrafos de "Capacidade do Requerido" e "Necessidades dos Alimentandos" respectivamente.`;
 
     // Chamada Segura: Envia o mapa PII para sanitização automática no aiService
     logger.info(

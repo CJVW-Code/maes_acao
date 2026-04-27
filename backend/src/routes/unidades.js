@@ -10,12 +10,12 @@ import { auditMiddleware } from "../middleware/auditMiddleware.js";
 
 const router = express.Router();
 
-// Todas as rotas de unidades exigem autenticação
+// Listar unidades — acessível publicamente para popular selects na triagem
+router.get("/", listarUnidades);
+
+// Todas as demais rotas de unidades exigem autenticação
 router.use(authMiddleware);
 router.use(auditMiddleware);
-
-// Listar unidades — acessível a qualquer usuário logado (para popular selects)
-router.get("/", listarUnidades);
 
 // Criar, Editar e Deletar — verificação de admin é feita no controller
 router.post("/", criarUnidade);

@@ -77,8 +77,11 @@ export const StepRequerido = React.memo(
               name="executado_cpf"
               value={requeridoCpf}
               onChange={handleCpfChangeAndValidate("executado_cpf")}
-              className="input"
+              className={`input ${formErrors.executado_cpf ? "border-error ring-1 ring-error" : ""}`}
             />
+            {formErrors.executado_cpf && (
+              <p className="text-xs text-red-500 mt-1">{formErrors.executado_cpf}</p>
+            )}
           </div>
         </div>
 
@@ -119,6 +122,7 @@ export const StepRequerido = React.memo(
             name="executado_endereco_residencial"
             value={requeridoEnderecoResidencial}
             onChange={handleFieldChange}
+            error={formErrors.requeridoContato}
             className="w-full"
           />
         </div>
@@ -136,7 +140,7 @@ export const StepRequerido = React.memo(
               name="executado_telefone"
               value={requeridoTelefone}
               onChange={handlePhoneChange("executado_telefone")}
-              className="input"
+              className={`input ${formErrors.requeridoContato ? "border-error ring-1 ring-error" : ""}`}
               aria-invalid={Boolean(formErrors.requeridoContato)}
             />
           </div>

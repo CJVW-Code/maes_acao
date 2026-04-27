@@ -2125,7 +2125,6 @@ export const baixarDocumentoIndividual = async (req, res) => {
         return res.status(403).json({ error: "Ticket inválido: Divergência de arquivo." });
       }
 
-      // Valida o bucket (opcional mas recomendado para consistência)
       if (req.ticket.bucket && req.ticket.bucket !== bucket) {
         return res.status(403).json({ error: "Ticket inválido: Divergência de categoria." });
       }
@@ -2776,52 +2775,62 @@ export const criarNovoCaso = async (req, res) => {
 
 export const listarCasos = async (req, res) => {
   try {
-    const { cpf, arquivado, limite, meusAtendimentos } = req.query;
-    const statusFiltro = arquivado === "true";
+    const { cpf, arquivado, limite, meusAtendimentos, unidade_id } = req.query;
+    const arquivadoBool = arquivado === "true";
+    const userCargo = (req.user?.cargo || "").toLowerCase();
 
-    const baseWhere = { arquivado: statusFiltro };
+    // 1. Filtro de base (Regional para Coordenador, Unidade para outros)
+    let baseFilter = {};
+    if (userCargo === "coordenador") {
+      const userUnidade = await prisma.unidades.findUnique({
+        where: { id: req.user.unidade_id },
+        select: { regional: true }
+      });
+      if (userUnidade?.regional) {
+        baseFilter.unidade = { regional: userUnidade.regional };
+      } else {
+        baseFilter.unidade_id = req.user.unidade_id;
+      }
+    } else if (userCargo !== "admin" && userCargo !== "gestor") {
+      baseFilter.unidade_id = req.user.unidade_id;
+    }
+
+    // 2. Filtros de Unidade/Regional
+    let whereClause = { arquivado: arquivadoBool, ...baseFilter };
+
+    if (userCargo === "admin" || userCargo === "gestor") {
+      if (unidade_id && unidade_id !== "todas") {
+        whereClause.unidade_id = unidade_id;
+      }
+    }
 
     // Filtro para ocultar em_protocolo de servidor/estagiario
-    const cargoNormalizado = (req.user?.cargo || "").toLowerCase();
-    if (req.user && (cargoNormalizado === "servidor" || cargoNormalizado === "estagiario")) {
-      baseWhere.status = { not: "em_protocolo" };
+    if (userCargo === "servidor" || userCargo === "estagiario") {
+      whereClause.status = { not: "em_protocolo" };
     }
 
     // Filtro "Meus Atendimentos"
     if (meusAtendimentos === "true" && req.user) {
-      baseWhere.OR = [
-        { defensor_id: req.user.id },
-        { servidor_id: req.user.id },
-        {
-          assistencia_casos: {
-            some: {
-              destinatario_id: req.user.id,
-              status: "aceito",
+      const meusFilter = {
+        OR: [
+          { defensor_id: req.user.id },
+          { servidor_id: req.user.id },
+          {
+            assistencia_casos: {
+              some: {
+                destinatario_id: req.user.id,
+                status: "aceito",
+              },
             },
           },
-        },
-      ];
-    } else if (req.user && !["admin", "gestor"].includes(req.user.cargo.toLowerCase()) && req.user.unidade_id) {
-      // Filtro por unidade padrão (admin e gestor veem tudo)
-      baseWhere.OR = [
-        { unidade_id: req.user.unidade_id },
-        {
-          assistencia_casos: {
-            some: {
-              destinatario_id: req.user.id,
-              status: "aceito",
-            },
-          },
-        },
-      ];
+        ],
+      };
+      whereClause = { ...whereClause, ...meusFilter };
     }
-
-    const where = { ...baseWhere };
 
     if (cpf) {
       const cpfLimpo = cpf.replace(/\D/g, "");
       const cpfFormatado = cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-
       const cpfQuery = [
         { protocolo: cpf },
         { partes: { cpf_assistido: cpf } },
@@ -2831,17 +2840,22 @@ export const listarCasos = async (req, res) => {
         { partes: { cpf_representante: cpfLimpo } },
         { partes: { cpf_representante: cpfFormatado } },
       ];
-
-      if (baseWhere.OR) {
-        where.AND = [{ OR: baseWhere.OR }, { OR: cpfQuery }];
-        delete where.OR;
+      
+      // Combina com o filtro de "Meus Atendimentos" se ele existir
+      if (whereClause.OR) {
+        const existingOR = whereClause.OR;
+        delete whereClause.OR;
+        whereClause.AND = [
+          { OR: existingOR },
+          { OR: cpfQuery }
+        ];
       } else {
-        where.OR = cpfQuery;
+        whereClause.OR = cpfQuery;
       }
     }
 
     const queryOptions = {
-      where,
+      where: whereClause,
       orderBy: { created_at: "desc" },
       include: {
         partes: true,
@@ -2849,7 +2863,7 @@ export const listarCasos = async (req, res) => {
         documentos: true,
         defensor: { select: { id: true, nome: true } },
         servidor: { select: { id: true, nome: true } },
-        unidade: { select: { sistema: true } },
+        unidade: { select: { sistema: true, regional: true } },
       },
     };
 
@@ -2860,24 +2874,12 @@ export const listarCasos = async (req, res) => {
 
     const data = await prisma.casos.findMany(queryOptions);
 
-    // Hidrata e garante compatibilidade com o frontend
     const normalizedData = data.map((casoRaw) => {
       const caso = mapCasoRelations(casoRaw);
-      if (!caso.dados_formulario || typeof caso.dados_formulario !== "object") {
-        caso.dados_formulario = {};
-      }
-      if (!caso.dados_formulario.document_names) caso.dados_formulario.document_names = {};
-      if (!caso.dados_formulario.documentNames) {
-        caso.dados_formulario.documentNames = caso.dados_formulario.document_names;
-      }
-
-      // Adiciona o nome do representante no topo para facilitar a listagem no front
       caso.nome_representante =
         caso.dados_formulario?.REPRESENTANTE_NOME ||
         caso.dados_formulario?.representante_nome ||
-        caso.dados_formulario?.representanteNome ||
         null;
-
       return caso;
     });
 
@@ -2897,9 +2899,24 @@ export const resumoCasos = async (req, res) => {
     const whereClause = { arquivado: false };
     const cargoNormalizado = (req.user?.cargo || "").toLowerCase();
 
-    // Filtro por unidade: admin e gestor veem tudo, demais veem apenas sua unidade
-    if (req.user && !["admin", "gestor"].includes(req.user.cargo.toLowerCase()) && req.user.unidade_id) {
-      whereClause.unidade_id = req.user.unidade_id;
+    // Filtro por unidade/regional
+    if (req.user && !["admin", "gestor"].includes(cargoNormalizado)) {
+      if (cargoNormalizado === "coordenador") {
+        // Coordenador vê tudo da sua regional
+        const userUnidade = await prisma.unidades.findUnique({
+          where: { id: req.user.unidade_id },
+          select: { regional: true }
+        });
+
+        if (userUnidade?.regional) {
+          whereClause.unidade = { regional: userUnidade.regional };
+        } else {
+          whereClause.unidade_id = req.user.unidade_id;
+        }
+      } else if (req.user.unidade_id) {
+        // Demais veem apenas sua unidade
+        whereClause.unidade_id = req.user.unidade_id;
+      }
     }
 
     // Filtro para ocultar em_protocolo de servidor/estagiario

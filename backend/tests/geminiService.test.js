@@ -77,7 +77,7 @@ describe("generateDosFatos", () => {
 
     const [systemPrompt] = generateLegalText.mock.calls[0];
     expect(systemPrompt).toContain("Defensor Público");
-    expect(systemPrompt).toContain("NUNCA use o termo");
+    expect(systemPrompt).toContain('NUNCA use "menor"');
 
     expect(logger.info).toHaveBeenCalledWith(
       expect.stringContaining("DICIONÁRIO")

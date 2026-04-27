@@ -51,14 +51,19 @@ export const processSubmission = async ({
   }
 
   // Validação de Endereço e CEP do Representante (Obrigatório para todos os casos)
-  if (!formState.requerente_endereco_residencial) {
+  const enderecoResidencial = (formState.requerente_endereco_residencial || "").trim();
+  if (!enderecoResidencial) {
     validationErrors.requerente_endereco_residencial = "O endereço residencial é obrigatório.";
-  } else if (!/\b\d{5}-?\d{3}\b/.test(formState.requerente_endereco_residencial)) {
-    validationErrors.requerente_endereco_residencial = "O CEP do endereço residencial é obrigatório.";
+  } else if (!/\b\d{5}-?\d{3}\b/.test(enderecoResidencial)) {
+    validationErrors.requerente_endereco_residencial = "CEP inválido ou ausente no endereço. Use o formato 00000-000.";
   }
 
   if (!formState.requerente_telefone) {
     validationErrors.requerente_telefone = "O telefone de contato é obrigatório.";
+  }
+
+  if (!formState.CIDADEASSINATURA) {
+    validationErrors.CIDADEASSINATURA = "Selecione a comarca/unidade para o protocolo.";
   }
 
   // (Removido bloco if (formState.assistidoEhIncapaz === "nao") pois as validações agora são gerais)
@@ -79,6 +84,15 @@ export const processSubmission = async ({
         validationErrors.data_inicio_debito = "O mês inicial do débito é obrigatório.";
       if (!formState.data_fim_debito)
         validationErrors.data_fim_debito = "O mês final do débito é obrigatório.";
+    }
+  }
+
+  // Validação da Vara (se presente e exigida pelo título ou config)
+  if (configAcao?.secoes?.includes("SecaoValoresPensao") || configAcao?.secoes?.includes("SecaoProcessoOriginal")) {
+    if (formState.acaoEspecifica === "fixacao_alimentos" || formState.acaoEspecifica === "execucao_alimentos") {
+      if (!formState.VARA) {
+        validationErrors.VARA = "Informe o número da vara.";
+      }
     }
   }
 

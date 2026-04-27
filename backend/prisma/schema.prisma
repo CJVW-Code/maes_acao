@@ -41,6 +41,7 @@ model unidades {
   sistema    sistema_judicial @default(solar)
   ativo      Boolean          @default(true)
   created_at DateTime         @default(now()) @db.Timestamptz(6)
+  regional   String?
   casos      casos[]
   defensores defensores[]
 }
@@ -79,7 +80,6 @@ model casos {
   servidor_at                 DateTime?           @db.Timestamptz(6)
   defensor_id                 String?             @db.Uuid
   defensor_at                 DateTime?           @db.Timestamptz(6)
-  numero_solar                String?
   numero_processo             String?
   url_capa                    String?
   protocolado_at              DateTime?           @db.Timestamptz(6)
@@ -90,7 +90,6 @@ model casos {
   processed_at                DateTime?           @db.Timestamptz(6)
   arquivado                   Boolean             @default(false)
   motivo_arquivamento         String?
-  observacao_arquivamento     String?
   criado_por                  String?             @db.Uuid
   created_at                  DateTime            @default(now()) @db.Timestamptz(6)
   updated_at                  DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
@@ -106,6 +105,8 @@ model casos {
   processing_started_at       DateTime?           @db.Timestamptz(6)
   url_capa_processual         String?
   compartilhado               Boolean             @default(false)
+  numero_solar                String?
+  observacao_arquivamento     String?
   assistencia_casos           assistencia_casos[]
   criador                     defensores?         @relation("CasoCriadoPor", fields: [criado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
   defensor                    defensores?         @relation("CasoDefensor", fields: [defensor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -145,19 +146,8 @@ model casos_partes {
   emissor_rg_assistido          String?
   estado_civil                  String?
   profissao                     String?
-  nacionalidade                 String?
-  assistido_eh_incapaz          String?
-  data_nascimento_assistido     String?
   nome_mae_assistido            String?
   nome_pai_assistido            String?
-  cpf_representante             String?
-  nome_representante            String?
-  rg_representante              String?
-  emissor_rg_representante      String?
-  nacionalidade_representante   String?
-  estado_civil_representante    String?
-  profissao_representante       String?
-  data_nascimento_representante String?
   nome_mae_representante        String?
   nome_pai_representante        String?
   endereco_assistido            String?
@@ -168,7 +158,6 @@ model casos_partes {
   rg_requerido                  String?
   emissor_rg_requerido          String?
   profissao_requerido           String?
-  data_nascimento_requerido     String?
   nome_mae_requerido            String?
   nome_pai_requerido            String?
   endereco_requerido            String?
@@ -177,6 +166,18 @@ model casos_partes {
   exequentes                    Json     @default("[]")
   created_at                    DateTime @default(now()) @db.Timestamptz(6)
   updated_at                    DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  cpf_representante             String?
+  emissor_rg_representante      String?
+  estado_civil_representante    String?
+  nacionalidade_representante   String?
+  nome_representante            String?
+  profissao_representante       String?
+  rg_representante              String?
+  nacionalidade                 String?
+  assistido_eh_incapaz          String?
+  data_nascimento_assistido     String?
+  data_nascimento_representante String?
+  data_nascimento_requerido     String?
   caso                          casos    @relation(fields: [caso_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([cpf_assistido], map: "idx_casos_cpf")
@@ -188,9 +189,6 @@ model casos_juridico {
   id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   caso_id                BigInt   @unique
   numero_processo_titulo String?
-  tipo_decisao           String?
-  vara_originaria        String?
-  cidade_originaria      String?
   percentual_salario     Decimal? @db.Decimal(5, 2)
   vencimento_dia         Int?
   periodo_inadimplencia  String?
@@ -210,6 +208,9 @@ model casos_juridico {
   memoria_calculo        String?
   created_at             DateTime @default(now()) @db.Timestamptz(6)
   updated_at             DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  cidade_originaria      String?
+  tipo_decisao           String?
+  vara_originaria        String?
   caso                   casos    @relation(fields: [caso_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 

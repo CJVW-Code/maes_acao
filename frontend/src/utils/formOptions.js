@@ -48,6 +48,26 @@ export const orgaoEmissorOptions = [
   { value: "OUTRO", label: "Outro" },
 ];
 
+export const regionalOptions = [
+  { value: "", label: "Selecione a Regional" },
+  { value: "Salvador", label: "Salvador" },
+  { value: "1ª Regional - Feira de Santana", label: "1ª Regional - Feira de Santana" },
+  { value: "2ª Regional - Vitória da Conquista", label: "2ª Regional - Vitória da Conquista" },
+  { value: "3ª Regional - Ilhéus", label: "3ª Regional - Ilhéus" },
+  { value: "4ª Regional - Itabuna", label: "4ª Regional - Itabuna" },
+  { value: "5ª Regional - Juazeiro", label: "5ª Regional - Juazeiro" },
+  { value: "6ª Regional - Santo Antônio de Jesus", label: "6ª Regional - Santo Antônio de Jesus" },
+  { value: "7ª Regional - Camaçari", label: "7ª Regional - Camaçari" },
+  { value: "8ª Regional - Barreiras", label: "8ª Regional - Barreiras" },
+  { value: "9ª Regional - Porto Seguro", label: "9ª Regional - Porto Seguro" },
+  { value: "10ª Regional - Paulo Afonso", label: "10ª Regional - Paulo Afonso" },
+  { value: "11ª Regional - Irecê", label: "11ª Regional - Irecê" },
+  { value: "12ª Regional - Jequié", label: "12ª Regional - Jequié" },
+  { value: "13ª Regional - Alagoinhas", label: "13ª Regional - Alagoinhas" },
+  { value: "14ª Regional - Teixeira de Freitas", label: "14ª Regional - Teixeira de Freitas" },
+  { value: "15ª Regional - Guanambi", label: "15ª Regional - Guanambi" },
+];
+
 export const cidadesBahia = [
   "Alagoinhas",
   "Amargosa",

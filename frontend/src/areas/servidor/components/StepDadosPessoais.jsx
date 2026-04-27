@@ -94,17 +94,24 @@ export const StepDadosPessoais = React.memo(({
       <div className="space-y-4">
         <h3 className="heading-3 text-primary">{labelAutor}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input
-            type="text"
-            placeholder="Nome Completo *"
-            name={isRepresentacao ? "NOME" : "REPRESENTANTE_NOME"}
-            value={
-              isRepresentacao ? assistidoNome : representanteNome
-            }
-            onChange={handleFieldChange}
-            {...validar("Informe o nome completo.")}
-            className="input"
-          />
+          <div>
+            <input
+              type="text"
+              placeholder="Nome Completo *"
+              name={isRepresentacao ? "NOME" : "REPRESENTANTE_NOME"}
+              value={
+                isRepresentacao ? assistidoNome : representanteNome
+              }
+              onChange={handleFieldChange}
+              {...validar("Informe o nome completo.")}
+              className={`input ${formErrors[isRepresentacao ? "NOME" : "REPRESENTANTE_NOME"] ? "border-error ring-1 ring-error" : ""}`}
+            />
+            {formErrors[isRepresentacao ? "NOME" : "REPRESENTANTE_NOME"] && (
+              <span className="text-xs text-error mt-1 ml-1">
+                {formErrors[isRepresentacao ? "NOME" : "REPRESENTANTE_NOME"]}
+              </span>
+            )}
+          </div>
           <div>
             <input
               type="text"
@@ -161,9 +168,9 @@ export const StepDadosPessoais = React.memo(({
               className={`input ${formErrors[isRepresentacao ? "nascimento" : "representante_data_nascimento"] ? "border-error ring-1 ring-error" : ""}`}
               {...validar("Informe a data de nascimento.")}
             />
-            {formErrors.representante_data_nascimento && (
+            {formErrors[isRepresentacao ? "nascimento" : "representante_data_nascimento"] && (
               <span className="text-xs text-error mt-1 ml-1">
-                {formErrors.representante_data_nascimento}
+                {formErrors[isRepresentacao ? "nascimento" : "representante_data_nascimento"]}
               </span>
             )}
           </div>
@@ -240,14 +247,22 @@ export const StepDadosPessoais = React.memo(({
               </div>
             </div>
 
-            <EnderecoInput
-              label="Endereço Residencial Completo *"
-              name="requerente_endereco_residencial"
-              value={requerenteEnderecoResidencial}
-              onChange={handleFieldChange}
-              handleRestrictedAlphanumeric={handleRestrictedAlphanumeric}
-              className="w-full mt-4"
-            />
+            <div>
+              <EnderecoInput
+                label="Endereço Residencial Completo *"
+                name="requerente_endereco_residencial"
+                value={requerenteEnderecoResidencial}
+                onChange={handleFieldChange}
+                handleRestrictedAlphanumeric={handleRestrictedAlphanumeric}
+                error={formErrors.requerente_endereco_residencial}
+                className="w-full mt-4"
+              />
+              {formErrors.requerente_endereco_residencial && (
+                <span className="text-xs text-error mt-1 ml-1">
+                  {formErrors.requerente_endereco_residencial}
+                </span>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <input
@@ -271,9 +286,14 @@ export const StepDadosPessoais = React.memo(({
                   value={requerenteTelefone}
                   onChange={handlePhoneChange("requerente_telefone")}
                   {...validar("Informe um telefone para contato.")}
-                  className="input pl-10"
+                  className={`input pl-10 ${formErrors.requerente_telefone ? "border-error ring-1 ring-error" : ""}`}
                 />
               </div>
+              {formErrors.requerente_telefone && (
+                <span className="text-xs text-error mt-1 ml-1">
+                  {formErrors.requerente_telefone}
+                </span>
+              )}
             </div>
           </>
         )}
@@ -430,15 +450,22 @@ export const StepDadosPessoais = React.memo(({
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Seu Nome Completo *"
-              name="REPRESENTANTE_NOME"
-              value={representanteNome}
-              onChange={handleFieldChange}
-              className="input"
-              {...validar("Informe o nome do representante.")}
-            />
+            <div>
+              <input
+                type="text"
+                placeholder="Seu Nome Completo *"
+                name="REPRESENTANTE_NOME"
+                value={representanteNome}
+                onChange={handleFieldChange}
+                className={`input ${formErrors.REPRESENTANTE_NOME ? "border-error ring-1 ring-error" : ""}`}
+                {...validar("Informe o nome do representante.")}
+              />
+              {formErrors.REPRESENTANTE_NOME && (
+                <span className="text-xs text-error mt-1 ml-1">
+                  {formErrors.REPRESENTANTE_NOME}
+                </span>
+              )}
+            </div>
             <div>
               <input
                 type="text"
@@ -469,7 +496,7 @@ export const StepDadosPessoais = React.memo(({
               id="representanteDataNascimento"
               type="text"
               inputMode="numeric"
-              placeholder="DD/MM/AAAA"
+              placeholder="DD/MM/AAAA *"
               name="representante_data_nascimento"
               value={representanteNascimento}
               onChange={handleDateChange("representante_data_nascimento")}
@@ -511,14 +538,22 @@ export const StepDadosPessoais = React.memo(({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-            <EnderecoInput
-              label="Seu Endereço Residencial *"
-              name="requerente_endereco_residencial"
-              value={requerenteEnderecoResidencial}
-              onChange={handleFieldChange}
-              handleRestrictedAlphanumeric={handleRestrictedAlphanumeric}
-              className="w-full"
-            />
+            <div>
+              <EnderecoInput
+                label="Seu Endereço Residencial *"
+                name="requerente_endereco_residencial"
+                value={requerenteEnderecoResidencial}
+                onChange={handleFieldChange}
+                handleRestrictedAlphanumeric={handleRestrictedAlphanumeric}
+                error={formErrors.requerente_endereco_residencial}
+                className="w-full"
+              />
+              {formErrors.requerente_endereco_residencial && (
+                <span className="text-xs text-error mt-1 ml-1">
+                  {formErrors.requerente_endereco_residencial}
+                </span>
+              )}
+            </div>
             <input
               type="text"
               placeholder="Seu Endereço Profissional (se houver)"
@@ -538,15 +573,23 @@ export const StepDadosPessoais = React.memo(({
               onChange={handleFieldChange}
               className="input"
             />
-            <input
-              type="text"
-              inputMode="tel"
-              placeholder="Seu Telefone"
-              name="requerente_telefone"
-              value={requerenteTelefone}
-              onChange={handlePhoneChange("requerente_telefone")}
-              className="input"
-            />
+            <div>
+              <input
+                type="text"
+                inputMode="tel"
+                placeholder="Seu Telefone *"
+                name="requerente_telefone"
+                value={requerenteTelefone}
+                onChange={handlePhoneChange("requerente_telefone")}
+                {...validar("Informe um telefone para contato.")}
+                className={`input ${formErrors.requerente_telefone ? "border-error ring-1 ring-error" : ""}`}
+              />
+              {formErrors.requerente_telefone && (
+                <span className="text-xs text-error mt-1 ml-1">
+                  {formErrors.requerente_telefone}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
