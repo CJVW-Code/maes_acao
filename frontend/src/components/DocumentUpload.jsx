@@ -1,13 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import {
-  Camera,
-  Image as ImageIcon,
-  FileText,
-  Trash2,
-  Plus,
-  X,
-  Loader2,
-} from "lucide-react";
+import { Camera, Image as ImageIcon, FileText, Trash2, Plus, X, Loader2 } from "lucide-react";
 import imageCompression from "browser-image-compression";
 import heic2any from "heic2any";
 import { useToast } from "../contexts/ToastContext";
@@ -16,16 +8,16 @@ const SLOTS_CONFIG = {
   crianca: [
     {
       id: "rg_crianca_frente",
-      label: "RG da Criança (Frente)",
+      label: "RG/CPF da Criança (Frente)",
       accept: "image/*",
-      required: true,
+      required: false,
       context: "crianca",
     },
     {
       id: "rg_crianca_verso",
-      label: "RG da Criança (Verso)",
+      label: "RG/CPF da Criança (Verso)",
       accept: "image/*",
-      required: true,
+      required: false,
       context: "crianca",
     },
     {
@@ -107,14 +99,18 @@ export const DocumentUpload = ({
 
   // --- CLEANUP NO UNMOUNT (OOM FIX) ---
   const previewsRef = useRef({});
-  useEffect(() => { previewsRef.current = previewUrls; }, [previewUrls]);
+  useEffect(() => {
+    previewsRef.current = previewUrls;
+  }, [previewUrls]);
   const extraFilesRef = useRef([]);
-  useEffect(() => { extraFilesRef.current = extraFiles; }, [extraFiles]);
+  useEffect(() => {
+    extraFilesRef.current = extraFiles;
+  }, [extraFiles]);
 
   useEffect(() => {
     return () => {
-      Object.values(previewsRef.current).forEach(url => URL.revokeObjectURL(url));
-      extraFilesRef.current.forEach(item => {
+      Object.values(previewsRef.current).forEach((url) => URL.revokeObjectURL(url));
+      extraFilesRef.current.forEach((item) => {
         if (item.file?.previewUrl) URL.revokeObjectURL(item.file.previewUrl);
       });
     };
@@ -129,16 +125,14 @@ export const DocumentUpload = ({
   // Gera slots dinâmicos para outros filhos
   const extraSlots = outrosFilhos.flatMap((filho, index) => {
     const slotKey = filho.id || index; // Usa ID estável se disponível
-    const safeName = filho.nome
-      ? ` (${filho.nome.split(" ")[0]})`
-      : ` (Filho ${index + 2})`;
+    const safeName = filho.nome ? ` (${filho.nome.split(" ")[0]})` : ` (Filho ${index + 2})`;
     const contextName = filho.nome || `Filho ${index + 2}`;
     return [
       {
         id: `rg_filho_${slotKey}_frente`,
         label: `RG${safeName} (Frente)`,
         accept: "image/*",
-        required: true,
+        required: false,
         context: "extra_child",
         contextName,
       },
@@ -146,7 +140,7 @@ export const DocumentUpload = ({
         id: `rg_filho_${slotKey}_verso`,
         label: `RG${safeName} (Verso)`,
         accept: "image/*",
-        required: true,
+        required: false,
         context: "extra_child",
         contextName,
       },
@@ -181,10 +175,13 @@ export const DocumentUpload = ({
     ];
   }, [isRepresentacao, extraSlots, acaoEspecifica]);
 
-  const getSlotLabel = useCallback((slotId) => {
-    const slot = getAllSlots().find((s) => s.id === slotId);
-    return slot ? slot.label : "Documento";
-  }, [getAllSlots]);
+  const getSlotLabel = useCallback(
+    (slotId) => {
+      const slot = getAllSlots().find((s) => s.id === slotId);
+      return slot ? slot.label : "Documento";
+    },
+    [getAllSlots],
+  );
 
   useEffect(() => {
     const currentSlots = getAllSlots();
@@ -246,24 +243,17 @@ export const DocumentUpload = ({
       // 1. Validação de Tamanho Mínimo (Filtro de "Lixo")
 
       let finalFile = file;
-      let isImage =
-        file.type.startsWith("image/") ||
-        file.name.toLowerCase().endsWith(".heic");
+      let isImage = file.type.startsWith("image/") || file.name.toLowerCase().endsWith(".heic");
       let wasHeicConverted = false;
 
       // 2. Conversão HEIC (iPhone)
-      if (
-        file.name.toLowerCase().endsWith(".heic") ||
-        file.type === "image/heic"
-      ) {
+      if (file.name.toLowerCase().endsWith(".heic") || file.type === "image/heic") {
         const convertedBlob = await heic2any({
           blob: file,
           toType: "image/jpeg",
           quality: 0.8,
         });
-        const blob = Array.isArray(convertedBlob)
-          ? convertedBlob[0]
-          : convertedBlob;
+        const blob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
         finalFile = new File([blob], file.name.replace(/\.heic$/i, ".jpg"), {
           type: "image/jpeg",
         });
@@ -274,7 +264,9 @@ export const DocumentUpload = ({
       // 3. Compressão de Imagem (Client-Side)
       if (isImage) {
         // Redução mais agressiva no mobile para evitar OOM
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent,
+        );
         const maxSizeMB = isMobile ? 0.7 : 1;
 
         // Se já foi convertido de HEIC e o tamanho já está razoável (< máximo estimável), não reprime pra poupar memória
@@ -296,7 +288,9 @@ export const DocumentUpload = ({
             console.warn("Falha na compressão, usando original:", err);
             // Fallback de compressão: evitar crash se o original for gigantesco
             if (finalFile.size > 5 * 1024 * 1024) {
-              throw new Error("A imagem é muito pesada e ocorreu um erro ao otimizar. Tente enviar uma foto com tamanho menor.");
+              throw new Error(
+                "A imagem é muito pesada e ocorreu um erro ao otimizar. Tente enviar uma foto com tamanho menor.",
+              );
             }
           }
         }
@@ -417,10 +411,7 @@ export const DocumentUpload = ({
     }
     const processed = await processFile(tempExtraFile, null, extraNameInput);
     if (processed) {
-      setExtraFiles((prev) => [
-        ...prev,
-        { file: processed, customName: extraNameInput },
-      ]);
+      setExtraFiles((prev) => [...prev, { file: processed, customName: extraNameInput }]);
       setModalOpen(false);
       setTempExtraFile(null);
     }
@@ -462,22 +453,15 @@ export const DocumentUpload = ({
             `}
             >
               <div className="bg-app p-2 rounded-full mb-2 text-muted">
-                {slot.accept.includes("pdf") ? (
-                  <FileText size={20} />
-                ) : (
-                  <Camera size={20} />
-                )}
+                {slot.accept.includes("pdf") ? <FileText size={20} /> : <Camera size={20} />}
               </div>
               <p className="text-sm font-medium text-slate-700 leading-tight">
                 <span className="text-main">{slot.label}</span>
               </p>
               {slot.required && (
-                <span className="text-[10px] text-error font-bold mt-1">
-                  OBRIGATÓRIO
-                </span>
+                <span className="text-[10px] text-error font-bold mt-1">OBRIGATÓRIO</span>
               )}
             </button>
-
           </>
         ) : (
           // ESTADO PREENCHIDO
@@ -500,22 +484,15 @@ export const DocumentUpload = ({
 
             {/* Info */}
             <div className="flex-1 min-w-0">
-              <p
-                className="text-xs font-bold text-success uppercase truncate"
-                title={file.name}
-              >
+              <p className="text-xs font-bold text-success uppercase truncate" title={file.name}>
                 {slot.label}
               </p>
-              <p className="text-[10px] text-success/80 truncate mt-1">
-                {file.name}
-              </p>
+              <p className="text-[10px] text-success/80 truncate mt-1">{file.name}</p>
               <div className="flex items-center gap-1 mt-2">
                 <span className="badge bg-success/20 text-success text-[10px] px-1.5 py-0.5 rounded border-success/20">
                   Pronto
                 </span>
-                <span className="text-[10px] text-muted">
-                  {(file.size / 1024).toFixed(0)}KB
-                </span>
+                <span className="text-[10px] text-muted">{(file.size / 1024).toFixed(0)}KB</span>
               </div>
             </div>
 
@@ -585,12 +562,8 @@ export const DocumentUpload = ({
       {processing && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
           <Loader2 size={48} className="text-primary animate-spin mb-4" />
-          <p className="text-primary font-bold animate-pulse">
-            Otimizando imagem...
-          </p>
-          <p className="text-xs text-muted">
-            Isso garante que o envio será rápido.
-          </p>
+          <p className="text-primary font-bold animate-pulse">Otimizando imagem...</p>
+          <p className="text-xs text-muted">Isso garante que o envio será rápido.</p>
         </div>
       )}
 
@@ -651,9 +624,7 @@ export const DocumentUpload = ({
 
       {/* 3. OUTROS DOCUMENTOS */}
       <div className="pt-4 border-t border-soft">
-        <h4 className="text-sm font-bold text-muted mb-3">
-          Outros Documentos (Opcional)
-        </h4>
+        <h4 className="text-sm font-bold text-muted mb-3">Outros Documentos (Opcional)</h4>
 
         <input
           type="file"
@@ -691,12 +662,8 @@ export const DocumentUpload = ({
                     <FileText size={24} className="text-muted" />
                   )}
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-main truncate">
-                      {item.customName}
-                    </p>
-                    <p className="text-[10px] text-muted truncate">
-                      {item.file.name}
-                    </p>
+                    <p className="text-sm font-bold text-main truncate">{item.customName}</p>
+                    <p className="text-[10px] text-muted truncate">{item.file.name}</p>
                   </div>
                 </div>
                 <button
@@ -716,9 +683,7 @@ export const DocumentUpload = ({
       {modalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center px-4">
           <div className="bg-surface rounded-xl p-6 w-full max-w-sm shadow-2xl animate-in fade-in zoom-in duration-200">
-            <h3 className="text-lg font-bold text-main mb-2">
-              Nomear Documento
-            </h3>
+            <h3 className="text-lg font-bold text-main mb-2">Nomear Documento</h3>
             <p className="text-sm text-muted mb-4">
               O que é este documento que você está enviando?
             </p>
@@ -744,11 +709,7 @@ export const DocumentUpload = ({
               >
                 Cancelar
               </button>
-              <button
-                type="button"
-                onClick={confirmExtraUpload}
-                className="btn btn-primary flex-1"
-              >
+              <button type="button" onClick={confirmExtraUpload} className="btn btn-primary flex-1">
                 Salvar
               </button>
             </div>
