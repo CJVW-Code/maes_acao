@@ -92,7 +92,6 @@ const archiveReasonOptions = [
 const getArchiveReasonLabel = (value) =>
   archiveReasonOptions.find((option) => option.value === value)?.label || value || "Nao informado.";
 
-
 const statusBadges = {
   aguardando_documentos: "bg-amber-100 text-amber-800 border-amber-200",
   documentacao_completa: "bg-highlight/15 text-highlight border-highlight/30",
@@ -108,30 +107,19 @@ const statusBadges = {
 const statusDescriptions = {
   aguardando_documentos:
     "O processo está pausado, aguardando o envio de documentos adicionais pelo cidadão.",
-  documentacao_completa:
-    "O cidadão enviou todos os documentos necessários ou complementares.",
-  processando_ia:
-    "O sistema está extraindo informações dos documentos e gerando a minuta inicial.",
+  documentacao_completa: "O cidadão enviou todos os documentos necessários ou complementares.",
+  processando_ia: "O sistema está extraindo informações dos documentos e gerando a minuta inicial.",
   pronto_para_analise:
     "O processamento automático foi concluído. A minuta está pronta para revisão.",
-  em_atendimento:
-    "O caso está sendo analisado pessoalmente ou em reunião com o assistido.",
-  liberado_para_protocolo:
-    "O caso foi conferido e está pronto para ser protocolado.",
-  em_protocolo:
-    "O defensor está realizando o protocolo do processo no sistema do tribunal.",
-  protocolado:
-    "O protocolo foi realizado com sucesso e o número do processo foi gerado.",
+  em_atendimento: "O caso está sendo analisado pessoalmente ou em reunião com o assistido.",
+  liberado_para_protocolo: "O caso foi conferido e está pronto para ser protocolado.",
+  em_protocolo: "O defensor está realizando o protocolo do processo no sistema do tribunal.",
+  protocolado: "O protocolo foi realizado com sucesso e o número do processo foi gerado.",
   erro_processamento:
     "Ocorreu um erro crítico durante o processamento automático. Verifique os logs.",
 };
 
-const CollapsibleText = ({
-  text,
-  maxLength = 350,
-  isPre = false,
-  defaultCollapsed = true,
-}) => {
+const CollapsibleText = ({ text, maxLength = 350, isPre = false, defaultCollapsed = true }) => {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
 
   if (!text || text.length === 0) {
@@ -139,9 +127,7 @@ const CollapsibleText = ({
   }
 
   const textToShow =
-    isCollapsed && text.length > maxLength
-      ? text.substring(0, maxLength) + "..."
-      : text;
+    isCollapsed && text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
 
   const Wrapper = ({ children }) =>
     isPre ? (
@@ -156,10 +142,7 @@ const CollapsibleText = ({
     <div>
       <Wrapper>{textToShow}</Wrapper>
       {text.length > maxLength && (
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="btn btn-ghost btn-sm mt-2"
-        >
+        <button onClick={() => setIsCollapsed(!isCollapsed)} className="btn btn-ghost btn-sm mt-2">
           {isCollapsed ? "Ler mais" : "Ler menos"}
         </button>
       )}
@@ -216,6 +199,17 @@ export const DetalhesCaso = () => {
   const [debitoPrisaoValor, setDebitoPrisaoValor] = useState("");
   const [debitoPrisaoExtenso, setDebitoPrisaoExtenso] = useState("");
 
+  // Novos campos para Fixação e Dados Bancários (Persistência)
+  const [contaBanco, setContaBanco] = useState("");
+  const [contaAgencia, setContaAgencia] = useState("");
+  const [contaOperacao, setContaOperacao] = useState("");
+  const [contaNumero, setContaNumero] = useState("");
+  const [vencimentoDia, setVencimentoDia] = useState("");
+  const [descricaoGuarda, setDescricaoGuarda] = useState("");
+  const [bensPartilha, setBensPartilha] = useState("");
+  const [situacaoFinanceiraGenitora, setSituacaoFinanceiraGenitora] = useState("");
+  const [valorMensalPensao, setValorMensalPensao] = useState("");
+
   // 1. O SWR substitui o estado do caso, o fetchDetalhes, e o polling!
   const {
     data: caso,
@@ -223,9 +217,7 @@ export const DetalhesCaso = () => {
     isLoading,
     mutate,
   } = useSWR(
-    token && id && id !== "arquivados" && id !== "undefined"
-      ? `/casos/${id}`
-      : null,
+    token && id && id !== "arquivados" && id !== "undefined" ? `/casos/${id}` : null,
     fetcher,
     {
       revalidateOnFocus: false,
@@ -244,7 +236,9 @@ export const DetalhesCaso = () => {
     },
   );
 
-  const isColaborador = caso && user &&
+  const isColaborador =
+    caso &&
+    user &&
     String(caso.servidor_id) !== String(user.id) &&
     String(caso.defensor_id) !== String(user.id) &&
     user.cargo !== "admin";
@@ -351,39 +345,38 @@ export const DetalhesCaso = () => {
     return docs;
   }, [caso]);
 
-  const exibirPainelCumulado = useMemo(() => 
-    todosDocumentosGerados.some(doc => doc.key === "url_peticao_execucao_cumulado" || doc.key === "url_peticao_cumprimento_cumulado"),
-    [todosDocumentosGerados]
+  const exibirPainelCumulado = useMemo(
+    () =>
+      todosDocumentosGerados.some(
+        (doc) =>
+          doc.key === "url_peticao_execucao_cumulado" ||
+          doc.key === "url_peticao_cumprimento_cumulado",
+      ),
+    [todosDocumentosGerados],
   );
 
   const podeExibirDocumentos =
-    autosType === "proprios_autos" ||
-    (autosType === "apartados" && Boolean(autosSubtype));
-  const documentosNoFluxo = useMemo(
-    () => {
-      if (!podeExibirDocumentos) return [];
-      
-      // Se for "Nos próprios autos", atualmente não temos modelos específicos (mostramos a mensagem no render)
-      if (autosType === "proprios_autos") return [];
+    autosType === "proprios_autos" || (autosType === "apartados" && Boolean(autosSubtype));
+  const documentosNoFluxo = useMemo(() => {
+    if (!podeExibirDocumentos) return [];
 
-      return todosDocumentosGerados.filter((doc) => {
-        if (doc.grupo === "auxiliar") return true;
-        if (autosType === "apartados" && autosSubtype === "provisorio") {
-          return doc.grupo === "provisorio";
-        }
-        if (autosType === "apartados" && autosSubtype === "definitivo") {
-          return doc.grupo === "definitivo";
-        }
-        return false;
-      });
-    },
-    [podeExibirDocumentos, todosDocumentosGerados, autosType, autosSubtype],
-  );
+    // Se for "Nos próprios autos", atualmente não temos modelos específicos (mostramos a mensagem no render)
+    if (autosType === "proprios_autos") return [];
+
+    return todosDocumentosGerados.filter((doc) => {
+      if (doc.grupo === "auxiliar") return true;
+      if (autosType === "apartados" && autosSubtype === "provisorio") {
+        return doc.grupo === "provisorio";
+      }
+      if (autosType === "apartados" && autosSubtype === "definitivo") {
+        return doc.grupo === "definitivo";
+      }
+      return false;
+    });
+  }, [podeExibirDocumentos, todosDocumentosGerados, autosType, autosSubtype]);
 
   const documentoPreviewSelecionado =
-    documentosNoFluxo.find((doc) => doc.key === minutaPreview) ||
-    documentosNoFluxo[0] ||
-    null;
+    documentosNoFluxo.find((doc) => doc.key === minutaPreview) || documentosNoFluxo[0] || null;
   const previewUrl = documentoPreviewSelecionado?.url || null;
   useEffect(() => {
     if (!documentosNoFluxo.length) return;
@@ -404,6 +397,18 @@ export const DetalhesCaso = () => {
         setDebitoPenhoraExtenso(caso.juridico?.debito_penhora_extenso || "");
         setDebitoPrisaoValor(caso.juridico?.debito_prisao_valor || "");
         setDebitoPrisaoExtenso(caso.juridico?.debito_prisao_extenso || "");
+
+        // Inicialização dos novos campos
+        setContaBanco(caso.juridico?.conta_banco || "");
+        setContaAgencia(caso.juridico?.conta_agencia || "");
+        setContaOperacao(caso.juridico?.conta_operacao || "");
+        setContaNumero(caso.juridico?.conta_numero || "");
+        setVencimentoDia(caso.juridico?.vencimento_dia || "");
+        setDescricaoGuarda(caso.juridico?.descricao_guarda || "");
+        setBensPartilha(caso.juridico?.bens_partilha || "");
+        setSituacaoFinanceiraGenitora(caso.juridico?.situacao_financeira_genitora || "");
+        setValorMensalPensao(caso.juridico?.debito_valor || "");
+
         setFeedbackInitialized(true);
       }
     }
@@ -452,9 +457,7 @@ export const DetalhesCaso = () => {
         body: JSON.stringify({
           status: novoStatus,
           descricao_pendencia:
-            novoStatus === "aguardando_documentos"
-              ? pendenciaTexto
-              : caso.descricao_pendencia,
+            novoStatus === "aguardando_documentos" ? pendenciaTexto : caso.descricao_pendencia,
         }),
       });
 
@@ -512,9 +515,7 @@ export const DetalhesCaso = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="card text-center text-muted">Carregando detalhes...</div>
-    );
+    return <div className="card text-center text-muted">Carregando detalhes...</div>;
   }
 
   if (!caso) {
@@ -528,8 +529,7 @@ export const DetalhesCaso = () => {
           <div className="text-center space-y-2 max-w-md">
             <h2 className="heading-1 text-amber-900">Caso em Atendimento</h2>
             <p className="text-amber-800">
-              {error.info?.message ||
-                "Este caso já está vinculado a outro defensor(a) no momento."}
+              {error.info?.message || "Este caso já está vinculado a outro defensor(a) no momento."}
             </p>
             <div className="mt-4 p-4 bg-white border border-amber-200 rounded-lg shadow-sm">
               <span className="text-xs uppercase font-bold text-amber-600 tracking-widest">
@@ -540,10 +540,7 @@ export const DetalhesCaso = () => {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => navigate("/painel")}
-            className="btn btn-primary"
-          >
+          <button onClick={() => navigate("/painel")} className="btn btn-primary">
             Voltar para Lista de Casos
           </button>
         </div>
@@ -729,8 +726,7 @@ export const DetalhesCaso = () => {
           let errorMessage = "Falha ao excluir o caso.";
           try {
             const errorData = await response.json();
-            errorMessage =
-              errorData.message || errorData.error || response.statusText;
+            errorMessage = errorData.message || errorData.error || response.statusText;
           } catch {
             errorMessage = response.statusText || errorMessage;
           }
@@ -749,13 +745,7 @@ export const DetalhesCaso = () => {
   };
 
   const handleUnlock = async () => {
-    if (
-      !(await confirm(
-        "Deseja liberar este caso para outros usuários?",
-        "Liberar Caso?",
-      ))
-    )
-      return;
+    if (!(await confirm("Deseja liberar este caso para outros usuários?", "Liberar Caso?"))) return;
     setIsUpdating(true);
     try {
       const res = await fetch(`${API_BASE}/casos/${id}/unlock`, {
@@ -793,7 +783,7 @@ export const DetalhesCaso = () => {
 
   const handleUploadMinuta = async (file, documentKey) => {
     if (!file || !documentKey) return;
-    
+
     const formData = new FormData();
     formData.append("minuta", file);
     formData.append("documentKey", documentKey);
@@ -854,12 +844,22 @@ export const DetalhesCaso = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           memoria_calculo: memoriaCalculo,
           debito_penhora_valor: debitoPenhoraValor,
           debito_penhora_extenso: debitoPenhoraExtenso,
           debito_prisao_valor: debitoPrisaoValor,
-          debito_prisao_extenso: debitoPrisaoExtenso
+          debito_prisao_extenso: debitoPrisaoExtenso,
+          // Dados Bancários
+          conta_banco: contaBanco,
+          conta_agencia: contaAgencia,
+          conta_operacao: contaOperacao,
+          conta_numero: contaNumero,
+          // Dados Fixação
+          vencimento_dia: vencimentoDia,
+          descricao_guarda: descricaoGuarda,
+          bens_partilha: bensPartilha,
+          situacao_financeira_genitora: situacaoFinanceiraGenitora,
         }),
       });
       if (res.ok) {
@@ -885,15 +885,12 @@ export const DetalhesCaso = () => {
 
     setIsReverting(true);
     try {
-      const response = await fetch(
-        `${API_BASE}/casos/${id}/reverter-finalizacao`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      const response = await fetch(`${API_BASE}/casos/${id}/reverter-finalizacao`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -939,12 +936,7 @@ export const DetalhesCaso = () => {
 
   const handleArquivarClick = async () => {
     if (caso.arquivado) {
-      if (
-        await confirm(
-          "Deseja mover este caso de volta para os Ativos?",
-          "Restaurar Caso",
-        )
-      ) {
+      if (await confirm("Deseja mover este caso de volta para os Ativos?", "Restaurar Caso")) {
         await processarArquivamento(false, null);
       }
     } else {
@@ -985,20 +977,17 @@ export const DetalhesCaso = () => {
     if (!editingFile.url || !editingFile.name.trim()) return;
     setIsRenaming(true);
     try {
-      const response = await fetch(
-        `${API_BASE}/casos/${id}/documento/renomear`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            fileUrl: editingFile.url,
-            newName: editingFile.name,
-          }),
+      const response = await fetch(`${API_BASE}/casos/${id}/documento/renomear`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify({
+          fileUrl: editingFile.url,
+          newName: editingFile.name,
+        }),
+      });
       if (!response.ok) throw new Error("Falha ao renomear arquivo.");
       toast.success("Arquivo renomeado com sucesso!");
       setEditingFile({ url: null, name: "" });
@@ -1019,23 +1008,18 @@ export const DetalhesCaso = () => {
 
     setIsUploadingDocs(true);
     try {
-      const response = await fetch(
-        `${API_BASE}/casos/${id}/upload-complementar`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        },
-      );
+      const response = await fetch(`${API_BASE}/casos/${id}/upload-complementar`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
         throw new Error(err.error || "Erro ao enviar documentos.");
       }
 
-      toast.success(
-        `${files.length} arquivo(s) enviado(s) com sucesso!`,
-      );
+      toast.success(`${files.length} arquivo(s) enviado(s) com sucesso!`);
       mutate(); // Revalida os dados do SWR automaticamente
     } catch (error) {
       toast.error(error.message);
@@ -1043,7 +1027,6 @@ export const DetalhesCaso = () => {
       setIsUploadingDocs(false);
     }
   };
-
 
   return (
     <div className="space-y-8 pb-24">
@@ -1066,10 +1049,7 @@ export const DetalhesCaso = () => {
                 htmlFor="numeroSolar"
                 className="text-xs font-bold text-muted uppercase tracking-wider"
               >
-                {caso.unidade?.sistema
-                  ? caso.unidade.sistema.toUpperCase()
-                  : "SOLAR"}
-                :
+                {caso.unidade?.sistema ? caso.unidade.sistema.toUpperCase() : "SOLAR"}:
               </label>
               <input
                 type="text"
@@ -1098,7 +1078,14 @@ export const DetalhesCaso = () => {
               <span className="text-xs font-bold text-indigo-700/70 uppercase tracking-wider bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
                 Colaboradores envolvidos:
               </span>
-              {Array.from(new Map(caso.assistencia_casos.map(a => [a.remetente_id === user?.id ? a.destinatario_id : a.remetente_id, a])).values()).map((a, i) => {
+              {Array.from(
+                new Map(
+                  caso.assistencia_casos.map((a) => [
+                    a.remetente_id === user?.id ? a.destinatario_id : a.remetente_id,
+                    a,
+                  ]),
+                ).values(),
+              ).map((a, i) => {
                 const isMine = a.remetente_id === user?.id;
                 const targetName = isMine ? a.destinatario?.nome : a.remetente?.nome;
                 if (!targetName) return null;
@@ -1107,17 +1094,27 @@ export const DetalhesCaso = () => {
                   <div
                     key={i}
                     className="flex items-center gap-1.5 px-3 py-1 bg-white border border-indigo-100 rounded-full text-xs text-indigo-900 shadow-sm transition-all hover:border-indigo-300 hover:shadow"
-                    title={isMine ? `Aguardando ${targetName} aceitar` : `${targetName} compartilhou com você`}
+                    title={
+                      isMine
+                        ? `Aguardando ${targetName} aceitar`
+                        : `${targetName} compartilhou com você`
+                    }
                   >
                     <div className="bg-indigo-100 w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] text-indigo-700">
                       {targetName.charAt(0).toUpperCase()}
                     </div>
-                    <span className="font-medium">{targetName.split(' ')[0]}</span>
-                    {a.status === 'pendente' && (
-                      <span className="w-2 h-2 rounded-full bg-amber-400 ml-1" title="Pendente"></span>
+                    <span className="font-medium">{targetName.split(" ")[0]}</span>
+                    {a.status === "pendente" && (
+                      <span
+                        className="w-2 h-2 rounded-full bg-amber-400 ml-1"
+                        title="Pendente"
+                      ></span>
                     )}
-                    {a.status === 'aceito' && (
-                      <span className="w-2 h-2 rounded-full bg-green-500 ml-1" title="Aceito"></span>
+                    {a.status === "aceito" && (
+                      <span
+                        className="w-2 h-2 rounded-full bg-green-500 ml-1"
+                        title="Aceito"
+                      ></span>
                     )}
                   </div>
                 );
@@ -1144,8 +1141,7 @@ export const DetalhesCaso = () => {
           <div>
             <h3 className="font-bold">Caso Arquivado</h3>
             <p className="text-muted mt-1">
-              <strong>Motivo:</strong>{" "}
-              {getArchiveReasonLabel(caso.motivo_arquivamento)}
+              <strong>Motivo:</strong> {getArchiveReasonLabel(caso.motivo_arquivamento)}
             </p>
             {caso.observacao_arquivamento && (
               <p className="text-muted mt-1">
@@ -1161,12 +1157,10 @@ export const DetalhesCaso = () => {
         <div className="bg-highlight/10 border-l-4 border-highlight p-4 rounded-r shadow-sm flex items-start gap-3 animate-fade-in mb-6">
           <Bell className="text-highlight shrink-0 mt-1" size={24} />
           <div>
-            <h3 className="font-bold text-highlight">
-              Novos Documentos Recebidos!
-            </h3>
+            <h3 className="font-bold text-highlight">Novos Documentos Recebidos!</h3>
             <p className="text-highlight/90 text-sm">
-              O cidadão enviou os documentos complementares solicitados.
-              Verifique os itens destacados abaixo na seção de anexos.
+              O cidadão enviou os documentos complementares solicitados. Verifique os itens
+              destacados abaixo na seção de anexos.
             </p>
           </div>
         </div>
@@ -1176,20 +1170,22 @@ export const DetalhesCaso = () => {
       <div className="flex items-center gap-1 border-b border-soft mb-6 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab("visao_geral")}
-          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === "visao_geral"
-            ? "border-primary text-primary"
-            : "border-transparent text-muted hover:text-primary hover:border-primary/30"
-            }`}
+          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${
+            activeTab === "visao_geral"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted hover:text-primary hover:border-primary/30"
+          }`}
         >
           <LayoutDashboard size={18} />
           Visão Geral & Documentos
         </button>
         <button
           onClick={() => setActiveTab("minuta")}
-          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === "minuta"
-            ? "border-primary text-primary"
-            : "border-transparent text-muted hover:text-primary hover:border-primary/30"
-            }`}
+          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${
+            activeTab === "minuta"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted hover:text-primary hover:border-primary/30"
+          }`}
         >
           <Scale size={18} />
           Minuta
@@ -1197,10 +1193,11 @@ export const DetalhesCaso = () => {
         {!isColaborador && (
           <button
             onClick={() => setActiveTab("relacionados")}
-            className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === "relacionados"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted hover:text-primary hover:border-primary/30"
-              }`}
+            className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${
+              activeTab === "relacionados"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted hover:text-primary hover:border-primary/30"
+            }`}
           >
             <History size={18} />
             Casos Relacionados
@@ -1208,10 +1205,11 @@ export const DetalhesCaso = () => {
         )}
         <button
           onClick={() => setActiveTab("gestao")}
-          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === "gestao"
-            ? "border-primary text-primary"
-            : "border-transparent text-muted hover:text-primary hover:border-primary/30"
-            }`}
+          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${
+            activeTab === "gestao"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted hover:text-primary hover:border-primary/30"
+          }`}
         >
           <CheckCircle size={18} />
           Gestão & Finalização
@@ -1224,13 +1222,10 @@ export const DetalhesCaso = () => {
         {activeTab === "relacionados" && !isColaborador && (
           <div className="space-y-6 animate-fade-in">
             <div className="card space-y-4">
-              <h2 className="heading-2 border-soft pb-2 border-b">
-                Casos Relacionados
-              </h2>
+              <h2 className="heading-2 border-soft pb-2 border-b">Casos Relacionados</h2>
               <p className="text-sm text-muted">
-                Abaixo estão outros protocolos vinculados ao mesmo CPF
-                (geralmente representantes legais gerenciando múltiplos
-                assistidos).
+                Abaixo estão outros protocolos vinculados ao mesmo CPF (geralmente representantes
+                legais gerenciando múltiplos assistidos).
               </p>
               <PainelCasosRelacionados casoOriginal={caso} />
             </div>
@@ -1254,10 +1249,11 @@ export const DetalhesCaso = () => {
                         setAutosType("apartados");
                         setAutosSubtype(null);
                       }}
-                      className={`p-4 border-2 rounded-lg transition-all ${autosType === "apartados"
+                      className={`p-4 border-2 rounded-lg transition-all ${
+                        autosType === "apartados"
                           ? "border-primary bg-primary/10"
                           : "border-border bg-surface hover:border-primary"
-                        }`}
+                      }`}
                     >
                       <div className="font-bold text-primary">📎 AUTOS APARTADOS</div>
                       <p className="text-xs text-muted mt-1">Petição em separado</p>
@@ -1267,10 +1263,11 @@ export const DetalhesCaso = () => {
                         setAutosType("proprios_autos");
                         setAutosSubtype("definitivo");
                       }}
-                      className={`p-4 border-2 rounded-lg transition-all ${autosType === "proprios_autos"
+                      className={`p-4 border-2 rounded-lg transition-all ${
+                        autosType === "proprios_autos"
                           ? "border-primary bg-primary/10"
                           : "border-border bg-surface hover:border-primary"
-                        }`}
+                      }`}
                     >
                       <div className="font-bold text-primary">📄 NOS PROPRIOS AUTOS</div>
                       <p className="text-xs text-muted mt-1">Petição nos mesmos autos</p>
@@ -1284,19 +1281,21 @@ export const DetalhesCaso = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <button
                           onClick={() => setAutosSubtype("provisorio")}
-                          className={`p-3 border rounded-lg transition-all text-sm font-bold ${autosSubtype === "provisorio"
+                          className={`p-3 border rounded-lg transition-all text-sm font-bold ${
+                            autosSubtype === "provisorio"
                               ? "border-secondary bg-secondary/10 text-main"
                               : "border-border bg-surface hover:border-secondary/50"
-                            }`}
+                          }`}
                         >
                           ⏳ PROVISÓRIO
                         </button>
                         <button
                           onClick={() => setAutosSubtype("definitivo")}
-                          className={`p-3 border rounded-lg transition-all text-sm font-bold ${autosSubtype === "definitivo"
+                          className={`p-3 border rounded-lg transition-all text-sm font-bold ${
+                            autosSubtype === "definitivo"
                               ? "border-success bg-success/10 text-main"
                               : "border-border bg-surface hover:border-success/50"
-                            }`}
+                          }`}
                         >
                           ✓ DEFINITIVO
                         </button>
@@ -1317,8 +1316,10 @@ export const DetalhesCaso = () => {
                         <a
                           key={doc.key}
                           href={doc.url}
-                          target="_blank" rel="noopener noreferrer" download
-                          className={`btn-download ${doc.textClass === 'text-success' ? '' : 'filter saturate-[0.8]'}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download
+                          className={`btn-download ${doc.textClass === "text-success" ? "" : "filter saturate-[0.8]"}`}
                         >
                           <Download size={16} /> {doc.label}
                         </a>
@@ -1332,7 +1333,10 @@ export const DetalhesCaso = () => {
                           disabled={isRegeneratingMinuta}
                           className="btn btn-ghost border border-border text-xs flex items-center gap-1"
                         >
-                          <RefreshCw size={14} className={isRegeneratingMinuta ? "animate-spin" : ""} />
+                          <RefreshCw
+                            size={14}
+                            className={isRegeneratingMinuta ? "animate-spin" : ""}
+                          />
                           {isRegeneratingMinuta ? "Regerando..." : "Regerar Minuta"}
                         </button>
                         <button
@@ -1340,8 +1344,17 @@ export const DetalhesCaso = () => {
                           disabled={isGeneratingTermo}
                           className="btn btn-ghost border border-border text-xs flex items-center gap-1"
                         >
-                          <RefreshCw size={14} className={isGeneratingTermo ? "animate-spin" : ""} />
-                          {isGeneratingTermo ? (caso.url_termo_declaracao ? "Regerando..." : "Gerando...") : (caso.url_termo_declaracao ? "Regerar Termo" : "Gerar Termo de Declaração")}
+                          <RefreshCw
+                            size={14}
+                            className={isGeneratingTermo ? "animate-spin" : ""}
+                          />
+                          {isGeneratingTermo
+                            ? caso.url_termo_declaracao
+                              ? "Regerando..."
+                              : "Gerando..."
+                            : caso.url_termo_declaracao
+                              ? "Regerar Termo"
+                              : "Gerar Termo de Declaração"}
                         </button>
                       </div>
                     )}
@@ -1351,17 +1364,22 @@ export const DetalhesCaso = () => {
                 {/* MENSAGEM QUANDO NENHUM TIPO FOI SELECIONADO */}
                 {!autosType && (
                   <div className="card border-2 border-dashed border-border text-center p-8">
-                    <p className="text-muted text-sm">📋 Selecione o tipo de petição acima para visualizar os documentos disponíveis.</p>
+                    <p className="text-muted text-sm">
+                      📋 Selecione o tipo de petição acima para visualizar os documentos
+                      disponíveis.
+                    </p>
                   </div>
                 )}
                 {autosType === "apartados" && !autosSubtype && (
                   <div className="card border-2 border-dashed border-border text-center p-8">
-                    <p className="text-muted text-sm">📋 Em Autos Apartados, selecione Provisório ou Definitivo para liberar os documentos.</p>
+                    <p className="text-muted text-sm">
+                      📋 Em Autos Apartados, selecione Provisório ou Definitivo para liberar os
+                      documentos.
+                    </p>
                   </div>
                 )}
               </section>
             )}
-
 
             {/* DOCUMENTOS (Movido para Visão Geral) */}
             <PainelDocumentos
@@ -1383,10 +1401,7 @@ export const DetalhesCaso = () => {
                 <FileText />
                 <h2 className="heading-2">Relato do caso</h2>
               </div>
-              <CollapsibleText
-                className="text-primary"
-                text={caso.relato_texto}
-              />
+              <CollapsibleText className="text-primary" text={caso.relato_texto} />
             </div>
           </div>
         )}
@@ -1403,10 +1418,11 @@ export const DetalhesCaso = () => {
                     setAutosType("apartados");
                     setAutosSubtype(null);
                   }}
-                  className={`p-4 border-2 rounded-lg transition-all ${autosType === "apartados"
-                    ? "border-primary bg-primary/10"
-                    : "border-border bg-surface hover:border-primary"
-                    }`}
+                  className={`p-4 border-2 rounded-lg transition-all ${
+                    autosType === "apartados"
+                      ? "border-primary bg-primary/10"
+                      : "border-border bg-surface hover:border-primary"
+                  }`}
                 >
                   <div className="font-bold text-primary">AUTOS APARTADOS</div>
                   <p className="text-xs text-muted mt-1"></p>
@@ -1416,10 +1432,11 @@ export const DetalhesCaso = () => {
                     setAutosType("proprios_autos");
                     setAutosSubtype("definitivo");
                   }}
-                  className={`p-4 border-2 rounded-lg transition-all ${autosType === "proprios_autos"
-                    ? "border-primary bg-primary/10"
-                    : "border-border bg-surface hover:border-primary"
-                    }`}
+                  className={`p-4 border-2 rounded-lg transition-all ${
+                    autosType === "proprios_autos"
+                      ? "border-primary bg-primary/10"
+                      : "border-border bg-surface hover:border-primary"
+                  }`}
                 >
                   <div className="font-bold text-primary">NOS PROPRIOS AUTOS</div>
                   <p className="text-xs text-muted mt-1">Petição nos mesmos autos</p>
@@ -1433,19 +1450,21 @@ export const DetalhesCaso = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <button
                       onClick={() => setAutosSubtype("provisorio")}
-                      className={`p-3 border rounded-lg transition-all text-sm ${autosSubtype === "provisorio"
-                        ? "border-secondary bg-secondary/10 text-main font-bold"
-                        : "border-border bg-surface hover:border-secondary/50"
-                        }`}
+                      className={`p-3 border rounded-lg transition-all text-sm ${
+                        autosSubtype === "provisorio"
+                          ? "border-secondary bg-secondary/10 text-main font-bold"
+                          : "border-border bg-surface hover:border-secondary/50"
+                      }`}
                     >
                       PROVISÓRIO
                     </button>
                     <button
                       onClick={() => setAutosSubtype("definitivo")}
-                      className={`p-3 border rounded-lg transition-all text-sm ${autosSubtype === "definitivo"
-                        ? "border-success bg-success/10 text-main font-bold"
-                        : "border-border bg-surface hover:border-success/50"
-                        }`}
+                      className={`p-3 border rounded-lg transition-all text-sm ${
+                        autosSubtype === "definitivo"
+                          ? "border-success bg-success/10 text-main font-bold"
+                          : "border-border bg-surface hover:border-success/50"
+                      }`}
                     >
                       DEFINITIVO
                     </button>
@@ -1464,12 +1483,14 @@ export const DetalhesCaso = () => {
                       <Scale className="text-secondary" />
                       <h2 className="heading-2 font-bold">Informações Financeiras (Cumulado)</h2>
                     </div>
-                    
+
                     <div className="space-y-4 p-4 bg-secondary/5 rounded-xl border border-secondary/10">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Penhora */}
                         <div className="space-y-2">
-                          <label className="text-xs font-bold text-secondary uppercase tracking-wider">Débito Rito Penhora</label>
+                          <label className="text-xs font-bold text-secondary uppercase tracking-wider">
+                            Débito Rito Penhora
+                          </label>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <input
                               type="text"
@@ -1494,7 +1515,9 @@ export const DetalhesCaso = () => {
 
                         {/* Prisão */}
                         <div className="space-y-2">
-                          <label className="text-xs font-bold text-secondary uppercase tracking-wider">Débito Rito Prisão</label>
+                          <label className="text-xs font-bold text-secondary uppercase tracking-wider">
+                            Débito Rito Prisão
+                          </label>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <input
                               type="text"
@@ -1520,12 +1543,21 @@ export const DetalhesCaso = () => {
 
                       <div className="pt-2 border-t border-secondary/20 mt-2">
                         <div className="flex justify-between items-center bg-secondary/10 p-3 rounded-lg">
-                          <span className="text-sm font-bold text-secondary">VALOR TOTAL DA CAUSA:</span>
+                          <span className="text-sm font-bold text-secondary">
+                            VALOR TOTAL DA CAUSA:
+                          </span>
                           <span className="text-lg font-mono font-black text-secondary">
-                            {formatCurrencyMask((
-                              (parseFloat(debitoPenhoraValor.replace(/\./g, '').replace(',', '.') || 0) + 
-                               parseFloat(debitoPrisaoValor.replace(/\./g, '').replace(',', '.') || 0)) * 100
-                            ).toFixed(0))}
+                            {formatCurrencyMask(
+                              (
+                                (parseFloat(
+                                  debitoPenhoraValor.replace(/\./g, "").replace(",", ".") || 0,
+                                ) +
+                                  parseFloat(
+                                    debitoPrisaoValor.replace(/\./g, "").replace(",", ".") || 0,
+                                  )) *
+                                100
+                              ).toFixed(0),
+                            )}
                           </span>
                         </div>
                       </div>
@@ -1549,7 +1581,10 @@ export const DetalhesCaso = () => {
                           disabled={isRegeneratingMinuta || isSavingJuridico}
                           className="btn-regenerate"
                         >
-                          <RefreshCw size={18} className={isRegeneratingMinuta ? "animate-spin" : ""} />
+                          <RefreshCw
+                            size={18}
+                            className={isRegeneratingMinuta ? "animate-spin" : ""}
+                          />
                           {isRegeneratingMinuta ? "Regerando..." : "Regerar Minuta com Novos Dados"}
                         </button>
                       </div>
@@ -1558,106 +1593,132 @@ export const DetalhesCaso = () => {
                 )}
 
                 <div className="flex flex-col lg:flex-row gap-6">
-                {/* SIDEBAR LATERA - GESTÃO E DOWNLOADS DAS MINUTAS */}
-                <div className="lg:w-1/3 flex flex-col gap-4">
-                  <div className="card space-y-4">
-                    <div className="flex items-center justify-between border-b border-border pb-2">
-                      <h3 className="heading-3">📂 Arquivos Gerados</h3>
-                      {user?.cargo === "admin" && (
-                        <button
-                          onClick={handleGenerateFatos}
-                          disabled={isGenerating || caso.status === "processando"}
-                          className="text-primary hover:bg-primary/10 p-1 rounded transition-colors"
-                          title="Regenerar texto dos fatos com IA"
-                        >
-                          <RefreshCw size={16} className={isGenerating ? "animate-spin" : ""} />
-                        </button>
-                      )}
+                  {/* SIDEBAR LATERA - GESTÃO E DOWNLOADS DAS MINUTAS */}
+                  <div className="lg:w-1/3 flex flex-col gap-4">
+                    <div className="card space-y-4">
+                      <div className="flex items-center justify-between border-b border-border pb-2">
+                        <h3 className="heading-3">📂 Arquivos Gerados</h3>
+                        {user?.cargo === "admin" && (
+                          <button
+                            onClick={handleGenerateFatos}
+                            disabled={isGenerating || caso.status === "processando"}
+                            className="text-primary hover:bg-primary/10 p-1 rounded transition-colors"
+                            title="Regenerar texto dos fatos com IA"
+                          >
+                            <RefreshCw size={16} className={isGenerating ? "animate-spin" : ""} />
+                          </button>
+                        )}
+                      </div>
+
+                      <p className="text-sm text-muted">
+                        Selecione um arquivo para pré-visualizar ao lado, ou clique no ícone de
+                        download.
+                      </p>
+
+                      <div className="space-y-3">
+                        {documentosNoFluxo.map((doc) => (
+                          <div
+                            key={doc.key}
+                            className={`flex items-center justify-between p-3 border rounded-lg transition-colors cursor-pointer ${minutaPreview === doc.key ? doc.previewClass : doc.defaultClass}`}
+                          >
+                            <div
+                              className="flex-1 flex flex-col"
+                              onClick={() => setMinutaPreview(doc.key)}
+                            >
+                              <button className={`text-left font-bold text-sm ${doc.textClass}`}>
+                                {doc.label}
+                              </button>
+                              <span className="text-[10px] text-muted opacity-60">
+                                Versão gerada pelo sistema
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              <a
+                                href={doc.url}
+                                download
+                                className="p-2 text-success hover:scale-110 transition-transform"
+                                title="Fazer Download"
+                              >
+                                <Download size={20} />
+                              </a>
+
+                              <label
+                                className="p-2 text-primary hover:scale-110 transition-transform cursor-pointer"
+                                title="Substituir por versão local (Word/PDF)"
+                              >
+                                {isUploadingMinuta ? (
+                                  <Loader2 size={18} className="animate-spin" />
+                                ) : (
+                                  <Upload size={20} />
+                                )}
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  accept=".docx,.pdf"
+                                  onChange={(e) => handleUploadMinuta(e.target.files[0], doc.key)}
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        ))}
+
+                        {!documentosNoFluxo.length && (
+                          <div className="text-sm font-medium text-muted p-4 border border-dashed border-border rounded-lg text-center">
+                            Nenhum documento gerado ainda.
+                          </div>
+                        )}
+                      </div>
                     </div>
+                  </div>
 
-                    <p className="text-sm text-muted">
-                      Selecione um arquivo para pré-visualizar ao lado, ou clique no ícone de download.
-                    </p>
-
-                    <div className="space-y-3">
-                      {documentosNoFluxo.map((doc) => (
-                        <div key={doc.key} className={`flex items-center justify-between p-3 border rounded-lg transition-colors cursor-pointer ${minutaPreview === doc.key ? doc.previewClass : doc.defaultClass}`}>
-                          <div className="flex-1 flex flex-col" onClick={() => setMinutaPreview(doc.key)}>
-                            <button className={`text-left font-bold text-sm ${doc.textClass}`}>
-                              {doc.label}
-                            </button>
-                            <span className="text-[10px] text-muted opacity-60">Versão gerada pelo sistema</span>
-                          </div>
-                          
-                          <div className="flex items-center gap-1">
-                            <a href={doc.url} download className="p-2 text-success hover:scale-110 transition-transform" title="Fazer Download">
-                              <Download size={20} />
-                            </a>
-                            
-                            <label className="p-2 text-primary hover:scale-110 transition-transform cursor-pointer" title="Substituir por versão local (Word/PDF)">
-                              {isUploadingMinuta ? <Loader2 size={18} className="animate-spin" /> : <Upload size={20} />}
-                              <input 
-                                type="file" 
-                                className="hidden" 
-                                accept=".docx,.pdf"
-                                onChange={(e) => handleUploadMinuta(e.target.files[0], doc.key)}
-                              />
-                            </label>
-                          </div>
+                  {/* ÁREA PRINCIPAL - PRÉ-VISUALIZAÇÃO (IFRAME) */}
+                  <div className="lg:w-2/3">
+                    <div className="card h-full p-0 overflow-hidden border-2 border-border">
+                      {/* Header do Preview */}
+                      <div className="bg-app p-3 border-b border-border flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-muted font-medium text-sm">
+                          <Eye size={16} />
+                          👁️ Pré-visualização:{" "}
+                          <span className="text-primary uppercase tracking-wider">
+                            {documentoPreviewSelecionado?.label || minutaPreview}
+                          </span>
                         </div>
-                      ))}
+                      </div>
 
-                      {!documentosNoFluxo.length && (
-                        <div className="text-sm font-medium text-muted p-4 border border-dashed border-border rounded-lg text-center">
-                          Nenhum documento gerado ainda.
+                      {/* Visualização DOCX via Microsoft Viewer */}
+                      {previewUrl ? (
+                        <div className="w-full h-[800px] bg-white">
+                          <iframe
+                            src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(previewUrl)}`}
+                            className="w-full h-full"
+                            frameBorder="0"
+                            title="Visualizacao da Minuta"
+                            loading="lazy"
+                          />
+                        </div>
+                      ) : (
+                        <div className="bg-white text-slate-900 p-8 rounded shadow-sm border border-border font-serif whitespace-pre-wrap text-justify leading-relaxed min-h-[400px]">
+                          {caso.peticao_completa_texto ||
+                            caso.peticao_inicial_rascunho ||
+                            "A minuta ainda não foi gerada. Aguarde o processamento."}
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
-
-                {/* ÁREA PRINCIPAL - PRÉ-VISUALIZAÇÃO (IFRAME) */}
-                <div className="lg:w-2/3">
-                  <div className="card h-full p-0 overflow-hidden border-2 border-border">
-                    {/* Header do Preview */}
-                    <div className="bg-app p-3 border-b border-border flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-muted font-medium text-sm">
-                        <Eye size={16} />
-                        👁️ Pré-visualização: <span className="text-primary uppercase tracking-wider">{documentoPreviewSelecionado?.label || minutaPreview}</span>
-                      </div>
-                    </div>
-
-                    {/* Visualização DOCX via Microsoft Viewer */}
-                    {previewUrl ? (
-                      <div className="w-full h-[800px] bg-white">
-                        <iframe
-                          src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(previewUrl)}`}
-                          className="w-full h-full"
-                          frameBorder="0"
-                          title="Visualizacao da Minuta"
-                          loading="lazy"
-                        />
-                      </div>
-                    ) : (
-                      <div className="bg-white text-slate-900 p-8 rounded shadow-sm border border-border font-serif whitespace-pre-wrap text-justify leading-relaxed min-h-[400px]">
-                        {caso.peticao_completa_texto ||
-                          caso.peticao_inicial_rascunho ||
-                          "A minuta ainda não foi gerada. Aguarde o processamento."}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
+              </>
+            )}
 
             {autosType === "proprios_autos" && (
               <div className="card border-2 border-dashed border-primary/30 text-center p-8 bg-primary/5">
                 <AlertTriangle className="mx-auto text-primary mb-3" size={32} />
                 <h3 className="text-lg font-bold text-primary">Modelos em Desenvolvimento</h3>
                 <p className="text-muted text-sm mt-2">
-                  Atualmente, os modelos para peticionamento <b>Nos Próprios Autos</b> ainda estão sendo integrados ao sistema.
-                  <br />Por favor, utilize as minutas de <b>Autos Apartados</b> como base se necessário.
+                  Atualmente, os modelos para peticionamento <b>Nos Próprios Autos</b> ainda estão
+                  sendo integrados ao sistema.
+                  <br />
+                  Por favor, utilize as minutas de <b>Autos Apartados</b> como base se necessário.
                 </p>
               </div>
             )}
@@ -1674,8 +1735,7 @@ export const DetalhesCaso = () => {
                 <h2 className="heading-2">Anotações / Feedback</h2>
               </div>
               <p className="text-sm text-muted">
-                Espaço para observações internas sobre o caso ou ajustes
-                necessários na minuta.
+                Espaço para observações internas sobre o caso ou ajustes necessários na minuta.
               </p>
               <textarea
                 className="input min-h-[120px] resize-y font-sans"
@@ -1707,9 +1767,7 @@ export const DetalhesCaso = () => {
                   >
                     <RefreshCw
                       size={16}
-                      className={
-                        caso.status === "processando" ? "animate-spin" : ""
-                      }
+                      className={caso.status === "processando" ? "animate-spin" : ""}
                     />
                   </button>
                   <span className={`badge capitalize ${badgeClass}`}>
@@ -1726,9 +1784,7 @@ export const DetalhesCaso = () => {
                     role="tooltip"
                   >
                     <div className="rounded-md border border-soft bg-surface p-3 text-sm shadow-lg">
-                      <p className="font-bold capitalize">
-                        {statusKey.replace(/_/g, " ")}
-                      </p>
+                      <p className="font-bold capitalize">{statusKey.replace(/_/g, " ")}</p>
                       <p className="text-muted">
                         {statusDescriptions[statusKey] || "Sem descrição."}
                       </p>
@@ -1744,21 +1800,16 @@ export const DetalhesCaso = () => {
                   disabled={isReprocessing || caso.status === "processando_ia"}
                   className="btn btn-ghost border border-red-200 bg-red-50 text-red-700 w-full flex items-center justify-center gap-2 hover:bg-red-100"
                 >
-                  <RefreshCw
-                    size={16}
-                    className={isReprocessing ? "animate-spin" : ""}
-                  />
+                  <RefreshCw size={16} className={isReprocessing ? "animate-spin" : ""} />
                   {isReprocessing ? "Reiniciando..." : "Reprocessar Caso (IA + Documentos)"}
                 </button>
               )}
-
 
               {/* ÁREA DE PENDÊNCIA (Só aparece se selecionar aguardando_documentos) */}
               {statusKey === "aguardando_documentos" && (
                 <div className="p-4 bg-bg border border-border rounded-lg space-y-2 animate-fade-in">
                   <label className="text-sm font-bold text">
-                    Descreva os documentos pendentes:{" "}
-                    <span className="text-red-500">*</span>
+                    Descreva os documentos pendentes: <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     className="input w-full min-h-[100px] text-sm"
@@ -1792,17 +1843,14 @@ export const DetalhesCaso = () => {
 
                 {/* 1. Se o caso JÁ estiver finalizado, mostra essa opção extra apenas para leitura */}
                 {statusKey === "protocolado" && (
-                  <option value="protocolado">
-                    ✅ Concluído / Protocolado
-                  </option>
+                  <option value="protocolado">✅ Concluído / Protocolado</option>
                 )}
 
                 {/* 2. Opção atual (se automática/não listada nas manuais) */}
                 {statusKey !== "protocolado" &&
                   !manualStatusOptions.find((o) => o.value === statusKey) && (
                     <option value={statusKey} disabled>
-                      {statusKey.charAt(0).toUpperCase() +
-                        statusKey.slice(1).replace(/_/g, " ")}{" "}
+                      {statusKey.charAt(0).toUpperCase() + statusKey.slice(1).replace(/_/g, " ")}{" "}
                       (Atual)
                     </option>
                   )}
@@ -1822,9 +1870,7 @@ export const DetalhesCaso = () => {
                 </p>
               )}
 
-              {isUpdating && (
-                <p className="text-xs text-muted">Atualizando status...</p>
-              )}
+              {isUpdating && <p className="text-xs text-muted">Atualizando status...</p>}
             </div>
 
             {/* --- SEÇÃO: CÁLCULO E DADOS JURÍDICOS --- */}
@@ -1856,139 +1902,129 @@ export const DetalhesCaso = () => {
             </div>
             {/* Oculta o fluxo de finalização para servidor e estagiario */}
             {user?.cargo !== "servidor" && user?.cargo !== "estagiario" && (
-            <div className="mt-8 pt-8 border-t border-soft">
-              <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
-                <CheckCircle className="text-green-500" />
-                Finalização e Encaminhamento (Solar)
-              </h2>
+              <div className="mt-8 pt-8 border-t border-soft">
+                <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
+                  <CheckCircle className="text-green-500" />
+                  Finalização e Encaminhamento (Solar)
+                </h2>
 
-              {caso.status === "protocolado" ? (
-                // SE JÁ ESTIVER FINALIZADO, MOSTRA OS DADOS
-                <div className="bg-green-500/10 border border-green-500/30 p-6 rounded-xl space-y-6">
-                  <div className="flex items-center justify-between gap-2 text-muted font-bold">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle size={20} /> CASO CONCLUÍDO E ENCAMINHADO
-                    </div>
-                    {user?.cargo === "admin" && (
-                      <button
-                        type="button"
-                        onClick={handleReverterFinalizacao}
-                        disabled={isReverting}
-                        className="btn btn-danger btn-sm flex items-center gap-2"
-                      >
-                        <RefreshCw size={14} />
-                        {isReverting ? "Revertendo..." : "Reverter"}
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="text-xs text-muted uppercase font-bold">
-                        Número
-                      </label>
-                      <p className="text-lg font-mono text-muted">
-                        {caso.numero_solar}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted uppercase font-bold">
-                        Número do Processo (TJ)
-                      </label>
-                      <p className="text-lg font-mono text-muted">
-                        {caso.numero_processo}
-                      </p>
-                    </div>
-                  </div>
-                  {caso.url_capa_processual && (
-                    <div>
-                      <a
-                        href={caso.url_capa_processual}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-primary hover:underline flex items-center gap-2"
-                      >
-                        <FileText size={16} /> Ver Capa Processual Anexada
-                      </a>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                // SE NÃO ESTIVER FINALIZADO, MOSTRA O FORMULÁRIO
-                <form
-                  onSubmit={handleFinalizarCaso}
-                  className="bg-surface border border-soft p-6 rounded-xl space-y-4"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* INPUT NÚMERO SOLAR */}
-                    <div>
-                      <label className="block text-sm font-medium text-muted mb-1">
-                        Número SOLAR/SIGAD
-                      </label>
-                      <input
-                        type="text"
-                        value={numSolar}
-                        onChange={(e) => setNumSolar(e.target.value)}
-                        placeholder="Ex: 1234..."
-                        className="w-full bg-app border border-soft rounded-lg p-3 text-muted focus:ring-2 focus:ring-primary outline-none"
-                        required
-                      />
-                    </div>
-
-                    {/* INPUT NÚMERO PROCESSO */}
-                    <div>
-                      <label className="block text-sm font-medium text-muted mb-1">
-                        Número do Processo (PJE/TJ)
-                      </label>
-                      <input
-                        type="text"
-                        value={numProcesso}
-                        onChange={(e) => setNumProcesso(e.target.value)}
-                        placeholder="Ex: 8000..."
-                        className="w-full bg-app border border-soft rounded-lg p-3 text-muted focus:ring-2 focus:ring-primary outline-none"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* UPLOAD CAPA */}
-                  <div>
-                    <label className="block text-sm font-medium text-muted mb-1">
-                      Anexar Capa Processual (PDF)
-                    </label>
-                    <div className="border-2 border-dashed border-soft rounded-lg p-6 flex flex-col items-center justify-center text-center hover:bg-white/5 transition-colors cursor-pointer relative">
-                      <input
-                        type="file"
-                        accept=".pdf"
-                        onChange={(e) => setArquivoCapa(e.target.files[0])}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        required
-                      />
-                      <Upload className="text-muted mb-2" size={24} />
-                      {arquivoCapa ? (
-                        <span className="text-primary font-medium">
-                          {arquivoCapa.name}
-                        </span>
-                      ) : (
-                        <span className="text-muted text-sm">
-                          Clique ou arraste o PDF da capa aqui
-                        </span>
+                {caso.status === "protocolado" ? (
+                  // SE JÁ ESTIVER FINALIZADO, MOSTRA OS DADOS
+                  <div className="bg-green-500/10 border border-green-500/30 p-6 rounded-xl space-y-6">
+                    <div className="flex items-center justify-between gap-2 text-muted font-bold">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle size={20} /> CASO CONCLUÍDO E ENCAMINHADO
+                      </div>
+                      {user?.cargo === "admin" && (
+                        <button
+                          type="button"
+                          onClick={handleReverterFinalizacao}
+                          disabled={isReverting}
+                          className="btn btn-danger btn-sm flex items-center gap-2"
+                        >
+                          <RefreshCw size={14} />
+                          {isReverting ? "Revertendo..." : "Reverter"}
+                        </button>
                       )}
                     </div>
-                  </div>
 
-                  <button
-                    type="submit"
-                    disabled={enviandoFinalizacao}
-                    className="btn btn-primary w-full py-3 mt-4 flex items-center justify-center gap-2"
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="text-xs text-muted uppercase font-bold">Número</label>
+                        <p className="text-lg font-mono text-muted">{caso.numero_solar}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted uppercase font-bold">
+                          Número do Processo (TJ)
+                        </label>
+                        <p className="text-lg font-mono text-muted">{caso.numero_processo}</p>
+                      </div>
+                    </div>
+                    {caso.url_capa_processual && (
+                      <div>
+                        <a
+                          href={caso.url_capa_processual}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary hover:underline flex items-center gap-2"
+                        >
+                          <FileText size={16} /> Ver Capa Processual Anexada
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  // SE NÃO ESTIVER FINALIZADO, MOSTRA O FORMULÁRIO
+                  <form
+                    onSubmit={handleFinalizarCaso}
+                    className="bg-surface border border-soft p-6 rounded-xl space-y-4"
                   >
-                    {enviandoFinalizacao
-                      ? "Processando..."
-                      : "Concluir Caso e Enviar ao Cidadão"}
-                  </button>
-                </form>
-              )}
-            </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* INPUT NÚMERO SOLAR */}
+                      <div>
+                        <label className="block text-sm font-medium text-muted mb-1">
+                          Número SOLAR/SIGAD
+                        </label>
+                        <input
+                          type="text"
+                          value={numSolar}
+                          onChange={(e) => setNumSolar(e.target.value)}
+                          placeholder="Ex: 1234..."
+                          className="w-full bg-app border border-soft rounded-lg p-3 text-muted focus:ring-2 focus:ring-primary outline-none"
+                          required
+                        />
+                      </div>
+
+                      {/* INPUT NÚMERO PROCESSO */}
+                      <div>
+                        <label className="block text-sm font-medium text-muted mb-1">
+                          Número do Processo (PJE/TJ)
+                        </label>
+                        <input
+                          type="text"
+                          value={numProcesso}
+                          onChange={(e) => setNumProcesso(e.target.value)}
+                          placeholder="Ex: 8000..."
+                          className="w-full bg-app border border-soft rounded-lg p-3 text-muted focus:ring-2 focus:ring-primary outline-none"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* UPLOAD CAPA */}
+                    <div>
+                      <label className="block text-sm font-medium text-muted mb-1">
+                        Anexar Capa Processual (PDF)
+                      </label>
+                      <div className="border-2 border-dashed border-soft rounded-lg p-6 flex flex-col items-center justify-center text-center hover:bg-white/5 transition-colors cursor-pointer relative">
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          onChange={(e) => setArquivoCapa(e.target.files[0])}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          required
+                        />
+                        <Upload className="text-muted mb-2" size={24} />
+                        {arquivoCapa ? (
+                          <span className="text-primary font-medium">{arquivoCapa.name}</span>
+                        ) : (
+                          <span className="text-muted text-sm">
+                            Clique ou arraste o PDF da capa aqui
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={enviandoFinalizacao}
+                      className="btn btn-primary w-full py-3 mt-4 flex items-center justify-center gap-2"
+                    >
+                      {enviandoFinalizacao ? "Processando..." : "Concluir Caso e Enviar ao Cidadão"}
+                    </button>
+                  </form>
+                )}
+              </div>
             )}
 
             {permissions.canDistribuir && (
@@ -2004,16 +2040,13 @@ export const DetalhesCaso = () => {
             {/* Botão de Arquivar (Movido para Gestão) */}
             <button
               onClick={handleArquivarClick}
-              className={`btn w-full justify-center ${caso.arquivado
-                ? "btn-primary"
-                : "bg-slate-200 hover:bg-slate-300 text-slate-700 border-transparent"
-                }`}
+              className={`btn w-full justify-center ${
+                caso.arquivado
+                  ? "btn-primary"
+                  : "bg-slate-200 hover:bg-slate-300 text-slate-700 border-transparent"
+              }`}
             >
-              {caso.arquivado ? (
-                <ArchiveRestore size={18} />
-              ) : (
-                <Archive size={18} />
-              )}
+              {caso.arquivado ? <ArchiveRestore size={18} /> : <Archive size={18} />}
               {caso.arquivado ? "Restaurar Caso" : "Arquivar Caso"}
             </button>
           </div>
@@ -2044,8 +2077,8 @@ export const DetalhesCaso = () => {
                 </button>
               </div>
               <p className="text-sm text-muted">
-                Esta ação não pode ser desfeita. Todos os dados do caso serão
-                removidos permanentemente.
+                Esta ação não pode ser desfeita. Todos os dados do caso serão removidos
+                permanentemente.
               </p>
               <TimelineAuditoria registroId={caso.id} />
             </div>
@@ -2063,8 +2096,8 @@ export const DetalhesCaso = () => {
             </div>
 
             <p className="text-muted text-sm">
-              O caso será movido para o "Arquivo Morto" e sairá da lista
-              principal. Justifique esta ação:
+              O caso será movido para o "Arquivo Morto" e sairá da lista principal. Justifique esta
+              ação:
             </p>
 
             <label className="block space-y-2">
@@ -2124,14 +2157,12 @@ export const DetalhesCaso = () => {
           <div className="bg-surface border border-soft p-6 rounded-2xl shadow-xl max-w-md w-full space-y-4">
             <div className="flex items-center gap-3 text-primary">
               <User size={24} />
-              <h3 className="text-xl font-bold text-main">
-                Compartilhar Acesso
-              </h3>
+              <h3 className="text-xl font-bold text-main">Compartilhar Acesso</h3>
             </div>
 
             <p className="text-muted text-sm">
-              Selecione um colega para dar acesso e permissão de edição neste
-              caso. Ele receberá uma notificação para aceitar.
+              Selecione um colega para dar acesso e permissão de edição neste caso. Ele receberá uma
+              notificação para aceitar.
             </p>
 
             {isLoadingColegas ? (
@@ -2141,7 +2172,10 @@ export const DetalhesCaso = () => {
             ) : (
               <div className="space-y-3">
                 <div className="relative">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                  <Search
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+                  />
                   <input
                     type="text"
                     className="input pl-10 py-2 text-sm"
@@ -2152,40 +2186,50 @@ export const DetalhesCaso = () => {
                 </div>
                 <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1 custom-scrollbar">
                   {colegas
-                    .filter(c => c.nome.toLowerCase().includes(buscaColega.toLowerCase()))
+                    .filter((c) => c.nome.toLowerCase().includes(buscaColega.toLowerCase()))
                     .map((c) => (
                       <button
                         key={c.id}
                         type="button"
                         onClick={() => setSelectedColegaId(c.id)}
                         className={`w-full text-left p-3 rounded-xl border transition-all flex items-center gap-3 ${
-                          selectedColegaId === c.id 
-                            ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary/20" 
+                          selectedColegaId === c.id
+                            ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary/20"
                             : "border-border bg-surface hover:border-primary/50 hover:bg-primary/5"
                         }`}
                       >
-                        <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-xs ${
-                          selectedColegaId === c.id ? "bg-primary text-white" : "bg-bg text-primary border border-border"
-                        }`}>
+                        <div
+                          className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-xs ${
+                            selectedColegaId === c.id
+                              ? "bg-primary text-white"
+                              : "bg-bg text-primary border border-border"
+                          }`}
+                        >
                           {c.nome.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`font-bold text-sm truncate ${selectedColegaId === c.id ? "text-primary" : "text-main"}`}>
-                            {c.nome.split(' (')[0]}
+                          <p
+                            className={`font-bold text-sm truncate ${selectedColegaId === c.id ? "text-primary" : "text-main"}`}
+                          >
+                            {c.nome.split(" (")[0]}
                           </p>
                           <p className="text-[10px] text-muted uppercase tracking-wider truncate">
-                            {c.nome.split(' (')[1]?.replace(')', '') || ""}
+                            {c.nome.split(" (")[1]?.replace(")", "") || ""}
                           </p>
                         </div>
-                        {selectedColegaId === c.id && <CheckCircle size={16} className="text-primary" />}
+                        {selectedColegaId === c.id && (
+                          <CheckCircle size={16} className="text-primary" />
+                        )}
                       </button>
                     ))}
-                  
-                  {colegas.length > 0 && colegas.filter(c => c.nome.toLowerCase().includes(buscaColega.toLowerCase())).length === 0 && (
-                    <div className="text-center p-8 text-muted italic text-sm">
-                      Nenhum colega encontrado.
-                    </div>
-                  )}
+
+                  {colegas.length > 0 &&
+                    colegas.filter((c) => c.nome.toLowerCase().includes(buscaColega.toLowerCase()))
+                      .length === 0 && (
+                      <div className="text-center p-8 text-muted italic text-sm">
+                        Nenhum colega encontrado.
+                      </div>
+                    )}
                 </div>
               </div>
             )}
@@ -2218,4 +2262,3 @@ export const DetalhesCaso = () => {
     </div>
   );
 };
-

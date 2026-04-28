@@ -38,7 +38,8 @@ export const processSubmission = async ({
   // Se for incapaz, validamos NOME (criança). Se for adulto, REPRESETANTE_NOME (autor).
   if (formState.assistidoEhIncapaz === "sim") {
     if (!formState.NOME) validationErrors.NOME = "O nome da criança é obrigatório.";
-    if (!formState.cpf) validationErrors.cpf = "O CPF da criança é obrigatório.";
+    // CPF da criança agora é facultativo
+    // if (!formState.cpf) validationErrors.cpf = "O CPF da criança é obrigatório.";
     if (!formState.REPRESENTANTE_NOME)
       validationErrors.REPRESENTANTE_NOME = "O nome da genitora/representante é obrigatório.";
   } else {
@@ -55,7 +56,8 @@ export const processSubmission = async ({
   if (!enderecoResidencial) {
     validationErrors.requerente_endereco_residencial = "O endereço residencial é obrigatório.";
   } else if (!/\b\d{5}-?\d{3}\b/.test(enderecoResidencial)) {
-    validationErrors.requerente_endereco_residencial = "CEP inválido ou ausente no endereço. Use o formato 00000-000.";
+    validationErrors.requerente_endereco_residencial =
+      "CEP inválido ou ausente no endereço. Use o formato 00000-000.";
   }
 
   if (!formState.requerente_telefone) {
@@ -84,15 +86,6 @@ export const processSubmission = async ({
         validationErrors.data_inicio_debito = "O mês inicial do débito é obrigatório.";
       if (!formState.data_fim_debito)
         validationErrors.data_fim_debito = "O mês final do débito é obrigatório.";
-    }
-  }
-
-  // Validação da Vara (se presente e exigida pelo título ou config)
-  if (configAcao?.secoes?.includes("SecaoValoresPensao") || configAcao?.secoes?.includes("SecaoProcessoOriginal")) {
-    if (formState.acaoEspecifica === "fixacao_alimentos" || formState.acaoEspecifica === "execucao_alimentos") {
-      if (!formState.VARA) {
-        validationErrors.VARA = "Informe o número da vara.";
-      }
     }
   }
 
@@ -134,9 +127,7 @@ export const processSubmission = async ({
   // Validação CPF e Data de Nascimento - Outros Filhos
   if (formState.outrosFilhos && formState.outrosFilhos.length > 0) {
     formState.outrosFilhos.forEach((filho, index) => {
-      if (!filho.cpf) {
-        validationErrors[`filho_cpf_${index}`] = `O CPF do Filho(a) ${index + 2} é obrigatório.`;
-      } else if (!validateCpfAlgorithm(filho.cpf)) {
+      if (filho.cpf && !validateCpfAlgorithm(filho.cpf)) {
         validationErrors[`filho_cpf_${index}`] = `O CPF do Filho(a) ${index + 2} é inválido.`;
       }
 
@@ -184,9 +175,10 @@ export const processSubmission = async ({
   const isEnviarDepois =
     formState.enviarDocumentosDepois === true || formState.enviarDocumentosDepois === "true";
   if (!isEnviarDepois) {
-    let minDocs = formState.assistidoEhIncapaz === "nao" ? 4 : 7;
+    // Reduzido para refletir que RG da criança é opcional
+    let minDocs = formState.assistidoEhIncapaz === "nao" ? 4 : 5; 
     if (formState.assistidoEhIncapaz === "sim" && formState.outrosFilhos.length > 0) {
-      minDocs += formState.outrosFilhos.length * 3;
+      minDocs += formState.outrosFilhos.length * 1; // Apenas certidão é estritamente obrigatória por filho extra
     }
 
     if (formState.documentFiles.length < minDocs) {

@@ -58,18 +58,45 @@ const downloadBlob = (blob, filename) => {
 const sanitizePdfClone = (documentClone) => {
   const exportRoot = documentClone.getElementById("bi-panel-root");
   if (!exportRoot) return;
-  const isUnsupportedColor = (value = "") =>
-    value.includes("oklab") || value.includes("color-mix") || value.includes("lab(") || value.includes("lch(");
 
+  const isUnsupportedColor = (value = "") => {
+    if (typeof value !== "string") return false;
+    const lower = value.toLowerCase();
+    return (
+      lower.includes("oklab") ||
+      lower.includes("oklch") ||
+      lower.includes("color-mix") ||
+      lower.includes("lab(") ||
+      lower.includes("lch(")
+    );
+  };
+
+  // 1. Sanitize the DOM nodes (inline styles to override computed ones)
   exportRoot.querySelectorAll("*").forEach((node) => {
     const computed = documentClone.defaultView.getComputedStyle(node);
     const style = node.style;
 
-    style.backgroundColor = isUnsupportedColor(computed.backgroundColor) ? "#ffffff" : computed.backgroundColor;
+    if (isUnsupportedColor(computed.backgroundColor)) style.backgroundColor = "#ffffff";
+    if (isUnsupportedColor(computed.color)) style.color = "#1e1b4b";
+    if (isUnsupportedColor(computed.borderColor)) style.borderColor = "#e9e4ff";
+    if (isUnsupportedColor(computed.fill)) style.fill = "#8b5cf6";
+    if (isUnsupportedColor(computed.stroke)) style.stroke = "#8b5cf6";
+    if (isUnsupportedColor(computed.stopColor)) style.stopColor = "#8b5cf6";
+    if (isUnsupportedColor(computed.outlineColor)) style.outlineColor = "#8b5cf6";
+
     style.backgroundImage = "none";
-    style.color = isUnsupportedColor(computed.color) ? "#1e1b4b" : computed.color;
-    style.borderColor = isUnsupportedColor(computed.borderColor) ? "#e9e4ff" : computed.borderColor;
     style.boxShadow = "none";
+  });
+
+  // 2. Sanitize <style> tags in the clone to prevent html2canvas parser from crashing
+  // This is a known issue with html2canvas and modern CSS functions.
+  documentClone.querySelectorAll("style").forEach((styleTag) => {
+    if (styleTag.innerHTML.includes("oklch") || styleTag.innerHTML.includes("color-mix")) {
+      // Replace modern functions with a safe fallback in the entire CSS text
+      styleTag.innerHTML = styleTag.innerHTML
+        .replace(/oklch\([^)]+\)/g, "#8b5cf6")
+        .replace(/color-mix\([^)]+\)/g, "#8b5cf6");
+    }
   });
 };
 

@@ -15,7 +15,7 @@ export const SecaoProcessoOriginal = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label htmlFor="vara" className="label font-bold ">
-            Vara da Petição Atual (ex: 1ª ) Apenas numero *
+            Vara da Petição Atual (ex: 1ª) Apenas numero
           </label>
           <input
             id="vara"
@@ -25,12 +25,9 @@ export const SecaoProcessoOriginal = ({
             value={formState.VARA}
             onChange={handleFieldChange}
             className={`input ${formErrors.VARA ? "border-error ring-1 ring-error" : "border-primary/50"}`}
-            {...validar("Informe a vara para esta petição.")}
           />
           {formErrors.VARA && (
-            <span className="text-xs text-error mt-1 ml-1">
-              {formErrors.VARA}
-            </span>
+            <span className="text-xs text-error mt-1 ml-1">{formErrors.VARA}</span>
           )}
         </div>
         <div>

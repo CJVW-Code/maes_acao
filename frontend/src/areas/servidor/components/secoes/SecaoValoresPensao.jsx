@@ -20,11 +20,11 @@ export const SecaoValoresPensao = ({
           ? "Dados para Deposito (Execucao)"
           : "Valores e Pagamento (Pedido Principal)"}
       </h4>
-      
+
       {formState?.acaoEspecifica === "fixacao_alimentos" && (
         <div className="mb-4">
           <label htmlFor="vara" className="label font-bold ">
-            Vara da Petição Atual (ex: 1ª ) Apenas numero *
+            Vara da Petição Atual (ex: 1ª ) Apenas numero
           </label>
           <input
             id="vara"
@@ -34,12 +34,9 @@ export const SecaoValoresPensao = ({
             value={formState.VARA}
             onChange={handleFieldChange}
             className={`input ${formErrors.VARA ? "border-error ring-1 ring-error" : "border-primary/50"}`}
-            {...validar("Informe a vara para esta petição.")}
           />
           {formErrors.VARA && (
-            <span className="text-xs text-error mt-1 ml-1">
-              {formErrors.VARA}
-            </span>
+            <span className="text-xs text-error mt-1 ml-1">{formErrors.VARA}</span>
           )}
         </div>
       )}
@@ -67,9 +64,7 @@ export const SecaoValoresPensao = ({
               />
             </div>
             {formErrors.valor_pensao && (
-              <span className="text-xs text-error mt-1 ml-1">
-                {formErrors.valor_pensao}
-              </span>
+              <span className="text-xs text-error mt-1 ml-1">{formErrors.valor_pensao}</span>
             )}
           </div>
         </div>
@@ -78,7 +73,9 @@ export const SecaoValoresPensao = ({
       <div className="space-y-4 rounded-lg border border-soft p-4 bg-surface">
         <h4 className="font-semibold text-text">Dados para Deposito da Pensao</h4>
         <div>
-          <label htmlFor="tipoContaDeposito" className="label">Tipo de Conta</label>
+          <label htmlFor="tipoContaDeposito" className="label">
+            Tipo de Conta
+          </label>
           <select
             id="tipoContaDeposito"
             name="tipo_conta_deposito"
@@ -124,7 +121,9 @@ export const SecaoValoresPensao = ({
 
         {formState.tipo_conta_deposito === "pix" && (
           <div>
-            <label htmlFor="chavePixDeposito" className="label">Chave PIX</label>
+            <label htmlFor="chavePixDeposito" className="label">
+              Chave PIX
+            </label>
             <input
               id="chavePixDeposito"
               type="text"

@@ -198,14 +198,14 @@ model casos_juridico {
   debito_penhora_extenso String?
   debito_prisao_valor    String?
   debito_prisao_extenso  String?
-  conta_banco            String?
-  conta_agencia          String?
-  conta_operacao         String?
-  conta_numero           String?
+  dados_bancarios_deposito String?
   empregador_nome        String?
   empregador_cnpj        String?
   empregador_endereco    String?
   memoria_calculo        String?
+  descricao_guarda       String?
+  bens_partilha          String?
+  situacao_financeira_genitora String?
   created_at             DateTime @default(now()) @db.Timestamptz(6)
   updated_at             DateTime @default(now()) @updatedAt @db.Timestamptz(6)
   cidade_originaria      String?

@@ -5,8 +5,10 @@ export const ACOES_FAMILIA = {
     status: "ativo",
 
     secoes: ["SecaoValoresPensao", "SecaoEmpregoRequerido"],
-    camposGerais: { mostrarBensPartilha: false, ocultarDetalhesGerais: true },
+    camposGerais: { mostrarBensPartilha: true, ocultarDetalhesGerais: false },
     forcaRepresentacao: true, // assistidoEhIncapaz = "sim"
+    isCpfFilhoOpcional: true,
+    isRgFilhoOpcional: true,
 
     templateWord: "template_fixacao_alimentos.docx",
     tagsTemplate: [
@@ -43,11 +45,7 @@ export const ACOES_FAMILIA = {
     status: "ativo",
 
     // --- Comportamento do Formulário ---
-    secoes: [
-      "SecaoValoresPensao",
-      "SecaoEmpregoRequerido",
-      "SecaoProcessoOriginal",
-    ],
+    secoes: ["SecaoValoresPensao", "SecaoEmpregoRequerido", "SecaoProcessoOriginal"],
     camposGerais: { mostrarBensPartilha: false, ocultarDetalhesGerais: true },
     forcaRepresentacao: true, // assistidoEhIncapaz = "sim" automático
     ocultarRelato: true, // Oculta campo de relato livre
@@ -113,8 +111,7 @@ export const ACOES_FAMILIA = {
     ],
 
     promptIA: {
-      contexto:
-        "O assistido está solicitando execução de alimentos (cobrança de pensão atrasada).",
+      contexto: "O assistido está solicitando execução de alimentos (cobrança de pensão atrasada).",
       extrair: ["processo_original", "periodo_debito", "valor_total_debito"],
       instrucoes: "",
     },
@@ -129,12 +126,7 @@ export const ACOES_FAMILIA = {
     forcaRepresentacao: false,
 
     templateWord: "template_guarda.docx",
-    tagsTemplate: [
-      "NOME_ASSISTIDO",
-      "CPF_ASSISTIDO",
-      "NOME_REQUERIDO",
-      "DESCRICAO_GUARDA",
-    ],
+    tagsTemplate: ["NOME_ASSISTIDO", "CPF_ASSISTIDO", "NOME_REQUERIDO", "DESCRICAO_GUARDA"],
 
     promptIA: {
       contexto: "O assistido está solicitando guarda de filhos.",
@@ -152,8 +144,7 @@ export const ACOES_FAMILIA = {
     templateWord: "template_revisao_majoracao.docx",
     tagsTemplate: [],
     promptIA: {
-      contexto:
-        "O assistido está solicitando revisão de alimentos para aumento.",
+      contexto: "O assistido está solicitando revisão de alimentos para aumento.",
       extrair: [],
       instrucoes: "",
     },
@@ -168,8 +159,7 @@ export const ACOES_FAMILIA = {
     templateWord: "template_revisao_reducao.docx",
     tagsTemplate: [],
     promptIA: {
-      contexto:
-        "O assistido está solicitando revisão de alimentos para redução.",
+      contexto: "O assistido está solicitando revisão de alimentos para redução.",
       extrair: [],
       instrucoes: "",
     },
@@ -184,8 +174,7 @@ export const ACOES_FAMILIA = {
     templateWord: "template_uniao_estavel.docx",
     tagsTemplate: [],
     promptIA: {
-      contexto:
-        "O assistido está solicitando reconhecimento e dissolução de união estável.",
+      contexto: "O assistido está solicitando reconhecimento e dissolução de união estável.",
       extrair: [],
       instrucoes: "",
     },
