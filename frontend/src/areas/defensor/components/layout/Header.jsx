@@ -33,6 +33,9 @@ export const Header = () => {
               {user?.cargo === "defensor" ? "Dr(a). " : ""}
               {defensorName}
             </p>
+            <p className="text-xs text-muted font-medium mt-0.5 capitalize">
+              {user?.cargo || "Servidor"} • {user?.unidade_nome || "Sem Unidade"}
+            </p>
           </div>
         </div>
 

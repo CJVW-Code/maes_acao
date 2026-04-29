@@ -1,18 +1,7 @@
 import React, { useState, useEffect } from "react";
-import {
-  UserPlus,
-  Shield,
-  Users,
-  Trash2,
-  Edit,
-  X,
-  Save,
-  KeyRound,
-  Lock,
-  Building2,
-  Plus,
-  MapPin,
-  Search,
+import { 
+  Users, UserPlus, Building2, Search, Edit, Trash2, X, Save, MapPin, 
+  KeyRound, Lock, Building, ChevronRight, UserCog, Plus
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { API_BASE } from "../../../utils/apiBase";
@@ -21,8 +10,19 @@ import { useToast } from "../../../contexts/ToastContext";
 import { useConfirm } from "../../../contexts/ConfirmContext";
 import { cidadesBahia, regionalOptions } from "../../../utils/formOptions";
 
+const PESO_CARGO = {
+  admin: 3,
+  gestor: 2,
+  coordenador: 1,
+  defensor: 0,
+  servidor: 0,
+  estagiario: 0,
+  recepcao: 0,
+  visualizador: 0,
+};
+
 export const GerenciarEquipe = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { toast } = useToast();
   const { confirm } = useConfirm();
 
@@ -44,8 +44,9 @@ export const GerenciarEquipe = () => {
   const [unidadeForm, setUnidadeForm] = useState({ nome: "", comarca: "", sistema: "solar", regional: "" });
   const [loadingUnidade, setLoadingUnidade] = useState(false);
 
-  // --- FILTRO DE UNIDADE E BUSCA NA EQUIPE ---
+  // --- FILTRO DE UNIDADE, CARGO E BUSCA NA EQUIPE ---
   const [filtroUnidade, setFiltroUnidade] = useState("");
+  const [filtroCargo, setFiltroCargo] = useState("");
   const [termoPesquisa, setTermoPesquisa] = useState("");
 
   // --- CARREGAMENTO INICIAL ---
@@ -233,9 +234,10 @@ export const GerenciarEquipe = () => {
 
   // --- DADOS FILTRADOS ---
   const usuariosFiltrados = usuarios.filter((u) => {
-    const matchUnidade = !filtroUnidade || u.unidade_id === filtroUnidade;
+    const matchUnidade = !filtroUnidade || u.unidade_nome?.toLowerCase().includes(filtroUnidade.toLowerCase());
+    const matchCargo = !filtroCargo || u.cargo === filtroCargo;
     const matchBusca = !termoPesquisa || u.nome.toLowerCase().includes(termoPesquisa.toLowerCase());
-    return matchUnidade && matchBusca;
+    return matchUnidade && matchCargo && matchBusca;
   });
 
   const cargoBadge = (cargo) => {
@@ -285,17 +287,19 @@ export const GerenciarEquipe = () => {
           <Users size={18} />
           Membros ({usuarios.length})
         </button>
-        <button
-          onClick={() => setAbaAtiva("unidades")}
-          className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-all border-b-2 ${
-            abaAtiva === "unidades"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted hover:text-text"
-          }`}
-        >
-          <Building2 size={18} />
-          Unidades ({unidades.length})
-        </button>
+        {(user?.cargo?.toLowerCase() === "admin" || user?.cargo?.toLowerCase() === "gestor") && (
+          <button
+            onClick={() => setAbaAtiva("unidades")}
+            className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-all border-b-2 ${
+              abaAtiva === "unidades"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted hover:text-text"
+            }`}
+          >
+            <Building2 size={18} />
+            Unidades ({unidades.length})
+          </button>
+        )}
       </div>
 
       {/* ==================== ABA: EQUIPE ==================== */}
@@ -319,15 +323,37 @@ export const GerenciarEquipe = () => {
                 />
               </div>
 
+              <div className="relative flex-1 sm:w-48">
+                <Building2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="text"
+                  placeholder="Unidade..."
+                  list="unidades-datalist"
+                  value={filtroUnidade}
+                  onChange={(e) => setFiltroUnidade(e.target.value)}
+                  className="input text-sm py-1.5 pl-10 w-full"
+                />
+                <datalist id="unidades-datalist">
+                  <option value="">Todas Unidades</option>
+                  {unidades.map((u) => (
+                    <option key={u.id} value={u.nome} />
+                  ))}
+                </datalist>
+              </div>
+
               <select
-                value={filtroUnidade}
-                onChange={(e) => setFiltroUnidade(e.target.value)}
-                className="input text-sm py-1.5 w-full sm:w-64"
+                value={filtroCargo}
+                onChange={(e) => setFiltroCargo(e.target.value)}
+                className="input text-sm py-1.5 w-full sm:w-40"
               >
-                <option value="">Todas as Unidades</option>
-                {unidades.map((u) => (
-                  <option key={u.id} value={u.id}>{u.nome}</option>
-                ))}
+                <option value="">Todos Cargos</option>
+                <option value="estagiario">Estagiário</option>
+                <option value="servidor">Servidor</option>
+                <option value="defensor">Defensor</option>
+                <option value="coordenador">Coordenador</option>
+                <option value="gestor">Gestor</option>
+                <option value="admin">Administrador</option>
+                <option value="visualizador">Visualizador</option>
               </select>
             </div>
           </div>
@@ -359,15 +385,22 @@ export const GerenciarEquipe = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right flex justify-end gap-3">
-                      <button onClick={() => handleEditClick(u)} className="text-blue-400 hover:text-blue-600" title="Editar">
-                        <Edit size={16} />
-                      </button>
-                      <button onClick={() => { setUserToReset(u); setNovaSenhaManual(""); }} className="text-amber-400 hover:text-amber-600" title="Resetar Senha">
-                        <KeyRound size={16} />
-                      </button>
-                      <button onClick={() => handleDeleteUser(u)} className="text-red-400 hover:text-red-600" title="Excluir Usuário">
-                        <Trash2 size={16} />
-                      </button>
+                      {/* Só mostra ações se o alvo for estritamente inferior (<) ou se eu for Admin */}
+                      {(user?.cargo?.toLowerCase() === "admin" || PESO_CARGO[user?.cargo?.toLowerCase()] > PESO_CARGO[u.cargo?.toLowerCase()]) ? (
+                        <>
+                          <button onClick={() => handleEditClick(u)} className="text-blue-400 hover:text-blue-600" title="Editar">
+                            <Edit size={16} />
+                          </button>
+                          <button onClick={() => { setUserToReset(u); setNovaSenhaManual(""); }} className="text-amber-400 hover:text-amber-600" title="Resetar Senha">
+                            <KeyRound size={16} />
+                          </button>
+                          <button onClick={() => handleDeleteUser(u)} className="text-red-400 hover:text-red-600" title="Excluir Usuário">
+                            <Trash2 size={16} />
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-[10px] text-muted italic">Acesso restrito</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -390,15 +423,21 @@ export const GerenciarEquipe = () => {
                   <span className={`badge text-xs ${cargoBadge(u.cargo)}`}>{u.cargo.toUpperCase()}</span>
                 </div>
                 <div className="flex gap-2 pt-2 border-t border-soft/50">
-                  <button onClick={() => handleEditClick(u)} className="btn btn-ghost flex-1 justify-center text-sm text-blue-600 hover:bg-blue-50 h-10 px-2">
-                    <Edit size={16} className="mr-2" /> Editar
-                  </button>
-                  <button onClick={() => { setUserToReset(u); setNovaSenhaManual(""); }} className="btn btn-ghost flex-1 justify-center text-sm text-amber-600 hover:bg-amber-50 h-10 px-2">
-                    <KeyRound size={16} className="mr-2" /> Senha
-                  </button>
-                  <button onClick={() => handleDeleteUser(u)} className="btn btn-ghost flex-1 justify-center text-sm text-red-600 hover:bg-red-50 h-10 px-2">
-                    <Trash2 size={16} className="mr-2" /> Excluir
-                  </button>
+                  {(user?.cargo?.toLowerCase() === "admin" || PESO_CARGO[user?.cargo?.toLowerCase()] > PESO_CARGO[u.cargo?.toLowerCase()]) ? (
+                    <>
+                      <button onClick={() => handleEditClick(u)} className="btn btn-ghost flex-1 justify-center text-sm text-blue-600 hover:bg-blue-50 h-10 px-2">
+                        <Edit size={16} className="mr-2" /> Editar
+                      </button>
+                      <button onClick={() => { setUserToReset(u); setNovaSenhaManual(""); }} className="btn btn-ghost flex-1 justify-center text-sm text-amber-600 hover:bg-amber-50 h-10 px-2">
+                        <KeyRound size={16} className="mr-2" /> Senha
+                      </button>
+                      <button onClick={() => handleDeleteUser(u)} className="btn btn-ghost flex-1 justify-center text-sm text-red-600 hover:bg-red-50 h-10 px-2">
+                        <Trash2 size={16} className="mr-2" /> Excluir
+                      </button>
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted text-center w-full py-2">Sem permissão de gerenciamento</p>
+                  )}
                 </div>
               </div>
             ))}
@@ -494,9 +533,17 @@ export const GerenciarEquipe = () => {
                   <option value="estagiario">Estagiário</option>
                   <option value="servidor">Servidor / Balcão</option>
                   <option value="defensor">Defensor</option>
-                  <option value="coordenador">Coordenador</option>
-                  <option value="gestor">Defensor Geral (Gestor)</option>
-                  <option value="admin">Administrador</option>
+                  
+                  {/* Filtro por hierarquia no Editar */}
+                  {PESO_CARGO[user?.cargo?.toLowerCase()] > 1 && (
+                    <option value="coordenador">Coordenador</option>
+                  )}
+                  {PESO_CARGO[user?.cargo?.toLowerCase()] > 2 && (
+                    <option value="gestor">Defensor Geral (Gestor)</option>
+                  )}
+                  {user?.cargo?.toLowerCase() === "admin" && (
+                    <option value="admin">Administrador</option>
+                  )}
                   <option value="visualizador">Visualizador</option>
                 </select>
               </div>

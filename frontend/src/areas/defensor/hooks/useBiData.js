@@ -10,6 +10,7 @@ const defaultFiltros = {
   dataInicio: "",
   dataFim: "",
   unidade_id: "todas",
+  regional: "todas",
   topN: 10,
 };
 

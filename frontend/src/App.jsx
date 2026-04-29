@@ -201,9 +201,9 @@ function App() {
                 <Route
                   path="cadastro"
                   element={
-                    <AdminRoute>
+                    <TeamRoute>
                       <Cadastro />
-                    </AdminRoute>
+                    </TeamRoute>
                   }
                 />
               </Route>

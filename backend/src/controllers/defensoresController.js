@@ -30,13 +30,18 @@ export const registrarDefensor = async (req, res) => {
 
     const { nome, email, senha, cargo = "servidor", unidade_id } = req.body;
 
-    // Validação de Hierarquia: não pode criar cargo superior ao seu
+    // Validação de Hierarquia Estrita: não pode criar cargo superior ou igual ao seu (exceto Admin)
     const targetWeight = PESO_CARGO[cargo.toLowerCase()] ?? 0;
     const myWeight = PESO_CARGO[userCargo] ?? 0;
     
-    if (targetWeight > myWeight || (cargo.toLowerCase() === "admin" && userCargo !== "admin")) {
+    // Regra: Somente admin pode criar admin. Outros só criam quem é estritamente inferior (<).
+    const isPromotingToAdmin = cargo.toLowerCase() === "admin";
+    const isSelfAdmin = userCargo === "admin";
+
+    if ((isPromotingToAdmin && !isSelfAdmin) || (!isSelfAdmin && targetWeight >= myWeight)) {
+      logger.warn(`Tentativa de escalação de privilégios: Usuário ${req.user.id} (${userCargo}) tentou criar cargo ${cargo}`);
       return res.status(403).json({
-        error: "Acesso negado. Você não pode cadastrar um usuário com cargo superior ou igual ao seu (Admin).",
+        error: "Acesso negado. Você só pode cadastrar usuários com cargo estritamente inferior ao seu.",
       });
     }
 
@@ -114,7 +119,8 @@ export const registrarDefensor = async (req, res) => {
 
 // --- FUNÇÃO DE LOGIN (Atualizada com Cargo no Token) ---
 export const loginDefensor = async (req, res) => {
-  const { email, senha } = req.body;
+  let { email, senha } = req.body;
+  if (email) email = email.toLowerCase().trim();
 
   if (!email || !senha) {
     return res.status(400).json({ error: "Email e senha são obrigatórios." });
@@ -327,9 +333,9 @@ export const atualizarDefensor = async (req, res) => {
     const myWeight = PESO_CARGO[userCargo] ?? 0;
     const targetWeight = PESO_CARGO[targetMemberFull.cargo.nome.toLowerCase()] ?? 0;
 
-    // 1. Não pode editar alguém de nível superior
-    if (targetWeight > myWeight) {
-      return res.status(403).json({ error: "Acesso negado. Você não pode editar um usuário de nível superior." });
+    // 1. Não pode editar alguém de nível superior ou igual (exceto se for Admin editando outro Admin/User)
+    if (userCargo !== "admin" && targetWeight >= myWeight) {
+      return res.status(403).json({ error: "Acesso negado. Você só pode editar usuários com cargo estritamente inferior ao seu." });
     }
 
     // 2. Proteção Admin: apenas admins mexem em admins
@@ -342,8 +348,11 @@ export const atualizarDefensor = async (req, res) => {
     // 3. Validação do novo cargo (se houver tentativa de mudança)
     if (cargo) {
       const newWeight = PESO_CARGO[cargo.toLowerCase()] ?? 0;
-      if (newWeight > myWeight || (cargo.toLowerCase() === "admin" && userCargo !== "admin")) {
-        return res.status(403).json({ error: "Acesso negado. Você não pode atribuir um cargo superior ao seu ou cargo de Administrador." });
+      const isSettingAdmin = cargo.toLowerCase() === "admin";
+      
+      if ((isSettingAdmin && userCargo !== "admin") || (userCargo !== "admin" && newWeight >= myWeight)) {
+        logger.warn(`Tentativa de promoção indevida: Usuário ${req.user.id} tentou mudar cargo de ${id} para ${cargo}`);
+        return res.status(403).json({ error: "Acesso negado. Você não pode atribuir um cargo superior ou igual ao seu." });
       }
     }
 
@@ -422,9 +431,9 @@ export const deletarDefensor = async (req, res) => {
     const myWeight = PESO_CARGO[userCargo] ?? 0;
     const targetWeight = PESO_CARGO[targetMemberFull.cargo.nome.toLowerCase()] ?? 0;
 
-    // 1. Não pode excluir alguém de nível superior
-    if (targetWeight > myWeight) {
-      return res.status(403).json({ error: "Acesso negado. Você não pode excluir um usuário de nível superior." });
+    // 1. Não pode excluir alguém de nível superior ou igual (exceto se for Admin)
+    if (userCargo !== "admin" && targetWeight >= myWeight) {
+      return res.status(403).json({ error: "Acesso negado. Você só pode excluir usuários com cargo estritamente inferior ao seu." });
     }
 
     // 2. Proteção Admin: apenas admins excluem admins

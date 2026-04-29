@@ -5,6 +5,17 @@ import { UserPlus, Shield, Eye, EyeOff, Loader2, MapPin } from "lucide-react";
 import { API_BASE } from "../../../utils/apiBase";
 import { useAuth } from "../contexts/AuthContext";
 
+const PESO_CARGO = {
+  admin: 3,
+  gestor: 2,
+  coordenador: 1,
+  defensor: 0,
+  servidor: 0,
+  estagiario: 0,
+  recepcao: 0,
+  visualizador: 0,
+};
+
 export const Cadastro = () => {
   const { token, user } = useAuth();
   const [nome, setNome] = useState("");
@@ -182,12 +193,25 @@ export const Cadastro = () => {
                 onChange={(e) => setCargo(e.target.value)}
                 className="input"
               >
+                {/* Opções filtradas por hierarquia */}
                 <option value="estagiario">Estagiário</option>
                 <option value="servidor">Servidor / Balcão</option>
                 <option value="defensor">Defensor</option>
-                <option value="coordenador">Coordenador</option>
-                <option value="gestor">Defensor Geral (Gestor)</option>
-                <option value="admin">Administrador</option>
+                
+                {/* Coordenador só pode ser criado por Gestor ou Admin */}
+                {PESO_CARGO[user?.cargo?.toLowerCase()] > 1 && (
+                  <option value="coordenador">Coordenador</option>
+                )}
+                
+                {/* Gestor só pode ser criado por Admin */}
+                {PESO_CARGO[user?.cargo?.toLowerCase()] > 2 && (
+                  <option value="gestor">Defensor Geral (Gestor)</option>
+                )}
+
+                {/* Admin só pode ser criado por Admin */}
+                {user?.cargo?.toLowerCase() === "admin" && (
+                  <option value="admin">Administrador</option>
+                )}
               </select>
             </div>
 

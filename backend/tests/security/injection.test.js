@@ -10,7 +10,10 @@ jest.unstable_mockModule("@upstash/qstash", () => ({
 jest.unstable_mockModule("../../src/config/prisma.js", () => ({
   prisma: {
     defensores: { findUnique: jest.fn().mockResolvedValue(null) },
-    unidades: { findMany: jest.fn().mockResolvedValue([]) },
+    unidades: { 
+      findMany: jest.fn().mockResolvedValue([]),
+      findFirst: jest.fn().mockResolvedValue({ id: 1, nome: "Unidade Sede Defensoria" })
+    },
     casos: { create: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
     logs_auditoria: { create: jest.fn().mockResolvedValue({}) },
     notificacoes: { findMany: jest.fn().mockResolvedValue([]) },

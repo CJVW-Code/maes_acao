@@ -342,6 +342,7 @@ const montarRelatorio = async (
   const { range, periodo, warning } = buildDateRange(body);
   const topN = body.topN ?? DEFAULT_TOP_N;
   const requestedUnidade = body.unidade_id || "todas";
+  const requestedRegional = body.regional || "todas";
 
   // Escopo de Unidade por Cargo
   // Admin e Gestor: Podem ver todas ou uma específica.
@@ -358,22 +359,29 @@ const montarRelatorio = async (
   }
 
   const unidades =
-    preFetchedUnidades ||
-    (await prisma.unidades.findMany({
-      where: {
-        ativo: true,
-        ...(unidadeId !== "todas" ? { id: unidadeId } : {}),
-      },
-      select: { id: true, nome: true, comarca: true },
-      orderBy: { nome: "asc" },
-    }));
+    preFetchedUnidades
+      ? preFetchedUnidades.filter(u => requestedRegional === "todas" || u.regional === requestedRegional)
+      : (await prisma.unidades.findMany({
+          where: {
+            ativo: true,
+            ...(unidadeId !== "todas" ? { id: unidadeId } : {}),
+            ...(requestedRegional !== "todas" ? { regional: requestedRegional } : {}),
+          },
+          select: { id: true, nome: true, comarca: true, regional: true },
+          orderBy: { nome: "asc" },
+        }));
 
-  const rows = preFetchedRows
+  let rows = preFetchedRows
     ? preFetchedRows.filter((r) => unidadeId === "todas" || r.unidade_id === unidadeId)
     : await fetchCasosMetadata({ range, unidadeId });
 
-  const tempoMedioIa = calcularTempoMedioIa(rows, range);
   const unidadeNomeById = new Map(unidades.map((unidade) => [unidade.id, unidade.nome]));
+
+  if (requestedRegional !== "todas") {
+    rows = rows.filter((r) => unidadeNomeById.has(r.unidade_id));
+  }
+
+  const tempoMedioIa = calcularTempoMedioIa(rows, range);
 
   // Busca nomes e cargos de todos os defensores/servidores para o ranking de produtividade
   const defensoresDB = await prisma.defensores.findMany({
@@ -447,7 +455,7 @@ const montarRelatorio = async (
     }
   });
 
-  const rankingUnidadesAgregado =
+  let rankingUnidadesAgregado =
     !preFetchedRows && !preFetchedUnidades
       ? await prisma.casos.groupBy({
           by: ["unidade_id"],
@@ -460,6 +468,10 @@ const montarRelatorio = async (
           },
         })
       : null;
+
+  if (rankingUnidadesAgregado && requestedRegional !== "todas") {
+    rankingUnidadesAgregado = rankingUnidadesAgregado.filter(r => unidadeNomeById.has(r.unidade_id));
+  }
 
   protocolosNoPeriodo.forEach((row) => {
     if (!rankingUnidadesAgregado) increment(rankingMap, row.unidade_id);
@@ -577,6 +589,7 @@ const montarRelatorio = async (
       dataInicio: range?.gte?.toISOString() || null,
       dataFim: range?.lte?.toISOString() || null,
       unidade_id: unidadeId,
+      regional: requestedRegional,
       unidade_nome: unidadeValida?.nome || "Todas",
       topN,
     },

@@ -19,6 +19,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useBiData } from "../hooks/useBiData";
 import { authFetch } from "../../../utils/apiBase";
 import { useToast } from "../../../contexts/ToastContext";
+import { regionalOptions } from "../../../utils/formOptions";
 
 const COLORS = [
   "var(--color-primary)",
@@ -155,7 +156,7 @@ const Relatorios = () => {
       gerar().catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtros.periodo, filtros.dataInicio, filtros.dataFim, filtros.unidade_id, filtros.topN]);
+  }, [filtros.periodo, filtros.dataInicio, filtros.dataFim, filtros.regional, filtros.unidade_id, filtros.topN]);
 
   if (data?.bloqueadoPorHorario) {
     const canUnlock = user?.cargo === "admin" || user?.cargo === "gestor";
@@ -269,7 +270,7 @@ const Relatorios = () => {
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
           <label className="space-y-1 text-sm font-semibold text-main">
             Periodo
             <select value={filtros.periodo} onChange={(event) => updateFiltro("periodo", event.target.value)} className="input">
@@ -287,6 +288,17 @@ const Relatorios = () => {
           <label className="space-y-1 text-sm font-semibold text-main">
             Fim
             <input type="date" value={filtros.dataFim} onChange={(event) => updateFiltro("dataFim", event.target.value)} disabled={filtros.periodo !== "custom"} className="input disabled:opacity-50" />
+          </label>
+          <label className="space-y-1 text-sm font-semibold text-main">
+            Regional
+            <select value={filtros.regional} onChange={(event) => updateFiltro("regional", event.target.value)} className="input">
+              <option value="todas">Todas</option>
+              {regionalOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="space-y-1 text-sm font-semibold text-main">
             Unidade
