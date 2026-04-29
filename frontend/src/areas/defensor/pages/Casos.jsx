@@ -47,7 +47,7 @@ export const Casos = () => {
   const [selectedCaso, setSelectedCaso] = useState(null);
   const { token, user, permissions } = useAuth();
 
-  const isAdminOrGestor = user && ["admin", "gestor"].includes(user.cargo.toLowerCase());
+  const isAdminOrGestor = user && ["admin", "gestor", "coordenador"].includes(user.cargo.toLowerCase());
 
   // 3. A mágica do SWR corrigida:
   // Passamos apenas a rota '/casos', pois o authFetch já completa a URL base internamente

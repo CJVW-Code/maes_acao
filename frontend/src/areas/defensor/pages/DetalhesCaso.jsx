@@ -562,6 +562,28 @@ export const DetalhesCaso = () => {
     }
   };
 
+  const handleLock = async () => {
+    if (!(await confirm("Deseja assumir e travar este caso para o seu usuário?", "Assumir Caso?"))) return;
+    setIsUpdating(true);
+    try {
+      const res = await fetch(`${API_BASE}/casos/${id}/lock`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        toast.success("Caso assumido com sucesso!");
+        mutate();
+      } else {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Falha ao travar o caso.");
+      }
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const handleOpenShare = async () => {
     setIsShareModalOpen(true);
     setIsLoadingColegas(true);
@@ -1301,7 +1323,24 @@ export const DetalhesCaso = () => {
           <div className="space-y-6 animate-fade-in">
             <InfoAssistido caso={caso} />
 
-
+            {/* BOTÃO ASSUMIR CASO (PARA COORDENADOR E GESTOR) */}
+            {["admin", "gestor", "coordenador"].includes(user?.cargo?.toLowerCase()) && 
+             !caso.defensor_id && !caso.servidor_id && (
+              <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-primary font-bold">Caso Disponível</h3>
+                  <p className="text-sm text-muted">Este caso está livre na fila. Como observador, você não foi vinculado automaticamente.</p>
+                </div>
+                <button
+                  onClick={handleLock}
+                  disabled={isUpdating}
+                  className="btn btn-primary flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+                >
+                  <Lock size={18} />
+                  Assumir Atendimento
+                </button>
+              </div>
+            )}
 
             {/* DOCUMENTOS (Movido para Visão Geral) */}
             <PainelDocumentos
@@ -2047,37 +2086,46 @@ export const DetalhesCaso = () => {
           </div>
         )}
         <div className="mt-8 pt-8 border-t border-soft">
-          {/* Botão de Excluir Caso - Apenas para Admin */}
-          {user?.cargo === "admin" && (
-            <div className="card space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="heading-2 text-error">Excluir Caso</h2>
-                <button
-                  onClick={handleUnlock}
-                  disabled={isUpdating}
-                  className="btn btn-ghost border border-soft flex items-center gap-2 text-red-600 hover:bg-red-50"
-                  title="Libera o caso para outros usuários"
-                >
-                  <Lock size={18} />
-                  Liberar Caso
-                </button>
+          {/* Ações de Administração e Controle */}
+          <div className="card space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="heading-2 text-error">Controle do Caso</h2>
+              
+              <div className="flex gap-2">
+                {/* Liberar Caso - Disponível para Admin, Gestor e Coordenador */}
+                {["admin", "gestor", "coordenador"].includes(user?.cargo?.toLowerCase()) && (
+                  <button
+                    onClick={handleUnlock}
+                    disabled={isUpdating}
+                    className="btn btn-ghost border border-soft flex items-center gap-2 text-red-600 hover:bg-red-50"
+                    title="Libera o caso para outros usuários"
+                  >
+                    <Lock size={18} />
+                    Liberar Caso
+                  </button>
+                )}
 
-                <button
-                  onClick={handleDeleteCaso}
-                  disabled={isDeleting}
-                  className="btn btn-ghost border border-soft flex items-center gap-2 text-red-600 hover:bg-red-50"
-                >
-                  <Trash2 size={18} />
-                  {isDeleting ? "Excluindo..." : "Excluir"}
-                </button>
+                {/* Excluir Caso - Apenas Admin */}
+                {user?.cargo === "admin" && (
+                  <button
+                    onClick={handleDeleteCaso}
+                    disabled={isDeleting}
+                    className="btn btn-ghost border border-soft flex items-center gap-2 text-red-600 hover:bg-red-50"
+                  >
+                    <Trash2 size={18} />
+                    {isDeleting ? "Excluindo..." : "Excluir"}
+                  </button>
+                )}
               </div>
-              <p className="text-sm text-muted">
-                Esta ação não pode ser desfeita. Todos os dados do caso serão removidos
-                permanentemente.
-              </p>
-              <TimelineAuditoria registroId={caso.id} />
             </div>
-          )}
+            {user?.cargo === "admin" && (
+              <p className="text-sm text-muted">
+                Esta ação de exclusão não pode ser desfeita. Todos os dados do caso serão removidos permanentemente.
+              </p>
+            )}
+            <TimelineAuditoria registroId={caso.id} />
+          </div>
+
         </div>
       </div>
 

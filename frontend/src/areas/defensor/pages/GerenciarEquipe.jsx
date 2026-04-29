@@ -1,7 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Users, UserPlus, Building2, Search, Edit, Trash2, X, Save, MapPin, 
-  KeyRound, Lock, Building, ChevronRight, UserCog, Plus
+import {
+  Users,
+  UserPlus,
+  Building2,
+  Search,
+  Edit,
+  Trash2,
+  X,
+  Save,
+  MapPin,
+  KeyRound,
+  Lock,
+  Building,
+  ChevronRight,
+  UserCog,
+  Plus,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { API_BASE } from "../../../utils/apiBase";
@@ -33,7 +46,13 @@ export const GerenciarEquipe = () => {
   const [usuarios, setUsuarios] = useState([]);
   const [unidades, setUnidades] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
-  const [editForm, setEditForm] = useState({ nome: "", email: "", cargo: "", unidade_id: "" });
+  const [editForm, setEditForm] = useState({
+    nome: "",
+    email: "",
+    cargo: "",
+    unidade_id: "",
+    regional: "",
+  });
   const [loadingUpdate, setLoadingUpdate] = useState(false);
   const [userToReset, setUserToReset] = useState(null);
   const [novaSenhaManual, setNovaSenhaManual] = useState("");
@@ -41,7 +60,12 @@ export const GerenciarEquipe = () => {
   // --- ESTADOS DE UNIDADES ---
   const [editingUnidade, setEditingUnidade] = useState(null);
   const [novaUnidade, setNovaUnidade] = useState(false);
-  const [unidadeForm, setUnidadeForm] = useState({ nome: "", comarca: "", sistema: "solar", regional: "" });
+  const [unidadeForm, setUnidadeForm] = useState({
+    nome: "",
+    comarca: "",
+    sistema: "solar",
+    regional: "",
+  });
   const [loadingUnidade, setLoadingUnidade] = useState(false);
 
   // --- FILTRO DE UNIDADE, CARGO E BUSCA NA EQUIPE ---
@@ -75,6 +99,7 @@ export const GerenciarEquipe = () => {
       email: user.email,
       cargo: user.cargo,
       unidade_id: user.unidade_id || "",
+      regional: user.regional || "",
     });
   };
 
@@ -117,17 +142,14 @@ export const GerenciarEquipe = () => {
     e.preventDefault();
     if (!novaSenhaManual) return;
     try {
-      const response = await fetch(
-        `${API_BASE}/defensores/${userToReset.id}/reset-password`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ novaSenha: novaSenhaManual }),
+      const response = await fetch(`${API_BASE}/defensores/${userToReset.id}/reset-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify({ novaSenha: novaSenhaManual }),
+      });
       if (!response.ok) throw new Error("Erro ao resetar");
       toast.success(`Senha de ${userToReset.nome} alterada com sucesso!`);
       setUserToReset(null);
@@ -158,7 +180,12 @@ export const GerenciarEquipe = () => {
   const abrirFormUnidade = (unidade = null) => {
     if (unidade) {
       setEditingUnidade(unidade);
-      setUnidadeForm({ nome: unidade.nome, comarca: unidade.comarca, sistema: unidade.sistema || "solar", regional: unidade.regional || "" });
+      setUnidadeForm({
+        nome: unidade.nome,
+        comarca: unidade.comarca,
+        sistema: unidade.sistema || "solar",
+        regional: unidade.regional || "",
+      });
       setNovaUnidade(false);
     } else {
       setEditingUnidade(null);
@@ -199,7 +226,9 @@ export const GerenciarEquipe = () => {
       const savedUnidade = await response.json();
 
       if (isEdit) {
-        setUnidades(unidades.map((u) => (u.id === savedUnidade.id ? { ...u, ...savedUnidade } : u)));
+        setUnidades(
+          unidades.map((u) => (u.id === savedUnidade.id ? { ...u, ...savedUnidade } : u)),
+        );
         toast.success("Unidade atualizada!");
       } else {
         setUnidades([...unidades, { ...savedUnidade, total_membros: 0, total_casos: 0 }]);
@@ -234,7 +263,8 @@ export const GerenciarEquipe = () => {
 
   // --- DADOS FILTRADOS ---
   const usuariosFiltrados = usuarios.filter((u) => {
-    const matchUnidade = !filtroUnidade || u.unidade_nome?.toLowerCase().includes(filtroUnidade.toLowerCase());
+    const matchUnidade =
+      !filtroUnidade || u.unidade_nome?.toLowerCase().includes(filtroUnidade.toLowerCase());
     const matchCargo = !filtroCargo || u.cargo === filtroCargo;
     const matchBusca = !termoPesquisa || u.nome.toLowerCase().includes(termoPesquisa.toLowerCase());
     return matchUnidade && matchCargo && matchBusca;
@@ -310,7 +340,7 @@ export const GerenciarEquipe = () => {
             <h2 className="heading-3 flex items-center gap-2">
               <Users size={18} /> Membros Cadastrados
             </h2>
-            
+
             <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
               <div className="relative flex-1 sm:w-64">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -324,7 +354,10 @@ export const GerenciarEquipe = () => {
               </div>
 
               <div className="relative flex-1 sm:w-48">
-                <Building2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <Building2
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+                />
                 <input
                   type="text"
                   placeholder="Unidade..."
@@ -376,7 +409,9 @@ export const GerenciarEquipe = () => {
                     <td className="px-6 py-4 font-medium">{u.nome}</td>
                     <td className="px-6 py-4 text-muted">{u.email}</td>
                     <td className="px-6 py-4">
-                      <span className={`badge ${cargoBadge(u.cargo)}`}>{u.cargo.toUpperCase()}</span>
+                      <span className={`badge ${cargoBadge(u.cargo)}`}>
+                        {u.cargo.toUpperCase()}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-muted flex items-center gap-1">
@@ -386,15 +421,32 @@ export const GerenciarEquipe = () => {
                     </td>
                     <td className="px-6 py-4 text-right flex justify-end gap-3">
                       {/* Só mostra ações se o alvo for estritamente inferior (<) ou se eu for Admin */}
-                      {(user?.cargo?.toLowerCase() === "admin" || PESO_CARGO[user?.cargo?.toLowerCase()] > PESO_CARGO[u.cargo?.toLowerCase()]) ? (
+                      {user?.cargo?.toLowerCase() === "admin" ||
+                      PESO_CARGO[user?.cargo?.toLowerCase()] >
+                        PESO_CARGO[u.cargo?.toLowerCase()] ? (
                         <>
-                          <button onClick={() => handleEditClick(u)} className="text-blue-400 hover:text-blue-600" title="Editar">
+                          <button
+                            onClick={() => handleEditClick(u)}
+                            className="text-blue-400 hover:text-blue-600"
+                            title="Editar"
+                          >
                             <Edit size={16} />
                           </button>
-                          <button onClick={() => { setUserToReset(u); setNovaSenhaManual(""); }} className="text-amber-400 hover:text-amber-600" title="Resetar Senha">
+                          <button
+                            onClick={() => {
+                              setUserToReset(u);
+                              setNovaSenhaManual("");
+                            }}
+                            className="text-amber-400 hover:text-amber-600"
+                            title="Resetar Senha"
+                          >
                             <KeyRound size={16} />
                           </button>
-                          <button onClick={() => handleDeleteUser(u)} className="text-red-400 hover:text-red-600" title="Excluir Usuário">
+                          <button
+                            onClick={() => handleDeleteUser(u)}
+                            className="text-red-400 hover:text-red-600"
+                            title="Excluir Usuário"
+                          >
                             <Trash2 size={16} />
                           </button>
                         </>
@@ -420,23 +472,40 @@ export const GerenciarEquipe = () => {
                       <MapPin size={12} /> {u.unidade_nome || "Sem unidade"}
                     </p>
                   </div>
-                  <span className={`badge text-xs ${cargoBadge(u.cargo)}`}>{u.cargo.toUpperCase()}</span>
+                  <span className={`badge text-xs ${cargoBadge(u.cargo)}`}>
+                    {u.cargo.toUpperCase()}
+                  </span>
                 </div>
                 <div className="flex gap-2 pt-2 border-t border-soft/50">
-                  {(user?.cargo?.toLowerCase() === "admin" || PESO_CARGO[user?.cargo?.toLowerCase()] > PESO_CARGO[u.cargo?.toLowerCase()]) ? (
+                  {user?.cargo?.toLowerCase() === "admin" ||
+                  PESO_CARGO[user?.cargo?.toLowerCase()] > PESO_CARGO[u.cargo?.toLowerCase()] ? (
                     <>
-                      <button onClick={() => handleEditClick(u)} className="btn btn-ghost flex-1 justify-center text-sm text-blue-600 hover:bg-blue-50 h-10 px-2">
+                      <button
+                        onClick={() => handleEditClick(u)}
+                        className="btn btn-ghost flex-1 justify-center text-sm text-blue-600 hover:bg-blue-50 h-10 px-2"
+                      >
                         <Edit size={16} className="mr-2" /> Editar
                       </button>
-                      <button onClick={() => { setUserToReset(u); setNovaSenhaManual(""); }} className="btn btn-ghost flex-1 justify-center text-sm text-amber-600 hover:bg-amber-50 h-10 px-2">
+                      <button
+                        onClick={() => {
+                          setUserToReset(u);
+                          setNovaSenhaManual("");
+                        }}
+                        className="btn btn-ghost flex-1 justify-center text-sm text-amber-600 hover:bg-amber-50 h-10 px-2"
+                      >
                         <KeyRound size={16} className="mr-2" /> Senha
                       </button>
-                      <button onClick={() => handleDeleteUser(u)} className="btn btn-ghost flex-1 justify-center text-sm text-red-600 hover:bg-red-50 h-10 px-2">
+                      <button
+                        onClick={() => handleDeleteUser(u)}
+                        className="btn btn-ghost flex-1 justify-center text-sm text-red-600 hover:bg-red-50 h-10 px-2"
+                      >
                         <Trash2 size={16} className="mr-2" /> Excluir
                       </button>
                     </>
                   ) : (
-                    <p className="text-xs text-muted text-center w-full py-2">Sem permissão de gerenciamento</p>
+                    <p className="text-xs text-muted text-center w-full py-2">
+                      Sem permissão de gerenciamento
+                    </p>
                   )}
                 </div>
               </div>
@@ -463,7 +532,10 @@ export const GerenciarEquipe = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
               {unidades.map((u) => (
-                <div key={u.id} className="bg-surface border border-soft rounded-xl p-5 space-y-3 hover:border-primary/30 transition-all">
+                <div
+                  key={u.id}
+                  className="bg-surface border border-soft rounded-xl p-5 space-y-3 hover:border-primary/30 transition-all"
+                >
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-bold text-lg">{u.nome}</h3>
@@ -474,19 +546,31 @@ export const GerenciarEquipe = () => {
                         {u.regional || "Sem Regional"}
                       </p>
                     </div>
-                    <span className={`badge text-xs ${u.ativo ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                    <span
+                      className={`badge text-xs ${u.ativo ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+                    >
                       {u.ativo ? "ATIVA" : "INATIVA"}
                     </span>
                   </div>
                   <div className="flex gap-4 text-sm text-muted">
-                    <span><strong>{u.total_membros || 0}</strong> membros</span>
-                    <span><strong>{u.total_casos || 0}</strong> casos</span>
+                    <span>
+                      <strong>{u.total_membros || 0}</strong> membros
+                    </span>
+                    <span>
+                      <strong>{u.total_casos || 0}</strong> casos
+                    </span>
                   </div>
                   <div className="flex gap-2 pt-2 border-t border-soft/50">
-                    <button onClick={() => abrirFormUnidade(u)} className="btn btn-ghost flex-1 text-sm text-blue-600 hover:bg-blue-50 h-9 justify-center">
+                    <button
+                      onClick={() => abrirFormUnidade(u)}
+                      className="btn btn-ghost flex-1 text-sm text-blue-600 hover:bg-blue-50 h-9 justify-center"
+                    >
                       <Edit size={14} className="mr-1" /> Editar
                     </button>
-                    <button onClick={() => handleDeletarUnidade(u)} className="btn btn-ghost flex-1 text-sm text-red-600 hover:bg-red-50 h-9 justify-center">
+                    <button
+                      onClick={() => handleDeletarUnidade(u)}
+                      className="btn btn-ghost flex-1 text-sm text-red-600 hover:bg-red-50 h-9 justify-center"
+                    >
                       <Trash2 size={14} className="mr-1" /> Excluir
                     </button>
                   </div>
@@ -514,7 +598,9 @@ export const GerenciarEquipe = () => {
               <div>
                 <label className="label">Nome Completo</label>
                 <input
-                  type="text" required value={editForm.nome}
+                  type="text"
+                  required
+                  value={editForm.nome}
                   onChange={(e) => setEditForm({ ...editForm, nome: e.target.value })}
                   className="input"
                 />
@@ -522,18 +608,24 @@ export const GerenciarEquipe = () => {
               <div>
                 <label className="label">Email</label>
                 <input
-                  type="email" required value={editForm.email}
+                  type="email"
+                  required
+                  value={editForm.email}
                   onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                   className="input"
                 />
               </div>
               <div>
                 <label className="label">Cargo</label>
-                <select value={editForm.cargo} onChange={(e) => setEditForm({ ...editForm, cargo: e.target.value })} className="input">
+                <select
+                  value={editForm.cargo}
+                  onChange={(e) => setEditForm({ ...editForm, cargo: e.target.value })}
+                  className="input"
+                >
                   <option value="estagiario">Estagiário</option>
                   <option value="servidor">Servidor / Balcão</option>
                   <option value="defensor">Defensor</option>
-                  
+
                   {/* Filtro por hierarquia no Editar */}
                   {PESO_CARGO[user?.cargo?.toLowerCase()] > 1 && (
                     <option value="coordenador">Coordenador</option>
@@ -547,21 +639,44 @@ export const GerenciarEquipe = () => {
                   <option value="visualizador">Visualizador</option>
                 </select>
               </div>
-              <div>
-                <label className="label">Unidade</label>
-                <select
-                  value={editForm.unidade_id}
-                  onChange={(e) => setEditForm({ ...editForm, unidade_id: e.target.value })}
-                  className="input"
-                >
-                  <option value="">Sem unidade</option>
-                  {unidades.map((u) => (
-                    <option key={u.id} value={u.id}>{u.nome} — {u.comarca}</option>
-                  ))}
-                </select>
-              </div>
+              {editForm.cargo === "coordenador" ? (
+                <div>
+                  <label className="label">Regional</label>
+                  <select
+                    value={editForm.regional}
+                    onChange={(e) => setEditForm({ ...editForm, regional: e.target.value })}
+                    className="input"
+                  >
+                    {regionalOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="label">Unidade</label>
+                  <select
+                    value={editForm.unidade_id}
+                    onChange={(e) => setEditForm({ ...editForm, unidade_id: e.target.value })}
+                    className="input"
+                  >
+                    <option value="">Sem unidade</option>
+                    {unidades.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-              <button type="submit" disabled={loadingUpdate} className="btn btn-primary w-full flex items-center justify-center gap-2">
+              <button
+                type="submit"
+                disabled={loadingUpdate}
+                className="btn btn-primary w-full flex items-center justify-center gap-2"
+              >
                 <Save size={18} />
                 {loadingUpdate ? "Salvando..." : "Salvar Alterações"}
               </button>
@@ -592,7 +707,11 @@ export const GerenciarEquipe = () => {
                 autoFocus
               />
               <div className="flex gap-3">
-                <button type="button" onClick={() => setUserToReset(null)} className="btn btn-ghost flex-1 border border-soft">
+                <button
+                  type="button"
+                  onClick={() => setUserToReset(null)}
+                  className="btn btn-ghost flex-1 border border-soft"
+                >
                   Cancelar
                 </button>
                 <button type="submit" className="btn btn-primary flex-1">
@@ -609,9 +728,7 @@ export const GerenciarEquipe = () => {
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 px-4">
           <div className="bg-surface border border-soft p-8 rounded-2xl max-w-md w-full space-y-6 shadow-2xl animate-fade-in">
             <div className="flex justify-between items-center">
-              <h2 className="heading-2">
-                {editingUnidade ? "Editar Unidade" : "Nova Unidade"}
-              </h2>
+              <h2 className="heading-2">{editingUnidade ? "Editar Unidade" : "Nova Unidade"}</h2>
               <button onClick={fecharFormUnidade} className="text-muted hover:text-white">
                 <X size={24} />
               </button>
@@ -681,7 +798,11 @@ export const GerenciarEquipe = () => {
                 className="btn btn-primary w-full flex items-center justify-center gap-2"
               >
                 <Save size={18} />
-                {loadingUnidade ? "Salvando..." : editingUnidade ? "Salvar Alterações" : "Criar Unidade"}
+                {loadingUnidade
+                  ? "Salvando..."
+                  : editingUnidade
+                    ? "Salvar Alterações"
+                    : "Criar Unidade"}
               </button>
             </form>
           </div>

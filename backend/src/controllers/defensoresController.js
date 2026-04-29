@@ -28,7 +28,7 @@ export const registrarDefensor = async (req, res) => {
       });
     }
 
-    const { nome, email, senha, cargo = "servidor", unidade_id } = req.body;
+    const { nome, email, senha, cargo = "servidor", unidade_id, regional } = req.body;
 
     const normalizedCargoInput = (cargo || "servidor").toString().toLowerCase();
     // Validação de Hierarquia Estrita: não pode criar cargo superior ou igual ao seu (exceto Admin)
@@ -91,7 +91,8 @@ export const registrarDefensor = async (req, res) => {
         email,
         senha_hash,
         cargo_id: cargoDb.id,
-        unidade_id: unidade_id || null,
+        unidade_id: normalizedCargoInput === "coordenador" ? null : unidade_id,
+        regional: normalizedCargoInput === "coordenador" ? regional : null,
       },
       include: {
         cargo: true,
@@ -339,7 +340,7 @@ export const atualizarDefensor = async (req, res) => {
       return res.status(403).json({ error: "Acesso negado. Apenas administradores podem editar outros administradores." });
     }
 
-    const { nome, email, cargo, ativo, unidade_id } = req.body;
+    const { nome, email, cargo, ativo, unidade_id, regional } = req.body;
 
     // 3. Validação do novo cargo (se houver tentativa de mudança)
     if (cargo) {
@@ -354,8 +355,16 @@ export const atualizarDefensor = async (req, res) => {
     }
 
     let updateData = { nome, email, ativo };
-    if (unidade_id !== undefined) {
-      updateData.unidade_id = unidade_id || null; // null = remover unidade
+    const targetCargoText = (cargo || req.user.cargo).toString().toLowerCase();
+
+    if (targetCargoText === "coordenador") {
+      updateData.unidade_id = null;
+      updateData.regional = regional || null;
+    } else {
+      updateData.regional = null;
+      if (unidade_id !== undefined) {
+        updateData.unidade_id = unidade_id || null; // null = remover unidade
+      }
     }
 
     if (cargo) {

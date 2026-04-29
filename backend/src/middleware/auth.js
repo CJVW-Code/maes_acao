@@ -42,6 +42,7 @@ export const authMiddleware = async (req, res, next) => {
       cargo: (profile.cargo?.nome || "visualizador").toLowerCase(),
       unidade_id: profile.unidade_id,
       unidade_nome: profile.unidade?.nome,
+      regional: profile.regional,
     };
 
     next();
@@ -79,6 +80,7 @@ export const validateDownloadTicket = async (req, res, next) => {
       email: decoded.user.email,
       cargo: (decoded.user.cargo || "visualizador").toLowerCase(),
       unidade_id: decoded.user.unidade_id,
+      regional: decoded.user.regional,
     };
 
     // Expõe metadados do ticket para uso pelos controllers de download

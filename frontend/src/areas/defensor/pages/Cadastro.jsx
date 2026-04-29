@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { UserPlus, Shield, Eye, EyeOff, Loader2, MapPin } from "lucide-react";
+import { regionalOptions } from "../../../utils/formOptions";
 import { API_BASE } from "../../../utils/apiBase";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -23,6 +24,7 @@ export const Cadastro = () => {
   const [senha, setSenha] = useState("");
   const [cargo, setCargo] = useState("estagiario");
   const [unidadeId, setUnidadeId] = useState("");
+  const [regional, setRegional] = useState("");
   const [unidades, setUnidades] = useState([]);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
@@ -80,8 +82,13 @@ export const Cadastro = () => {
     setError(null);
     setSuccess(null);
 
-    if (!unidadeId) {
+    if (cargo !== 'coordenador' && !unidadeId) {
       setError("Selecione a unidade do novo membro.");
+      return;
+    }
+    
+    if (cargo === 'coordenador' && !regional) {
+      setError("Selecione a regional de coordenação.");
       return;
     }
 
@@ -93,7 +100,7 @@ export const Cadastro = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ nome, email, senha, cargo, unidade_id: unidadeId }),
+        body: JSON.stringify({ nome, email, senha, cargo, unidade_id: unidadeId, regional }),
       });
       const data = await response.json();
 
@@ -193,52 +200,69 @@ export const Cadastro = () => {
                 onChange={(e) => setCargo(e.target.value)}
                 className="input"
               >
-                {/* Opções filtradas por hierarquia */}
                 <option value="estagiario">Estagiário</option>
                 <option value="servidor">Servidor / Balcão</option>
                 <option value="defensor">Defensor</option>
                 
-                {/* Coordenador só pode ser criado por Gestor ou Admin */}
                 {PESO_CARGO[user?.cargo?.toLowerCase()] > 1 && (
                   <option value="coordenador">Coordenador</option>
                 )}
                 
-                {/* Gestor só pode ser criado por Admin */}
                 {PESO_CARGO[user?.cargo?.toLowerCase()] > 2 && (
                   <option value="gestor">Defensor Geral (Gestor)</option>
                 )}
 
-                {/* Admin só pode ser criado por Admin */}
                 {user?.cargo?.toLowerCase() === "admin" && (
                   <option value="admin">Administrador</option>
                 )}
               </select>
             </div>
 
-            {/* SELETOR DE UNIDADE */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted flex items-center gap-1">
-                <MapPin size={14} /> Unidade *
-              </label>
-              <select
-                value={unidadeId}
-                onChange={(e) => setUnidadeId(e.target.value)}
-                className="input border-primary/50"
-                required
-              >
-                <option value="">Selecione a unidade</option>
-                {unidades.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.nome} — {u.comarca} {u.regional ? `(${u.regional})` : ""}
-                  </option>
-                ))}
-              </select>
-              {unidades.length === 0 && (
-                <p className="text-xs text-error">
-                  Nenhuma unidade cadastrada. Cadastre uma unidade antes de criar um membro.
-                </p>
-              )}
-            </div>
+            {/* SELEÇÃO CONDICIONAL DE UNIDADE OU REGIONAL */}
+            {cargo === "coordenador" ? (
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                  <MapPin size={16} className="text-primary" />
+                  Regional de Coordenação
+                </label>
+                <select
+                  value={regional}
+                  onChange={(e) => setRegional(e.target.value)}
+                  className="input"
+                >
+                  <option value="">Selecione uma regional</option>
+                  {regionalOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                  <MapPin size={16} className="text-primary" />
+                  Unidade / Lotação
+                </label>
+                <select
+                  value={unidadeId}
+                  onChange={(e) => setUnidadeId(e.target.value)}
+                  className="input"
+                >
+                  <option value="">Selecione a unidade</option>
+                  {unidades.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.nome}
+                    </option>
+                  ))}
+                </select>
+                {unidades.length === 0 && (
+                  <p className="text-xs text-error">
+                    Nenhuma unidade cadastrada. Cadastre uma unidade antes de criar um membro.
+                  </p>
+                )}
+              </div>
+            )}
 
             {error && <p className="alert alert-error">{error}</p>}
             {success && <p className="alert alert-success">{success}</p>}

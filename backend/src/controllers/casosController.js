@@ -3088,13 +3088,10 @@ export const listarCasos = async (req, res) => {
     // 1. Filtro de base (Regional para Coordenador, Unidade para outros)
     let baseFilter = {};
     if (userCargo === "coordenador") {
-      const userUnidade = await prisma.unidades.findUnique({
-        where: { id: req.user.unidade_id },
-        select: { regional: true },
-      });
-      if (userUnidade?.regional) {
-        baseFilter.unidade = { regional: userUnidade.regional };
+      if (req.user.regional) {
+        baseFilter.unidade = { regional: req.user.regional };
       } else {
+        // Fallback de segurança: se a regional não estiver no perfil, restringe à unidade dele
         baseFilter.unidade_id = req.user.unidade_id;
       }
     } else if (userCargo !== "admin" && userCargo !== "gestor") {
@@ -3104,7 +3101,7 @@ export const listarCasos = async (req, res) => {
     // 2. Filtros de Unidade/Regional
     let whereClause = { arquivado: arquivadoBool, ...baseFilter };
 
-    if (userCargo === "admin" || userCargo === "gestor") {
+    if (userCargo === "admin" || userCargo === "gestor" || userCargo === "coordenador") {
       if (unidade_id && unidade_id !== "todas") {
         whereClause.unidade_id = unidade_id;
       }
@@ -3205,14 +3202,8 @@ export const resumoCasos = async (req, res) => {
     // Filtro por unidade/regional
     if (req.user && !["admin", "gestor"].includes(cargoNormalizado)) {
       if (cargoNormalizado === "coordenador") {
-        // Coordenador vê tudo da sua regional
-        const userUnidade = await prisma.unidades.findUnique({
-          where: { id: req.user.unidade_id },
-          select: { regional: true },
-        });
-
-        if (userUnidade?.regional) {
-          whereClause.unidade = { regional: userUnidade.regional };
+        if (req.user.regional) {
+          whereClause.unidade = { regional: req.user.regional };
         } else {
           whereClause.unidade_id = req.user.unidade_id;
         }
@@ -3419,7 +3410,7 @@ export const obterDetalhesCaso = async (req, res) => {
 
     // --- Lógica de Travamento (Locking) e Vínculo Automático ---
     const userCargo = req.user.cargo.toLowerCase();
-    const isPowerUser = ["admin", "gestor"].includes(userCargo);
+    const isObserver = ["admin", "gestor", "coordenador", "visualizador"].includes(userCargo);
 
     // [EIXO 1] Lock Permanente: Uma vez vinculado, apenas o dono ou Admin acessa.
     // Não expira em 30 min. Somente Admin pode liberar via /unlock.
@@ -3442,7 +3433,7 @@ export const obterDetalhesCaso = async (req, res) => {
       });
     }
 
-    if (!isPowerUser && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
+    if (!isObserver && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
       const holderName = data.defensor?.nome || data.servidor?.nome || "outro usuário";
       const holderId = data.defensor_id || data.servidor_id;
       logger.warn(
@@ -3457,7 +3448,7 @@ export const obterDetalhesCaso = async (req, res) => {
 
     // Vínculo Automático (Apenas para o dono primário, colaboradores NÃO vinculam irmãos)
     // SEGURANÇA: Só pode assumir a autoria de um caso se ele pertencer à sua própria unidade.
-    if (!isPowerUser && !data.defensor_id && !data.servidor_id && !isShared) {
+    if (!isObserver && !data.defensor_id && !data.servidor_id && !isShared) {
       if (String(req.user.unidade_id) !== String(data.unidade_id)) {
         return res.status(403).json({
           error: "Acesso Negado",
