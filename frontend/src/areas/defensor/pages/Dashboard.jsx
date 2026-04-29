@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { authFetch } from "../../../utils/apiBase";
 import useSWR from "swr";
+import { useToast } from "../../../contexts/ToastContext";
+import { Loader2 } from "lucide-react";
 
 // Fetcher leve: usa /casos/resumo — retorna apenas contagens (sem PII)
 const fetcherResumo = async (url) => {
@@ -69,9 +71,11 @@ const summaryFilterLabels = {
 export const Dashboard = () => {
   const { token, user, notificacoes, marcarNotificacaoLida, permissions } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [processingAssistencia, setProcessingAssistencia] = useState({});
 
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(() => {
     return localStorage.getItem("dashboard_sidebar_minimized") === "true";
@@ -150,22 +154,30 @@ export const Dashboard = () => {
     setStatusFilter((previous) => (previous === key ? null : key));
   };
 
-  const handleResponderAssistencia = (alerta, aceito) => {
-    // Ação não bloqueante: Marca como lida e navega imediatamente se aceito
-    marcarNotificacaoLida(alerta.id).catch(console.error);
-    
-    if (aceito && alerta.link) {
-      navigate(alerta.link);
-    }
+  const handleResponderAssistencia = async (alerta, aceito) => {
+    setProcessingAssistencia((prev) => ({ ...prev, [alerta.id]: aceito ? "accepting" : "rejecting" }));
+    try {
+      const response = await authFetch(`/casos/assistencia/${alerta.referencia_id}/responder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aceito }),
+      });
 
-    // Executa a chamada ao backend em background
-    authFetch(`/casos/assistencia/${alerta.referencia_id}/responder`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ aceito }),
-    }).catch(error => {
+      if (!response.ok) throw new Error("Falha ao responder à assistência.");
+
+      await marcarNotificacaoLida(alerta.id);
+      
+      if (aceito && alerta.link) {
+        navigate(alerta.link);
+      } else {
+        toast.success("Solicitação recusada com sucesso.");
+      }
+    } catch (error) {
       console.error("Erro ao responder assistência:", error);
-    });
+      toast.error("Erro ao processar assistência. Tente novamente.");
+    } finally {
+      setProcessingAssistencia((prev) => ({ ...prev, [alerta.id]: null }));
+    }
   };
 
   if (resumoError || casosError) {
@@ -599,15 +611,31 @@ export const Dashboard = () => {
                       <div className="flex gap-3 mt-4">
                         <button
                           onClick={() => handleResponderAssistencia(alerta, true)}
-                          className="btn btn-primary btn-sm flex-1 shadow-soft"
+                          disabled={!!processingAssistencia[alerta.id]}
+                          className={`btn btn-primary btn-sm flex-1 shadow-soft ${
+                            processingAssistencia[alerta.id] ? "opacity-50 cursor-not-allowed" : ""
+                          }`}
                         >
-                          <CheckCircle2 size={14} /> Aceitar
+                          {processingAssistencia[alerta.id] === "accepting" ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <CheckCircle2 size={14} />
+                          )}
+                          Aceitar
                         </button>
                         <button
                           onClick={() => handleResponderAssistencia(alerta, false)}
-                          className="btn btn-ghost btn-sm flex-1 border border-error/20 text-error hover:bg-error/5 shadow-soft"
+                          disabled={!!processingAssistencia[alerta.id]}
+                          className={`btn btn-ghost btn-sm flex-1 border border-error/20 text-error hover:bg-error/5 shadow-soft ${
+                            processingAssistencia[alerta.id] ? "opacity-50 cursor-not-allowed" : ""
+                          }`}
                         >
-                          <X size={14} /> Recusar
+                          {processingAssistencia[alerta.id] === "rejecting" ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <X size={14} />
+                          )}
+                          Recusar
                         </button>
                       </div>
                     ) : (

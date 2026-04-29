@@ -286,6 +286,7 @@ const mapCasoRelations = (caso) => {
     enriched.conta_deposito = numero;
 
     // Novos campos de Fixação
+    enriched.opcao_guarda = juridico?.opcao_guarda || dadosFormulario?.opcao_guarda || "";
     enriched.guarda =
       juridico.descricao_guarda || dadosFormulario.guarda || dadosFormulario.descricao_guarda || "";
     enriched.descricao_guarda = enriched.guarda;
@@ -4087,14 +4088,18 @@ export const gerarTermoDeclaracao = async (req, res) => {
     // [SEGURANÇA] Lógica de Locking e Autorização
     const userCargo = req.user.cargo.toLowerCase();
     const isAdmin = userCargo === "admin";
+    const isGestor = userCargo === "gestor";
     const isDono = String(caso.defensor_id) === String(req.user.id) || String(caso.servidor_id) === String(req.user.id);
     const isShared = (caso.assistencia_casos || []).length > 0;
+    const lockAtivo = !isDono && (caso.defensor_id || caso.servidor_id);
 
     if (!isAdmin && !isDono && !isShared) {
-      return res.status(423).json({
-        error: "Caso bloqueado",
-        message: "Apenas o profissional responsável ou colaboradores autorizados podem gerar documentos para este caso.",
-      });
+      if (!isGestor || lockAtivo) {
+        return res.status(423).json({
+          error: "Caso bloqueado",
+          message: "Acesso negado. Caso bloqueado por outro usuário ou você não tem permissão.",
+        });
+      }
     }
 
     // Dados base consolidados para o Payload Builder
@@ -4191,17 +4196,22 @@ export const regerarMinuta = async (req, res) => {
     });
     if (!dataRaw) throw new Error("Caso não encontrado");
 
-    // 1. Permissões: Admin sempre pode. Dono ou Assistente (Compartilhado) também.
-    const isAdmin = req.user.cargo.toLowerCase() === "admin";
+    // 1. Permissões: Admin sempre pode. Dono ou Assistente (Compartilhado) também. Gestor pode se não houver lock.
+    const userCargo = req.user.cargo.toLowerCase();
+    const isAdmin = userCargo === "admin";
+    const isGestor = userCargo === "gestor";
     const isDono =
       String(dataRaw.defensor_id) === String(req.user.id) ||
       String(dataRaw.servidor_id) === String(req.user.id);
     const isShared = (dataRaw.assistencia_casos || []).length > 0;
+    const lockAtivo = !isDono && (dataRaw.defensor_id || dataRaw.servidor_id);
 
     if (!isAdmin && !isDono && !isShared) {
-      return res.status(403).json({
-        error: "Acesso negado. Você não tem permissão para regerar a minuta deste caso.",
-      });
+      if (!isGestor || lockAtivo) {
+        return res.status(403).json({
+          error: "Acesso negado. Você não tem permissão para regerar a minuta deste caso ou ele está bloqueado.",
+        });
+      }
     }
 
     const caso = mapCasoRelations(dataRaw);

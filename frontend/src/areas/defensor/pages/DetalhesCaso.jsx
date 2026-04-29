@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -166,7 +166,6 @@ export const DetalhesCaso = () => {
   const [arquivoCapa, setArquivoCapa] = useState(null);
   const [enviandoFinalizacao, setEnviandoFinalizacao] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [feedbackInitialized, setFeedbackInitialized] = useState(false);
   const [isGeneratingTermo, setIsGeneratingTermo] = useState(false);
   const [isRegeneratingMinuta, setIsRegeneratingMinuta] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
@@ -193,6 +192,7 @@ export const DetalhesCaso = () => {
   const [autosType, setAutosType] = useState(null); // 'apartados' ou 'proprios_autos'
   const [autosSubtype, setAutosSubtype] = useState(null); // 'provisorio' ou 'definitivo'
   const [isDistribuirOpen, setIsDistribuirOpen] = useState(false);
+  const currentCaseIdRef = useRef(null);
 
   // Novos campos financeiros para rito cumulado
   const [debitoPenhoraValor, setDebitoPenhoraValor] = useState("");
@@ -1023,32 +1023,30 @@ export const DetalhesCaso = () => {
 
   // 2. Preenchimento de datas e formulários após o caso carregar
   useEffect(() => {
-    if (caso) {
-      if (!feedbackInitialized) {
-        setFeedback(caso.feedback || "");
-        setPendenciaTexto(caso.descricao_pendencia || "");
-        setNumSolar(caso.numero_solar || "");
-        setMemoriaCalculo(caso.juridico?.memoria_calculo || "");
-        setDebitoPenhoraValor(caso.juridico?.debito_penhora_valor || "");
-        setDebitoPenhoraExtenso(caso.juridico?.debito_penhora_extenso || "");
-        setDebitoPrisaoValor(caso.juridico?.debito_prisao_valor || "");
-        setDebitoPrisaoExtenso(caso.juridico?.debito_prisao_extenso || "");
+    if (caso && caso.id !== currentCaseIdRef.current) {
+      setFeedback(caso.feedback || "");
+      setPendenciaTexto(caso.descricao_pendencia || "");
+      setNumSolar(caso.numero_solar || "");
+      setMemoriaCalculo(caso.juridico?.memoria_calculo || "");
+      setDebitoPenhoraValor(caso.juridico?.debito_penhora_valor || "");
+      setDebitoPenhoraExtenso(caso.juridico?.debito_penhora_extenso || "");
+      setDebitoPrisaoValor(caso.juridico?.debito_prisao_valor || "");
+      setDebitoPrisaoExtenso(caso.juridico?.debito_prisao_extenso || "");
 
-        // Inicialização dos novos campos
-        setContaBanco(caso.juridico?.conta_banco || "");
-        setContaAgencia(caso.juridico?.conta_agencia || "");
-        setContaOperacao(caso.juridico?.conta_operacao || "");
-        setContaNumero(caso.juridico?.conta_numero || "");
-        setVencimentoDia(caso.juridico?.vencimento_dia || "");
-        setDescricaoGuarda(caso.juridico?.descricao_guarda || "");
-        setBensPartilha(caso.juridico?.bens_partilha || "");
-        setSituacaoFinanceiraGenitora(caso.juridico?.situacao_financeira_genitora || "");
-        setOpcaoGuarda(caso.juridico?.opcao_guarda || "");
+      // Inicialização dos novos campos
+      setContaBanco(caso.juridico?.conta_banco || "");
+      setContaAgencia(caso.juridico?.conta_agencia || "");
+      setContaOperacao(caso.juridico?.conta_operacao || "");
+      setContaNumero(caso.juridico?.conta_numero || "");
+      setVencimentoDia(caso.juridico?.vencimento_dia || "");
+      setDescricaoGuarda(caso.juridico?.descricao_guarda || "");
+      setBensPartilha(caso.juridico?.bens_partilha || "");
+      setSituacaoFinanceiraGenitora(caso.juridico?.situacao_financeira_genitora || "");
+      setOpcaoGuarda(caso.juridico?.opcao_guarda || "");
 
-        setFeedbackInitialized(true);
-      }
+      currentCaseIdRef.current = caso.id;
     }
-  }, [caso, feedbackInitialized]);
+  }, [caso]);
 
   if (isLoading) {
     return <div className="card text-center text-muted">Carregando detalhes...</div>;

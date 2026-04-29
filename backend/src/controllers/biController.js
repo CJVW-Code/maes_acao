@@ -39,14 +39,14 @@ const verificarBloqueioHorario = async (user) => {
 
   if (overrideAtivo) {
     console.log(
-      `[BI-Auth] ✅ Liberado por Override ativo (ID: ${overrideAtivo.id}) para ${user.email}`,
+      `[BI-Auth] ✅ Liberado por Override ativo (ID: ${overrideAtivo.id}) para User ID: ${user.id}`,
     );
     return { bloqueado: false };
   }
 
   // 1. Bloqueio Manual Global (Admin)
   if (configs.bi_bloqueado === "true") {
-    console.log(`[BI-Auth] ❌ Bloqueado Manualmente para ${user.email}`);
+    console.log(`[BI-Auth] ❌ Bloqueado Manualmente para User ID: ${user.id}`);
     return {
       bloqueado: true,
       mensagem: "Acesso ao BI bloqueado manualmente pela administração.",
@@ -57,7 +57,7 @@ const verificarBloqueioHorario = async (user) => {
   const timezone = configs.bi_timezone || "America/Bahia";
 
   if (biHorarios.length === 0) {
-    console.log(`[BI-Auth] ❌ Bloqueado: Nenhuma janela configurada para ${user.email}`);
+    console.log(`[BI-Auth] ❌ Bloqueado: Nenhuma janela configurada para User ID: ${user.id}`);
     return {
       bloqueado: true,
       mensagem:
@@ -99,7 +99,7 @@ const verificarBloqueioHorario = async (user) => {
       .map((j) => `${j.dia || "todos"}: ${j.inicio}-${j.fim}`)
       .join(", ");
     console.log(
-      `[BI-Auth] ❌ Bloqueado: Fora do horário (${horaAtualStr}) para ${user.email}. Janelas: ${formatarJanelas}`,
+      `[BI-Auth] ❌ Bloqueado: Fora do horário (${horaAtualStr}) para User ID: ${user.id}. Janelas: ${formatarJanelas}`,
     );
     return {
       bloqueado: true,
@@ -107,7 +107,7 @@ const verificarBloqueioHorario = async (user) => {
     };
   }
 
-  console.log(`[BI-Auth] ✅ Liberado por Janela de Horário para ${user.email}`);
+  console.log(`[BI-Auth] ✅ Liberado por Janela de Horário para User ID: ${user.id}`);
   return { bloqueado: false };
 };
 
@@ -360,7 +360,11 @@ const montarRelatorio = async (
 
   const unidades =
     preFetchedUnidades
-      ? preFetchedUnidades.filter(u => requestedRegional === "todas" || u.regional === requestedRegional)
+      ? preFetchedUnidades.filter(
+          (u) =>
+            (requestedRegional === "todas" || u.regional === requestedRegional) &&
+            (unidadeId === "todas" || u.id === unidadeId)
+        )
       : (await prisma.unidades.findMany({
           where: {
             ativo: true,
@@ -919,17 +923,17 @@ export const createOverride = async (req, res) => {
         update: { valor: JSON.stringify(novosOverrides) },
         create: { chave: "bi_overrides", valor: JSON.stringify(novosOverrides) },
       });
+
+      await tx.logs_auditoria.create({
+        data: {
+          usuario_id: req.user.id,
+          acao: "bi_override_criado",
+          detalhes: { override_id: novoOverride.id, horas, motivo },
+        },
+      });
     });
 
     invalidarCache();
-
-    await prisma.logs_auditoria.create({
-      data: {
-        usuario_id: req.user.id,
-        acao: "bi_override_criado",
-        detalhes: { override_id: novoOverride.id, horas, motivo },
-      },
-    });
 
     res.status(201).json(novoOverride);
   } catch (error) {
@@ -957,6 +961,15 @@ export const deleteOverride = async (req, res) => {
         where: { chave: "bi_overrides" },
         data: { valor: JSON.stringify(novosOverrides) },
       });
+
+      await tx.logs_auditoria.create({
+        data: {
+          usuario_id: req.user.id,
+          acao: "bi_override_removido",
+          detalhes: { override_id: id },
+        },
+      });
+
       removed = true;
     });
 
@@ -965,14 +978,6 @@ export const deleteOverride = async (req, res) => {
     }
 
     invalidarCache();
-
-    await prisma.logs_auditoria.create({
-      data: {
-        usuario_id: req.user.id,
-        acao: "bi_override_removido",
-        detalhes: { override_id: id },
-      },
-    });
 
     res.status(200).json({ message: "Registro removido com sucesso." });
   } catch (error) {

@@ -140,7 +140,7 @@ export const DocumentUpload = ({
     return [
       {
         id: `rg_filho_${slotKey}_frente`,
-        label: `RG${safeName} (Frente)`,
+        label: `RG/CPF${safeName} (Frente)`,
         accept: "image/*,.pdf",
         required: false,
         context: "extra_child",
@@ -148,7 +148,7 @@ export const DocumentUpload = ({
       },
       {
         id: `rg_filho_${slotKey}_verso`,
-        label: `RG${safeName} (Verso)`,
+        label: `RG/CPF${safeName} (Verso)`,
         accept: "image/*,.pdf",
         required: false,
         context: "extra_child",

@@ -30,12 +30,13 @@ export const registrarDefensor = async (req, res) => {
 
     const { nome, email, senha, cargo = "servidor", unidade_id } = req.body;
 
+    const normalizedCargoInput = (cargo || "servidor").toString().toLowerCase();
     // Validação de Hierarquia Estrita: não pode criar cargo superior ou igual ao seu (exceto Admin)
-    const targetWeight = PESO_CARGO[cargo.toLowerCase()] ?? 0;
+    const targetWeight = PESO_CARGO[normalizedCargoInput] ?? 0;
     const myWeight = PESO_CARGO[userCargo] ?? 0;
     
     // Regra: Somente admin pode criar admin. Outros só criam quem é estritamente inferior (<).
-    const isPromotingToAdmin = cargo.toLowerCase() === "admin";
+    const isPromotingToAdmin = normalizedCargoInput === "admin";
     const isSelfAdmin = userCargo === "admin";
 
     if ((isPromotingToAdmin && !isSelfAdmin) || (!isSelfAdmin && targetWeight >= myWeight)) {
@@ -73,7 +74,7 @@ export const registrarDefensor = async (req, res) => {
     }
 
     const cargoDb = await prisma.cargos.findFirst({
-      where: { nome: cargo.toLowerCase() },
+      where: { nome: normalizedCargoInput },
     });
 
     if (!cargoDb) {
@@ -303,31 +304,26 @@ export const atualizarDefensor = async (req, res) => {
 
     const { id } = req.params;
 
+    // Validação de Hierarquia: busca o membro alvo para checar o cargo atual
+    const targetMemberFull = await prisma.defensores.findUnique({
+      where: { id },
+      include: { cargo: true, unidade: true }
+    });
+
+    if (!targetMemberFull) {
+      return res.status(404).json({ error: "Membro não encontrado." });
+    }
+
     // Se for coordenador, valida se o membro alvo pertence à sua regional
     if (userCargo === "coordenador") {
-      const targetMember = await prisma.defensores.findUnique({
-        where: { id },
-        include: { unidade: true }
-      });
-      
       const userUnidade = await prisma.unidades.findUnique({
         where: { id: req.user.unidade_id },
         select: { regional: true }
       });
 
-      if (targetMember?.unidade?.regional !== userUnidade?.regional) {
+      if (targetMemberFull.unidade?.regional !== userUnidade?.regional) {
         return res.status(403).json({ error: "Você só pode editar membros da sua regional." });
       }
-    }
-
-    // Validação de Hierarquia: busca o membro alvo para checar o cargo atual
-    const targetMemberFull = await prisma.defensores.findUnique({
-      where: { id },
-      include: { cargo: true }
-    });
-
-    if (!targetMemberFull) {
-      return res.status(404).json({ error: "Membro não encontrado." });
     }
 
     const myWeight = PESO_CARGO[userCargo] ?? 0;
@@ -347,8 +343,9 @@ export const atualizarDefensor = async (req, res) => {
 
     // 3. Validação do novo cargo (se houver tentativa de mudança)
     if (cargo) {
-      const newWeight = PESO_CARGO[cargo.toLowerCase()] ?? 0;
-      const isSettingAdmin = cargo.toLowerCase() === "admin";
+      const normalizedCargoInput = cargo.toString().toLowerCase();
+      const newWeight = PESO_CARGO[normalizedCargoInput] ?? 0;
+      const isSettingAdmin = normalizedCargoInput === "admin";
       
       if ((isSettingAdmin && userCargo !== "admin") || (userCargo !== "admin" && newWeight >= myWeight)) {
         logger.warn(`Tentativa de promoção indevida: Usuário ${req.user.id} tentou mudar cargo de ${id} para ${cargo}`);
@@ -363,7 +360,7 @@ export const atualizarDefensor = async (req, res) => {
 
     if (cargo) {
       const cargoDb = await prisma.cargos.findFirst({
-        where: { nome: cargo.toLowerCase() },
+        where: { nome: cargo.toString().toLowerCase() },
       });
       if (!cargoDb) return res.status(400).json({ error: "Cargo inválido." });
       updateData.cargo_id = cargoDb.id;
@@ -401,31 +398,26 @@ export const deletarDefensor = async (req, res) => {
       return res.status(400).json({ error: "Você não pode excluir seu próprio usuário." });
     }
 
+    // Validação de Hierarquia: busca o membro alvo para checar o cargo atual
+    const targetMemberFull = await prisma.defensores.findUnique({
+      where: { id },
+      include: { cargo: true, unidade: true }
+    });
+
+    if (!targetMemberFull) {
+      return res.status(404).json({ error: "Membro não encontrado." });
+    }
+
     // Se for coordenador, valida se o membro alvo pertence à sua regional
     if (userCargo === "coordenador") {
-      const targetMember = await prisma.defensores.findUnique({
-        where: { id },
-        include: { unidade: true }
-      });
-      
       const userUnidade = await prisma.unidades.findUnique({
         where: { id: req.user.unidade_id },
         select: { regional: true }
       });
 
-      if (targetMember?.unidade?.regional !== userUnidade?.regional) {
+      if (targetMemberFull.unidade?.regional !== userUnidade?.regional) {
         return res.status(403).json({ error: "Você só pode excluir membros da sua regional." });
       }
-    }
-
-    // Validação de Hierarquia: busca o membro alvo para checar o cargo atual
-    const targetMemberFull = await prisma.defensores.findUnique({
-      where: { id },
-      include: { cargo: true }
-    });
-
-    if (!targetMemberFull) {
-      return res.status(404).json({ error: "Membro não encontrado." });
     }
 
     const myWeight = PESO_CARGO[userCargo] ?? 0;
