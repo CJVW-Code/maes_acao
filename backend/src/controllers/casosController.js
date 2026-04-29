@@ -241,6 +241,12 @@ const mapCasoRelations = (caso) => {
       dadosFormulario.valor_debito ||
       dadosFormulario.valor_total_debito_execucao ||
       "";
+    enriched.valor_mensal_pensao =
+      juridico.debito_valor ||
+      dadosFormulario.valor_mensal_pensao ||
+      dadosFormulario.valor_pensao ||
+      "";
+    enriched.valor_pensao = enriched.valor_mensal_pensao;
     enriched.valor_debito_extenso =
       juridico.debito_extenso || dadosFormulario.valor_debito_extenso || "";
     enriched.valor_debito_penhora =
@@ -642,7 +648,8 @@ const buildDadosFormularioFallback = (caso = {}) => {
     endereco_requerido: lookup.endereco_requerido || lookup.executado_endereco_residencial || "",
     executado_endereco_residencial:
       lookup.executado_endereco_residencial || lookup.endereco_requerido || "",
-    valor_pensao: formatCurrencyBr(lookup.valor_pensao_solicitado) || "",
+    valor_pensao: formatCurrencyBr(lookup.valor_mensal_pensao || lookup.valor_pensao) || "",
+    valor_mensal_pensao: lookup.valor_mensal_pensao || lookup.valor_pensao || "",
     percentual_salario_minimo: lookup.percentual_salario_minimo || "",
     dia_pagamento: lookup.dia_pagamento || lookup.dia_pagamento_fixado || "",
     valor_debito: lookup.valor_debito || "",
