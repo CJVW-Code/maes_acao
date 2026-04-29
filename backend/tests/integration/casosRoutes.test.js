@@ -24,7 +24,7 @@ const mockPrismaCasos = {
 jest.unstable_mockModule("../../src/config/prisma.js", () => ({
   prisma: {
     defensores: mockPrismaDefensores,
-    unidades: { findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: 1 }) },
+    unidades: { findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: "00000000-0000-0000-0000-000000000001" }) },
     casos: mockPrismaCasos,
     casos_partes: { findMany: jest.fn().mockResolvedValue([]) },
     casos_ia: { upsert: jest.fn().mockResolvedValue({}) },
