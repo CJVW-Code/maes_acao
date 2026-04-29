@@ -362,7 +362,7 @@ const montarRelatorio = async (
     preFetchedUnidades
       ? preFetchedUnidades.filter(
           (u) =>
-            (requestedRegional === "todas" || u.regional === requestedRegional) &&
+            (requestedRegional === "todas" || (u.regional && u.regional === requestedRegional)) &&
             (unidadeId === "todas" || u.id === unidadeId)
         )
       : (await prisma.unidades.findMany({
@@ -803,7 +803,7 @@ export const exportarXlsxLote = async (req, res) => {
   try {
     const unidades = await prisma.unidades.findMany({
       where: { ativo: true },
-      select: { id: true, nome: true, comarca: true },
+      select: { id: true, nome: true, comarca: true, regional: true },
       orderBy: { nome: "asc" },
     });
 

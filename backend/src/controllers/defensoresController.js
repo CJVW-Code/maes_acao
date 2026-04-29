@@ -28,11 +28,18 @@ export const registrarDefensor = async (req, res) => {
       });
     }
 
-    const { nome, email, senha, cargo = "servidor", unidade_id, regional } = req.body;
+    const { nome, senha, cargo = "servidor", unidade_id, regional } = req.body;
+    let { email } = req.body;
+    if (email) email = email.trim().toLowerCase();
 
     const normalizedCargoInput = (cargo || "servidor").toString().toLowerCase();
-    // Validação de Hierarquia Estrita: não pode criar cargo superior ou igual ao seu (exceto Admin)
-    const targetWeight = PESO_CARGO[normalizedCargoInput] ?? 0;
+    
+    // Fail-closed: se o cargo não existir no mapeamento de peso, rejeita
+    if (!(normalizedCargoInput in PESO_CARGO)) {
+      return res.status(403).json({ error: "Cargo inválido ou não permitido." });
+    }
+
+    const targetWeight = PESO_CARGO[normalizedCargoInput];
     const myWeight = PESO_CARGO[userCargo] ?? 0;
     
     // Regra: Somente admin pode criar admin. Outros só criam quem é estritamente inferior (<).
@@ -325,10 +332,26 @@ export const atualizarDefensor = async (req, res) => {
       if (targetMemberFull.unidade?.regional !== userUnidade?.regional) {
         return res.status(403).json({ error: "Você só pode editar membros da sua regional." });
       }
+
+      // Validação Adicional: se estiver mudando a unidade, a nova unidade TAMBÉM deve ser da regional
+      if (req.body.unidade_id) {
+        const targetNewUnidade = await prisma.unidades.findUnique({
+          where: { id: req.body.unidade_id },
+          select: { regional: true }
+        });
+        if (targetNewUnidade?.regional !== userUnidade?.regional) {
+          return res.status(403).json({ error: "A unidade de destino deve pertencer à sua regional." });
+        }
+      }
     }
 
     const myWeight = PESO_CARGO[userCargo] ?? 0;
-    const targetWeight = PESO_CARGO[targetMemberFull.cargo.nome.toLowerCase()] ?? 0;
+    const targetCargoName = targetMemberFull.cargo.nome.toLowerCase();
+    
+    if (!(targetCargoName in PESO_CARGO)) {
+      return res.status(403).json({ error: "Cargo do membro alvo inválido." });
+    }
+    const targetWeight = PESO_CARGO[targetCargoName];
 
     // 1. Não pode editar alguém de nível superior ou igual (exceto se for Admin editando outro Admin/User)
     if (userCargo !== "admin" && targetWeight >= myWeight) {
@@ -340,7 +363,10 @@ export const atualizarDefensor = async (req, res) => {
       return res.status(403).json({ error: "Acesso negado. Apenas administradores podem editar outros administradores." });
     }
 
-    const { nome, email, cargo, ativo, unidade_id, regional } = req.body;
+    const { nome, ativo, unidade_id, regional } = req.body;
+    let { email, cargo } = req.body;
+    if (email) email = email.trim().toLowerCase();
+    if (cargo) cargo = cargo.toString().toLowerCase();
 
     // 3. Validação do novo cargo (se houver tentativa de mudança)
     if (cargo) {

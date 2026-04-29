@@ -262,9 +262,11 @@ export const generateDosFatos = async (caseData = {}, acaoKey) => {
     const opcaoGuarda = caseData.opcao_guarda || caseData.opcaoGuarda;
     let intencaoGuardaTexto = "";
     if (opcaoGuarda === "nao") {
-      intencaoGuardaTexto = "[ATENÇÃO: A assistida declarou que NÃO deseja pedido de guarda neste momento. Foque exclusivamente na fundamentação de Alimentos.]";
+      intencaoGuardaTexto = "[FLAG_GUARDA: NÃO] (A assistida declarou que NÃO deseja pedido de guarda neste momento. Foque exclusivamente na fundamentação de Alimentos.)";
     } else if (opcaoGuarda === "regularizar") {
-      intencaoGuardaTexto = "[A assistida DESEJA regularizar a guarda e o regime de convivência/visitas.]";
+      intencaoGuardaTexto = "[FLAG_GUARDA: SIM] (A assistida DESEJA regularizar a guarda e o regime de convivência/visitas.)";
+    } else {
+      intencaoGuardaTexto = "[FLAG_GUARDA: NÃO]";
     }
 
     const contextFilhosGuarda = cleanText(

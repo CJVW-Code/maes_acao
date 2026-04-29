@@ -193,6 +193,8 @@ export const DetalhesCaso = () => {
   const [autosSubtype, setAutosSubtype] = useState(null); // 'provisorio' ou 'definitivo'
   const [isDistribuirOpen, setIsDistribuirOpen] = useState(false);
   const currentCaseIdRef = useRef(null);
+  const currentCaseUpdatedAtRef = useRef(null);
+  const [isDirty, setIsDirty] = useState(false);
 
   // Novos campos financeiros para rito cumulado
   const [debitoPenhoraValor, setDebitoPenhoraValor] = useState("");
@@ -206,10 +208,8 @@ export const DetalhesCaso = () => {
   const [contaOperacao, setContaOperacao] = useState("");
   const [contaNumero, setContaNumero] = useState("");
   const [vencimentoDia, setVencimentoDia] = useState("");
-  const [descricaoGuarda, setDescricaoGuarda] = useState("");
   const [bensPartilha, setBensPartilha] = useState("");
   const [situacaoFinanceiraGenitora, setSituacaoFinanceiraGenitora] = useState("");
-  const [opcaoGuarda, setOpcaoGuarda] = useState("");
 
   // 1. O SWR substitui o estado do caso, o fetchDetalhes, e o polling!
   const {
@@ -248,8 +248,6 @@ export const DetalhesCaso = () => {
     () => caso?.tipo_acao === "fixacao_alimentos" || caso?.tipo_acao === "alimentos_gravidicos",
     [caso?.tipo_acao],
   );
-
-
 
   // 3. Ajuste sutil no seu salvarPendencia
   const handleSalvarPendencia = async () => {
@@ -351,13 +349,12 @@ export const DetalhesCaso = () => {
     toast.success("Número Solar copiado!");
   };
 
-
   const statusKey = (caso?.status || "recebido").toLowerCase();
   const badgeClass = statusBadges[statusKey] || "";
 
   // A função renderDataField que estava aqui pode ser apagada se você já levou para o InfoAssistido!
   // Se ainda estiver usando aqui fora, pode deixar.
-  
+
   /* 
   const handleGenerateFatos = async () => {
     setIsGenerating(true);
@@ -386,7 +383,6 @@ export const DetalhesCaso = () => {
   };
   */
 
-
   const handleGenerateTermo = useCallback(async () => {
     setIsGeneratingTermo(true);
     try {
@@ -413,37 +409,40 @@ export const DetalhesCaso = () => {
     }
   }, [id, token, mutate, toast]);
 
-  const handleRegenerateMinuta = useCallback(async (soloCumulado = false) => {
-    if (
-      !(await confirm(
-        "Isso irá gerar um novo arquivo Word com os dados atuais. O arquivo anterior será substituído. Continuar?",
-        "Regerar Minuta",
-      ))
-    )
-      return;
+  const handleRegenerateMinuta = useCallback(
+    async (soloCumulado = false) => {
+      if (
+        !(await confirm(
+          "Isso irá gerar um novo arquivo Word com os dados atuais. O arquivo anterior será substituído. Continuar?",
+          "Regerar Minuta",
+        ))
+      )
+        return;
 
-    setIsRegeneratingMinuta(true);
-    try {
-      const response = await fetch(`${API_BASE}/casos/${id}/regerar-minuta`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ solo_cumulado: soloCumulado }),
-      });
+      setIsRegeneratingMinuta(true);
+      try {
+        const response = await fetch(`${API_BASE}/casos/${id}/regerar-minuta`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ solo_cumulado: soloCumulado }),
+        });
 
-      if (!response.ok) throw new Error("Falha ao regerar minuta.");
+        if (!response.ok) throw new Error("Falha ao regerar minuta.");
 
-      await response.json();
-      mutate(); // CORRIGIDO
-      toast.success("Minuta regerada com sucesso!");
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setIsRegeneratingMinuta(false);
-    }
-  }, [confirm, id, token, mutate, toast]);
+        await response.json();
+        mutate(); // CORRIGIDO
+        toast.success("Minuta regerada com sucesso!");
+      } catch (error) {
+        toast.error(error.message);
+      } finally {
+        setIsRegeneratingMinuta(false);
+      }
+    },
+    [confirm, id, token, mutate, toast],
+  );
 
   const handleSaveFeedback = async () => {
     setSavingFeedback(true);
@@ -563,7 +562,8 @@ export const DetalhesCaso = () => {
   };
 
   const handleLock = async () => {
-    if (!(await confirm("Deseja assumir e travar este caso para o seu usuário?", "Assumir Caso?"))) return;
+    if (!(await confirm("Deseja assumir e travar este caso para o seu usuário?", "Assumir Caso?")))
+      return;
     setIsUpdating(true);
     try {
       const res = await fetch(`${API_BASE}/casos/${id}/lock`, {
@@ -676,10 +676,8 @@ export const DetalhesCaso = () => {
           conta_numero: contaNumero,
           // Dados Fixação
           vencimento_dia: vencimentoDia,
-          descricao_guarda: descricaoGuarda,
           bens_partilha: bensPartilha,
           situacao_financeira_genitora: situacaoFinanceiraGenitora,
-          opcao_guarda: opcaoGuarda,
         }),
       });
       if (res.ok) {
@@ -852,7 +850,7 @@ export const DetalhesCaso = () => {
     if (!caso) return [];
 
     const docs = [];
-    
+
     // CASO FIXAÇÃO: Petição Inicial e Termo sempre presentes
     if (isFixacao) {
       // 1. Petição Inicial (Prioriza url_peticao que sincronizamos no backend)
@@ -867,7 +865,7 @@ export const DetalhesCaso = () => {
         textClass: "text-primary",
         downloadHoverClass: "hover:text-primary",
         handler: () => handleRegenerateMinuta(false),
-        loading: isRegeneratingMinuta
+        loading: isRegeneratingMinuta,
       });
 
       // 2. Termo de Declaração
@@ -882,7 +880,7 @@ export const DetalhesCaso = () => {
         textClass: "text-highlight",
         downloadHoverClass: "hover:text-highlight",
         handler: handleGenerateTermo,
-        loading: isGeneratingTermo
+        loading: isGeneratingTermo,
       });
 
       return docs;
@@ -900,7 +898,7 @@ export const DetalhesCaso = () => {
         textClass: "text-success",
         downloadHoverClass: "hover:text-success",
         handler: () => handleRegenerateMinuta(true),
-        loading: isRegeneratingMinuta
+        loading: isRegeneratingMinuta,
       });
     }
     if (
@@ -925,7 +923,7 @@ export const DetalhesCaso = () => {
         textClass: "text-primary",
         downloadHoverClass: "hover:text-primary",
         handler: () => handleRegenerateMinuta(false),
-        loading: isRegeneratingMinuta
+        loading: isRegeneratingMinuta,
       });
     }
     if (caso.url_peticao_execucao_prisao || caso.url_peticao_prisao) {
@@ -939,7 +937,7 @@ export const DetalhesCaso = () => {
         textClass: "text-error",
         downloadHoverClass: "hover:text-error",
         handler: () => handleRegenerateMinuta(false),
-        loading: isRegeneratingMinuta
+        loading: isRegeneratingMinuta,
       });
     }
     if (caso.url_peticao_cumprimento_cumulado) {
@@ -953,7 +951,7 @@ export const DetalhesCaso = () => {
         textClass: "text-success",
         downloadHoverClass: "hover:text-success",
         handler: () => handleRegenerateMinuta(true),
-        loading: isRegeneratingMinuta
+        loading: isRegeneratingMinuta,
       });
     }
     if (caso.url_peticao_cumprimento_penhora) {
@@ -967,7 +965,7 @@ export const DetalhesCaso = () => {
         textClass: "text-primary",
         downloadHoverClass: "hover:text-primary",
         handler: () => handleRegenerateMinuta(false),
-        loading: isRegeneratingMinuta
+        loading: isRegeneratingMinuta,
       });
     }
     if (caso.url_peticao_cumprimento_prisao) {
@@ -981,7 +979,7 @@ export const DetalhesCaso = () => {
         textClass: "text-error",
         downloadHoverClass: "hover:text-error",
         handler: () => handleRegenerateMinuta(false),
-        loading: isRegeneratingMinuta
+        loading: isRegeneratingMinuta,
       });
     }
     if (caso.url_termo_declaracao || isFixacao) {
@@ -996,11 +994,18 @@ export const DetalhesCaso = () => {
         textClass: "text-highlight",
         downloadHoverClass: "hover:text-highlight",
         handler: handleGenerateTermo,
-        loading: isGeneratingTermo
+        loading: isGeneratingTermo,
       });
     }
     return docs;
-  }, [caso, isFixacao, handleRegenerateMinuta, handleGenerateTermo, isRegeneratingMinuta, isGeneratingTermo]);
+  }, [
+    caso,
+    isFixacao,
+    handleRegenerateMinuta,
+    handleGenerateTermo,
+    isRegeneratingMinuta,
+    isGeneratingTermo,
+  ]);
 
   const exibirPainelCumulado = useMemo(
     () =>
@@ -1013,7 +1018,9 @@ export const DetalhesCaso = () => {
   );
 
   const podeExibirDocumentos =
-    isFixacao || autosType === "proprios_autos" || (autosType === "apartados" && Boolean(autosSubtype));
+    isFixacao ||
+    autosType === "proprios_autos" ||
+    (autosType === "apartados" && Boolean(autosSubtype));
   const documentosNoFluxo = useMemo(() => {
     if (!podeExibirDocumentos) return [];
 
@@ -1045,30 +1052,35 @@ export const DetalhesCaso = () => {
 
   // 2. Preenchimento de datas e formulários após o caso carregar
   useEffect(() => {
-    if (caso && caso.id !== currentCaseIdRef.current) {
-      setFeedback(caso.feedback || "");
-      setPendenciaTexto(caso.descricao_pendencia || "");
-      setNumSolar(caso.numero_solar || "");
-      setMemoriaCalculo(caso.juridico?.memoria_calculo || "");
-      setDebitoPenhoraValor(caso.juridico?.debito_penhora_valor || "");
-      setDebitoPenhoraExtenso(caso.juridico?.debito_penhora_extenso || "");
-      setDebitoPrisaoValor(caso.juridico?.debito_prisao_valor || "");
-      setDebitoPrisaoExtenso(caso.juridico?.debito_prisao_extenso || "");
+    if (caso) {
+      const isNewCase = caso.id !== currentCaseIdRef.current;
+      const isUpdated = caso.updated_at !== currentCaseUpdatedAtRef.current;
 
-      // Inicialização dos novos campos
-      setContaBanco(caso.juridico?.conta_banco || "");
-      setContaAgencia(caso.juridico?.conta_agencia || "");
-      setContaOperacao(caso.juridico?.conta_operacao || "");
-      setContaNumero(caso.juridico?.conta_numero || "");
-      setVencimentoDia(caso.juridico?.vencimento_dia || "");
-      setDescricaoGuarda(caso.juridico?.descricao_guarda || "");
-      setBensPartilha(caso.juridico?.bens_partilha || "");
-      setSituacaoFinanceiraGenitora(caso.juridico?.situacao_financeira_genitora || "");
-      setOpcaoGuarda(caso.juridico?.opcao_guarda || "");
+      if (isNewCase || (isUpdated && !isDirty)) {
+        setFeedback(caso.feedback || "");
+        setPendenciaTexto(caso.descricao_pendencia || "");
+        setNumSolar(caso.numero_solar || "");
+        setMemoriaCalculo(caso.juridico?.memoria_calculo || "");
+        setDebitoPenhoraValor(caso.juridico?.debito_penhora_valor || "");
+        setDebitoPenhoraExtenso(caso.juridico?.debito_penhora_extenso || "");
+        setDebitoPrisaoValor(caso.juridico?.debito_prisao_valor || "");
+        setDebitoPrisaoExtenso(caso.juridico?.debito_prisao_extenso || "");
 
-      currentCaseIdRef.current = caso.id;
+        // Inicialização dos novos campos
+        setContaBanco(caso.juridico?.conta_banco || "");
+        setContaAgencia(caso.juridico?.conta_agencia || "");
+        setContaOperacao(caso.juridico?.conta_operacao || "");
+        setContaNumero(caso.juridico?.conta_numero || "");
+        setVencimentoDia(caso.juridico?.vencimento_dia || "");
+        setBensPartilha(caso.juridico?.bens_partilha || "");
+        setSituacaoFinanceiraGenitora(caso.juridico?.situacao_financeira_genitora || "");
+
+        currentCaseIdRef.current = caso.id;
+        currentCaseUpdatedAtRef.current = caso.updated_at;
+        setIsDirty(false);
+      }
     }
-  }, [caso]);
+  }, [caso, isDirty]);
 
   if (isLoading) {
     return <div className="card text-center text-muted">Carregando detalhes...</div>;
@@ -1143,6 +1155,7 @@ export const DetalhesCaso = () => {
                 value={numSolar}
                 onChange={(e) => {
                   setNumSolar(e.target.value.replace(/\D/g, ""));
+                  setIsDirty(true);
                 }}
                 onBlur={handleSalvarSolar}
                 className="bg-transparent border-none outline-none text-sm font-mono w-32 text-primary font-bold placeholder:text-muted/50"
@@ -1324,23 +1337,27 @@ export const DetalhesCaso = () => {
             <InfoAssistido caso={caso} />
 
             {/* BOTÃO ASSUMIR CASO (PARA COORDENADOR E GESTOR) */}
-            {["admin", "gestor", "coordenador"].includes(user?.cargo?.toLowerCase()) && 
-             !caso.defensor_id && !caso.servidor_id && (
-              <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-center justify-between">
-                <div>
-                  <h3 className="text-primary font-bold">Caso Disponível</h3>
-                  <p className="text-sm text-muted">Este caso está livre na fila. Como observador, você não foi vinculado automaticamente.</p>
+            {["admin", "gestor", "coordenador"].includes(user?.cargo?.toLowerCase()) &&
+              !caso.defensor_id &&
+              !caso.servidor_id && (
+                <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-primary font-bold">Caso Disponível</h3>
+                    <p className="text-sm text-muted">
+                      Este caso está livre na fila. Como observador, você não foi vinculado
+                      automaticamente.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleLock}
+                    disabled={isUpdating}
+                    className="btn btn-primary flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+                  >
+                    <Lock size={18} />
+                    Assumir Atendimento
+                  </button>
                 </div>
-                <button
-                  onClick={handleLock}
-                  disabled={isUpdating}
-                  className="btn btn-primary flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-                >
-                  <Lock size={18} />
-                  Assumir Atendimento
-                </button>
-              </div>
-            )}
+              )}
 
             {/* DOCUMENTOS (Movido para Visão Geral) */}
             <PainelDocumentos
@@ -1373,68 +1390,68 @@ export const DetalhesCaso = () => {
             {/* SELETOR DE FLUXO - AUTOS APARTADOS vs NOS PROPRIOS AUTOS */}
             {!isFixacao && (
               <div className="card space-y-4">
-              <h3 className="heading-3 border-b border-border pb-2">Tipo de Petição</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button
-                  onClick={() => {
-                    setAutosType("apartados");
-                    setAutosSubtype(null);
-                  }}
-                  className={`p-4 border-2 rounded-lg transition-all ${
-                    autosType === "apartados"
-                      ? "border-primary bg-primary/10"
-                      : "border-border bg-surface hover:border-primary"
-                  }`}
-                >
-                  <div className="font-bold text-primary">AUTOS APARTADOS</div>
-                  <p className="text-xs text-muted mt-1"></p>
-                </button>
-                <button
-                  onClick={() => {
-                    setAutosType("proprios_autos");
-                    setAutosSubtype("definitivo");
-                  }}
-                  className={`p-4 border-2 rounded-lg transition-all ${
-                    autosType === "proprios_autos"
-                      ? "border-primary bg-primary/10"
-                      : "border-border bg-surface hover:border-primary"
-                  }`}
-                >
-                  <div className="font-bold text-primary">NOS PROPRIOS AUTOS</div>
-                  <p className="text-xs text-muted mt-1">Petição nos mesmos autos</p>
-                </button>
-              </div>
-
-              {/* Subopções para AUTOS APARTADOS */}
-              {autosType === "apartados" && (
-                <div className="space-y-3 pt-4 border-t border-border">
-                  <p className="text-sm font-medium text-muted">Selecione o tipo:</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <button
-                      onClick={() => setAutosSubtype("provisorio")}
-                      className={`p-3 border rounded-lg transition-all text-sm ${
-                        autosSubtype === "provisorio"
-                          ? "border-secondary bg-secondary/10 text-main font-bold"
-                          : "border-border bg-surface hover:border-secondary/50"
-                      }`}
-                    >
-                      PROVISÓRIO
-                    </button>
-                    <button
-                      onClick={() => setAutosSubtype("definitivo")}
-                      className={`p-3 border rounded-lg transition-all text-sm ${
-                        autosSubtype === "definitivo"
-                          ? "border-success bg-success/10 text-main font-bold"
-                          : "border-border bg-surface hover:border-success/50"
-                      }`}
-                    >
-                      DEFINITIVO
-                    </button>
-                  </div>
+                <h3 className="heading-3 border-b border-border pb-2">Tipo de Petição</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    onClick={() => {
+                      setAutosType("apartados");
+                      setAutosSubtype(null);
+                    }}
+                    className={`p-4 border-2 rounded-lg transition-all ${
+                      autosType === "apartados"
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-surface hover:border-primary"
+                    }`}
+                  >
+                    <div className="font-bold text-primary">AUTOS APARTADOS</div>
+                    <p className="text-xs text-muted mt-1"></p>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAutosType("proprios_autos");
+                      setAutosSubtype("definitivo");
+                    }}
+                    className={`p-4 border-2 rounded-lg transition-all ${
+                      autosType === "proprios_autos"
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-surface hover:border-primary"
+                    }`}
+                  >
+                    <div className="font-bold text-primary">NOS PROPRIOS AUTOS</div>
+                    <p className="text-xs text-muted mt-1">Petição nos mesmos autos</p>
+                  </button>
                 </div>
-              )}
-            </div>
-          )}
+
+                {/* Subopções para AUTOS APARTADOS */}
+                {autosType === "apartados" && (
+                  <div className="space-y-3 pt-4 border-t border-border">
+                    <p className="text-sm font-medium text-muted">Selecione o tipo:</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <button
+                        onClick={() => setAutosSubtype("provisorio")}
+                        className={`p-3 border rounded-lg transition-all text-sm ${
+                          autosSubtype === "provisorio"
+                            ? "border-secondary bg-secondary/10 text-main font-bold"
+                            : "border-border bg-surface hover:border-secondary/50"
+                        }`}
+                      >
+                        PROVISÓRIO
+                      </button>
+                      <button
+                        onClick={() => setAutosSubtype("definitivo")}
+                        className={`p-3 border rounded-lg transition-all text-sm ${
+                          autosSubtype === "definitivo"
+                            ? "border-success bg-success/10 text-main font-bold"
+                            : "border-border bg-surface hover:border-success/50"
+                        }`}
+                      >
+                        DEFINITIVO
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* LAYOUT PRINCIPAL - QUANDO TIPO FOI SELECIONADO */}
             {podeExibirDocumentos && (
@@ -1561,7 +1578,6 @@ export const DetalhesCaso = () => {
                     <div className="card space-y-4">
                       <div className="flex items-center justify-between border-b border-border pb-2">
                         <h3 className="heading-3">📂 Arquivos Gerados</h3>
-
                       </div>
 
                       <p className="text-sm text-muted">
@@ -1690,12 +1706,14 @@ export const DetalhesCaso = () => {
                           />
                         </div>
                       ) : (
-                        <div className="bg-white text-slate-900 p-8 rounded shadow-sm border border-border font-serif whitespace-pre-wrap text-justify leading-relaxed min-h-[400px] flex items-center justify-center text-muted italic">
+                        <div className="bg-white p-8 rounded shadow-sm border border-border font-serif whitespace-pre-wrap text-justify leading-relaxed min-h-[400px] flex items-center justify-center text-muted italic">
                           {documentoPreviewSelecionado?.isMissing ? (
                             <div className="text-center space-y-2">
                               <Wand2 size={48} className="mx-auto opacity-20 mb-4" />
                               <p className="text-lg font-bold">Documento não gerado</p>
-                              <p className="text-sm not-italic">Utilize o botão de geração na barra lateral.</p>
+                              <p className="text-sm not-italic">
+                                Utilize o botão de geração na barra lateral.
+                              </p>
                             </div>
                           ) : (
                             caso.peticao_completa_texto ||
@@ -1741,7 +1759,10 @@ export const DetalhesCaso = () => {
                 className="input min-h-[120px] resize-y font-sans"
                 placeholder="Digite suas observações aqui..."
                 value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
+                onChange={(e) => {
+                  setFeedback(e.target.value);
+                  setIsDirty(true);
+                }}
               />
               <div className="flex justify-end">
                 <button
@@ -1879,47 +1900,23 @@ export const DetalhesCaso = () => {
               <div className="card space-y-4 border-l-4 border-l-primary">
                 <div className="flex items-center gap-3">
                   <CheckCircle className="text-primary" />
-                  <h2 className="heading-2">Dados Jurídicos e Guarda</h2>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-bg/20 p-4 rounded-xl border border-soft/30">
-                  <div>
-                    <label className="text-xs text-muted uppercase font-bold mb-2 block">Intenção de Guarda</label>
-                    <select
-                      value={opcaoGuarda}
-                      onChange={(e) => setOpcaoGuarda(e.target.value)}
-                      className="input w-full bg-surface border-soft"
-                    >
-                      <option value="">Selecione uma opção...</option>
-                      <option value="nao">Não deseja entrar com pedido de guarda</option>
-                      <option value="regularizar">Quero regularizar a guarda e convivência</option>
-                    </select>
-                  </div>
-                  <div className="flex items-end">
-                    <p className="text-[11px] text-muted leading-tight">
-                      * Esta escolha define se a IA incluirá pedidos de guarda na minuta e se o Defensor deve peticionar sobre isso.
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs text-muted uppercase font-bold mb-2 block">Descrição da Guarda / Visitas</label>
-                  <textarea
-                    className="input min-h-[120px] font-mono text-sm bg-bg/30"
-                    placeholder="Descreva detalhes sobre a guarda e convivência se houver..."
-                    value={descricaoGuarda}
-                    onChange={(e) => setDescricaoGuarda(e.target.value)}
-                  />
+                  <h2 className="heading-2">Dados Jurídicos</h2>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs text-muted uppercase font-bold mb-2 block">Memória de Cálculo / Observações Gerais</label>
+                  <label className="text-xs text-muted uppercase font-bold mb-2 block">
+                    Memória de Cálculo / Observações Gerais
+                  </label>
                   <textarea
                     className="input min-h-[150px] font-mono text-sm bg-bg/30"
-                  placeholder="Ex: Ref jan/24 a mar/24 + multa 10%... "
-                  value={memoriaCalculo}
-                  onChange={(e) => setMemoriaCalculo(e.target.value)}
-                />
+                    placeholder="Ex: Ref jan/24 a mar/24 + multa 10%... "
+                    value={memoriaCalculo}
+                    onChange={(e) => {
+                      setMemoriaCalculo(e.target.value);
+                      setIsDirty(true);
+                    }}
+                  />
+                </div>
                 <div className="flex justify-end pt-2">
                   <button
                     type="button"
@@ -1930,7 +1927,6 @@ export const DetalhesCaso = () => {
                     <Save size={18} />
                     {isSavingJuridico ? "Salvando..." : "Salvar Dados Jurídicos"}
                   </button>
-                </div>
                 </div>
               </div>
             </div>
@@ -2085,47 +2081,47 @@ export const DetalhesCaso = () => {
             </button>
           </div>
         )}
-        <div className="mt-8 pt-8 border-t border-soft">
-          {/* Ações de Administração e Controle */}
-          <div className="card space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="heading-2 text-error">Controle do Caso</h2>
-              
-              <div className="flex gap-2">
-                {/* Liberar Caso - Disponível para Admin, Gestor e Coordenador */}
-                {["admin", "gestor", "coordenador"].includes(user?.cargo?.toLowerCase()) && (
-                  <button
-                    onClick={handleUnlock}
-                    disabled={isUpdating}
-                    className="btn btn-ghost border border-soft flex items-center gap-2 text-red-600 hover:bg-red-50"
-                    title="Libera o caso para outros usuários"
-                  >
-                    <Lock size={18} />
-                    Liberar Caso
-                  </button>
-                )}
+      </div>
+      <div className="mt-8 pt-8 border-t border-soft">
+        {/* Ações de Administração e Controle */}
+        <div className="card space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="heading-2 text-error">Controle do Caso</h2>
 
-                {/* Excluir Caso - Apenas Admin */}
-                {user?.cargo === "admin" && (
-                  <button
-                    onClick={handleDeleteCaso}
-                    disabled={isDeleting}
-                    className="btn btn-ghost border border-soft flex items-center gap-2 text-red-600 hover:bg-red-50"
-                  >
-                    <Trash2 size={18} />
-                    {isDeleting ? "Excluindo..." : "Excluir"}
-                  </button>
-                )}
-              </div>
+            <div className="flex gap-2">
+              {/* Liberar Caso - Disponível para Admin, Gestor e Coordenador */}
+              {["admin", "gestor", "coordenador"].includes(user?.cargo?.toLowerCase()) && (
+                <button
+                  onClick={handleUnlock}
+                  disabled={isUpdating}
+                  className="btn btn-ghost border border-soft flex items-center gap-2 text-red-600 hover:bg-red-50"
+                  title="Libera o caso para outros usuários"
+                >
+                  <Lock size={18} />
+                  Liberar Caso
+                </button>
+              )}
+
+              {/* Excluir Caso - Apenas Admin */}
+              {user?.cargo === "admin" && (
+                <button
+                  onClick={handleDeleteCaso}
+                  disabled={isDeleting}
+                  className="btn btn-ghost border border-soft flex items-center gap-2 text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 size={18} />
+                  {isDeleting ? "Excluindo..." : "Excluir"}
+                </button>
+              )}
             </div>
-            {user?.cargo === "admin" && (
-              <p className="text-sm text-muted">
-                Esta ação de exclusão não pode ser desfeita. Todos os dados do caso serão removidos permanentemente.
-              </p>
-            )}
-            <TimelineAuditoria registroId={caso.id} />
           </div>
-
+          {user?.cargo === "admin" && (
+            <p className="text-sm text-muted">
+              Esta ação de exclusão não pode ser desfeita. Todos os dados do caso serão removidos
+              permanentemente.
+            </p>
+          )}
+          <TimelineAuditoria registroId={caso.id} />
         </div>
       </div>
 

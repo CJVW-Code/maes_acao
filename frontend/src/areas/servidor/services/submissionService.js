@@ -172,13 +172,15 @@ export const processSubmission = async ({
     }
   }
 
-  // 3. Validação de Quantidade Mínima de Documentos
+    // 3. Validação de Quantidade Mínima de Documentos
   const isEnviarDepois =
     formState.enviarDocumentosDepois === true || 
     formState.enviarDocumentosDepois === "true" || 
     Boolean(formState.enviarDocumentosDepois) === true;
+
   if (!isEnviarDepois) {
-    // Reduzido para refletir que RG da criança é opcional
+    // RG do Responsável (Frente/Verso), Residência, Renda = 4. 
+    // Se for incapaz, +1 (Certidão) = 5.
     let minDocs = formState.assistidoEhIncapaz === "nao" ? 4 : 5; 
     
     // Incrementa se exigir documentos do processo original (Ex: Cópia da Sentença)
@@ -190,12 +192,20 @@ export const processSubmission = async ({
       minDocs += formState.outrosFilhos.length * 1; // Apenas certidão é estritamente obrigatória por filho extra
     }
 
-    if (formState.documentFiles.length < minDocs) {
+    // Contagem real considerando os arquivos de cálculo separados
+    let totalAnexados = formState.documentFiles.length;
+    if (formState.calculo_prisao_arquivo) totalAnexados++;
+    if (formState.calculo_penhora_arquivo) totalAnexados++;
+
+    if (totalAnexados < minDocs) {
       const docsNecessarios =
         formState.assistidoEhIncapaz === "nao"
           ? "RG (Frente e Verso), Comprovante de Residência e Comprovante de Renda"
           : "RG do Responsável (Frente e Verso), Comprovante de Residência, Comprovante de Renda e Certidão de Nascimento";
-      validationErrors.documentos = `É necessário anexar pelo menos ${minDocs} documentos: ${docsNecessarios}. Atual: ${formState.documentFiles.length}.`;
+      
+      const extraMsg = configAcao?.exigeDadosProcessoOriginal ? " + Documentos do Processo Original/Cálculos" : "";
+      
+      validationErrors.documentos = `É necessário anexar pelo menos ${minDocs} documentos: ${docsNecessarios}${extraMsg}. Atual: ${totalAnexados}.`;
     }
   }
 

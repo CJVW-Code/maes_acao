@@ -162,10 +162,28 @@ const sanitizePdfClone = (documentClone) => {
     }
   });
 
-  // 3. Remove external stylesheets to prevent html2canvas from trying to parse them and crashing
-  documentClone.querySelectorAll("link[rel='stylesheet']").forEach((link) => {
-    link.remove();
-  });
+  // 3. Injetar bloco de estilo para forçar fallbacks HEX em variáveis do Tailwind que usam oklch
+  // e evitar que o html2canvas tente processar funções de cor modernas que ele não suporta.
+  const fixStyle = documentClone.createElement("style");
+  fixStyle.innerHTML = `
+    :root {
+      --color-primary: #4F46E5 !important;
+      --color-primary-600: #4338CA !important;
+      --color-secondary: #7C3AED !important;
+      --color-highlight: #F59E0B !important;
+      --color-success: #10B981 !important;
+      --color-error: #EF4444 !important;
+      --color-surface: #FFFFFF !important;
+      --color-bg: #F9FAFB !important;
+      --color-soft: #E5E7EB !important;
+      --color-muted: #6B7280 !important;
+    }
+    * {
+      color-scheme: light !important;
+      forced-color-adjust: none !important;
+    }
+  `;
+  documentClone.head.appendChild(fixStyle);
 };
 
 const DATA_CACHE_KEY = "bi_data_cache_v2";

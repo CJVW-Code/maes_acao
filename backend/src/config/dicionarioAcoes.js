@@ -20,7 +20,7 @@ ESTRUTURA OBRIGATÓRIA — escreva nesta ordem, em parágrafos corridos:
 
 5. CAPACIDADE DO REQUERIDO: Se o relato indicar dados sobre renda, emprego ou patrimônio do requerido, inclua um parágrafo sobre sua capacidade contributiva. Se não houver dados, omita este parágrafo.
 
-6. GUARDA E CONVIVÊNCIA: APENAS se o contexto indicar expressamente o desejo de regularizar a guarda e convivência, dedique um parágrafo detalhando essa intenção. Se não houver essa indicação explícita, É TERMINANTEMENTE PROIBIDO adicionar qualquer parágrafo, tópico ou menção sobre guarda e visitas.
+6. GUARDA E CONVIVÊNCIA: Se, e somente se, o contexto abaixo contiver a flag "[FLAG_GUARDA: SIM]", dedique um parágrafo detalhando a intenção de regularizar a guarda e convivência. Se a flag for "[FLAG_GUARDA: NÃO]", NÃO adicione qualquer menção sobre guarda e visitas.
 
 REGRAS DE ESTILO:
 - Use conectivos jurídicos adequados como: "No caso em tela", "Como é sabido", "Nesse diapasão", "Cumpre ressaltar". Evite iniciar o texto com "Insta salientar" e não repita excessivamente o termo "Ocorre que".

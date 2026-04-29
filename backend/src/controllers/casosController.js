@@ -121,9 +121,9 @@ const mapCasoRelations = (caso) => {
     enriched.assistido_ocupacao = partes.profissao || dadosFormulario.assistido_ocupacao || "";
 
     // Mapeamento para tags oficiais do dicionarioTags.js
-    enriched.REPRESENTANTE_NOME = partes.nome_representante || partes.nome_assistido;
-    enriched.nome_representante = partes.nome_representante || partes.nome_assistido; // Alias compatibilidade
-    enriched.representante_cpf = partes.cpf_representante || partes.cpf_assistido;
+    enriched.REPRESENTANTE_NOME = partes.nome_representante;
+    enriched.nome_representante = partes.nome_representante; // Alias compatibilidade
+    enriched.representante_cpf = partes.cpf_representante;
     enriched.representante_data_nascimento =
       partes.data_nascimento_representante || dadosFormulario.representante_data_nascimento || "";
     enriched.representante_nacionalidade =
@@ -134,14 +134,14 @@ const mapCasoRelations = (caso) => {
       partes.estado_civil_representante || dadosFormulario.representante_estado_civil || "solteira";
     enriched.representante_ocupacao =
       partes.profissao_representante || dadosFormulario.representante_ocupacao || "";
-    enriched.representante_rg_numero = partes.rg_representante || partes.rg_assistido;
+    enriched.representante_rg_numero = partes.rg_representante;
     enriched.representante_rg_orgao =
-      partes.emissor_rg_representante || partes.emissor_rg_assistido;
-    enriched.emissor_rg_exequente = partes.emissor_rg_representante || partes.emissor_rg_assistido;
+      partes.emissor_rg_representante;
+    enriched.emissor_rg_exequente = partes.emissor_rg_representante;
     enriched.nome_mae_representante = partes.nome_mae_representante;
     enriched.nome_pai_representante = partes.nome_pai_representante;
-    enriched.nome_mae_assistido = partes.nome_mae_assistido || partes.nome_mae_representante;
-    enriched.nome_pai_assistido = partes.nome_pai_assistido || partes.nome_pai_representante;
+    enriched.nome_mae_assistido = partes.nome_mae_assistido;
+    enriched.nome_pai_assistido = partes.nome_pai_assistido;
 
     enriched.REQUERIDO_NOME = partes.nome_requerido;
     enriched.nome_requerido = partes.nome_requerido;
@@ -172,7 +172,7 @@ const mapCasoRelations = (caso) => {
     enriched.nascimento =
       enriched.assistido_data_nascimento || formatDateBr(partes.data_nascimento_assistido) || "";
     enriched.assistido_rg = partes.rg_assistido;
-    enriched.representante_rg = partes.rg_representante || partes.rg_assistido;
+    enriched.representante_rg = partes.rg_representante;
     enriched.requerente_telefone = partes.telefone_assistido;
     enriched.requerente_email = partes.email_assistido;
     enriched.requerente_endereco_residencial = partes.endereco_assistido;
@@ -1644,15 +1644,15 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
     dos_fatos: ensureText(dosFatosComGuarda, "[DESCREVER OS FATOS]"),
 
     // Representante (Genitora) / Requerente
+    // Requerente (Assistido/Criança)
     requerente_nome: String(
-      baseData.REPRESENTANTE_NOME ||
-        baseData.nome_representante ||
-        baseData.nome_assistido ||
+      baseData.nome_assistido ||
+        baseData.NOME ||
+        baseData.nome ||
         "______",
     ).toUpperCase(),
-    requerente_data_nascimento:
-      baseData.assistido_data_nascimento || baseData.representante_data_nascimento || "______",
-    requerente_cpf: baseData.cpf_assistido || baseData.representante_cpf || "______",
+    requerente_data_nascimento: baseData.assistido_data_nascimento || "______",
+    requerente_cpf: baseData.cpf_assistido || "______",
     dados_adicionais_requerente: baseData.dados_adicionais_requerente || "______",
 
     // Representante (Genitora)
@@ -1660,7 +1660,6 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
     representante_nome: String(
       baseData.REPRESENTANTE_NOME ||
         baseData.nome_representante ||
-        baseData.nome_assistido ||
         "______",
     ).toUpperCase(),
     representante_nacionalidade: baseData.representante_nacionalidade || "brasileira",
@@ -4097,8 +4096,8 @@ export const gerarTermoDeclaracao = async (req, res) => {
     const baseDataForPayload = {
       ...caso,
       ...(caso.partes || {}),
-      ...(caso.juridico || {}),
       ...safeJsonParse(caso.ia?.dados_extraidos, {}),
+      ...(caso.juridico || {}),
     };
 
     // Build term declaration data payload using the centralized builder
@@ -5340,6 +5339,9 @@ export const reprocessarCaso = async (req, res) => {
       ...(juridicoDB.debito_penhora_extenso ? { debito_penhora_extenso: juridicoDB.debito_penhora_extenso } : {}),
       ...(juridicoDB.debito_prisao_valor  ? { debito_prisao_valor: juridicoDB.debito_prisao_valor } : {}),
       ...(juridicoDB.debito_prisao_extenso ? { debito_prisao_extenso: juridicoDB.debito_prisao_extenso } : {}),
+      ...(juridicoDB.opcao_guarda          ? { opcao_guarda: juridicoDB.opcao_guarda, opcaoGuarda: juridicoDB.opcao_guarda } : {}),
+      ...(juridicoDB.empregador_nome       ? { empregador_nome: juridicoDB.empregador_nome } : {}),
+      ...(juridicoDB.empregador_email      ? { empregador_email: juridicoDB.empregador_email } : {}),
     };
 
     const dados_extraidos = {
