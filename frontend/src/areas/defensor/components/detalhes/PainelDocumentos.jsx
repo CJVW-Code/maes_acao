@@ -118,8 +118,8 @@ export const PainelDocumentos = ({
           )}
           <div className="group relative">
             <HelpCircle size={16} className="text-muted cursor-help" />
-            <div className="absolute right-0 bottom-full mb-2 w-64 p-3 bg-main text-white text-[10px] rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 border border-white/10">
-              <p className="font-bold mb-1">💡 Dica de Download</p>
+            <div className="tooltip-premium right-0 bottom-full mb-2 w-64 opacity-0 group-hover:opacity-100">
+              <p className="font-bold mb-1 text-primary-600 dark:text-primary">💡 Dica de Download</p>
               <p>
                 Ao baixar arquivos compactados (.zip), você pode extraí-los clicando com o botão
                 direito e selecionando "Extrair Tudo" no Windows ou dando dois cliques no macOS. O

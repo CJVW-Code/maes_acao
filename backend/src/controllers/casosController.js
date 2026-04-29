@@ -1073,6 +1073,42 @@ const formatCurrencyBr = (value) => {
     .replace(/\u00A0/g, " ");
 };
 
+
+/**
+ * Helper para extrair componentes de endereço da string formatada pelo EnderecoInput.jsx
+ */
+const parseEnderecoParaSolar = (enderecoStr) => {
+  if (!enderecoStr || typeof enderecoStr !== "string") return null;
+
+  const regexMap = {
+    rua: /Rua: ([^,]*)/,
+    numero: /Número: ([^,]*)/,
+    complemento: /Complemento: ([^,]*)/,
+    bairro: /Bairro: ([^,]*)/,
+    cidade: /Cidade: ([^,]*)/,
+    cep: /CEP: ([^,]*)/,
+  };
+
+  const addr = {};
+  Object.keys(regexMap).forEach((key) => {
+    const match = enderecoStr.match(regexMap[key]);
+    if (match) addr[key] = match[1].trim();
+  });
+
+  // Retorna estrutura compatível com o SOLAR conforme atendimento.json
+  return {
+    cep: (addr.cep || "").replace(/\D/g, ""),
+    logradouro: addr.rua || "",
+    numero: addr.numero || "",
+    complemento: addr.complemento || "",
+    bairro: addr.bairro || "",
+    municipio: addr.cidade || "",
+    uf: "BA", // Padrão Defensoria Bahia
+    tipo_area: "urbana",
+    tipo_endereco: "residencial",
+  };
+};
+
 const buildSolarExportPayload = (caso = {}) => {
   const dados = caso.dados_formulario || {};
 
@@ -1101,7 +1137,16 @@ const buildSolarExportPayload = (caso = {}) => {
       caso.partes?.nome_pai_assistido ||
       caso.nome_pai_representante ||
       "",
-    filiacao: `Mãe: ${caso.nome_mae_assistido || caso.partes?.nome_mae_assistido || caso.nome_mae_representante || "N/I"}, Pai: ${caso.nome_pai_assistido || caso.partes?.nome_pai_assistido || caso.nome_pai_representante || "N/I"}`,
+    filiacao: [
+      caso.nome_mae_assistido || caso.partes?.nome_mae_assistido || caso.nome_mae_representante
+        ? `Mãe: ${caso.nome_mae_assistido || caso.partes?.nome_mae_assistido || caso.nome_mae_representante}`
+        : null,
+      caso.nome_pai_assistido || caso.partes?.nome_pai_assistido || caso.nome_pai_representante
+        ? `Pai: ${caso.nome_pai_assistido || caso.partes?.nome_pai_assistido || caso.nome_pai_representante}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(", "),
     representante_estado_civil:
       caso.assistido_estado_civil ||
       caso.representante_estado_civil ||
@@ -1151,6 +1196,12 @@ const buildSolarExportPayload = (caso = {}) => {
     tem_plano_saude: dados.tem_plano_saude || "",
     isento_ir: dados.isento_ir || "",
     previdencia: dados.previdencia || "",
+    endereco: parseEnderecoParaSolar(
+      caso.endereco_assistido ||
+        dados.endereco_assistido ||
+        dados.requerente_endereco_residencial ||
+        "",
+    ),
   };
 };
 
@@ -2470,8 +2521,11 @@ export const baixarDocumentoIndividual = async (req, res) => {
 export const baixarTodosDocumentosZip = async (req, res) => {
   try {
     const { id } = req.params;
-    const caso = await carregarCasoDetalhado(id, req.user);
-    if (!caso) return res.status(404).json({ error: "Caso não encontrado." });
+    const casoRaw = await carregarCasoDetalhado(id, req.user);
+    if (!casoRaw) return res.status(404).json({ error: "Caso não encontrado." });
+
+    // IMPORTANTE: Normalizar para garantir que campos como endereco_assistido e dados_formulario estejam presentes
+    const caso = mapCasoRelations(casoRaw);
 
     // Ticket Binding Guard (Task 07)
     if (!req.ticket?.casoId || String(req.ticket.casoId) !== String(id)) {
@@ -2537,15 +2591,19 @@ export const baixarTodosDocumentosZip = async (req, res) => {
             const { data, error } = await supabase.storage.from("documentos").download(objectPath);
             if (error) throw error;
             if (data) {
+              const filenameInZip = doc.nome_original || path.basename(objectPath);
+              logger.info(`[ZIP] Adicionando arquivo: ${filenameInZip}`);
               archive.append(Buffer.from(await data.arrayBuffer()), {
-                name: `anexos/${doc.nome_original || path.basename(objectPath)}`,
+                name: filenameInZip,
               });
             }
           } else {
             const localPath = path.resolve("uploads", "documentos", objectPath);
             if (fsSync.existsSync(localPath)) {
+              const filenameInZip = doc.nome_original || path.basename(objectPath);
+              logger.info(`[ZIP] Adicionando arquivo local: ${filenameInZip}`);
               archive.file(localPath, {
-                name: `anexos/${doc.nome_original || path.basename(objectPath)}`,
+                name: filenameInZip,
               });
             } else {
               throw new Error("Arquivo não encontrado no storage local");
