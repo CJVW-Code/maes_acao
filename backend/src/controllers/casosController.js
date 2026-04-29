@@ -263,13 +263,27 @@ const mapCasoRelations = (caso) => {
       dadosFormulario.debito_prisao_extenso ||
       dadosFormulario.valor_debito_prisao_extenso ||
       "";
-    // Dados Bancários
+    // Dados Bancários: Reconstrói a string para o template a partir das colunas separadas
+    const banco = juridico.conta_banco || "";
+    const agencia = juridico.conta_agencia || "";
+    const operacao = juridico.conta_operacao || "";
+    const numero = juridico.conta_numero || "";
+    const bancariosConcatenados = [banco, agencia, operacao, numero].filter(Boolean).join(" / ");
+
     enriched.dados_bancarios_deposito =
       juridico.dados_bancarios_deposito ||
+      bancariosConcatenados ||
       dadosFormulario.dados_bancarios_deposito ||
       dadosFormulario.dados_bancarios_exequente ||
+      dadosFormulario.chave_pix_deposito ||
       "";
     enriched.dados_bancarios_exequente = enriched.dados_bancarios_deposito;
+
+    // Preserva campos individuais para o formulário
+    enriched.banco_deposito = banco;
+    enriched.agencia_deposito = agencia;
+    enriched.conta_operacao = operacao;
+    enriched.conta_deposito = numero;
 
     // Novos campos de Fixação
     enriched.guarda =
@@ -2930,6 +2944,7 @@ export const criarNovoCaso = async (req, res) => {
             debito_prisao_valor: dados_formulario.debito_prisao_valor || null,
             conta_banco: dados_formulario.banco_deposito,
             conta_agencia: dados_formulario.agencia_deposito,
+            conta_operacao: dados_formulario.operacao_deposito || dados_formulario.conta_operacao,
             conta_numero: dados_formulario.conta_deposito,
             empregador_nome: dados_formulario.empregador_requerido_nome,
             empregador_endereco: dados_formulario.empregador_requerido_endereco,
