@@ -97,7 +97,10 @@ export const TAGS_OFICIAIS = [
   'percentual_definitivo_extras',
   'cidade_data_assinatura',
   'relato_texto',
-  'empregador_email'
+  'empregador_email',
+  'HAS_GUARDA',
+  'TIPO_ACAO',
+  'tipoAcao'
 ];
 
 export const isValidTag = (tag) => TAGS_OFICIAIS.includes(tag);

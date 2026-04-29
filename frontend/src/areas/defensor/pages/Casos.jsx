@@ -26,16 +26,16 @@ const fetcher = async (url) => {
   }
 };
 const statusStyles = {
-  aguardando_documentos: "bg-amber-100 text-amber-800 border-amber-200",
+  aguardando_documentos: "bg-amber-500/10 text-amber-600 border-amber-500/20",
   documentacao_completa: "bg-highlight/15 text-highlight border-highlight/30",
-  processando_ia: "bg-indigo-100 text-indigo-800 border-indigo-200",
-  pronto_para_analise: "bg-green-100 text-green-800 border-green-200",
-  em_atendimento: "bg-blue-100 text-blue-800 border-blue-200",
-  liberado_para_protocolo: "bg-purple-100 text-purple-800 border-purple-200",
-  em_protocolo: "bg-indigo-100 text-indigo-800 border-indigo-200",
-  protocolado: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  erro_processamento: "bg-red-100 text-red-800 border-red-200",
-  default: "bg-slate-100 text-slate-700 border-slate-200",
+  processando_ia: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+  pronto_para_analise: "bg-success/10 text-success border-success/20",
+  em_atendimento: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  liberado_para_protocolo: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  em_protocolo: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+  protocolado: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  erro_processamento: "bg-error/10 text-error border-error/20",
+  default: "bg-muted/10 text-muted border-muted/20",
 };
 
 const normalizeStatus = (value) => (value || "recebido").toLowerCase();
@@ -129,7 +129,7 @@ export const Casos = () => {
             {/* SELECT DE UNIDADE (APENAS ADMIN/GESTOR) */}
             {isAdminOrGestor && (
               <select
-                className="input text-sm py-2 bg-white min-w-[180px]"
+                className="input text-sm py-2 min-w-[180px] bg-surface"
                 value={unidadeFiltro}
                 onChange={(e) => setUnidadeFiltro(e.target.value)}
               >
@@ -144,7 +144,7 @@ export const Casos = () => {
 
             {/* SELECT DE STATUS */}
             <select
-              className="input text-sm py-2 bg-white"
+              className="input text-sm py-2 bg-surface"
               value={statusFiltro}
               onChange={(e) => setStatusFiltro(e.target.value)}
             >
@@ -232,8 +232,8 @@ export const Casos = () => {
                             <div className="flex items-center gap-2 text-xs">
                               <div className={`p-1 rounded-full ${
                                 (user && (caso.defensor_id === user.id || caso.servidor_id === user.id)) 
-                                  ? "bg-green-100 text-green-700" 
-                                  : "bg-amber-100 text-amber-700"
+                                  ? "bg-success/10 text-success" 
+                                  : "bg-amber-500/10 text-amber-600"
                               }`}>
                                 { (user && (caso.defensor_id === user.id || caso.servidor_id === user.id)) ? <User size={14} /> : <Lock size={14} /> }
                               </div>

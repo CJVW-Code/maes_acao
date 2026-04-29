@@ -205,18 +205,25 @@ export const generateMultiplosDocx = async (
   if (docsConfig.length > 0) {
     const meses = extractMonthsFromPeriod(periodoInadimplencia);
     logger.info(
-      `[DOCX Multi] Meses de inadimplencia detectados: ${meses}. Gerando conjunto completo da execucao.`,
+      `[DOCX Multi] Meses de inadimplência detectados: ${meses}. Gerando conjunto de minutas para a execução.`,
     );
-    if (meses > 0 && meses < 3) {
-      logger.warn(
-        `[DOCX Multi] Inadimplencia < 3 meses (${meses}). Minutas de prisao serao mantidas para analise do defensor.`,
-      );
-    }
 
     for (const docConfig of docsConfig) {
+      const tipo = docConfig.tipo?.toLowerCase() || "";
+
+      // [REGRA DE NEGÓCIO - MUTIRÃO]
+      // Se meses <= 3: O rito de prisão é o principal. Geramos Execução Prisão e Cumprimento Prisão.
+      // Filtramos Penhora e Cumulado para não poluir a fila do defensor nestes casos de dívida curta.
+      if (meses > 0 && meses <= 3) {
+        if (tipo.includes("penhora") || tipo.includes("cumulado")) {
+          logger.info(`[DOCX Multi] Pulando minuta "${tipo}" pois inadimplência é de apenas ${meses} meses (<= 3).`);
+          continue;
+        }
+      }
+
       // Geração Condicional para Cumulado:
       // Se o tipo for cumulado, só gera se houver valor de penhora E prisão.
-      if (docConfig.tipo?.toLowerCase().includes("cumulado")) {
+      if (tipo.includes("cumulado")) {
         const hasPenhora = data.valor_debito_penhora && data.valor_debito_penhora !== "R$ 0,00";
         const hasPrisao = data.valor_debito_prisao && data.valor_debito_prisao !== "R$ 0,00";
         

@@ -118,18 +118,27 @@ const Relatorios = () => {
   const [unidades, setUnidades] = useState([]);
   const [showPrefs, setShowPrefs] = useState(false);
 
-  const canSeeAllUnidades = user?.cargo === "admin" || user?.cargo === "gestor";
+  const isPowerUser = user?.cargo === "admin" || user?.cargo === "gestor";
+  const canSeeUnitsList = isPowerUser || user?.cargo === "coordenador";
 
   useEffect(() => {
-    if (!canSeeAllUnidades) return;
+    if (!canSeeUnitsList) return;
     authFetch("/unidades")
       .then((response) => (response.ok ? response.json() : []))
-      .then((result) => setUnidades(result.filter((unidade) => unidade.ativo)))
+      .then((result) => {
+        const activeUnidades = result.filter((unidade) => unidade.ativo);
+        // Se for coordenador, filtra apenas a sua própria unidade
+        if (user?.cargo === "coordenador" && user?.unidade_id) {
+          setUnidades(activeUnidades.filter(u => u.id === user.unidade_id));
+        } else {
+          setUnidades(activeUnidades);
+        }
+      })
       .catch(() => setUnidades([]));
-  }, [canSeeAllUnidades]);
+  }, [canSeeUnitsList, user]);
 
   const kpiCards = useMemo(() => {
-    if (!data) return [];
+    if (!data || !data.kpis) return [];
     return [
       { label: "Casos ativos", value: data.kpis.ativos_total, helper: "Nao arquivados no periodo" },
       { label: "Protocolados", value: data.kpis.protocolados_periodo, helper: "Com protocolo no periodo" },
@@ -183,14 +192,23 @@ const Relatorios = () => {
           O módulo de BI está configurado para acesso apenas em horários específicos ou foi bloqueado manualmente pela administração.
         </p>
         
-        {canUnlock && (
+        <div className="flex flex-col sm:flex-row gap-4">
+          {canUnlock && (
+            <button 
+              onClick={handleLiberarAgora}
+              className="btn btn-primary bg-amber-600 hover:bg-amber-700 border-none shadow-lg shadow-amber-600/20 px-8 py-4 text-lg"
+            >
+              <Clock size={20} /> Liberar Acesso por 1 Hora
+            </button>
+          )}
+
           <button 
-            onClick={handleLiberarAgora}
-            className="btn btn-primary bg-amber-600 hover:bg-amber-700 border-none shadow-lg shadow-amber-600/20 px-8 py-4 text-lg"
+            onClick={() => window.location.reload()}
+            className="btn btn-secondary border-amber-200 text-amber-800 hover:bg-amber-50 px-8 py-4 text-lg"
           >
-            <Clock size={20} /> Liberar Acesso por 1 Hora
+            <RefreshCw size={20} /> Tentar Novamente
           </button>
-        )}
+        </div>
       </div>
     );
   }

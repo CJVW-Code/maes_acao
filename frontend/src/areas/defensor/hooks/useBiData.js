@@ -71,32 +71,99 @@ const sanitizePdfClone = (documentClone) => {
     );
   };
 
-  // 1. Sanitize the DOM nodes (inline styles to override computed ones)
-  exportRoot.querySelectorAll("*").forEach((node) => {
+  const safeColor = "#8b5cf6"; // Violet 500 fallback
+
+  // 1. Sanitize ALL DOM nodes in the clone
+  const allNodes = Array.from(documentClone.querySelectorAll("*"));
+  allNodes.forEach((node) => {
     const computed = documentClone.defaultView.getComputedStyle(node);
     const style = node.style;
 
-    if (isUnsupportedColor(computed.backgroundColor)) style.backgroundColor = "#ffffff";
-    if (isUnsupportedColor(computed.color)) style.color = "#1e1b4b";
-    if (isUnsupportedColor(computed.borderColor)) style.borderColor = "#e9e4ff";
-    if (isUnsupportedColor(computed.fill)) style.fill = "#8b5cf6";
-    if (isUnsupportedColor(computed.stroke)) style.stroke = "#8b5cf6";
-    if (isUnsupportedColor(computed.stopColor)) style.stopColor = "#8b5cf6";
-    if (isUnsupportedColor(computed.outlineColor)) style.outlineColor = "#8b5cf6";
+    // List of common color properties to check
+    const colorProps = [
+      "backgroundColor",
+      "color",
+      "borderColor",
+      "borderTopColor",
+      "borderRightColor",
+      "borderBottomColor",
+      "borderLeftColor",
+      "fill",
+      "stroke",
+      "stopColor",
+      "outlineColor",
+      "floodColor",
+      "lightingColor",
+    ];
 
-    style.backgroundImage = "none";
-    style.boxShadow = "none";
+    colorProps.forEach((prop) => {
+      if (isUnsupportedColor(computed[prop])) {
+        style[prop] = prop === "backgroundColor" ? "#ffffff" : safeColor;
+        
+        // Handle SVG attributes directly as well
+        if (node instanceof SVGElement) {
+          const svgProp = prop.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase());
+          node.setAttribute(svgProp, prop === "backgroundColor" ? "#ffffff" : safeColor);
+        }
+      }
+    });
+
+    // Special handling for complex properties
+    if (isUnsupportedColor(computed.backgroundImage)) {
+      style.backgroundImage = "none";
+      style.backgroundColor = safeColor;
+    }
+
+    if (isUnsupportedColor(computed.boxShadow)) {
+      style.boxShadow = "none";
+    }
+
+    // Ensure no oklch leaks in any inline style string
+    if (node.getAttribute("style") && isUnsupportedColor(node.getAttribute("style"))) {
+      const sanitized = node
+        .getAttribute("style")
+        .replace(/(oklch|oklab|color-mix|lab|lch)\s*\(([^()]*|\([^()]*\))*\)/gi, safeColor);
+      node.setAttribute("style", sanitized);
+    }
   });
 
-  // 2. Sanitize <style> tags in the clone to prevent html2canvas parser from crashing
-  // This is a known issue with html2canvas and modern CSS functions.
+  // 2. Sanitize <style> tags and CSSOM
+  const sanitizeCSS = (cssText) => {
+    if (!cssText) return "";
+    return cssText.replace(
+      /(oklch|oklab|color-mix|lab|lch)\s*\(([^()]*|\([^()]*\))*\)/gi,
+      safeColor
+    );
+  };
+
   documentClone.querySelectorAll("style").forEach((styleTag) => {
-    if (styleTag.innerHTML.includes("oklch") || styleTag.innerHTML.includes("color-mix")) {
-      // Replace modern functions with a safe fallback in the entire CSS text
-      styleTag.innerHTML = styleTag.innerHTML
-        .replace(/oklch\([^)]+\)/g, "#8b5cf6")
-        .replace(/color-mix\([^)]+\)/g, "#8b5cf6");
+    try {
+      if (styleTag.innerHTML) {
+        styleTag.innerHTML = sanitizeCSS(styleTag.innerHTML);
+      }
+      
+      // Also try to sanitize via CSSOM if the browser populated it
+      if (styleTag.sheet) {
+        Array.from(styleTag.sheet.cssRules).forEach((rule) => {
+          if (rule.style) {
+            for (let i = 0; i < rule.style.length; i++) {
+              const prop = rule.style[i];
+              const val = rule.style.getPropertyValue(prop);
+              if (isUnsupportedColor(val)) {
+                rule.style.setProperty(prop, safeColor, rule.style.getPropertyPriority(prop));
+              }
+            }
+          }
+        });
+      }
+    } catch (e) {
+      // Ignore security errors or empty sheets
     }
+  });
+
+  // 3. Remove external stylesheets to prevent html2canvas from trying to parse them and crashing
+  documentClone.querySelectorAll("link[rel='stylesheet']").forEach((link) => {
+    link.remove();
   });
 };
 

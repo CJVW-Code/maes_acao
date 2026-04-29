@@ -1,5 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Camera, Image as ImageIcon, FileText, Trash2, Plus, X, Loader2 } from "lucide-react";
+import {
+  Camera,
+  Image as ImageIcon,
+  FileText,
+  Trash2,
+  Plus,
+  X,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
 import imageCompression from "browser-image-compression";
 import heic2any from "heic2any";
 import { useToast } from "../contexts/ToastContext";
@@ -78,6 +87,7 @@ export const DocumentUpload = ({
   outrosFilhos = [],
   acaoEspecifica = "",
   onFilesChange, // Callback (files[], namesMap{})
+  error = "", // Erro de validação externo
 }) => {
   const { toast } = useToast();
   // Estado principal: Armazena os arquivos por Slot ID
@@ -513,6 +523,20 @@ export const DocumentUpload = ({
 
   return (
     <div className="space-y-8">
+      {/* MENSAGEM DE ERRO (FEEDBACK VISUAL AGRESSIVO) */}
+      {error && (
+        <div className="bg-error/10 border-2 border-error/30 rounded-xl p-4 flex items-start gap-4 animate-in slide-in-from-top-2 duration-300">
+          <div className="bg-error text-white p-2 rounded-full shrink-0">
+            <AlertCircle size={24} />
+          </div>
+          <div>
+            <h5 className="text-error font-bold text-sm uppercase tracking-tight">
+              Documentação Incompleta
+            </h5>
+            <p className="text-error/90 text-xs font-medium leading-relaxed mt-0.5">{error}</p>
+          </div>
+        </div>
+      )}
       {/* 1. GUIA VISUAL (EDUCATIVO) REMOVIDO 
       <div className="bg-app border border-soft rounded-xl p-4">
         <h3 className="text-sm font-bold text-main mb-3 flex items-center gap-2">

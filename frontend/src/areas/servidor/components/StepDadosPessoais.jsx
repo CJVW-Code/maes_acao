@@ -21,7 +21,7 @@ export const StepDadosPessoais = React.memo(({
   assistidoNome,
   assistidoCpf,
   assistidoNascimento,
-  assistidoNacionalidade,
+  // assistidoNacionalidade,
   representanteNome,
   representanteCpf,
   representanteNascimento,

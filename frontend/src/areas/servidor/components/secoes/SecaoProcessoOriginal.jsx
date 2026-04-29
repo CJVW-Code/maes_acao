@@ -224,26 +224,48 @@ export const SecaoProcessoOriginal = ({
           )}
         </div>
         <div>
-          <label htmlFor="calculo_arquivo" className="label font-bold">
-            Anexar Documento do Cálculo *
+          <label htmlFor="calculo_prisao_arquivo" className="label font-bold">
+            Cálculo Rito da Prisão
           </label>
           <input
-            id="calculo_arquivo"
+            id="calculo_prisao_arquivo"
             type="file"
             accept=".pdf,.png,.jpg,.jpeg"
             onChange={(e) => {
               if (e.target.files && e.target.files[0]) {
                 handleFieldChange({
-                  target: { name: "calculo_arquivo", value: e.target.files[0] },
+                  target: { name: "calculo_prisao_arquivo", value: e.target.files[0] },
                 });
               }
             }}
-            className={`input py-2 text-sm ${formErrors.calculo_arquivo ? "border-error ring-1 ring-error" : ""}`}
+            className={`input py-2 text-sm ${formErrors.calculo_geral ? "border-error ring-1 ring-error" : ""}`}
           />
-          {formErrors.calculo_arquivo && (
-            <p className="text-xs text-error font-medium mt-1">{formErrors.calculo_arquivo}</p>
-          )}
         </div>
+
+        <div>
+          <label htmlFor="calculo_penhora_arquivo" className="label font-bold">
+            Cálculo Rito da Penhora
+          </label>
+          <input
+            id="calculo_penhora_arquivo"
+            type="file"
+            accept=".pdf,.png,.jpg,.jpeg"
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                handleFieldChange({
+                  target: { name: "calculo_penhora_arquivo", value: e.target.files[0] },
+                });
+              }
+            }}
+            className={`input py-2 text-sm ${formErrors.calculo_geral ? "border-error ring-1 ring-error" : ""}`}
+          />
+        </div>
+
+        {formErrors.calculo_geral && (
+          <div className="md:col-span-2">
+            <p className="text-xs text-error font-medium mt-1">{formErrors.calculo_geral}</p>
+          </div>
+        )}
         <div>
           <label
             htmlFor="link_calculadora"

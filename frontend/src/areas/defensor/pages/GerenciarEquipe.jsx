@@ -12,6 +12,7 @@ import {
   Building2,
   Plus,
   MapPin,
+  Search,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { API_BASE } from "../../../utils/apiBase";
@@ -43,8 +44,9 @@ export const GerenciarEquipe = () => {
   const [unidadeForm, setUnidadeForm] = useState({ nome: "", comarca: "", sistema: "solar", regional: "" });
   const [loadingUnidade, setLoadingUnidade] = useState(false);
 
-  // --- FILTRO DE UNIDADE NA EQUIPE ---
+  // --- FILTRO DE UNIDADE E BUSCA NA EQUIPE ---
   const [filtroUnidade, setFiltroUnidade] = useState("");
+  const [termoPesquisa, setTermoPesquisa] = useState("");
 
   // --- CARREGAMENTO INICIAL ---
   useEffect(() => {
@@ -230,9 +232,11 @@ export const GerenciarEquipe = () => {
   };
 
   // --- DADOS FILTRADOS ---
-  const usuariosFiltrados = filtroUnidade
-    ? usuarios.filter((u) => u.unidade_id === filtroUnidade)
-    : usuarios;
+  const usuariosFiltrados = usuarios.filter((u) => {
+    const matchUnidade = !filtroUnidade || u.unidade_id === filtroUnidade;
+    const matchBusca = !termoPesquisa || u.nome.toLowerCase().includes(termoPesquisa.toLowerCase());
+    return matchUnidade && matchBusca;
+  });
 
   const cargoBadge = (cargo) => {
     const map = {
@@ -298,20 +302,34 @@ export const GerenciarEquipe = () => {
       {abaAtiva === "equipe" && (
         <section className="card p-0 overflow-hidden">
           {/* Filtro por unidade */}
-          <div className="px-6 py-4 border-b border-soft bg-surface-alt flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="px-6 py-4 border-b border-soft bg-surface-alt flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <h2 className="heading-3 flex items-center gap-2">
               <Users size={18} /> Membros Cadastrados
             </h2>
-            <select
-              value={filtroUnidade}
-              onChange={(e) => setFiltroUnidade(e.target.value)}
-              className="input text-sm py-1.5 w-full sm:w-64"
-            >
-              <option value="">Todas as Unidades</option>
-              {unidades.map((u) => (
-                <option key={u.id} value={u.id}>{u.nome}</option>
-              ))}
-            </select>
+            
+            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="text"
+                  placeholder="Pesquisar por nome..."
+                  value={termoPesquisa}
+                  onChange={(e) => setTermoPesquisa(e.target.value)}
+                  className="input text-sm py-1.5 pl-10 w-full"
+                />
+              </div>
+
+              <select
+                value={filtroUnidade}
+                onChange={(e) => setFiltroUnidade(e.target.value)}
+                className="input text-sm py-1.5 w-full sm:w-64"
+              >
+                <option value="">Todas as Unidades</option>
+                {unidades.map((u) => (
+                  <option key={u.id} value={u.id}>{u.nome}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* TABELA DESKTOP */}

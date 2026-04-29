@@ -296,6 +296,12 @@ const mapCasoRelations = (caso) => {
       dadosFormulario.empregador_requerido_endereco ||
       "";
     enriched.empregador_requerido_endereco = enriched.empregador_endereco;
+    enriched.empregador_email =
+      juridico.empregador_email ||
+      dadosFormulario.empregador_email ||
+      dadosFormulario.empregador_requerido_email ||
+      "";
+    enriched.empregador_requerido_email = enriched.empregador_email;
 
     enriched.juridico = juridico;
   }
@@ -504,6 +510,8 @@ const normalizeAcaoKey = (acaoRaw = "") => {
     cumprimento_cumulado: "execucao_alimentos",
     cumprimento_penhora: "execucao_alimentos",
     cumprimento_prisao: "execucao_alimentos",
+    fixacao_de_pensao_alimenticia: "fixacao_alimentos",
+    fixacao_de_alimentos: "fixacao_alimentos",
   };
 
   if (aliases[normalized]) return aliases[normalized];
@@ -514,6 +522,13 @@ const normalizeAcaoKey = (acaoRaw = "") => {
     (normalized.includes("penhora") || normalized.includes("prisao"))
   ) {
     return "execucao_alimentos";
+  }
+
+  if (
+    normalized.includes("fixacao") &&
+    (normalized.includes("alimento") || normalized.includes("pensao"))
+  ) {
+    return "fixacao_alimentos";
   }
 
   return normalized;
@@ -633,6 +648,9 @@ const buildDadosFormularioFallback = (caso = {}) => {
     situacao_financeira: lookup.situacao_financeira || lookup.situacao_financeira_genitora || "",
     situacao_financeira_genitora:
       lookup.situacao_financeira_genitora || lookup.situacao_financeira || "",
+    empregador_nome: lookup.empregador_nome || lookup.empregador_requerido_nome || "",
+    empregador_endereco: lookup.empregador_endereco || lookup.empregador_requerido_endereco || "",
+    empregador_email: lookup.empregador_email || lookup.empregador_requerido_email || "",
   };
 };
 
@@ -1427,7 +1445,7 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
   const debitoCalculadoExtenso = debitoCalculado > 0 ? numeroParaExtenso(debitoCalculado) : "";
 
   // Cálculo do Valor da Causa (Prioriza 12x para fixação, soma de débitos para execução)
-  let valorCausaCalculado = 0;
+  let valorCausaCalculado;
 
   if (acaoKey === "fixacao_alimentos" || acaoKey === "alimentos_gravidicos") {
     valorCausaCalculado = valorMensalParaFixacao * 12;
@@ -1475,10 +1493,18 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
   // Prioridade: tabela casos_juridico (atualizada pelo defensor) > dados_formulario (triagem)
   const descricaoGuardaTexto =
     baseData.descricao_guarda || baseData.descricaoGuarda || "";
+  const temPedidoGuarda = 
+    baseData.opcaoGuarda === "regularizar" || (descricaoGuardaTexto && descricaoGuardaTexto.trim().length > 0);
+
   const bensPartilhaTexto =
     baseData.bens_partilha || baseData.bensPartilha || "";
   const situacaoFinanceiraTexto =
     baseData.situacao_financeira_genitora || baseData.situacaoFinanceiraGenitora || "";
+
+  // ── Seção Jurídica Condicional de Guarda ──────────────
+  // O texto jurídico agora deve ser colocado diretamente no Word envolto em {#HAS_GUARDA} ... {/HAS_GUARDA}
+  // para preservar a formatação (negritos, parágrafos, etc).
+  const HAS_GUARDA = temPedidoGuarda;
 
   // ── Injeção de cláusula de Guarda e Convivência no dos_fatos ──────────────
   // Se o campo descricaoGuarda estiver preenchido, acrescenta ao final dos
@@ -1529,27 +1555,72 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
       `${String(baseData.CIDADEASSINATURA || baseData.cidade_assinatura || "______").toUpperCase()}, ${dataAtualTexto}`,
     defensoraNome: baseData.defensoraNome || "DEFENSOR(A) PÚBLICO(A)",
     
-    // Título Dinâmico da Ação
+    // Título Dinâmico da Ação (Multi-tag para evitar undefined no Word)
     tipo_acao: (() => {
-      let titulo = "";
       if (isFixacaoOuGravidicos) {
-        titulo = "AÇÃO DE FIXAÇÃO DE ALIMENTOS COM PEDIDO DE ALIMENTOS PROVISÓRIOS";
-        if (baseData.opcaoGuarda === "regularizar" || (descricaoGuardaTexto && descricaoGuardaTexto.trim())) {
+        let titulo = "AÇÃO DE FIXAÇÃO DE ALIMENTOS COM PEDIDO DE ALIMENTOS PROVISÓRIOS";
+        if (temPedidoGuarda) {
           titulo += " E FIXAÇÃO DE GUARDA C/C DIREITO DE CONVIVÊNCIA";
         }
-      } else {
-        // Tenta pegar de várias fontes, com fallback seguro
-        titulo = baseData.tipo_acao || baseData.acao_especifica || baseData.tipoAcao || "Petição Inicial";
+        return titulo.toUpperCase();
       }
       
-      // Garantia final contra valores nulos ou a string literal "undefined"
-      if (!titulo || String(titulo).toLowerCase() === "undefined") {
-        titulo = "Petição Inicial";
+      const mapaAmigavel = {
+        exec_penhora: "EXECUÇÃO DE ALIMENTOS PELO RITO DA PENHORA",
+        exec_prisao: "EXECUÇÃO DE ALIMENTOS PELO RITO DA PRISÃO",
+        exec_cumulado: "EXECUÇÃO DE ALIMENTOS (RITOS DA PRISÃO E PENHORA)",
+        def_penhora: "CUMPRIMENTO DE SENTENÇA PELO RITO DA PENHORA",
+        def_prisao: "CUMPRIMENTO DE SENTENÇA PELO RITO DA PRISÃO",
+        def_cumulado: "CUMPRIMENTO DE SENTENÇA (RITOS DA PRISÃO E PENHORA)",
+      };
+
+      const baseAcao = (baseData.tipo_acao || baseData.acao_especifica || baseData.tipoAcao || "").toLowerCase();
+      return (mapaAmigavel[baseAcao] || baseAcao || "PETIÇÃO INICIAL").toUpperCase();
+    })(),
+    TIPO_ACAO: (() => {
+      if (isFixacaoOuGravidicos) {
+        let titulo = "AÇÃO DE FIXAÇÃO DE ALIMENTOS COM PEDIDO DE ALIMENTOS PROVISÓRIOS";
+        if (temPedidoGuarda) {
+          titulo += " E FIXAÇÃO DE GUARDA C/C DIREITO DE CONVIVÊNCIA";
+        }
+        return titulo.toUpperCase();
       }
       
-      return String(titulo).toUpperCase();
+      const mapaAmigavel = {
+        exec_penhora: "EXECUÇÃO DE ALIMENTOS PELO RITO DA PENHORA",
+        exec_prisao: "EXECUÇÃO DE ALIMENTOS PELO RITO DA PRISÃO",
+        exec_cumulado: "EXECUÇÃO DE ALIMENTOS (RITOS DA PRISÃO E PENHORA)",
+        def_penhora: "CUMPRIMENTO DE SENTENÇA PELO RITO DA PENHORA",
+        def_prisao: "CUMPRIMENTO DE SENTENÇA PELO RITO DA PRISÃO",
+        def_cumulado: "CUMPRIMENTO DE SENTENÇA (RITOS DA PRISÃO E PENHORA)",
+      };
+
+      const baseAcao = (baseData.tipo_acao || baseData.acao_especifica || baseData.tipoAcao || "").toLowerCase();
+      return (mapaAmigavel[baseAcao] || baseAcao || "PETIÇÃO INICIAL").toUpperCase();
+    })(),
+    tipoAcao: (() => {
+      if (isFixacaoOuGravidicos) {
+        let titulo = "AÇÃO DE FIXAÇÃO DE ALIMENTOS COM PEDIDO DE ALIMENTOS PROVISÓRIOS";
+        if (temPedidoGuarda) {
+          titulo += " E FIXAÇÃO DE GUARDA C/C DIREITO DE CONVIVÊNCIA";
+        }
+        return titulo.toUpperCase();
+      }
+      
+      const mapaAmigavel = {
+        exec_penhora: "EXECUÇÃO DE ALIMENTOS PELO RITO DA PENHORA",
+        exec_prisao: "EXECUÇÃO DE ALIMENTOS PELO RITO DA PRISÃO",
+        exec_cumulado: "EXECUÇÃO DE ALIMENTOS (RITOS DA PRISÃO E PENHORA)",
+        def_penhora: "CUMPRIMENTO DE SENTENÇA PELO RITO DA PENHORA",
+        def_prisao: "CUMPRIMENTO DE SENTENÇA PELO RITO DA PRISÃO",
+        def_cumulado: "CUMPRIMENTO DE SENTENÇA (RITOS DA PRISÃO E PENHORA)",
+      };
+
+      const baseAcao = (baseData.tipo_acao || baseData.acao_especifica || baseData.tipoAcao || "").toLowerCase();
+      return (mapaAmigavel[baseAcao] || baseAcao || "PETIÇÃO INICIAL").toUpperCase();
     })(),
 
+    HAS_GUARDA,
     termo_representacao,
     // dos_fatos já inclui a cláusula de guarda se aplicável (ver lógica acima)
     dos_fatos: ensureText(dosFatosComGuarda, "[DESCREVER OS FATOS]"),
@@ -4646,6 +4717,7 @@ export const finalizarCasoSolar = async (req, res) => {
       numero_solar,
       numero_processo,
       url_capa_processual,
+      protocolado_at: new Date(),
       finished_at: new Date(),
     };
 

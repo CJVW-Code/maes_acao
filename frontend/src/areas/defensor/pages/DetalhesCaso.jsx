@@ -352,7 +352,7 @@ export const DetalhesCaso = () => {
   };
 
 
-  const statusKey = (caso.status || "recebido").toLowerCase();
+  const statusKey = (caso?.status || "recebido").toLowerCase();
   const badgeClass = statusBadges[statusKey] || "";
 
   // A função renderDataField que estava aqui pode ser apagada se você já levou para o InfoAssistido!

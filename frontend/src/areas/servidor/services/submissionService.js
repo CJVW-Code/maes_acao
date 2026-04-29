@@ -127,6 +127,8 @@ export const processSubmission = async ({
   // Validação CPF e Data de Nascimento - Outros Filhos
   if (formState.outrosFilhos && formState.outrosFilhos.length > 0) {
     formState.outrosFilhos.forEach((filho, index) => {
+      const isCpfOpcional = true; // Forçado como opcional conforme solicitado pelo usuário
+      
       if (filho.cpf && !validateCpfAlgorithm(filho.cpf)) {
         validationErrors[`filho_cpf_${index}`] = `O CPF do Filho(a) ${index + 2} é inválido.`;
       }
@@ -166,8 +168,8 @@ export const processSubmission = async ({
     if (!formState.valor_debito) {
       validationErrors.valor_debito = "O valor total do débito é obrigatório.";
     }
-    if (!formState.calculo_arquivo && !formState.enviarDocumentosDepois) {
-      validationErrors.calculo_arquivo = "Você deve anexar o demonstrativo do cálculo.";
+    if (!formState.calculo_prisao_arquivo && !formState.calculo_penhora_arquivo && !formState.enviarDocumentosDepois) {
+      validationErrors.calculo_geral = "Você deve anexar pelo menos um demonstrativo do cálculo (Prisão ou Penhora).";
     }
   }
 
@@ -184,8 +186,8 @@ export const processSubmission = async ({
     if (formState.documentFiles.length < minDocs) {
       const docsNecessarios =
         formState.assistidoEhIncapaz === "nao"
-          ? "RG (Frente/Verso), Comprovante de Residência e Renda"
-          : "RG do Responsável, RG da Criança e Certidão de Nascimento (para cada filho)";
+          ? "RG (Frente e Verso), Comprovante de Residência e Comprovante de Renda"
+          : "RG do Responsável (Frente e Verso), Comprovante de Residência, Comprovante de Renda e Certidão de Nascimento";
       validationErrors.documentos = `É necessário anexar pelo menos ${minDocs} documentos: ${docsNecessarios}. Atual: ${formState.documentFiles.length}.`;
     }
   }
@@ -262,7 +264,8 @@ export const processSubmission = async ({
   // O estado (formState) já usa as TAGS OFICIAIS, portanto iteramos diretamente.
   // Não precisamos mais do fieldMapping legado.
   const fieldsToIgnore = new Set([
-    "calculo_arquivo",
+    "calculo_prisao_arquivo",
+    "calculo_penhora_arquivo",
     "outrosFilhos",
     "documentFiles",
     "documentNames",
@@ -413,9 +416,18 @@ export const processSubmission = async ({
       .replace(/\s+/g, "_");
     formData.append("documentos", file, safeName);
   });
-  if (formState.calculo_arquivo) {
-    const calcFile = formState.calculo_arquivo;
-    const safeCalcName = `CALCULO_${calcFile.name
+  if (formState.calculo_prisao_arquivo) {
+    const calcFile = formState.calculo_prisao_arquivo;
+    const safeCalcName = `CALCULO_PRISAO_${calcFile.name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "_")}`;
+    formData.append("documentos", calcFile, safeCalcName);
+  }
+
+  if (formState.calculo_penhora_arquivo) {
+    const calcFile = formState.calculo_penhora_arquivo;
+    const safeCalcName = `CALCULO_PENHORA_${calcFile.name
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/\s+/g, "_")}`;

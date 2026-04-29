@@ -54,6 +54,8 @@ export const ACOES_FAMILIA = {
     exigeDadosProcessoOriginal: true, // Exibe seção do processo originário
     exigeFilhos: true, // Exibe lista de filhos/exequentes
     labelAutor: "Filho(a) Exequente", // Rótulo do campo do assistido
+    isCpfFilhoOpcional: true,
+    isRgFilhoOpcional: true,
 
     // --- Geração de Documentos ---
     // Gera SEMPRE Penhora + Prisão (defensor decide qual protocolar)

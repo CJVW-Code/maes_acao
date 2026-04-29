@@ -99,6 +99,8 @@ export const initialState = {
   dia_pagamento: "",
   percentual_salario_minimo: "",
   periodo_meses_ano: "",
+  calculo_prisao_arquivo: null,
+  calculo_penhora_arquivo: null,
 };
 
 // Reducer para gerenciar o estado do formulário

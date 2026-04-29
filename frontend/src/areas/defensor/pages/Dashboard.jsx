@@ -15,6 +15,7 @@ import {
   Eye,
   Users,
   Settings,
+  X,
 } from "lucide-react";
 import { authFetch } from "../../../utils/apiBase";
 import useSWR from "swr";
@@ -147,6 +148,30 @@ export const Dashboard = () => {
 
   const handleSummaryClick = (key) => {
     setStatusFilter((previous) => (previous === key ? null : key));
+  };
+
+  const handleResponderAssistencia = async (alerta, aceito) => {
+    try {
+      const response = await authFetch(`/casos/assistencia/${alerta.referencia_id}/responder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aceito }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Erro ao responder solicitação.");
+      }
+
+      await marcarNotificacaoLida(alerta.id);
+
+      if (aceito && alerta.link) {
+        navigate(alerta.link);
+      }
+    } catch (error) {
+      console.error(error);
+      alert(error.message);
+    }
   };
 
   if (resumoError || casosError) {
@@ -576,14 +601,31 @@ export const Dashboard = () => {
                       {alerta.mensagem}
                     </p>
 
-                    {alerta.link && (
-                      <Link
-                        to={alerta.link}
-                        className="btn btn-ghost btn-sm w-full mt-4 text-[11px] 2xl:text-xs border border-soft hover:border-primary/30"
-                        onClick={() => marcarNotificacaoLida(alerta.id)}
-                      >
-                        Acessar Caso
-                      </Link>
+                    {alerta.tipo === "assistencia" ? (
+                      <div className="flex gap-3 mt-4">
+                        <button
+                          onClick={() => handleResponderAssistencia(alerta, true)}
+                          className="btn btn-primary btn-sm flex-1 shadow-soft"
+                        >
+                          <CheckCircle2 size={14} /> Aceitar
+                        </button>
+                        <button
+                          onClick={() => handleResponderAssistencia(alerta, false)}
+                          className="btn btn-ghost btn-sm flex-1 border border-error/20 text-error hover:bg-error/5 shadow-soft"
+                        >
+                          <X size={14} /> Recusar
+                        </button>
+                      </div>
+                    ) : (
+                      alerta.link && (
+                        <Link
+                          to={alerta.link}
+                          className="btn btn-ghost btn-sm w-full mt-4 border border-soft hover:border-primary/30 shadow-soft"
+                          onClick={() => marcarNotificacaoLida(alerta.id)}
+                        >
+                          Acessar Caso
+                        </Link>
+                      )
                     )}
 
                     <p className="text-[10px] 2xl:text-xs text-muted mt-4 text-right font-medium">

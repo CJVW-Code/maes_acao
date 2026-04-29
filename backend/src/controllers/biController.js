@@ -29,25 +29,6 @@ const verificarBloqueioHorario = async (user) => {
   if (["admin", "gestor"].includes(user.cargo.toLowerCase())) return { bloqueado: false };
 
   const configs = await getConfiguracoes();
-  
-  // 1. Bloqueio Manual Global (Admin)
-  if (configs.bi_bloqueado === "true") {
-    return {
-      bloqueado: true,
-      mensagem: "Acesso ao BI bloqueado manualmente pela administração.",
-    };
-  }
-
-  const biHorarios = safeParseArray(configs.bi_horarios);
-  const timezone = configs.bi_timezone || "America/Bahia";
-  const liberadoAte = configs.bi_liberado_ate ? new Date(configs.bi_liberado_ate) : null;
-
-  // 2. Verifica Bypass Temporário Legado (Liberar Agora)
-  if (liberadoAte && new Date() < liberadoAte) {
-    return { bloqueado: false };
-  }
-
-  // 3. Verifica Registro de Horários (Overrides Ativos)
   const overrides = safeParseArray(configs.bi_overrides);
   const agoraDate = new Date();
   const overrideAtivo = overrides.find(ov => {
@@ -57,10 +38,29 @@ const verificarBloqueioHorario = async (user) => {
   });
 
   if (overrideAtivo) {
+    console.log(`[BI-Auth] ✅ Liberado por Override ativo (ID: ${overrideAtivo.id}) para ${user.email}`);
     return { bloqueado: false };
   }
+  
+  // 1. Bloqueio Manual Global (Admin)
+  if (configs.bi_bloqueado === "true") {
+    console.log(`[BI-Auth] ❌ Bloqueado Manualmente para ${user.email}`);
+    return {
+      bloqueado: true,
+      mensagem: "Acesso ao BI bloqueado manualmente pela administração.",
+    };
+  }
 
-  if (biHorarios.length === 0) return { bloqueado: false };
+  const biHorarios = safeParseArray(configs.bi_horarios);
+  const timezone = configs.bi_timezone || "America/Bahia";
+
+  if (biHorarios.length === 0) {
+    console.log(`[BI-Auth] ❌ Bloqueado: Nenhuma janela configurada para ${user.email}`);
+    return { 
+      bloqueado: true, 
+      mensagem: "O acesso ao BI não possui janelas de horário configuradas e está restrito por padrão." 
+    };
+  }
 
   // 4. Obtém hora e dia atual no timezone configurado
   const agora = new Date();
@@ -79,20 +79,25 @@ const verificarBloqueioHorario = async (user) => {
   const diaAtual = formatadorDia.format(agora).toLowerCase(); // "segunda-feira"
 
   const estaNoHorario = biHorarios.some((janela) => {
-    // Se a janela especifica um dia, verifica se coincide (ou se é 'todos')
-    const diaMatch = !janela.dia || janela.dia === "todos" || diaAtual.includes(janela.dia.toLowerCase());
+    // Normaliza para comparação sem acentos (ex: terça-feira -> terca-feira)
+    const diaAtualNorm = diaAtual.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const diaJanelaNorm = (janela.dia || "todos").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+    const diaMatch = diaJanelaNorm === "todos" || diaAtualNorm.includes(diaJanelaNorm);
     const horaMatch = horaAtualStr >= janela.inicio && horaAtualStr <= janela.fim;
     return diaMatch && horaMatch;
   });
 
   if (!estaNoHorario) {
     const formatarJanelas = biHorarios.map(j => `${j.dia || 'todos'}: ${j.inicio}-${j.fim}`).join(", ");
+    console.log(`[BI-Auth] ❌ Bloqueado: Fora do horário (${horaAtualStr}) para ${user.email}. Janelas: ${formatarJanelas}`);
     return {
       bloqueado: true,
       mensagem: `Acesso ao BI bloqueado fora do horário permitido (${formatarJanelas}).`,
     };
   }
 
+  console.log(`[BI-Auth] ✅ Liberado por Janela de Horário para ${user.email}`);
   return { bloqueado: false };
 };
 
@@ -130,7 +135,12 @@ const stringifyBigInts = (obj) => {
   return obj;
 };
 
-const toDateOnly = (date) => new Date(date).toISOString().slice(0, 10);
+const toDateOnly = (date) => {
+  if (!date) return null;
+  const d = new Date(date);
+  if (!Number.isFinite(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+};
 
 const startOfDay = (date) => {
   const value = new Date(date);
@@ -320,7 +330,10 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
   }
 
   const unidades = preFetchedUnidades || await prisma.unidades.findMany({
-    where: { ativo: true },
+    where: { 
+      ativo: true,
+      ...(unidadeId !== "todas" ? { id: unidadeId } : {})
+    },
     select: { id: true, nome: true, comarca: true },
     orderBy: { nome: "asc" },
   });
@@ -356,9 +369,9 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
     ])
   );
 
-  const ativos = rows.filter((row) => row.arquivado === false && filterByDate(row, "created_at", range));
-  const arquivados = rows.filter((row) => row.arquivado === true && filterByDate(row, "updated_at", range));
-  const protocolosNoPeriodo = rows.filter((row) => row.status === "protocolado" && row.arquivado === false && filterByDate(row, "protocolado_at", range));
+  const ativos = rows.filter((row) => row.arquivado === false && row.created_at && filterByDate(row, "created_at", range));
+  const arquivados = rows.filter((row) => row.arquivado === true && row.updated_at && filterByDate(row, "updated_at", range));
+  const protocolosNoPeriodo = rows.filter((row) => row.status === "protocolado" && row.arquivado === false && row.protocolado_at && filterByDate(row, "protocolado_at", range));
 
   const porStatusMap = new Map();
   const porTipoMap = new Map();
@@ -448,7 +461,10 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
     increment(arquivadosTipoMap, row.tipo_acao);
   });
 
-  const dias = Array.from(new Set([...triagemDiaMap.keys(), ...protocoloDiaMap.keys()])).sort();
+  const dias = Array.from(new Set([...triagemDiaMap.keys(), ...protocoloDiaMap.keys()]))
+    .filter(d => d !== null && d !== "null")
+    .sort();
+    
   const throughput = dias.map((dia) => ({
     dia,
     triagens: triagemDiaMap.get(dia) || 0,
