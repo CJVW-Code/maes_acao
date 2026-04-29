@@ -10,6 +10,7 @@ backend/.env
 backend/.env.docker
 frontend/.env.docker
 frontend-defensor/.env
+atendimento.json
 
 # Coverage
 frontend/coverage/

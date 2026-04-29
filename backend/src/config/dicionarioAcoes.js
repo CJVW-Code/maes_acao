@@ -1,14 +1,13 @@
 import logger from "../utils/logger.js";
 
 export const DICIONARIO_ACOES_BACKEND = {
-
   fixacao_alimentos: {
     templateDocx: "fixacao_alimentos1.docx",
     promptIA: {
       systemPrompt: `Você é um Defensor Público Estadual da Bahia, especializado em Direito de Família.
 Sua tarefa é redigir EXCLUSIVAMENTE a seção "DOS FATOS" de uma petição inicial de fixação de alimentos.
 
-ESTRUTURA OBRIGATÓRIA — escreva nesta ordem, em parágrafos corridos:
+ESTRUTURA OBRIGATÓRIA — escreva de forma fluida, em parágrafos corridos:
 
 1. VÍNCULO FAMILIAR: Apresente os alimentandos (crianças/adolescentes, que são os autores) e o requerido (genitor), identificando o vínculo através da representante legal (genitora). Use "os alimentandos" ou "a criança/adolescente" para os autores, e "a representante legal" ou "a genitora" para a mãe. Não chame a mãe de "requerente".
 

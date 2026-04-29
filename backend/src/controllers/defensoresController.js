@@ -381,7 +381,7 @@ export const atualizarDefensor = async (req, res) => {
     }
 
     let updateData = { nome, email, ativo };
-    const targetCargoText = (cargo || req.user.cargo).toString().toLowerCase();
+    const targetCargoText = (cargo || targetMemberFull.cargo.nome).toString().toLowerCase();
 
     if (targetCargoText === "coordenador") {
       updateData.unidade_id = null;

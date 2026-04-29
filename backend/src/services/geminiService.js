@@ -180,7 +180,17 @@ function sanitizeLegalAbbreviations(text) {
   // 2. Remove o título "Dos Fatos" se estiver solto no início
   cleaned = cleaned.replace(/^Dos Fatos\n/i, "").trim();
   // 3. Corrige abreviação de artigo (art/ 5 -> art. 5)
-  return cleaned.replace(/\b(art)\/\s*/gi, "$1. ");
+  cleaned = cleaned.replace(/\b(art)\/\s*/gi, "$1. ");
+
+  // 4. FILTRO DE SEGURANÇA (PROIBIÇÃO DO TERMO "MENOR")
+  // Substitui "menor" por "criança/adolescente" ou "alimentando" conforme o contexto
+  cleaned = cleaned.replace(/\ba menor\b/gi, "a criança");
+  cleaned = cleaned.replace(/\bo menor\b/gi, "o alimentando");
+  cleaned = cleaned.replace(/\bas menores\b/gi, "as crianças");
+  cleaned = cleaned.replace(/\bos menores\b/gi, "os alimentandos");
+  cleaned = cleaned.replace(/\bmenor\b/gi, "criança");
+
+  return cleaned;
 }
 
 // --- FUNÇÕES PRINCIPAIS DE GERAÇÃO ---
