@@ -156,7 +156,7 @@ const sanitizePdfClone = (documentClone) => {
           }
         });
       }
-    } catch (e) {
+    } catch {
       // Ignore security errors or empty sheets
     }
   });

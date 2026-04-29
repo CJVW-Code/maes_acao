@@ -127,7 +127,6 @@ export const processSubmission = async ({
   // Validação CPF e Data de Nascimento - Outros Filhos
   if (formState.outrosFilhos && formState.outrosFilhos.length > 0) {
     formState.outrosFilhos.forEach((filho, index) => {
-      const isCpfOpcional = true; // Forçado como opcional conforme solicitado pelo usuário
       
       if (filho.cpf && !validateCpfAlgorithm(filho.cpf)) {
         validationErrors[`filho_cpf_${index}`] = `O CPF do Filho(a) ${index + 2} é inválido.`;

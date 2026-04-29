@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -209,7 +209,6 @@ export const DetalhesCaso = () => {
   const [descricaoGuarda, setDescricaoGuarda] = useState("");
   const [bensPartilha, setBensPartilha] = useState("");
   const [situacaoFinanceiraGenitora, setSituacaoFinanceiraGenitora] = useState("");
-  const [valorMensalPensao, setValorMensalPensao] = useState("");
 
   // 1. O SWR substitui o estado do caso, o fetchDetalhes, e o polling!
   const {
@@ -384,7 +383,7 @@ export const DetalhesCaso = () => {
     }
   };
 
-  const handleGenerateTermo = async () => {
+  const handleGenerateTermo = useCallback(async () => {
     setIsGeneratingTermo(true);
     try {
       const response = await fetch(`${API_BASE}/casos/${id}/gerar-termo`, {
@@ -408,9 +407,9 @@ export const DetalhesCaso = () => {
     } finally {
       setIsGeneratingTermo(false);
     }
-  };
+  }, [id, token, mutate, toast]);
 
-  const handleRegenerateMinuta = async (soloCumulado = false) => {
+  const handleRegenerateMinuta = useCallback(async (soloCumulado = false) => {
     if (
       !(await confirm(
         "Isso irá gerar um novo arquivo Word com os dados atuais. O arquivo anterior será substituído. Continuar?",
@@ -440,7 +439,7 @@ export const DetalhesCaso = () => {
     } finally {
       setIsRegeneratingMinuta(false);
     }
-  };
+  }, [confirm, id, token, mutate, toast]);
 
   const handleSaveFeedback = async () => {
     setSavingFeedback(true);
@@ -1039,7 +1038,6 @@ export const DetalhesCaso = () => {
         setDescricaoGuarda(caso.juridico?.descricao_guarda || "");
         setBensPartilha(caso.juridico?.bens_partilha || "");
         setSituacaoFinanceiraGenitora(caso.juridico?.situacao_financeira_genitora || "");
-        setValorMensalPensao(caso.juridico?.debito_valor || "");
 
         setFeedbackInitialized(true);
       }

@@ -199,6 +199,10 @@ model casos_juridico {
   debito_prisao_valor    String?
   debito_prisao_extenso  String?
   dados_bancarios_deposito String?
+  conta_banco            String?
+  conta_agencia          String?
+  conta_operacao         String?
+  conta_numero           String?
   empregador_nome        String?
   empregador_cnpj        String?
   empregador_endereco    String?
