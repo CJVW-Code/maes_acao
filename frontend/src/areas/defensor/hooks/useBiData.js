@@ -101,7 +101,7 @@ const sanitizePdfClone = (documentClone) => {
         style[prop] = prop === "backgroundColor" ? "#ffffff" : safeColor;
         
         // Handle SVG attributes directly as well
-        if (node instanceof SVGElement) {
+        if (node instanceof (node.ownerDocument?.defaultView?.SVGElement || SVGElement)) {
           const svgProp = prop.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase());
           node.setAttribute(svgProp, prop === "backgroundColor" ? "#ffffff" : safeColor);
         }

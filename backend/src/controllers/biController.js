@@ -31,17 +31,19 @@ const verificarBloqueioHorario = async (user) => {
   const configs = await getConfiguracoes();
   const overrides = safeParseArray(configs.bi_overrides);
   const agoraDate = new Date();
-  const overrideAtivo = overrides.find(ov => {
+  const overrideAtivo = overrides.find((ov) => {
     const inicio = new Date(ov.inicio);
     const fim = new Date(ov.fim);
     return agoraDate >= inicio && agoraDate <= fim;
   });
 
   if (overrideAtivo) {
-    console.log(`[BI-Auth] ✅ Liberado por Override ativo (ID: ${overrideAtivo.id}) para ${user.email}`);
+    console.log(
+      `[BI-Auth] ✅ Liberado por Override ativo (ID: ${overrideAtivo.id}) para ${user.email}`,
+    );
     return { bloqueado: false };
   }
-  
+
   // 1. Bloqueio Manual Global (Admin)
   if (configs.bi_bloqueado === "true") {
     console.log(`[BI-Auth] ❌ Bloqueado Manualmente para ${user.email}`);
@@ -56,9 +58,10 @@ const verificarBloqueioHorario = async (user) => {
 
   if (biHorarios.length === 0) {
     console.log(`[BI-Auth] ❌ Bloqueado: Nenhuma janela configurada para ${user.email}`);
-    return { 
-      bloqueado: true, 
-      mensagem: "O acesso ao BI não possui janelas de horário configuradas e está restrito por padrão." 
+    return {
+      bloqueado: true,
+      mensagem:
+        "O acesso ao BI não possui janelas de horário configuradas e está restrito por padrão.",
     };
   }
 
@@ -72,7 +75,7 @@ const verificarBloqueioHorario = async (user) => {
   });
   const formatadorDia = new Intl.DateTimeFormat("pt-BR", {
     timeZone: timezone,
-    weekday: "long"
+    weekday: "long",
   });
 
   const horaAtualStr = formatadorHora.format(agora); // "HH:mm"
@@ -81,7 +84,10 @@ const verificarBloqueioHorario = async (user) => {
   const estaNoHorario = biHorarios.some((janela) => {
     // Normaliza para comparação sem acentos (ex: terça-feira -> terca-feira)
     const diaAtualNorm = diaAtual.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const diaJanelaNorm = (janela.dia || "todos").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const diaJanelaNorm = (janela.dia || "todos")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
 
     const diaMatch = diaJanelaNorm === "todos" || diaAtualNorm.includes(diaJanelaNorm);
     const horaMatch = horaAtualStr >= janela.inicio && horaAtualStr <= janela.fim;
@@ -89,8 +95,12 @@ const verificarBloqueioHorario = async (user) => {
   });
 
   if (!estaNoHorario) {
-    const formatarJanelas = biHorarios.map(j => `${j.dia || 'todos'}: ${j.inicio}-${j.fim}`).join(", ");
-    console.log(`[BI-Auth] ❌ Bloqueado: Fora do horário (${horaAtualStr}) para ${user.email}. Janelas: ${formatarJanelas}`);
+    const formatarJanelas = biHorarios
+      .map((j) => `${j.dia || "todos"}: ${j.inicio}-${j.fim}`)
+      .join(", ");
+    console.log(
+      `[BI-Auth] ❌ Bloqueado: Fora do horário (${horaAtualStr}) para ${user.email}. Janelas: ${formatarJanelas}`,
+    );
     return {
       bloqueado: true,
       mensagem: `Acesso ao BI bloqueado fora do horário permitido (${formatarJanelas}).`,
@@ -100,7 +110,6 @@ const verificarBloqueioHorario = async (user) => {
   console.log(`[BI-Auth] ✅ Liberado por Janela de Horário para ${user.email}`);
   return { bloqueado: false };
 };
-
 
 const DEFAULT_TOP_N = 10;
 const PAGE_SIZE = 1000;
@@ -130,7 +139,9 @@ const stringifyBigInts = (obj) => {
   if (typeof obj === "bigint") return obj.toString();
   if (Array.isArray(obj)) return obj.map(stringifyBigInts);
   if (typeof obj === "object") {
-    return Object.fromEntries(Object.entries(obj).map(([key, value]) => [key, stringifyBigInts(value)]));
+    return Object.fromEntries(
+      Object.entries(obj).map(([key, value]) => [key, stringifyBigInts(value)]),
+    );
   }
   return obj;
 };
@@ -154,10 +165,17 @@ const endOfDay = (date) => {
   return value;
 };
 
+const hasValidDate = (date) => {
+  if (!date) return false;
+  const d = new Date(date);
+  return d instanceof Date && !isNaN(d.getTime());
+};
+
 const buildDateRange = ({ periodo = "7d", dataInicio, dataFim } = {}) => {
   const now = new Date();
   if (periodo === "mutirao") return { periodo, range: null, warning: null };
-  if (periodo === "hoje") return { periodo, range: { gte: startOfDay(now), lte: endOfDay(now) }, warning: null };
+  if (periodo === "hoje")
+    return { periodo, range: { gte: startOfDay(now), lte: endOfDay(now) }, warning: null };
   if (periodo === "30d") {
     const start = startOfDay(now);
     start.setDate(start.getDate() - 30);
@@ -224,14 +242,19 @@ const _buildPrismaWhere = ({ range, unidadeId, arquivado = false, dateField = "c
 };
 
 const fetchCasosMetadata = async ({ range, unidadeId }) => {
-  const columns = "status,tipo_acao,unidade_id,arquivado,motivo_arquivamento,created_at,updated_at,protocolado_at,processed_at,processing_started_at,servidor_id,defensor_id";
+  const columns =
+    "status,tipo_acao,unidade_id,arquivado,motivo_arquivamento,created_at,updated_at,protocolado_at,processed_at,processing_started_at,servidor_id,defensor_id";
 
   if (isSupabaseConfigured) {
     const rows = [];
     let from = 0;
 
     while (true) {
-      let query = supabase.from("casos").select(columns).order("created_at", { ascending: false }).range(from, from + PAGE_SIZE - 1);
+      let query = supabase
+        .from("casos")
+        .select(columns)
+        .order("created_at", { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
 
       if (unidadeId && unidadeId !== "todas") query = query.eq("unidade_id", unidadeId);
 
@@ -241,8 +264,8 @@ const fetchCasosMetadata = async ({ range, unidadeId }) => {
         // Mantém paridade com a lógica Prisma: created_at OR updated_at OR protocolado_at
         query = query.or(
           `and(created_at.gte.${start},created_at.lte.${end}),` +
-          `and(updated_at.gte.${start},updated_at.lte.${end}),` +
-          `and(protocolado_at.gte.${start},protocolado_at.lte.${end})`
+            `and(updated_at.gte.${start},updated_at.lte.${end}),` +
+            `and(protocolado_at.gte.${start},protocolado_at.lte.${end})`,
         );
       }
 
@@ -310,11 +333,16 @@ const validateUnidade = async (unidadeId) => {
   return unidade?.ativo ? unidade : null;
 };
 
-const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preFetchedUnidades = null) => {
+const montarRelatorio = async (
+  body = {},
+  user = {},
+  preFetchedRows = null,
+  preFetchedUnidades = null,
+) => {
   const { range, periodo, warning } = buildDateRange(body);
   const topN = body.topN ?? DEFAULT_TOP_N;
   const requestedUnidade = body.unidade_id || "todas";
-  
+
   // Escopo de Unidade por Cargo
   // Admin e Gestor: Podem ver todas ou uma específica.
   // Coordenador: Sempre restrito à sua própria unidade.
@@ -329,49 +357,67 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
     throw error;
   }
 
-  const unidades = preFetchedUnidades || await prisma.unidades.findMany({
-    where: { 
-      ativo: true,
-      ...(unidadeId !== "todas" ? { id: unidadeId } : {})
-    },
-    select: { id: true, nome: true, comarca: true },
-    orderBy: { nome: "asc" },
-  });
+  const unidades =
+    preFetchedUnidades ||
+    (await prisma.unidades.findMany({
+      where: {
+        ativo: true,
+        ...(unidadeId !== "todas" ? { id: unidadeId } : {}),
+      },
+      select: { id: true, nome: true, comarca: true },
+      orderBy: { nome: "asc" },
+    }));
 
-  const rows = preFetchedRows 
-    ? preFetchedRows.filter(r => unidadeId === "todas" || r.unidade_id === unidadeId) 
+  const rows = preFetchedRows
+    ? preFetchedRows.filter((r) => unidadeId === "todas" || r.unidade_id === unidadeId)
     : await fetchCasosMetadata({ range, unidadeId });
 
   const tempoMedioIa = calcularTempoMedioIa(rows, range);
   const unidadeNomeById = new Map(unidades.map((unidade) => [unidade.id, unidade.nome]));
-  
+
   // Busca nomes e cargos de todos os defensores/servidores para o ranking de produtividade
   const defensoresDB = await prisma.defensores.findMany({
-    where: { 
+    where: {
       ativo: true,
-      ...(isAdminOrGestor ? {} : { unidade_id: user.unidade_id })
+      ...(isAdminOrGestor ? {} : { unidade_id: user.unidade_id }),
     },
-    select: { 
-      id: true, 
+    select: {
+      id: true,
       nome: true,
       unidade_id: true,
-      cargo: { select: { nome: true } }
-    }
+      cargo: { select: { nome: true } },
+    },
   });
-  
+
   const usuarioInfoById = new Map(
-    defensoresDB.map(u => [
-      u.id, 
-      { 
-        nome: u.nome, 
-        cargo: u.cargo?.nome?.toLowerCase() || "servidor" 
-      }
-    ])
+    defensoresDB.map((u) => [
+      u.id,
+      {
+        nome: u.nome,
+        cargo: u.cargo?.nome?.toLowerCase() || "servidor",
+      },
+    ]),
   );
 
-  const ativos = rows.filter((row) => row.arquivado === false && row.created_at && filterByDate(row, "created_at", range));
-  const arquivados = rows.filter((row) => row.arquivado === true && row.updated_at && filterByDate(row, "updated_at", range));
-  const protocolosNoPeriodo = rows.filter((row) => row.status === "protocolado" && row.arquivado === false && row.protocolado_at && filterByDate(row, "protocolado_at", range));
+  const ativos = rows.filter(
+    (row) =>
+      row.arquivado === false &&
+      hasValidDate(row.created_at) &&
+      filterByDate(row, "created_at", range),
+  );
+  const arquivados = rows.filter(
+    (row) =>
+      row.arquivado === true &&
+      hasValidDate(row.updated_at) &&
+      filterByDate(row, "updated_at", range),
+  );
+  const protocolosNoPeriodo = rows.filter(
+    (row) =>
+      row.status === "protocolado" &&
+      row.arquivado === false &&
+      hasValidDate(row.protocolado_at) &&
+      filterByDate(row, "protocolado_at", range),
+  );
 
   const porStatusMap = new Map();
   const porTipoMap = new Map();
@@ -380,7 +426,7 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
   const protocoloDiaMap = new Map();
   const arquivadosMotivoMap = new Map();
   const arquivadosTipoMap = new Map();
-  
+
   // Métricas de Produtividade: Agrupamento por Defensor e Servidor
   const produtividadeServidoresMap = new Map();
   const produtividadeDefensoresMap = new Map();
@@ -389,30 +435,36 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
     increment(porStatusMap, row.status);
     increment(porTipoMap, row.tipo_acao);
     increment(triagemDiaMap, toDateOnly(row.created_at));
-    
+
     // Contabiliza quem está trabalhando no caso (Servidor/Estagiário)
-    if (row.servidor_id && ["em_atendimento", "liberado_para_protocolo", "em_protocolo", "protocolado"].includes(row.status)) {
+    if (
+      row.servidor_id &&
+      ["em_atendimento", "liberado_para_protocolo", "em_protocolo", "protocolado"].includes(
+        row.status,
+      )
+    ) {
       increment(produtividadeServidoresMap, row.servidor_id);
     }
   });
 
-  const rankingUnidadesAgregado = !preFetchedRows && !preFetchedUnidades
-    ? await prisma.casos.groupBy({
-        by: ['unidade_id'],
-        _count: { id: true },
-        where: { 
-          status: "protocolado", 
-          arquivado: false,
-          ...(unidadeId !== "todas" ? { unidade_id: unidadeId } : {}),
-          ...(range ? { protocolado_at: { gte: range.gte, lte: range.lte } } : {})
-        }
-      })
-    : null;
+  const rankingUnidadesAgregado =
+    !preFetchedRows && !preFetchedUnidades
+      ? await prisma.casos.groupBy({
+          by: ["unidade_id"],
+          _count: { id: true },
+          where: {
+            status: "protocolado",
+            arquivado: false,
+            ...(unidadeId !== "todas" ? { unidade_id: unidadeId } : {}),
+            ...(range ? { protocolado_at: { gte: range.gte, lte: range.lte } } : {}),
+          },
+        })
+      : null;
 
   protocolosNoPeriodo.forEach((row) => {
     if (!rankingUnidadesAgregado) increment(rankingMap, row.unidade_id);
     increment(protocoloDiaMap, toDateOnly(row.protocolado_at));
-    
+
     // Contabiliza quem efetivamente protocolou (Defensor)
     if (row.defensor_id) {
       increment(produtividadeDefensoresMap, row.defensor_id);
@@ -425,26 +477,35 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
     try {
       const whereGestao = {
         criado_em: range ? { gte: range.gte, lte: range.lte } : undefined,
-        acao: { in: ["distribuicao_caso", "redistribuicao_caso", "lock_removido_admin", "lock_removido_coordenador", "arquivamento_manual", "desarquivamento_manual"] },
-        usuario_id: { 
+        acao: {
+          in: [
+            "distribuicao_caso",
+            "redistribuicao_caso",
+            "lock_removido_admin",
+            "lock_removido_coordenador",
+            "arquivamento_manual",
+            "desarquivamento_manual",
+          ],
+        },
+        usuario_id: {
           not: null,
-          ...(isAdminOrGestor ? {} : { in: defensoresDB.map(u => u.id) })
-        }
+          ...(isAdminOrGestor ? {} : { in: defensoresDB.map((u) => u.id) }),
+        },
       };
 
       const logsAgregados = await prisma.logs_auditoria.groupBy({
-        by: ['usuario_id'],
+        by: ["usuario_id"],
         _count: { id: true },
         where: whereGestao,
         orderBy: {
           _count: {
-            id: 'desc'
-          }
+            id: "desc",
+          },
         },
-        take: 200 // Ranking Top 200 gestores
+        take: 200, // Ranking Top 200 gestores
       });
 
-      logsAgregados.forEach(log => {
+      logsAgregados.forEach((log) => {
         acoesGestaoMap.set(log.usuario_id, log._count.id);
       });
     } catch (err) {
@@ -456,15 +517,17 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
   arquivados.forEach((row) => {
     increment(
       arquivadosMotivoMap,
-      ARCHIVE_REASON_LABELS[row.motivo_arquivamento] || row.motivo_arquivamento || "Motivo não registrado",
+      ARCHIVE_REASON_LABELS[row.motivo_arquivamento] ||
+        row.motivo_arquivamento ||
+        "Motivo não registrado",
     );
     increment(arquivadosTipoMap, row.tipo_acao);
   });
 
   const dias = Array.from(new Set([...triagemDiaMap.keys(), ...protocoloDiaMap.keys()]))
-    .filter(d => d !== null && d !== "null")
+    .filter((d) => d !== null && d !== "null")
     .sort();
-    
+
   const throughput = dias.map((dia) => ({
     dia,
     triagens: triagemDiaMap.get(dia) || 0,
@@ -472,7 +535,7 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
   }));
 
   const baseRankingUnidades = rankingUnidadesAgregado
-    ? rankingUnidadesAgregado.map(item => ({ unidade_id: item.unidade_id, qtd: item._count.id }))
+    ? rankingUnidadesAgregado.map((item) => ({ unidade_id: item.unidade_id, qtd: item._count.id }))
     : mapToSortedArray(rankingMap, "unidade_id");
 
   const rankingUnidades = applyTopN(baseRankingUnidades, topN).map((item) => ({
@@ -480,20 +543,28 @@ const montarRelatorio = async (body = {}, user = {}, preFetchedRows = null, preF
     unidade: unidadeNomeById.get(item.unidade_id) || "Unidade não identificada",
   }));
 
-  const rankingDefensores = applyTopN(mapToSortedArray(produtividadeDefensoresMap, "usuario_id"), topN).map((item) => ({
+  const rankingDefensores = applyTopN(
+    mapToSortedArray(produtividadeDefensoresMap, "usuario_id"),
+    topN,
+  ).map((item) => ({
     ...item,
     nome: usuarioInfoById.get(item.usuario_id)?.nome || "Usuário não identificado",
   }));
 
-  const rankingServidores = applyTopN(mapToSortedArray(produtividadeServidoresMap, "usuario_id"), topN).map((item) => ({
+  const rankingServidores = applyTopN(
+    mapToSortedArray(produtividadeServidoresMap, "usuario_id"),
+    topN,
+  ).map((item) => ({
     ...item,
     nome: usuarioInfoById.get(item.usuario_id)?.nome || "Usuário não identificado",
   }));
 
-  const rankingGestao = applyTopN(mapToSortedArray(acoesGestaoMap, "usuario_id"), topN).map((item) => ({
-    ...item,
-    nome: usuarioInfoById.get(item.usuario_id)?.nome || "Gestor não identificado",
-  }));
+  const rankingGestao = applyTopN(mapToSortedArray(acoesGestaoMap, "usuario_id"), topN).map(
+    (item) => ({
+      ...item,
+      nome: usuarioInfoById.get(item.usuario_id)?.nome || "Gestor não identificado",
+    }),
+  );
 
   const porStatus = mapToSortedArray(porStatusMap, "status");
   const porTipo = applyTopN(mapToSortedArray(porTipoMap, "tipo"), topN);
@@ -570,11 +641,27 @@ const preencherWorkbook = (workbook, relatorio, widgets = DEFAULT_WIDGETS) => {
   }
 
   if (enabled.statusPie) {
-    addRowsSheet(workbook, "Status", [{ header: "Status", key: "status", width: 28 }, { header: "Qtd", key: "qtd", width: 12 }], relatorio.ativos.por_status);
+    addRowsSheet(
+      workbook,
+      "Status",
+      [
+        { header: "Status", key: "status", width: 28 },
+        { header: "Qtd", key: "qtd", width: 12 },
+      ],
+      relatorio.ativos.por_status,
+    );
   }
 
   if (enabled.tiposBars) {
-    addRowsSheet(workbook, "Tipos", [{ header: "Tipo", key: "tipo", width: 32 }, { header: "Qtd", key: "qtd", width: 12 }], relatorio.ativos.por_tipo);
+    addRowsSheet(
+      workbook,
+      "Tipos",
+      [
+        { header: "Tipo", key: "tipo", width: 32 },
+        { header: "Qtd", key: "qtd", width: 12 },
+      ],
+      relatorio.ativos.por_tipo,
+    );
   }
 
   if (enabled.throughputLine) {
@@ -603,7 +690,15 @@ const preencherWorkbook = (workbook, relatorio, widgets = DEFAULT_WIDGETS) => {
   }
 
   if (enabled.arquivados) {
-    addRowsSheet(workbook, "Arquivados Motivos", [{ header: "Motivo", key: "motivo", width: 44 }, { header: "Qtd", key: "qtd", width: 12 }], relatorio.arquivados.por_motivo);
+    addRowsSheet(
+      workbook,
+      "Arquivados Motivos",
+      [
+        { header: "Motivo", key: "motivo", width: 44 },
+        { header: "Qtd", key: "qtd", width: 12 },
+      ],
+      relatorio.arquivados.por_motivo,
+    );
   }
 
   if (enabled.produtividade) {
@@ -612,18 +707,18 @@ const preencherWorkbook = (workbook, relatorio, widgets = DEFAULT_WIDGETS) => {
       "Produtividade Defensores",
       [
         { header: "Defensor", key: "nome", width: 36 },
-        { header: "Protocolos", key: "qtd", width: 14 }
+        { header: "Protocolos", key: "qtd", width: 14 },
       ],
-      relatorio.produtividade.defensores
+      relatorio.produtividade.defensores,
     );
     addRowsSheet(
       workbook,
       "Produtividade Servidores",
       [
         { header: "Servidor/Estagiário", key: "nome", width: 36 },
-        { header: "Atendimentos", key: "qtd", width: 14 }
+        { header: "Atendimentos", key: "qtd", width: 14 },
       ],
-      relatorio.produtividade.servidores
+      relatorio.produtividade.servidores,
     );
   }
 
@@ -633,9 +728,9 @@ const preencherWorkbook = (workbook, relatorio, widgets = DEFAULT_WIDGETS) => {
       "Ações de Gestão",
       [
         { header: "Gestor", key: "nome", width: 36 },
-        { header: "Ações", key: "qtd", width: 14 }
+        { header: "Ações", key: "qtd", width: 14 },
       ],
-      relatorio.acoes_gestao
+      relatorio.acoes_gestao,
     );
   }
 };
@@ -652,8 +747,8 @@ export const gerarRelatorio = async (req, res) => {
   } catch (error) {
     logger.error(`[BI] Erro critico ao gerar relatorio: ${error.message}`);
     const status = error.statusCode || 500;
-    res.status(status).json({ 
-      error: status === 500 ? "Erro ao gerar relatorio de BI." : error.message
+    res.status(status).json({
+      error: status === 500 ? "Erro ao gerar relatorio de BI." : error.message,
     });
   }
 };
@@ -669,7 +764,10 @@ export const exportarXlsx = async (req, res) => {
     const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: res });
     const filename = `bi-${new Date().toISOString().slice(0, 10)}.xlsx`;
 
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
 
     preencherWorkbook(workbook, relatorio, req.body?.widgets);
@@ -677,7 +775,9 @@ export const exportarXlsx = async (req, res) => {
   } catch (error) {
     logger.error(`[BI] Falha ao exportar XLSX: ${error.message}`);
     if (!res.headersSent) {
-      res.status(error.statusCode || 500).json({ error: error.statusCode ? error.message : "Erro ao exportar XLSX." });
+      res
+        .status(error.statusCode || 500)
+        .json({ error: error.statusCode ? error.message : "Erro ao exportar XLSX." });
     }
   }
 };
@@ -696,15 +796,26 @@ export const exportarXlsxLote = async (req, res) => {
     const filename = `bi-lote-${new Date().toISOString().slice(0, 10)}.xlsx`;
     const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: res });
 
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
 
     const usedSheetNames = new Set();
 
     for (const unidade of unidades) {
-      const relatorio = await montarRelatorio({ ...req.body, unidade_id: unidade.id }, req.user, preFetchedRows, unidades);
-      
-      let baseName = unidade.nome.replace(/[/\\*?[\]:]/g, "").slice(0, 31).trim();
+      const relatorio = await montarRelatorio(
+        { ...req.body, unidade_id: unidade.id },
+        req.user,
+        preFetchedRows,
+        unidades,
+      );
+
+      let baseName = unidade.nome
+        .replace(/[/\\*?[\]:]/g, "")
+        .slice(0, 31)
+        .trim();
       if (!baseName) baseName = "Unidade";
       let finalName = baseName;
       let counter = 1;
@@ -723,11 +834,19 @@ export const exportarXlsxLote = async (req, res) => {
       sheet.getRow(1).font = { bold: true };
       sheet.addRow({ indicador: "Casos ativos", valor: relatorio.kpis.ativos_total });
       sheet.addRow({ indicador: "Casos arquivados", valor: relatorio.kpis.arquivados_total });
-      sheet.addRow({ indicador: "Protocolados no periodo", valor: relatorio.kpis.protocolados_periodo });
-      sheet.addRow({ indicador: "Tempo medio IA (s)", valor: relatorio.kpis.tempo_medio_ia_segundos ?? "N/A" });
+      sheet.addRow({
+        indicador: "Protocolados no periodo",
+        valor: relatorio.kpis.protocolados_periodo,
+      });
+      sheet.addRow({
+        indicador: "Tempo medio IA (s)",
+        valor: relatorio.kpis.tempo_medio_ia_segundos ?? "N/A",
+      });
       sheet.addRow({});
       sheet.addRow({ indicador: "Status", valor: "Quantidade" });
-      relatorio.ativos.por_status.forEach((item) => sheet.addRow({ indicador: item.status, valor: item.qtd }));
+      relatorio.ativos.por_status.forEach((item) =>
+        sheet.addRow({ indicador: item.status, valor: item.qtd }),
+      );
       sheet.commit();
     }
 
@@ -752,26 +871,26 @@ export const getOverrides = async (req, res) => {
 export const createOverride = async (req, res) => {
   const horas = Math.min(24, Math.max(1, Number(req.body.horas) || 1));
   const motivo = (req.body.motivo || "Liberação emergencial").substring(0, 255);
-  
+
   try {
     const agora = new Date();
-    const fim = new Date(agora.getTime() + (horas * 60 * 60 * 1000));
-    
+    const fim = new Date(agora.getTime() + horas * 60 * 60 * 1000);
+
     const novoOverride = {
       id: randomUUID(),
       usuario: req.user.nome,
       usuario_id: req.user.id,
       inicio: agora.toISOString(),
       fim: fim.toISOString(),
-      motivo
+      motivo,
     };
 
     // Usando transação para garantir que a leitura e escrita sejam atômicas
     await prisma.$transaction(async (tx) => {
       const config = await tx.configuracoes_sistema.findUnique({
-        where: { chave: "bi_overrides" }
+        where: { chave: "bi_overrides" },
       });
-      
+
       let overrides;
       try {
         overrides = JSON.parse(config?.valor || "[]");
@@ -779,24 +898,24 @@ export const createOverride = async (req, res) => {
       } catch {
         overrides = [];
       }
-      
+
       const novosOverrides = [...overrides, novoOverride];
-      
+
       await tx.configuracoes_sistema.upsert({
         where: { chave: "bi_overrides" },
         update: { valor: JSON.stringify(novosOverrides) },
-        create: { chave: "bi_overrides", valor: JSON.stringify(novosOverrides) }
+        create: { chave: "bi_overrides", valor: JSON.stringify(novosOverrides) },
       });
     });
-    
+
     invalidarCache();
-    
+
     await prisma.logs_auditoria.create({
       data: {
         usuario_id: req.user.id,
         acao: "bi_override_criado",
-        detalhes: { override_id: novoOverride.id, horas, motivo }
-      }
+        detalhes: { override_id: novoOverride.id, horas, motivo },
+      },
     });
 
     res.status(201).json(novoOverride);
@@ -808,19 +927,19 @@ export const createOverride = async (req, res) => {
 
 export const deleteOverride = async (req, res) => {
   const { id } = req.params;
-  
+
   try {
     let removed = false;
     await prisma.$transaction(async (tx) => {
       const config = await tx.configuracoes_sistema.findUnique({
         where: { chave: "bi_overrides" },
       });
-      
+
       const overrides = safeParseArray(config?.valor);
       const novosOverrides = overrides.filter((ov) => ov.id !== id);
-      
+
       if (overrides.length === novosOverrides.length) return;
-      
+
       await tx.configuracoes_sistema.update({
         where: { chave: "bi_overrides" },
         data: { valor: JSON.stringify(novosOverrides) },
@@ -831,15 +950,15 @@ export const deleteOverride = async (req, res) => {
     if (!removed) {
       return res.status(404).json({ error: "Registro não encontrado." });
     }
-    
+
     invalidarCache();
-    
+
     await prisma.logs_auditoria.create({
       data: {
         usuario_id: req.user.id,
         acao: "bi_override_removido",
-        detalhes: { override_id: id }
-      }
+        detalhes: { override_id: id },
+      },
     });
 
     res.status(200).json({ message: "Registro removido com sucesso." });

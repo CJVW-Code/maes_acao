@@ -157,7 +157,7 @@ export const DetalhesCaso = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { confirm } = useConfirm();
-  const [isGenerating, setIsGenerating] = useState(false);
+  // const [isGenerating, setIsGenerating] = useState(false); // Para uso futuro (Gerar Fatos IA)
   const [feedback, setFeedback] = useState("");
   const [savingFeedback, setSavingFeedback] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -209,6 +209,7 @@ export const DetalhesCaso = () => {
   const [descricaoGuarda, setDescricaoGuarda] = useState("");
   const [bensPartilha, setBensPartilha] = useState("");
   const [situacaoFinanceiraGenitora, setSituacaoFinanceiraGenitora] = useState("");
+  const [opcaoGuarda, setOpcaoGuarda] = useState("");
 
   // 1. O SWR substitui o estado do caso, o fetchDetalhes, e o polling!
   const {
@@ -356,7 +357,8 @@ export const DetalhesCaso = () => {
 
   // A função renderDataField que estava aqui pode ser apagada se você já levou para o InfoAssistido!
   // Se ainda estiver usando aqui fora, pode deixar.
-
+  
+  /* 
   const handleGenerateFatos = async () => {
     setIsGenerating(true);
     try {
@@ -373,7 +375,7 @@ export const DetalhesCaso = () => {
       }
 
       await response.json();
-      mutate(); // CORRIGIDO
+      mutate();
       toast.success("Solicitação enviada. O sistema está processando...");
     } catch (error) {
       console.error(error);
@@ -382,6 +384,8 @@ export const DetalhesCaso = () => {
       setIsGenerating(false);
     }
   };
+  */
+
 
   const handleGenerateTermo = useCallback(async () => {
     setIsGeneratingTermo(true);
@@ -653,6 +657,7 @@ export const DetalhesCaso = () => {
           descricao_guarda: descricaoGuarda,
           bens_partilha: bensPartilha,
           situacao_financeira_genitora: situacaoFinanceiraGenitora,
+          opcao_guarda: opcaoGuarda,
         }),
       });
       if (res.ok) {
@@ -1038,6 +1043,7 @@ export const DetalhesCaso = () => {
         setDescricaoGuarda(caso.juridico?.descricao_guarda || "");
         setBensPartilha(caso.juridico?.bens_partilha || "");
         setSituacaoFinanceiraGenitora(caso.juridico?.situacao_financeira_genitora || "");
+        setOpcaoGuarda(caso.juridico?.opcao_guarda || "");
 
         setFeedbackInitialized(true);
       }
@@ -1518,16 +1524,7 @@ export const DetalhesCaso = () => {
                     <div className="card space-y-4">
                       <div className="flex items-center justify-between border-b border-border pb-2">
                         <h3 className="heading-3">📂 Arquivos Gerados</h3>
-                        {user?.cargo === "admin" && (
-                          <button
-                            onClick={handleGenerateFatos}
-                            disabled={isGenerating || caso.status === "processando"}
-                            className="text-primary hover:bg-primary/10 p-1 rounded transition-colors"
-                            title="Regenerar texto dos fatos com IA"
-                          >
-                            <RefreshCw size={16} className={isGenerating ? "animate-spin" : ""} />
-                          </button>
-                        )}
+
                       </div>
 
                       <p className="text-sm text-muted">
@@ -1844,11 +1841,44 @@ export const DetalhesCaso = () => {
             <div className="space-y-6 mb-8">
               <div className="card space-y-4 border-l-4 border-l-primary">
                 <div className="flex items-center gap-3">
-                  <Mic className="text-primary" />
-                  <h2 className="heading-2">Memória de Cálculo</h2>
+                  <CheckCircle className="text-primary" />
+                  <h2 className="heading-2">Dados Jurídicos e Guarda</h2>
                 </div>
-                <textarea
-                  className="input min-h-[200px] font-mono text-sm bg-bg/30"
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-bg/20 p-4 rounded-xl border border-soft/30">
+                  <div>
+                    <label className="text-xs text-muted uppercase font-bold mb-2 block">Intenção de Guarda</label>
+                    <select
+                      value={opcaoGuarda}
+                      onChange={(e) => setOpcaoGuarda(e.target.value)}
+                      className="input w-full bg-surface border-soft"
+                    >
+                      <option value="">Selecione uma opção...</option>
+                      <option value="nao">Não deseja entrar com pedido de guarda</option>
+                      <option value="regularizar">Quero regularizar a guarda e convivência</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end">
+                    <p className="text-[11px] text-muted leading-tight">
+                      * Esta escolha define se a IA incluirá pedidos de guarda na minuta e se o Defensor deve peticionar sobre isso.
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs text-muted uppercase font-bold mb-2 block">Descrição da Guarda / Visitas</label>
+                  <textarea
+                    className="input min-h-[120px] font-mono text-sm bg-bg/30"
+                    placeholder="Descreva detalhes sobre a guarda e convivência se houver..."
+                    value={descricaoGuarda}
+                    onChange={(e) => setDescricaoGuarda(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs text-muted uppercase font-bold mb-2 block">Memória de Cálculo / Observações Gerais</label>
+                  <textarea
+                    className="input min-h-[150px] font-mono text-sm bg-bg/30"
                   placeholder="Ex: Ref jan/24 a mar/24 + multa 10%... "
                   value={memoriaCalculo}
                   onChange={(e) => setMemoriaCalculo(e.target.value)}
@@ -1863,6 +1893,7 @@ export const DetalhesCaso = () => {
                     <Save size={18} />
                     {isSavingJuridico ? "Salvando..." : "Salvar Dados Jurídicos"}
                   </button>
+                </div>
                 </div>
               </div>
             </div>

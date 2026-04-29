@@ -110,10 +110,18 @@ export const SecaoValoresPensao = ({
             />
             <input
               type="text"
+              name="conta_operacao"
+              value={formState.conta_operacao || ""}
+              onChange={handleRestrictedAlphanumeric}
+              placeholder="Operação (opcional)"
+              className="input"
+            />
+            <input
+              type="text"
               name="conta_deposito"
               value={formState.conta_deposito}
               onChange={handleRestrictedAlphanumeric}
-              placeholder="Conta com digito"
+              placeholder="Conta com dígito"
               className="input"
             />
           </div>

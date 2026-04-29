@@ -5,6 +5,17 @@ import { generateToken } from "../config/jwt.js";
 import logger from "../utils/logger.js";
 import {  isSupabaseConfigured } from "../config/supabase.js";
 
+const PESO_CARGO = {
+  admin: 3,
+  gestor: 2,
+  coordenador: 1,
+  defensor: 0,
+  servidor: 0,
+  estagiario: 0,
+  recepcao: 0,
+  visualizador: 0,
+};
+
 // --- FUNÇÃO DE CADASTRO (Atualizada com Cargo) ---
 export const registrarDefensor = async (req, res) => {
   try {
@@ -18,6 +29,16 @@ export const registrarDefensor = async (req, res) => {
     }
 
     const { nome, email, senha, cargo = "servidor", unidade_id } = req.body;
+
+    // Validação de Hierarquia: não pode criar cargo superior ao seu
+    const targetWeight = PESO_CARGO[cargo.toLowerCase()] ?? 0;
+    const myWeight = PESO_CARGO[userCargo] ?? 0;
+    
+    if (targetWeight > myWeight || (cargo.toLowerCase() === "admin" && userCargo !== "admin")) {
+      return res.status(403).json({
+        error: "Acesso negado. Você não pode cadastrar um usuário com cargo superior ou igual ao seu (Admin).",
+      });
+    }
 
     // Se for coordenador, valida se a unidade alvo pertence à sua regional
     if (userCargo === "coordenador") {
@@ -293,7 +314,38 @@ export const atualizarDefensor = async (req, res) => {
       }
     }
 
+    // Validação de Hierarquia: busca o membro alvo para checar o cargo atual
+    const targetMemberFull = await prisma.defensores.findUnique({
+      where: { id },
+      include: { cargo: true }
+    });
+
+    if (!targetMemberFull) {
+      return res.status(404).json({ error: "Membro não encontrado." });
+    }
+
+    const myWeight = PESO_CARGO[userCargo] ?? 0;
+    const targetWeight = PESO_CARGO[targetMemberFull.cargo.nome.toLowerCase()] ?? 0;
+
+    // 1. Não pode editar alguém de nível superior
+    if (targetWeight > myWeight) {
+      return res.status(403).json({ error: "Acesso negado. Você não pode editar um usuário de nível superior." });
+    }
+
+    // 2. Proteção Admin: apenas admins mexem em admins
+    if (targetMemberFull.cargo.nome.toLowerCase() === "admin" && userCargo !== "admin") {
+      return res.status(403).json({ error: "Acesso negado. Apenas administradores podem editar outros administradores." });
+    }
+
     const { nome, email, cargo, ativo, unidade_id } = req.body;
+
+    // 3. Validação do novo cargo (se houver tentativa de mudança)
+    if (cargo) {
+      const newWeight = PESO_CARGO[cargo.toLowerCase()] ?? 0;
+      if (newWeight > myWeight || (cargo.toLowerCase() === "admin" && userCargo !== "admin")) {
+        return res.status(403).json({ error: "Acesso negado. Você não pode atribuir um cargo superior ao seu ou cargo de Administrador." });
+      }
+    }
 
     let updateData = { nome, email, ativo };
     if (unidade_id !== undefined) {
@@ -355,6 +407,29 @@ export const deletarDefensor = async (req, res) => {
       if (targetMember?.unidade?.regional !== userUnidade?.regional) {
         return res.status(403).json({ error: "Você só pode excluir membros da sua regional." });
       }
+    }
+
+    // Validação de Hierarquia: busca o membro alvo para checar o cargo atual
+    const targetMemberFull = await prisma.defensores.findUnique({
+      where: { id },
+      include: { cargo: true }
+    });
+
+    if (!targetMemberFull) {
+      return res.status(404).json({ error: "Membro não encontrado." });
+    }
+
+    const myWeight = PESO_CARGO[userCargo] ?? 0;
+    const targetWeight = PESO_CARGO[targetMemberFull.cargo.nome.toLowerCase()] ?? 0;
+
+    // 1. Não pode excluir alguém de nível superior
+    if (targetWeight > myWeight) {
+      return res.status(403).json({ error: "Acesso negado. Você não pode excluir um usuário de nível superior." });
+    }
+
+    // 2. Proteção Admin: apenas admins excluem admins
+    if (targetMemberFull.cargo.nome.toLowerCase() === "admin" && userCargo !== "admin") {
+      return res.status(403).json({ error: "Acesso negado. Apenas administradores podem excluir outros administradores." });
     }
 
     await prisma.defensores.delete({

@@ -70,7 +70,7 @@ export const Casos = () => {
 
   // Filtro de busca e status
   const casosFiltrados = (casos || []).filter((caso) => {
-    const termo = busca.toLowerCase();
+    const termo = busca.toLowerCase().trim();
     const matchBusca =
       caso.nome_assistido?.toLowerCase().includes(termo) ||
       caso.protocolo?.toLowerCase().includes(termo) ||

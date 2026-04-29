@@ -658,6 +658,9 @@ const buildDadosFormularioFallback = (caso = {}) => {
     CIDADEASSINATURA: lookup.unidade?.comarca || "",
     guarda: lookup.guarda || lookup.descricao_guarda || "",
     descricao_guarda: lookup.descricao_guarda || lookup.guarda || "",
+    descricaoGuarda: lookup.descricao_guarda || lookup.guarda || "",
+    opcao_guarda: lookup.opcao_guarda || "",
+    opcaoGuarda: lookup.opcao_guarda || "",
     bens_partilha: lookup.bens_partilha || "",
     situacao_financeira: lookup.situacao_financeira || lookup.situacao_financeira_genitora || "",
     situacao_financeira_genitora:
@@ -1792,7 +1795,6 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
     valor_causa_fixacao: valorCausaFixacaoFormatado,
     valor_causa_fixacao_extenso: valorCausaFixacaoExtenso,
     guarda_convivencia: descricaoGuardaTexto || "",
-    DESCRICAO_GUARDA: descricaoGuardaTexto || "",
     bens_partilha: bensPartilhaTexto || "",
     situacao_financeira_genitora: situacaoFinanceiraTexto || "",
     relato_texto: (baseData.relato_texto || dosFatosTexto || "").replace(/\n/g, "\r\n"),
@@ -2597,7 +2599,7 @@ export const criarNovoCaso = async (req, res) => {
     const documentosInformadosArray = safeJsonParse(documentos_informados, []);
 
     // --- VALIDAÇÃO DE CPFs (CRÍTICO) ---
-    if (!validarCPF(cpf)) {
+    if (cpf && !validarCPF(cpf)) {
       return res.status(400).json({ error: "CPF do assistido inválido." });
     }
 
@@ -3241,10 +3243,23 @@ export const resumoCasos = async (req, res) => {
 
     const vinteMinsAgo = new Date(Date.now() - 20 * 60 * 1000);
     const isPowerUser = req.user?.cargo === "admin" || req.user?.cargo === "gestor";
-    const partesWhere =
-      !isPowerUser && req.user?.unidade_id
-        ? { caso: { unidade_id: req.user.unidade_id, arquivado: false } }
-        : { caso: { arquivado: false } };
+    let partesWhere = { caso: { arquivado: false } };
+    if (!isPowerUser && req.user?.unidade_id) {
+      if (req.user.cargo?.toLowerCase() === "coordenador") {
+        const userUnidade = await prisma.unidades.findUnique({
+          where: { id: req.user.unidade_id },
+          select: { regional: true }
+        }).catch(() => null);
+
+        if (userUnidade?.regional) {
+          partesWhere.caso.unidade = { regional: userUnidade.regional };
+        } else {
+          partesWhere.caso.unidade_id = req.user.unidade_id;
+        }
+      } else {
+        partesWhere.caso.unidade_id = req.user.unidade_id;
+      }
+    }
 
     const [total, porStatus, porTipo, colaboracao, meus, ociosos, representacao, partesTotal] =
       await Promise.all([
@@ -3878,6 +3893,7 @@ export const salvarDadosJuridicos = async (req, res) => {
     conta_operacao,
     conta_numero,
     descricao_guarda,
+    opcao_guarda,
     bens_partilha,
     situacao_financeira_genitora,
   } = req.body;
@@ -3899,6 +3915,7 @@ export const salvarDadosJuridicos = async (req, res) => {
     if (conta_operacao !== undefined) updateData.conta_operacao = conta_operacao;
     if (conta_numero !== undefined) updateData.conta_numero = conta_numero;
     if (descricao_guarda !== undefined) updateData.descricao_guarda = descricao_guarda;
+    if (opcao_guarda !== undefined) updateData.opcao_guarda = opcao_guarda;
     if (bens_partilha !== undefined) updateData.bens_partilha = bens_partilha;
     if (situacao_financeira_genitora !== undefined)
       updateData.situacao_financeira_genitora = situacao_financeira_genitora;
@@ -4085,7 +4102,7 @@ export const gerarTermoDeclaracao = async (req, res) => {
       ...caso,
       ...(caso.partes || {}),
       ...(caso.juridico || {}),
-      ...(caso.ia?.dados_extraidos || {}),
+      ...safeJsonParse(caso.ia?.dados_extraidos, {}),
     };
 
     // Build term declaration data payload using the centralized builder

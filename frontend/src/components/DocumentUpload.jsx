@@ -18,14 +18,14 @@ const SLOTS_CONFIG = {
     {
       id: "rg_crianca_frente",
       label: "RG/CPF da Criança (Frente)",
-      accept: "image/*",
+      accept: "image/*,.pdf",
       required: false,
       context: "crianca",
     },
     {
       id: "rg_crianca_verso",
       label: "RG/CPF da Criança (Verso)",
-      accept: "image/*",
+      accept: "image/*,.pdf",
       required: false,
       context: "crianca",
     },
@@ -41,14 +41,14 @@ const SLOTS_CONFIG = {
     {
       id: "rg_responsavel_frente",
       label: "RG/CNH Responsável (Frente)",
-      accept: "image/*",
+      accept: "image/*,.pdf",
       required: true,
       context: "responsavel",
     },
     {
       id: "rg_responsavel_verso",
       label: "RG/CNH Responsável (Verso)",
-      accept: "image/*",
+      accept: "image/*,.pdf",
       required: true,
       context: "responsavel",
     },
@@ -141,7 +141,7 @@ export const DocumentUpload = ({
       {
         id: `rg_filho_${slotKey}_frente`,
         label: `RG${safeName} (Frente)`,
-        accept: "image/*",
+        accept: "image/*,.pdf",
         required: false,
         context: "extra_child",
         contextName,
@@ -149,7 +149,7 @@ export const DocumentUpload = ({
       {
         id: `rg_filho_${slotKey}_verso`,
         label: `RG${safeName} (Verso)`,
-        accept: "image/*",
+        accept: "image/*,.pdf",
         required: false,
         context: "extra_child",
         contextName,

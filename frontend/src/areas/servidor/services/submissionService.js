@@ -174,10 +174,18 @@ export const processSubmission = async ({
 
   // 3. Validação de Quantidade Mínima de Documentos
   const isEnviarDepois =
-    formState.enviarDocumentosDepois === true || formState.enviarDocumentosDepois === "true";
+    formState.enviarDocumentosDepois === true || 
+    formState.enviarDocumentosDepois === "true" || 
+    Boolean(formState.enviarDocumentosDepois) === true;
   if (!isEnviarDepois) {
     // Reduzido para refletir que RG da criança é opcional
     let minDocs = formState.assistidoEhIncapaz === "nao" ? 4 : 5; 
+    
+    // Incrementa se exigir documentos do processo original (Ex: Cópia da Sentença)
+    if (configAcao?.exigeDadosProcessoOriginal) {
+      minDocs += 1;
+    }
+
     if (formState.assistidoEhIncapaz === "sim" && formState.outrosFilhos.length > 0) {
       minDocs += formState.outrosFilhos.length * 1; // Apenas certidão é estritamente obrigatória por filho extra
     }
@@ -214,7 +222,7 @@ export const processSubmission = async ({
   // Dados Bancários formatados para IA
   let dadosBancariosFormatado = "";
   if (formState.tipo_conta_deposito === "corrente_poupanca") {
-    dadosBancariosFormatado = `Tipo: Corrente/Poupança, Banco: ${formState.banco_deposito}, Agência: ${formState.agencia_deposito}, Conta: ${formState.conta_deposito}`;
+    dadosBancariosFormatado = `Tipo: Corrente/Poupança, Banco: ${formState.banco_deposito}, Agência: ${formState.agencia_deposito}, Operação: ${formState.conta_operacao || "N/A"}, Conta: ${formState.conta_deposito}`;
   } else if (formState.tipo_conta_deposito === "pix") {
     dadosBancariosFormatado = `Tipo: PIX, Chave: ${formState.chave_pix_deposito}`;
   } else if (formState.tipo_conta_deposito === "outro") {

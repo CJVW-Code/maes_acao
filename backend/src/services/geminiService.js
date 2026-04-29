@@ -258,9 +258,17 @@ export const generateDosFatos = async (caseData = {}, acaoKey) => {
 
     const isPlural = todosAutores.length > 1;
 
-    // Dados de guarda e filhos (se existirem nos campos legados ou específicos)
+    // Dados de guarda e intenção (explícita via triagem)
+    const opcaoGuarda = caseData.opcao_guarda || caseData.opcaoGuarda;
+    let intencaoGuardaTexto = "";
+    if (opcaoGuarda === "nao") {
+      intencaoGuardaTexto = "[ATENÇÃO: A assistida declarou que NÃO deseja pedido de guarda neste momento. Foque exclusivamente na fundamentação de Alimentos.]";
+    } else if (opcaoGuarda === "regularizar") {
+      intencaoGuardaTexto = "[A assistida DESEJA regularizar a guarda e o regime de convivência/visitas.]";
+    }
+
     const contextFilhosGuarda = cleanText(
-      caseData.filhos_info || caseData.filhosInfo || caseData.descricao_guarda,
+      `${intencaoGuardaTexto} ${caseData.filhos_info || caseData.filhosInfo || caseData.descricao_guarda || ""}`,
       "",
     );
 

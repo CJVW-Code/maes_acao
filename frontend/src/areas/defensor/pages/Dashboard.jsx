@@ -150,28 +150,22 @@ export const Dashboard = () => {
     setStatusFilter((previous) => (previous === key ? null : key));
   };
 
-  const handleResponderAssistencia = async (alerta, aceito) => {
-    try {
-      const response = await authFetch(`/casos/assistencia/${alerta.referencia_id}/responder`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ aceito }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Erro ao responder solicitação.");
-      }
-
-      await marcarNotificacaoLida(alerta.id);
-
-      if (aceito && alerta.link) {
-        navigate(alerta.link);
-      }
-    } catch (error) {
-      console.error(error);
-      alert(error.message);
+  const handleResponderAssistencia = (alerta, aceito) => {
+    // Ação não bloqueante: Marca como lida e navega imediatamente se aceito
+    marcarNotificacaoLida(alerta.id).catch(console.error);
+    
+    if (aceito && alerta.link) {
+      navigate(alerta.link);
     }
+
+    // Executa a chamada ao backend em background
+    authFetch(`/casos/assistencia/${alerta.referencia_id}/responder`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aceito }),
+    }).catch(error => {
+      console.error("Erro ao responder assistência:", error);
+    });
   };
 
   if (resumoError || casosError) {
