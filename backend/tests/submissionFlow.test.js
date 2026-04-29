@@ -28,7 +28,7 @@ jest.unstable_mockModule("../src/config/prisma.js", () => ({
     unidades: {
       findMany: jest.fn().mockResolvedValue([]),
       findFirst: jest.fn().mockResolvedValue(null),
-      create: jest.fn().mockResolvedValue({ id: 1, comarca: "Teixeira de Freitas" }),
+      create: jest.fn().mockResolvedValue({ id: "00000000-0000-0000-0000-000000000001", comarca: "Teixeira de Freitas" }),
     },
     casos: {
       create: jest.fn().mockResolvedValue({ id: 1, protocolo: "T1" }),

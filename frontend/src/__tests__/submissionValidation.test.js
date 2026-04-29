@@ -223,16 +223,14 @@ describe("processSubmission — validação de campos obrigatórios", () => {
 
 // ─── Validação — CPF de Outro Filho ──────────────────────────────────────────
 describe("processSubmission — validação de outros filhos", () => {
-  it("bloqueia se CPF de filho extra está ausente", async () => {
+  it("NÃO bloqueia se CPF de filho extra está ausente (é opcional)", async () => {
     const mocks = makeMocks();
     const formState = makeFormState({
       outrosFilhos: [{ nome: "Filho 2", cpf: "", dataNascimento: "10/05/2010" }],
     });
-
     await processSubmission({ ...mocks, formState });
-
     const errors = mocks.setFormErrors.mock.calls[0][0];
-    expect(errors).toHaveProperty("filho_cpf_0");
+    expect(errors).not.toHaveProperty("filho_cpf_0");
   });
 
   it("bloqueia se CPF de filho extra é inválido", async () => {

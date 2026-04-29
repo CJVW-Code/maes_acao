@@ -72,7 +72,35 @@ export const TAGS_OFICIAIS = [
   'data_fim_debito',
   'bens_partilha',
   'dos_fatos',
-  'termo_representacao'
+  'termo_representacao',
+  
+  // --- NOVAS TAGS V2 (SNAKE_CASE) ---
+  'vara',
+  'comarca',
+  'triagemNumero',
+  'requerente_nome',
+  'requerente_data_nascimento',
+  'requerente_cpf',
+  'dados_adicionais_requerente',
+  'representante_nome',
+  'representante_endereco_profissional',
+  'representante_telefone',
+  'requerido_nome',
+  'requerido_cpf',
+  'requerido_endereco_residencial',
+  'dados_adicionais_requerido',
+  'percentual_provisorio_salario_min',
+  'percentual_despesas_extras',
+  'dados_bancarios_requerente',
+  'empregador_endereco_profissional',
+  'percentual_definitivo_salario_min',
+  'percentual_definitivo_extras',
+  'cidade_data_assinatura',
+  'relato_texto',
+  'empregador_email',
+  'HAS_GUARDA',
+  'TIPO_ACAO',
+  'tipoAcao'
 ];
 
 export const isValidTag = (tag) => TAGS_OFICIAIS.includes(tag);

@@ -103,6 +103,7 @@ export const StepRelatoDocs = React.memo(
                 crianca: isRepresentacao ? representanteNome : null,
               }}
               onFilesChange={handleFilesChange}
+              error={formErrors.documentos}
             />
           </div>
         )}
@@ -126,9 +127,6 @@ export const StepRelatoDocs = React.memo(
               Quero anexar os documentos agora
             </button>
           </div>
-        )}
-        {formErrors.documentos && (
-          <p className="text-sm text-red-500 font-bold text-center">{formErrors.documentos}</p>
         )}
       </section>
     );

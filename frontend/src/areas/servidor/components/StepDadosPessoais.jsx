@@ -21,6 +21,7 @@ export const StepDadosPessoais = React.memo(({
   assistidoNome,
   assistidoCpf,
   assistidoNascimento,
+  // assistidoNacionalidade,
   representanteNome,
   representanteCpf,
   representanteNascimento,
@@ -49,6 +50,7 @@ export const StepDadosPessoais = React.memo(({
   isRepresentacao,
   labelAutor,
   handleRestrictedAlphanumeric,
+  configAcao,
 }) => {
   return (
     <section className="form-section">
@@ -116,7 +118,7 @@ export const StepDadosPessoais = React.memo(({
             <input
               type="text"
               inputMode="numeric"
-              placeholder="CPF *"
+              placeholder={isRepresentacao && configAcao?.isCpfFilhoOpcional ? "CPF (Opcional)" : "CPF *"}
               name={isRepresentacao ? "cpf" : "representante_cpf"}
               value={
                 isRepresentacao ? assistidoCpf : representanteCpf
@@ -124,7 +126,7 @@ export const StepDadosPessoais = React.memo(({
               onChange={handleCpfChangeAndValidate(
                 isRepresentacao ? "cpf" : "representante_cpf",
               )}
-              {...validar("Informe o CPF.")}
+              {...(isRepresentacao && configAcao?.isCpfFilhoOpcional ? {} : validar("Informe o CPF."))}
               className={`input ${formErrors[isRepresentacao ? "cpf" : "representante_cpf"] ? "border-error ring-1 ring-error" : ""}`}
             />
             {formErrors[isRepresentacao ? "cpf" : "representante_cpf"] && (
@@ -345,7 +347,7 @@ export const StepDadosPessoais = React.memo(({
                   <input
                     type="text"
                     inputMode="numeric"
-                    placeholder="CPF *"
+                    placeholder={configAcao?.isCpfFilhoOpcional ? "CPF (Opcional)" : "CPF *"}
                     value={filho.cpf}
                     onChange={(e) => {
                       const rawValue = e.target.value;
@@ -373,8 +375,15 @@ export const StepDadosPessoais = React.memo(({
                             return updated;
                           });
                         }
-                      } else {
+                      } else if (cleanCpf.length > 0) {
                         setFormErrors((prev) => {
+                          const updated = { ...prev };
+                          delete updated[fieldName];
+                          return updated;
+                        });
+                      } else {
+                         // Se vazio, limpa erro se for opcional
+                         setFormErrors((prev) => {
                           const updated = { ...prev };
                           delete updated[fieldName];
                           return updated;
@@ -382,7 +391,7 @@ export const StepDadosPessoais = React.memo(({
                       }
                     }}
                     className={`input ${formErrors[`filho_cpf_${index}`] ? "border-error ring-1 ring-error" : ""}`}
-                    {...validar("Informe o CPF do filho.")}
+                    {...(configAcao?.isCpfFilhoOpcional ? {} : validar("Informe o CPF do filho."))}
                   />
                   {formErrors[`filho_cpf_${index}`] && (
                     <span className="text-xs text-error mt-1 ml-1">

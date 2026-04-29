@@ -180,7 +180,17 @@ function sanitizeLegalAbbreviations(text) {
   // 2. Remove o título "Dos Fatos" se estiver solto no início
   cleaned = cleaned.replace(/^Dos Fatos\n/i, "").trim();
   // 3. Corrige abreviação de artigo (art/ 5 -> art. 5)
-  return cleaned.replace(/\b(art)\/\s*/gi, "$1. ");
+  cleaned = cleaned.replace(/\b(art)\/\s*/gi, "$1. ");
+
+  // 4. FILTRO DE SEGURANÇA (PROIBIÇÃO DO TERMO "MENOR")
+  // Substitui "menor" por "criança/adolescente" ou "alimentando" conforme o contexto
+  cleaned = cleaned.replace(/\ba menor\b/gi, "a criança");
+  cleaned = cleaned.replace(/\bo menor\b/gi, "o alimentando");
+  cleaned = cleaned.replace(/\bas menores\b/gi, "as crianças");
+  cleaned = cleaned.replace(/\bos menores\b/gi, "os alimentandos");
+  cleaned = cleaned.replace(/\bmenor\b/gi, "criança");
+
+  return cleaned;
 }
 
 // --- FUNÇÕES PRINCIPAIS DE GERAÇÃO ---
@@ -258,9 +268,19 @@ export const generateDosFatos = async (caseData = {}, acaoKey) => {
 
     const isPlural = todosAutores.length > 1;
 
-    // Dados de guarda e filhos (se existirem nos campos legados ou específicos)
+    // Dados de guarda e intenção (explícita via triagem)
+    const opcaoGuarda = caseData.opcao_guarda || caseData.opcaoGuarda;
+    let intencaoGuardaTexto = "";
+    if (opcaoGuarda === "nao") {
+      intencaoGuardaTexto = "[FLAG_GUARDA: NÃO] (A assistida declarou que NÃO deseja pedido de guarda neste momento. Foque exclusivamente na fundamentação de Alimentos.)";
+    } else if (opcaoGuarda === "regularizar") {
+      intencaoGuardaTexto = "[FLAG_GUARDA: SIM] (A assistida DESEJA regularizar a guarda e o regime de convivência/visitas.)";
+    } else {
+      intencaoGuardaTexto = "[FLAG_GUARDA: NÃO]";
+    }
+
     const contextFilhosGuarda = cleanText(
-      caseData.filhos_info || caseData.filhosInfo || caseData.descricao_guarda,
+      `${intencaoGuardaTexto} ${caseData.filhos_info || caseData.filhosInfo || caseData.descricao_guarda || ""}`,
       "",
     );
 
@@ -340,7 +360,7 @@ export const generateDosFatos = async (caseData = {}, acaoKey) => {
     // Fallback legado: prompt original de família/fixação (sempre funciona)
     const SYSTEM_PROMPT_LEGADO = `Você é um Defensor Público experiente na Bahia.
 Seu estilo de escrita é extremamente formal, culto e padronizado (juridiquês clássico).
-Você DEVE utilizar os conectivos: "Insta salientar", "Ocorre que, no caso em tela", "Como é sabido", "aduzir".
+Você DEVE utilizar conectivos jurídicos adequados como: "No caso em tela", "Como é sabido", "aduzir". Evite o uso repetitivo de "Ocorre que" e não inicie o texto com "Insta salientar".
 REGRA CRÍTICA: NUNCA use o termo "menor" para se referir a uma criança ou adolescente. Em vez disso, use "criança", "adolescente" ou "filho(a)".
 REGRA DE OURO: NÃO cite números de documentos (CPF, RG) ou datas de nascimento no texto narrativo, pois estes dados já constam na qualificação das partes.
 Não use listas ou tópicos na resposta final. Escreva apenas parágrafos coesos.`;

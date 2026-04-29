@@ -189,7 +189,6 @@ export const InfoAssistido = ({ caso }) => {
                 {renderDataField("Dados adicionais", pickFirst(dados.dados_adicionais_requerido, caso.dados_adicionais_requerido))}
               </div>
             </div>
-
             {/* === EMPREGO DO REQUERIDO === */}
             {dados.requerido_tem_emprego_formal === "sim" && (
               <div className="space-y-4 pt-4 border-t border-soft">
@@ -236,6 +235,8 @@ export const InfoAssistido = ({ caso }) => {
                     pickFirst(dados.valor_pensao, dados.valor_pensao_atual, caso.valor_pensao),
                   )}
                 {renderDataField("Dados Bancários para Depósito", pickFirst(dados.dados_bancarios_exequente, dados.dados_bancarios_deposito, caso.dados_bancarios_exequente))}
+                {renderDataField("Opção de Guarda", pickFirst(dados.opcao_guarda, caso.juridico?.opcao_guarda))}
+                {renderDataField("Descrição da Guarda", pickFirst(dados.descricao_guarda, caso.juridico?.descricao_guarda))}
                 {renderDataField("Cidade para assinatura", pickFirst(dados.CIDADEASSINATURA, dados.cidade_assinatura, caso.cidade_assinatura, caso.CIDADEASSINATURA))}
               </div>
             </div>

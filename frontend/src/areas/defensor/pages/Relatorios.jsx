@@ -19,6 +19,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useBiData } from "../hooks/useBiData";
 import { authFetch } from "../../../utils/apiBase";
 import { useToast } from "../../../contexts/ToastContext";
+import { regionalOptions } from "../../../utils/formOptions";
 
 const COLORS = [
   "var(--color-primary)",
@@ -118,18 +119,27 @@ const Relatorios = () => {
   const [unidades, setUnidades] = useState([]);
   const [showPrefs, setShowPrefs] = useState(false);
 
-  const canSeeAllUnidades = user?.cargo === "admin" || user?.cargo === "gestor";
+  const isPowerUser = user?.cargo === "admin" || user?.cargo === "gestor";
+  const canSeeUnitsList = isPowerUser || user?.cargo === "coordenador";
 
   useEffect(() => {
-    if (!canSeeAllUnidades) return;
+    if (!canSeeUnitsList) return;
     authFetch("/unidades")
       .then((response) => (response.ok ? response.json() : []))
-      .then((result) => setUnidades(result.filter((unidade) => unidade.ativo)))
+      .then((result) => {
+        const activeUnidades = result.filter((unidade) => unidade.ativo);
+        // Se for coordenador, filtra apenas a sua própria unidade
+        if (user?.cargo === "coordenador" && user?.unidade_id) {
+          setUnidades(activeUnidades.filter(u => u.id === user.unidade_id));
+        } else {
+          setUnidades(activeUnidades);
+        }
+      })
       .catch(() => setUnidades([]));
-  }, [canSeeAllUnidades]);
+  }, [canSeeUnitsList, user]);
 
   const kpiCards = useMemo(() => {
-    if (!data) return [];
+    if (!data || !data.kpis) return [];
     return [
       { label: "Casos ativos", value: data.kpis.ativos_total, helper: "Nao arquivados no periodo" },
       { label: "Protocolados", value: data.kpis.protocolados_periodo, helper: "Com protocolo no periodo" },
@@ -146,7 +156,7 @@ const Relatorios = () => {
       gerar().catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtros.periodo, filtros.dataInicio, filtros.dataFim, filtros.unidade_id, filtros.topN]);
+  }, [filtros.periodo, filtros.dataInicio, filtros.dataFim, filtros.regional, filtros.unidade_id, filtros.topN]);
 
   if (data?.bloqueadoPorHorario) {
     const canUnlock = user?.cargo === "admin" || user?.cargo === "gestor";
@@ -183,14 +193,23 @@ const Relatorios = () => {
           O módulo de BI está configurado para acesso apenas em horários específicos ou foi bloqueado manualmente pela administração.
         </p>
         
-        {canUnlock && (
+        <div className="flex flex-col sm:flex-row gap-4">
+          {canUnlock && (
+            <button 
+              onClick={handleLiberarAgora}
+              className="btn btn-primary bg-amber-600 hover:bg-amber-700 border-none shadow-lg shadow-amber-600/20 px-8 py-4 text-lg"
+            >
+              <Clock size={20} /> Liberar Acesso por 1 Hora
+            </button>
+          )}
+
           <button 
-            onClick={handleLiberarAgora}
-            className="btn btn-primary bg-amber-600 hover:bg-amber-700 border-none shadow-lg shadow-amber-600/20 px-8 py-4 text-lg"
+            onClick={() => window.location.reload()}
+            className="btn btn-secondary border-amber-200 text-amber-800 hover:bg-amber-50 px-8 py-4 text-lg"
           >
-            <Clock size={20} /> Liberar Acesso por 1 Hora
+            <RefreshCw size={20} /> Tentar Novamente
           </button>
-        )}
+        </div>
       </div>
     );
   }
@@ -251,7 +270,7 @@ const Relatorios = () => {
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
           <label className="space-y-1 text-sm font-semibold text-main">
             Periodo
             <select value={filtros.periodo} onChange={(event) => updateFiltro("periodo", event.target.value)} className="input">
@@ -269,6 +288,17 @@ const Relatorios = () => {
           <label className="space-y-1 text-sm font-semibold text-main">
             Fim
             <input type="date" value={filtros.dataFim} onChange={(event) => updateFiltro("dataFim", event.target.value)} disabled={filtros.periodo !== "custom"} className="input disabled:opacity-50" />
+          </label>
+          <label className="space-y-1 text-sm font-semibold text-main">
+            Regional
+            <select value={filtros.regional} onChange={(event) => updateFiltro("regional", event.target.value)} className="input">
+              <option value="todas">Todas</option>
+              {regionalOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="space-y-1 text-sm font-semibold text-main">
             Unidade

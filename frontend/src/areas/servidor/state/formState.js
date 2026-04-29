@@ -73,6 +73,10 @@ export const initialState = {
   valor_honorarios: "",
   data_inicio_debito: "",
   data_fim_debito: "",
+  
+  // Guarda e Convivência
+  opcaoGuarda: "", // "nao" | "regularizar"
+  descricaoGuarda: "",
 
   // Relato e documentos
   relato: "",
@@ -95,6 +99,8 @@ export const initialState = {
   dia_pagamento: "",
   percentual_salario_minimo: "",
   periodo_meses_ano: "",
+  calculo_prisao_arquivo: null,
+  calculo_penhora_arquivo: null,
 };
 
 // Reducer para gerenciar o estado do formulário

@@ -10,6 +10,7 @@ const defaultFiltros = {
   dataInicio: "",
   dataFim: "",
   unidade_id: "todas",
+  regional: "todas",
   topN: 10,
 };
 
@@ -58,19 +59,131 @@ const downloadBlob = (blob, filename) => {
 const sanitizePdfClone = (documentClone) => {
   const exportRoot = documentClone.getElementById("bi-panel-root");
   if (!exportRoot) return;
-  const isUnsupportedColor = (value = "") =>
-    value.includes("oklab") || value.includes("color-mix") || value.includes("lab(") || value.includes("lch(");
 
-  exportRoot.querySelectorAll("*").forEach((node) => {
+  const isUnsupportedColor = (value = "") => {
+    if (typeof value !== "string") return false;
+    const lower = value.toLowerCase();
+    return (
+      lower.includes("oklab") ||
+      lower.includes("oklch") ||
+      lower.includes("color-mix") ||
+      lower.includes("lab(") ||
+      lower.includes("lch(")
+    );
+  };
+
+  const safeColor = "#8b5cf6"; // Violet 500 fallback
+
+  // 1. Sanitize ALL DOM nodes in the clone
+  const allNodes = Array.from(documentClone.querySelectorAll("*"));
+  allNodes.forEach((node) => {
     const computed = documentClone.defaultView.getComputedStyle(node);
     const style = node.style;
 
-    style.backgroundColor = isUnsupportedColor(computed.backgroundColor) ? "#ffffff" : computed.backgroundColor;
-    style.backgroundImage = "none";
-    style.color = isUnsupportedColor(computed.color) ? "#1e1b4b" : computed.color;
-    style.borderColor = isUnsupportedColor(computed.borderColor) ? "#e9e4ff" : computed.borderColor;
-    style.boxShadow = "none";
+    // List of common color properties to check
+    const colorProps = [
+      "backgroundColor",
+      "color",
+      "borderColor",
+      "borderTopColor",
+      "borderRightColor",
+      "borderBottomColor",
+      "borderLeftColor",
+      "fill",
+      "stroke",
+      "stopColor",
+      "outlineColor",
+      "floodColor",
+      "lightingColor",
+    ];
+
+    colorProps.forEach((prop) => {
+      if (isUnsupportedColor(computed[prop])) {
+        style[prop] = prop === "backgroundColor" ? "#ffffff" : safeColor;
+        
+        // Handle SVG attributes directly as well
+        if (node instanceof (node.ownerDocument?.defaultView?.SVGElement || SVGElement)) {
+          const svgProp = prop.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase());
+          node.setAttribute(svgProp, prop === "backgroundColor" ? "#ffffff" : safeColor);
+        }
+      }
+    });
+
+    // Special handling for complex properties
+    if (isUnsupportedColor(computed.backgroundImage)) {
+      style.backgroundImage = "none";
+      style.backgroundColor = safeColor;
+    }
+
+    if (isUnsupportedColor(computed.boxShadow)) {
+      style.boxShadow = "none";
+    }
+
+    // Ensure no oklch leaks in any inline style string
+    if (node.getAttribute("style") && isUnsupportedColor(node.getAttribute("style"))) {
+      const sanitized = node
+        .getAttribute("style")
+        .replace(/(oklch|oklab|color-mix|lab|lch)\s*\(([^()]*|\([^()]*\))*\)/gi, safeColor);
+      node.setAttribute("style", sanitized);
+    }
   });
+
+  // 2. Sanitize <style> tags and CSSOM
+  const sanitizeCSS = (cssText) => {
+    if (!cssText) return "";
+    return cssText.replace(
+      /(oklch|oklab|color-mix|lab|lch)\s*\(([^()]*|\([^()]*\))*\)/gi,
+      safeColor
+    );
+  };
+
+  documentClone.querySelectorAll("style").forEach((styleTag) => {
+    try {
+      if (styleTag.innerHTML) {
+        styleTag.innerHTML = sanitizeCSS(styleTag.innerHTML);
+      }
+      
+      // Also try to sanitize via CSSOM if the browser populated it
+      if (styleTag.sheet) {
+        Array.from(styleTag.sheet.cssRules).forEach((rule) => {
+          if (rule.style) {
+            for (let i = 0; i < rule.style.length; i++) {
+              const prop = rule.style[i];
+              const val = rule.style.getPropertyValue(prop);
+              if (isUnsupportedColor(val)) {
+                rule.style.setProperty(prop, safeColor, rule.style.getPropertyPriority(prop));
+              }
+            }
+          }
+        });
+      }
+    } catch {
+      // Ignore security errors or empty sheets
+    }
+  });
+
+  // 3. Injetar bloco de estilo para forçar fallbacks HEX em variáveis do Tailwind que usam oklch
+  // e evitar que o html2canvas tente processar funções de cor modernas que ele não suporta.
+  const fixStyle = documentClone.createElement("style");
+  fixStyle.innerHTML = `
+    :root {
+      --color-primary: #4F46E5 !important;
+      --color-primary-600: #4338CA !important;
+      --color-secondary: #7C3AED !important;
+      --color-highlight: #F59E0B !important;
+      --color-success: #10B981 !important;
+      --color-error: #EF4444 !important;
+      --color-surface: #FFFFFF !important;
+      --color-bg: #F9FAFB !important;
+      --color-soft: #E5E7EB !important;
+      --color-muted: #6B7280 !important;
+    }
+    * {
+      color-scheme: light !important;
+      forced-color-adjust: none !important;
+    }
+  `;
+  documentClone.head.appendChild(fixStyle);
 };
 
 const DATA_CACHE_KEY = "bi_data_cache_v2";

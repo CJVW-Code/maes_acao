@@ -38,7 +38,8 @@ export const processSubmission = async ({
   // Se for incapaz, validamos NOME (criança). Se for adulto, REPRESETANTE_NOME (autor).
   if (formState.assistidoEhIncapaz === "sim") {
     if (!formState.NOME) validationErrors.NOME = "O nome da criança é obrigatório.";
-    if (!formState.cpf) validationErrors.cpf = "O CPF da criança é obrigatório.";
+    // CPF da criança agora é facultativo
+    // if (!formState.cpf) validationErrors.cpf = "O CPF da criança é obrigatório.";
     if (!formState.REPRESENTANTE_NOME)
       validationErrors.REPRESENTANTE_NOME = "O nome da genitora/representante é obrigatório.";
   } else {
@@ -55,7 +56,8 @@ export const processSubmission = async ({
   if (!enderecoResidencial) {
     validationErrors.requerente_endereco_residencial = "O endereço residencial é obrigatório.";
   } else if (!/\b\d{5}-?\d{3}\b/.test(enderecoResidencial)) {
-    validationErrors.requerente_endereco_residencial = "CEP inválido ou ausente no endereço. Use o formato 00000-000.";
+    validationErrors.requerente_endereco_residencial =
+      "CEP inválido ou ausente no endereço. Use o formato 00000-000.";
   }
 
   if (!formState.requerente_telefone) {
@@ -84,15 +86,6 @@ export const processSubmission = async ({
         validationErrors.data_inicio_debito = "O mês inicial do débito é obrigatório.";
       if (!formState.data_fim_debito)
         validationErrors.data_fim_debito = "O mês final do débito é obrigatório.";
-    }
-  }
-
-  // Validação da Vara (se presente e exigida pelo título ou config)
-  if (configAcao?.secoes?.includes("SecaoValoresPensao") || configAcao?.secoes?.includes("SecaoProcessoOriginal")) {
-    if (formState.acaoEspecifica === "fixacao_alimentos" || formState.acaoEspecifica === "execucao_alimentos") {
-      if (!formState.VARA) {
-        validationErrors.VARA = "Informe o número da vara.";
-      }
     }
   }
 
@@ -134,9 +127,8 @@ export const processSubmission = async ({
   // Validação CPF e Data de Nascimento - Outros Filhos
   if (formState.outrosFilhos && formState.outrosFilhos.length > 0) {
     formState.outrosFilhos.forEach((filho, index) => {
-      if (!filho.cpf) {
-        validationErrors[`filho_cpf_${index}`] = `O CPF do Filho(a) ${index + 2} é obrigatório.`;
-      } else if (!validateCpfAlgorithm(filho.cpf)) {
+      
+      if (filho.cpf && !validateCpfAlgorithm(filho.cpf)) {
         validationErrors[`filho_cpf_${index}`] = `O CPF do Filho(a) ${index + 2} é inválido.`;
       }
 
@@ -175,26 +167,45 @@ export const processSubmission = async ({
     if (!formState.valor_debito) {
       validationErrors.valor_debito = "O valor total do débito é obrigatório.";
     }
-    if (!formState.calculo_arquivo && !formState.enviarDocumentosDepois) {
-      validationErrors.calculo_arquivo = "Você deve anexar o demonstrativo do cálculo.";
+    if (!formState.calculo_prisao_arquivo && !formState.calculo_penhora_arquivo && !formState.enviarDocumentosDepois) {
+      validationErrors.calculo_geral = "Você deve anexar pelo menos um demonstrativo do cálculo (Prisão ou Penhora).";
     }
   }
 
-  // 3. Validação de Quantidade Mínima de Documentos
+    // 3. Validação de Quantidade Mínima de Documentos
   const isEnviarDepois =
-    formState.enviarDocumentosDepois === true || formState.enviarDocumentosDepois === "true";
+    formState.enviarDocumentosDepois === true || 
+    formState.enviarDocumentosDepois === "true" || 
+    Boolean(formState.enviarDocumentosDepois) === true;
+
   if (!isEnviarDepois) {
-    let minDocs = formState.assistidoEhIncapaz === "nao" ? 4 : 7;
-    if (formState.assistidoEhIncapaz === "sim" && formState.outrosFilhos.length > 0) {
-      minDocs += formState.outrosFilhos.length * 3;
+    // RG do Responsável (Frente/Verso), Residência, Renda = 4. 
+    // Se for incapaz, +1 (Certidão) = 5.
+    let minDocs = formState.assistidoEhIncapaz === "nao" ? 4 : 5; 
+    
+    // Incrementa se exigir documentos do processo original (Ex: Cópia da Sentença)
+    if (configAcao?.exigeDadosProcessoOriginal) {
+      minDocs += 1;
     }
 
-    if (formState.documentFiles.length < minDocs) {
+    if (formState.assistidoEhIncapaz === "sim" && formState.outrosFilhos.length > 0) {
+      minDocs += formState.outrosFilhos.length * 1; // Apenas certidão é estritamente obrigatória por filho extra
+    }
+
+    // Contagem real considerando os arquivos de cálculo separados
+    let totalAnexados = formState.documentFiles.length;
+    if (formState.calculo_prisao_arquivo) totalAnexados++;
+    if (formState.calculo_penhora_arquivo) totalAnexados++;
+
+    if (totalAnexados < minDocs) {
       const docsNecessarios =
         formState.assistidoEhIncapaz === "nao"
-          ? "RG (Frente/Verso), Comprovante de Residência e Renda"
-          : "RG do Responsável, RG da Criança e Certidão de Nascimento (para cada filho)";
-      validationErrors.documentos = `É necessário anexar pelo menos ${minDocs} documentos: ${docsNecessarios}. Atual: ${formState.documentFiles.length}.`;
+          ? "RG (Frente e Verso), Comprovante de Residência e Comprovante de Renda"
+          : "RG do Responsável (Frente e Verso), Comprovante de Residência, Comprovante de Renda e Certidão de Nascimento";
+      
+      const extraMsg = configAcao?.exigeDadosProcessoOriginal ? " + Documentos do Processo Original/Cálculos" : "";
+      
+      validationErrors.documentos = `É necessário anexar pelo menos ${minDocs} documentos: ${docsNecessarios}${extraMsg}. Atual: ${totalAnexados}.`;
     }
   }
 
@@ -221,7 +232,7 @@ export const processSubmission = async ({
   // Dados Bancários formatados para IA
   let dadosBancariosFormatado = "";
   if (formState.tipo_conta_deposito === "corrente_poupanca") {
-    dadosBancariosFormatado = `Tipo: Corrente/Poupança, Banco: ${formState.banco_deposito}, Agência: ${formState.agencia_deposito}, Conta: ${formState.conta_deposito}`;
+    dadosBancariosFormatado = `Tipo: Corrente/Poupança, Banco: ${formState.banco_deposito}, Agência: ${formState.agencia_deposito}, Operação: ${formState.conta_operacao || "N/A"}, Conta: ${formState.conta_deposito}`;
   } else if (formState.tipo_conta_deposito === "pix") {
     dadosBancariosFormatado = `Tipo: PIX, Chave: ${formState.chave_pix_deposito}`;
   } else if (formState.tipo_conta_deposito === "outro") {
@@ -270,7 +281,8 @@ export const processSubmission = async ({
   // O estado (formState) já usa as TAGS OFICIAIS, portanto iteramos diretamente.
   // Não precisamos mais do fieldMapping legado.
   const fieldsToIgnore = new Set([
-    "calculo_arquivo",
+    "calculo_prisao_arquivo",
+    "calculo_penhora_arquivo",
     "outrosFilhos",
     "documentFiles",
     "documentNames",
@@ -421,9 +433,18 @@ export const processSubmission = async ({
       .replace(/\s+/g, "_");
     formData.append("documentos", file, safeName);
   });
-  if (formState.calculo_arquivo) {
-    const calcFile = formState.calculo_arquivo;
-    const safeCalcName = `CALCULO_${calcFile.name
+  if (formState.calculo_prisao_arquivo) {
+    const calcFile = formState.calculo_prisao_arquivo;
+    const safeCalcName = `CALCULO_PRISAO_${calcFile.name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "_")}`;
+    formData.append("documentos", calcFile, safeCalcName);
+  }
+
+  if (formState.calculo_penhora_arquivo) {
+    const calcFile = formState.calculo_penhora_arquivo;
+    const safeCalcName = `CALCULO_PENHORA_${calcFile.name
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/\s+/g, "_")}`;

@@ -4,17 +4,12 @@
 
 import React from "react";
 
-export const SecaoEmpregoRequerido = ({
-  formState,
-  handleFieldChange,
-}) => {
+export const SecaoEmpregoRequerido = ({ formState, handleFieldChange }) => {
   const mostrarEmpregador = formState.requerido_tem_emprego_formal === "sim";
 
   return (
     <div className="space-y-4 pt-4 border-t border-soft">
-      <h4 className="font-semibold text-primary">
-        Sobre o Emprego da Outra Parte
-      </h4>
+      <h4 className="font-semibold text-primary">Sobre o Emprego da Outra Parte (para ofício)</h4>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label htmlFor="requeridoTemEmpregoFormal" className="label">
@@ -36,7 +31,9 @@ export const SecaoEmpregoRequerido = ({
         {mostrarEmpregador && (
           <>
             <div>
-              <label htmlFor="empregadorRequeridoNome" className="label">Nome da Empresa</label>
+              <label htmlFor="empregadorRequeridoNome" className="label">
+                Nome da Empresa
+              </label>
               <input
                 id="empregadorRequeridoNome"
                 type="text"
@@ -48,7 +45,9 @@ export const SecaoEmpregoRequerido = ({
               />
             </div>
             <div className="md:col-span-2">
-              <label htmlFor="empregadorRequeridoEndereco" className="label">Endereço da Empresa</label>
+              <label htmlFor="empregadorRequeridoEndereco" className="label">
+                Endereço da Empresa
+              </label>
               <input
                 id="empregadorRequeridoEndereco"
                 type="text"
@@ -60,11 +59,13 @@ export const SecaoEmpregoRequerido = ({
               />
             </div>
             <div className="md:col-span-2">
-              <label htmlFor="empregadorEmail" className="label">Email da Empresa (para ofício)</label>
+              <label htmlFor="empregadorEmail" className="label">
+                Email da Empresa
+              </label>
               <input
                 id="empregadorEmail"
                 type="email"
-                placeholder="Email da Empresa (para ofício)"
+                placeholder="Email da Empresa"
                 name="empregador_email"
                 value={formState.empregador_email}
                 onChange={handleFieldChange}

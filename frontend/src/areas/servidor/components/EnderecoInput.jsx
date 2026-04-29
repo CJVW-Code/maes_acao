@@ -35,7 +35,7 @@ export const EnderecoInput = ({
 
       Object.keys(regexMap).forEach(key => {
         const match = value.match(regexMap[key]);
-        if (match) newAddress[key] = match[1].trim();
+        if (match) newAddress[key] = match[1];
       });
 
       setAddress(newAddress);

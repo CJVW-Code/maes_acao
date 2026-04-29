@@ -15,7 +15,7 @@ export const SecaoProcessoOriginal = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label htmlFor="vara" className="label font-bold ">
-            Vara da Petição Atual (ex: 1ª ) Apenas numero *
+            Vara da Petição Atual (ex: 1ª) Apenas numero
           </label>
           <input
             id="vara"
@@ -25,12 +25,9 @@ export const SecaoProcessoOriginal = ({
             value={formState.VARA}
             onChange={handleFieldChange}
             className={`input ${formErrors.VARA ? "border-error ring-1 ring-error" : "border-primary/50"}`}
-            {...validar("Informe a vara para esta petição.")}
           />
           {formErrors.VARA && (
-            <span className="text-xs text-error mt-1 ml-1">
-              {formErrors.VARA}
-            </span>
+            <span className="text-xs text-error mt-1 ml-1">{formErrors.VARA}</span>
           )}
         </div>
         <div>
@@ -227,26 +224,48 @@ export const SecaoProcessoOriginal = ({
           )}
         </div>
         <div>
-          <label htmlFor="calculo_arquivo" className="label font-bold">
-            Anexar Documento do Cálculo *
+          <label htmlFor="calculo_prisao_arquivo" className="label font-bold">
+            Cálculo Rito da Prisão
           </label>
           <input
-            id="calculo_arquivo"
+            id="calculo_prisao_arquivo"
             type="file"
             accept=".pdf,.png,.jpg,.jpeg"
             onChange={(e) => {
               if (e.target.files && e.target.files[0]) {
                 handleFieldChange({
-                  target: { name: "calculo_arquivo", value: e.target.files[0] },
+                  target: { name: "calculo_prisao_arquivo", value: e.target.files[0] },
                 });
               }
             }}
-            className={`input py-2 text-sm ${formErrors.calculo_arquivo ? "border-error ring-1 ring-error" : ""}`}
+            className={`input py-2 text-sm ${formErrors.calculo_geral ? "border-error ring-1 ring-error" : ""}`}
           />
-          {formErrors.calculo_arquivo && (
-            <p className="text-xs text-error font-medium mt-1">{formErrors.calculo_arquivo}</p>
-          )}
         </div>
+
+        <div>
+          <label htmlFor="calculo_penhora_arquivo" className="label font-bold">
+            Cálculo Rito da Penhora
+          </label>
+          <input
+            id="calculo_penhora_arquivo"
+            type="file"
+            accept=".pdf,.png,.jpg,.jpeg"
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                handleFieldChange({
+                  target: { name: "calculo_penhora_arquivo", value: e.target.files[0] },
+                });
+              }
+            }}
+            className={`input py-2 text-sm ${formErrors.calculo_geral ? "border-error ring-1 ring-error" : ""}`}
+          />
+        </div>
+
+        {formErrors.calculo_geral && (
+          <div className="md:col-span-2">
+            <p className="text-xs text-error font-medium mt-1">{formErrors.calculo_geral}</p>
+          </div>
+        )}
         <div>
           <label
             htmlFor="link_calculadora"

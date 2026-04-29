@@ -147,13 +147,13 @@ export const ConfiguracoesSistema = () => {
     <div className="p-4 md:p-8 max-w-4xl mx-auto animate-in fade-in duration-500">
       <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-main flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
               <Clock size={24} />
             </div>
             Configurações do Sistema
           </h1>
-          <p className="text-gray-500 mt-2">
+          <p className="text-muted mt-2">
             Gerencie horários de acesso ao BI e preferências globais.
           </p>
         </div>
@@ -169,13 +169,13 @@ export const ConfiguracoesSistema = () => {
 
       <div className="grid gap-8">
         {/* Seção BI */}
-        <section className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+        <section className="bg-surface rounded-3xl p-6 shadow-sm border border-soft">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+              <h2 className="text-xl font-semibold text-main flex items-center gap-2">
                 Governança do BI
               </h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted">
                 Bloqueio manual e janelas de acesso.
               </p>
             </div>
@@ -183,14 +183,14 @@ export const ConfiguracoesSistema = () => {
 
           <div className="space-y-6">
             {/* Bloqueio Manual */}
-            <div className="flex items-center justify-between p-5 bg-amber-50 rounded-2xl border border-amber-100">
+            <div className="flex items-center justify-between p-5 bg-amber-500/10 rounded-2xl border border-amber-500/20">
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${configs.bi_bloqueado === "true" ? "bg-amber-500 text-white" : "bg-white text-amber-500 border border-amber-200"}`}>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${configs.bi_bloqueado === "true" ? "bg-amber-500 text-white" : "bg-surface text-amber-500 border border-amber-500/30"}`}>
                   <Save size={20} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-amber-900">Bloqueio Manual Global</h3>
-                  <p className="text-xs text-amber-700">Quando ativo, ignora todos os horários e bloqueia o BI para todos exceto Admins.</p>
+                  <h3 className="font-bold text-main">Bloqueio Manual Global</h3>
+                  <p className="text-xs text-muted">Quando ativo, ignora todos os horários e bloqueia o BI para todos exceto Admins.</p>
                 </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -200,34 +200,34 @@ export const ConfiguracoesSistema = () => {
                   checked={configs.bi_bloqueado === "true"}
                   onChange={(e) => setConfigs({ ...configs, bi_bloqueado: e.target.checked ? "true" : "false" })}
                 />
-                <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-amber-500"></div>
+                <div className="w-14 h-7 bg-muted/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-amber-500"></div>
               </label>
             </div>
 
             {/* Registro de Horários (Overrides) */}
             <div className="space-y-4">
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+              <h3 className="text-sm font-bold text-muted uppercase tracking-wider flex items-center gap-2">
                 <Clock size={14} /> Registro de Horários (Liberados)
               </h3>
               
               <div className="grid gap-3">
                 {overrides.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic">Nenhum registro de liberação temporária ativo.</p>
+                  <p className="text-xs text-muted italic">Nenhum registro de liberação temporária ativo.</p>
                 ) : (
                   overrides.map(ov => (
-                    <div key={ov.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <div key={ov.id} className="flex items-center justify-between p-4 bg-app/50 rounded-xl border border-soft">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-gray-800">{ov.usuario}</span>
-                          <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold uppercase">Ativo</span>
+                          <span className="text-sm font-bold text-main">{ov.usuario}</span>
+                          <span className="px-2 py-0.5 rounded-full bg-success/10 text-success text-[10px] font-bold uppercase">Ativo</span>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-muted mt-1">
                           Válido até: {new Date(ov.fim).toLocaleString("pt-BR")}
                         </p>
                       </div>
                       <button 
                         onClick={() => handleRemoveOverride(ov.id)}
-                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                        className="p-2 text-muted hover:text-error hover:bg-error/10 rounded-lg transition-all"
                         title="Remover liberação"
                       >
                         <Trash2 size={16} />
@@ -238,12 +238,12 @@ export const ConfiguracoesSistema = () => {
               </div>
             </div>
 
-            <hr className="border-gray-100" />
+            <hr className="border-soft" />
 
             {/* Janelas de Horário */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Janelas de Horário Padrão</h3>
+                <h3 className="text-sm font-bold text-muted uppercase tracking-wider">Janelas de Horário Padrão</h3>
                 <button
                   onClick={handleAddHorario}
                   className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
@@ -254,19 +254,19 @@ export const ConfiguracoesSistema = () => {
 
               <div className="space-y-3">
                 {horarios.length === 0 ? (
-                  <div className="text-center py-6 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 text-gray-400 text-sm">
+                  <div className="text-center py-6 bg-app/50 rounded-2xl border-2 border-dashed border-soft text-muted text-sm">
                     Acesso livre 24/7 (sem restrições).
                   </div>
                 ) : (
                   horarios.map((h, index) => (
                     <div 
                       key={index} 
-                      className="flex flex-col md:flex-row items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200"
+                      className="flex flex-col md:flex-row items-center gap-3 p-4 bg-app/50 rounded-xl border border-soft"
                     >
                       <select
                         value={h.dia || "todos"}
                         onChange={(e) => handleUpdateHorario(index, "dia", e.target.value)}
-                        className="w-full md:w-40 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none"
+                        className="w-full md:w-40 bg-surface border border-soft text-main rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
                       >
                         {diasSemana.map(d => (
                           <option key={d.value} value={d.value}>{d.label}</option>
@@ -278,21 +278,21 @@ export const ConfiguracoesSistema = () => {
                           type="time"
                           value={h.inicio}
                           onChange={(e) => handleUpdateHorario(index, "inicio", e.target.value)}
-                          className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none"
+                          className="flex-1 bg-surface border border-soft text-main rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
                         />
-                        <span className="text-gray-400 text-xs">até</span>
+                        <span className="text-muted text-xs">até</span>
                         <input
                           type="time"
                           value={h.fim}
                           onChange={(e) => handleUpdateHorario(index, "fim", e.target.value)}
-                          className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none"
+                          className="flex-1 bg-surface border border-soft text-main rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
 
                       <button
                         type="button"
                         onClick={() => handleRemoveHorario(index)}
-                        className="p-2 text-gray-400 hover:text-red-500 transition-all"
+                        className="p-2 text-muted hover:text-error transition-all"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -305,20 +305,20 @@ export const ConfiguracoesSistema = () => {
         </section>
 
         {/* Seção Timezone */}
-        <section className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-          <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2 mb-4">
+        <section className="bg-surface rounded-3xl p-6 shadow-sm border border-soft">
+          <h2 className="text-xl font-semibold text-main flex items-center gap-2 mb-4">
             <Globe className="text-primary" size={20} /> Fuso Horário
           </h2>
           <select
             value={configs.bi_timezone}
             onChange={(e) => setConfigs({ ...configs, bi_timezone: e.target.value })}
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+            className="w-full bg-app/50 border border-soft text-main rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
           >
             <option value="America/Bahia">Bahia (UTC-3)</option>
             <option value="America/Sao_Paulo">São Paulo (UTC-3)</option>
             <option value="UTC">UTC</option>
           </select>
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="text-xs text-muted mt-2">
             Utilizado para validar as janelas de horário e dias configurados acima.
           </p>
         </section>
@@ -345,4 +345,5 @@ export const ConfiguracoesSistema = () => {
       </div>
     </div>
   );
+
 };
