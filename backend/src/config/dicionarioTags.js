@@ -95,7 +95,9 @@ export const TAGS_OFICIAIS = [
   'empregador_endereco_profissional',
   'percentual_definitivo_salario_min',
   'percentual_definitivo_extras',
-  'cidade_data_assinatura'
+  'cidade_data_assinatura',
+  'relato_texto',
+  'empregador_email'
 ];
 
 export const isValidTag = (tag) => TAGS_OFICIAIS.includes(tag);

@@ -1,6 +1,5 @@
 // SecaoCamposGeraisFamilia.jsx
-// Extraído de StepDetalhesCaso linhas 309-353
-// Renderiza: guarda, bens a partilhar (condicional), situação financeira
+// Renderiza: guarda e direito de convivência/visitas (toggle + textarea condicional)
 // Controlado por camposGerais do dicionário de configuração.
 
 import React from "react";
@@ -10,60 +9,69 @@ export const SecaoCamposGeraisFamilia = ({
   handleFieldChange,
   camposGerais = {},
 }) => {
-  const { 
-    mostrarBensPartilha = true,
-    ocultarDetalhesGerais = false
+  const {
+    ocultarDetalhesGerais = false,
   } = camposGerais;
+
+  if (ocultarDetalhesGerais) return null;
+
+  // Opção de guarda: "nao" | "regularizar" | undefined (não selecionado)
+  const opcaoGuarda = formState.opcaoGuarda || "";
+  const querRegularizar = opcaoGuarda === "regularizar";
+
+  function handleOpcaoGuarda(valor) {
+    // Dispara como se fosse um evento de campo normal
+    handleFieldChange({ target: { name: "opcaoGuarda", value: valor } });
+    // Se desmarcou "regularizar", limpa a descrição
+    if (valor !== "regularizar") {
+      handleFieldChange({ target: { name: "descricaoGuarda", value: "" } });
+    }
+  }
 
   return (
     <div className="space-y-4 pt-4 border-t border-soft">
-      {!ocultarDetalhesGerais && (
-        <>
-          <h4 className="font-semibold text-primary">Vínculos, Guarda...</h4>
-          <div>
-            <label htmlFor="descricaoGuarda" className="label">
-              Como a guarda dos filhos é exercida hoje?
-            </label>
-            <textarea
-              id="descricaoGuarda"
-              name="descricaoGuarda"
-              value={formState.descricaoGuarda}
-              onChange={handleFieldChange}
-              rows="2"
-              placeholder="Ex: A guarda de fato é minha, e o pai visita aos fins de semana."
-              className="input"
-            ></textarea>
-          </div>
-        </>
-      )}
-      {mostrarBensPartilha && (
+      <h4 className="font-semibold text-primary">Guarda da Criança e Direito de Convivência / Visitas</h4>
+
+      {/* Toggle de opção */}
+      <div className="space-y-2">
+        <label className="flex items-center gap-3 cursor-pointer group">
+          <input
+            type="radio"
+            name="opcaoGuarda"
+            value="nao"
+            checked={opcaoGuarda === "nao"}
+            onChange={() => handleOpcaoGuarda("nao")}
+            className="accent-primary w-4 h-4"
+          />
+          <span className="label mb-0">Não desejo entrar com pedido de guarda</span>
+        </label>
+
+        <label className="flex items-center gap-3 cursor-pointer group">
+          <input
+            type="radio"
+            name="opcaoGuarda"
+            value="regularizar"
+            checked={opcaoGuarda === "regularizar"}
+            onChange={() => handleOpcaoGuarda("regularizar")}
+            className="accent-primary w-4 h-4"
+          />
+          <span className="label mb-0">Quero regularizar a guarda e o direito de visitas</span>
+        </label>
+      </div>
+
+      {/* Textarea condicional */}
+      {querRegularizar && (
         <div>
-          <label htmlFor="bensPartilha" className="label">
-            Bens a Partilhar (Carros, Casas, Móveis)
+          <label htmlFor="descricaoGuarda" className="label">
+            Descreva como será a guarda e o direito de visitas
           </label>
           <textarea
-            id="bensPartilha"
-            name="bensPartilha"
-            value={formState.bensPartilha}
+            id="descricaoGuarda"
+            name="descricaoGuarda"
+            value={formState.descricaoGuarda || ""}
             onChange={handleFieldChange}
-            rows="2"
-            placeholder="Descreva os bens e se há acordo sobre a divisão"
-            className="input"
-          ></textarea>
-        </div>
-      )}
-      {!ocultarDetalhesGerais && (
-        <div>
-          <label htmlFor="situacaoFinanceiraGenitora" className="label">
-            Situação Financeira de quem cuida dos filhos
-          </label>
-          <textarea
-            id="situacaoFinanceiraGenitora"
-            name="situacaoFinanceiraGenitora"
-            value={formState.situacaoFinanceiraGenitora}
-            onChange={handleFieldChange}
-            rows="2"
-            placeholder="Descreva brevemente sua situação financeira (renda, ajuda de familiares, etc.)"
+            rows="4"
+            placeholder="Ex: A guarda será compartilhada, a residência fixa da minha filha será na minha casa. O pai poderá visitar todos os finais de semana, buscando a criança na sexta-feira às 17 horas."
             className="input"
           ></textarea>
         </div>

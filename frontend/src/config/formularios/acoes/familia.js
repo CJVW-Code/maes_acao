@@ -5,7 +5,7 @@ export const ACOES_FAMILIA = {
     status: "ativo",
 
     secoes: ["SecaoValoresPensao", "SecaoEmpregoRequerido"],
-    camposGerais: { mostrarBensPartilha: true, ocultarDetalhesGerais: false },
+    camposGerais: { ocultarDetalhesGerais: false },
     forcaRepresentacao: true, // assistidoEhIncapaz = "sim"
     isCpfFilhoOpcional: true,
     isRgFilhoOpcional: true,
@@ -25,6 +25,7 @@ export const ACOES_FAMILIA = {
       "PIX",
       "NOME_FILHO",
       "DATA_NASCIMENTO_FILHO",
+      "DESCRICAO_GUARDA",
     ],
 
     promptIA: {
@@ -34,9 +35,10 @@ export const ACOES_FAMILIA = {
         "dados_bancarios",
         "dados_filho",
         "dados_emprego_requerido",
+        "descricao_guarda",
       ],
       instrucoes:
-        "Se o valor da pensão não for informado, deixe a tag VALOR_PENSAO em branco para preenchimento manual.",
+        "Se o valor da pensão não for informado, deixe a tag VALOR_PENSAO em branco. Se houver informações sobre guarda ou visitas, extraia para descricao_guarda.",
     },
   },
 

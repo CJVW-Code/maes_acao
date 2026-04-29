@@ -314,8 +314,8 @@ const mapCasoRelations = (caso) => {
     enriched.relato_texto = ia.relato_texto;
     enriched.dos_fatos_gerado = ia.dos_fatos_gerado;
     enriched.resumo_ia = ia.resumo_ia || extras.resumo_ia || null;
-    enriched.url_peticao = ia.url_peticao;
-    enriched.url_documento_gerado = ia.url_peticao;
+    enriched.url_peticao = ia.url_peticao || extras?.url_peticao || null;
+    enriched.url_documento_gerado = enriched.url_peticao; // Alias para compatibilidade
     enriched.peticao_inicial_rascunho =
       ia.peticao_inicial_rascunho || extras.peticao_inicial_rascunho || null;
     enriched.peticao_completa_texto = ia.peticao_completa_texto;
@@ -337,7 +337,7 @@ const mapCasoRelations = (caso) => {
     enriched.url_peticao_cumprimento_cumulado = extras.url_peticao_cumprimento_cumulado || null;
     enriched.url_peticao_cumprimento_penhora = extras.url_peticao_cumprimento_penhora || null;
     enriched.url_peticao_cumprimento_prisao = extras.url_peticao_cumprimento_prisao || null;
-    enriched.url_termo_declaracao = ia.url_termo_declaracao || extras.url_termo_declaracao || null;
+    enriched.url_termo_declaracao = ia.url_termo_declaracao || extras?.url_termo_declaracao || null;
 
     // Alias para attachSignedUrls
     enriched.casos_ia = ia;
@@ -1420,6 +1420,10 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
     }
   }
 
+  logger.info(
+    `[Cálculo Débito] Ação: ${acaoKey} | Débito Final: ${debitoCalculado} (Penhora: ${debitoPenhoraCalculado}, Prisão: ${debitoPrisaoCalculado})`,
+  );
+
   const debitoCalculadoExtenso = debitoCalculado > 0 ? numeroParaExtenso(debitoCalculado) : "";
 
   // Cálculo do Valor da Causa (Prioriza 12x para fixação, soma de débitos para execução)
@@ -1427,12 +1431,19 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
 
   if (acaoKey === "fixacao_alimentos" || acaoKey === "alimentos_gravidicos") {
     valorCausaCalculado = valorMensalParaFixacao * 12;
+    logger.info(
+      `[Cálculo Valor Causa] Fixação/Gravídicos: ${valorMensalParaFixacao} * 12 = ${valorCausaCalculado}`,
+    );
   } else {
     // Para execuções e outros, soma penhora e prisão se existirem
     valorCausaCalculado = debitoPenhoraCalculado + debitoPrisaoCalculado;
+    logger.info(
+      `[Cálculo Valor Causa] Execução (Soma): ${debitoPenhoraCalculado} (Penhora) + ${debitoPrisaoCalculado} (Prisão) = ${valorCausaCalculado}`,
+    );
     // Se ainda for zero, tenta pegar o valor_debito genérico
     if (valorCausaCalculado <= 0) {
       valorCausaCalculado = parseCurrencyToNumber(baseData.valor_debito || "0");
+      logger.info(`[Cálculo Valor Causa] Fallback Valor Débito: ${valorCausaCalculado}`);
     }
   }
 
@@ -1517,6 +1528,28 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
       baseData.cidade_assinatura ||
       `${String(baseData.CIDADEASSINATURA || baseData.cidade_assinatura || "______").toUpperCase()}, ${dataAtualTexto}`,
     defensoraNome: baseData.defensoraNome || "DEFENSOR(A) PÚBLICO(A)",
+    
+    // Título Dinâmico da Ação
+    tipo_acao: (() => {
+      let titulo = "";
+      if (isFixacaoOuGravidicos) {
+        titulo = "AÇÃO DE FIXAÇÃO DE ALIMENTOS COM PEDIDO DE ALIMENTOS PROVISÓRIOS";
+        if (baseData.opcaoGuarda === "regularizar" || (descricaoGuardaTexto && descricaoGuardaTexto.trim())) {
+          titulo += " E FIXAÇÃO DE GUARDA C/C DIREITO DE CONVIVÊNCIA";
+        }
+      } else {
+        // Tenta pegar de várias fontes, com fallback seguro
+        titulo = baseData.tipo_acao || baseData.acao_especifica || baseData.tipoAcao || "Petição Inicial";
+      }
+      
+      // Garantia final contra valores nulos ou a string literal "undefined"
+      if (!titulo || String(titulo).toLowerCase() === "undefined") {
+        titulo = "Petição Inicial";
+      }
+      
+      return String(titulo).toUpperCase();
+    })(),
+
     termo_representacao,
     // dos_fatos já inclui a cláusula de guarda se aplicável (ver lógica acima)
     dos_fatos: ensureText(dosFatosComGuarda, "[DESCREVER OS FATOS]"),
@@ -1613,6 +1646,7 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
       baseData.percentual_definitivo_salario_min || pctSeguro || "______",
     empregador_endereco_profissional:
       baseData.empregador_endereco || baseData.empregador_requerido_endereco || "______",
+    empregador_email: baseData.empregador_email || "",
     dia_pagamento: baseData.dia_pagamento || "______",
     periodo_meses_ano:
       baseData.periodo_meses_ano ||
@@ -1672,9 +1706,11 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
     valor_mensal_pensao: valorMensalPensaoFormatado,
     valor_causa_fixacao: valorCausaFixacaoFormatado,
     valor_causa_fixacao_extenso: valorCausaFixacaoExtenso,
-    guarda_convivencia: descricaoGuardaTexto || "não informado",
-    bens_partilha: bensPartilhaTexto || "não informado",
-    situacao_financeira_genitora: situacaoFinanceiraTexto || "não informado",
+    guarda_convivencia: descricaoGuardaTexto || "",
+    DESCRICAO_GUARDA: descricaoGuardaTexto || "",
+    bens_partilha: bensPartilhaTexto || "",
+    situacao_financeira_genitora: situacaoFinanceiraTexto || "",
+    relato_texto: (baseData.relato_texto || dosFatosTexto || "").replace(/\n/g, "\r\n"),
   };
 
   // 3. Mescla o mapeamento básico com as sobrescritas lógicas
@@ -3918,7 +3954,7 @@ export const regenerarDosFatos = async (req, res) => {
     }
 
     // Reanexa URLs assinadas para que links de download/áudio não quebrem na tela
-    const casoComUrls = await attachSignedUrls(casoAtualizado);
+    const casoComUrls = await attachSignedUrls(mapCasoRelations(casoAtualizado));
     res.status(200).json(stringifyBigInts(casoComUrls));
   } catch (error) {
     res.status(500).json({ error: "Falha ao regenerar texto." });
@@ -3928,40 +3964,51 @@ export const regenerarDosFatos = async (req, res) => {
 export const gerarTermoDeclaracao = async (req, res) => {
   const { id } = req.params;
   try {
-    // Restrição: Apenas administradores podem gerar ou regerar o termo
-    if (!req.user || req.user.cargo.toLowerCase() !== "admin") {
-      return res.status(403).json({
-        error: "Acesso negado. Apenas administradores podem realizar esta operação.",
-      });
-    }
-
     const casoRaw = await prisma.casos.findUnique({
       where: { id: BigInt(id) },
-      include: { partes: true, ia: true },
+      include: { 
+        partes: true, 
+        ia: true,
+        juridico: true,
+        assistencia_casos: {
+          where: {
+            OR: [{ destinatario_id: req.user.id }, { remetente_id: req.user.id }],
+            status: "aceito",
+          },
+        },
+      },
     });
     if (!casoRaw) throw new Error("Caso não encontrado");
     const caso = mapCasoRelations(casoRaw);
 
-    const dados = caso.dados_formulario || caso;
+    // [SEGURANÇA] Lógica de Locking e Autorização
+    const userCargo = req.user.cargo.toLowerCase();
+    const isAdmin = userCargo === "admin";
+    const isDono = String(caso.defensor_id) === String(req.user.id) || String(caso.servidor_id) === String(req.user.id);
+    const isShared = (caso.assistencia_casos || []).length > 0;
 
-    // Build term declaration data payload
-    const termoData = {
-      ...dados,
-      nome_assistido: (dados.nome || caso.nome_assistido || "").toUpperCase(),
-      representante_nome: (dados.representante_nome || "").toUpperCase(),
-      cpf_assistido: dados.cpf || caso.cpf_assistido,
-      relato_texto: (caso.relato_texto || "").replace(/\n/g, "\r\n"),
-      filhos_info: (dados.filhos_info || dados.nome || caso.nome_assistido || "").toUpperCase(),
-      data_atual: new Date().toLocaleDateString("pt-BR"),
-      protocolo: caso.protocolo,
-      tipo_acao: caso.tipo_acao,
-      // Helpers para o template .docx
-      eh_representacao: dados.assistido_eh_incapaz === "sim",
-      endereco_assistido: dados.endereco_assistido || dados.representante_endereco_residencial,
-      telefone_assistido: dados.telefone || caso.telefone_assistido,
-      profissao: dados.assistido_ocupacao || dados.representante_ocupacao || "Não informada",
-      estado_civil: dados.assistido_estado_civil || "Não informado",
+    if (!isAdmin && !isDono && !isShared) {
+      return res.status(423).json({
+        error: "Caso bloqueado",
+        message: "Apenas o profissional responsável ou colaboradores autorizados podem gerar documentos para este caso.",
+      });
+    }
+
+    // Dados base consolidados para o Payload Builder
+    const baseDataForPayload = {
+      ...caso,
+      ...(caso.partes || {}),
+      ...(caso.juridico || {}),
+      ...(caso.ia?.dados_extraidos || {}),
     };
+
+    // Build term declaration data payload using the centralized builder
+    const termoData = buildDocxTemplatePayload(
+      caso.partes || {},
+      caso.relato_texto || "",
+      baseDataForPayload,
+      normalizeAcaoKey(caso.tipo_acao)
+    );
 
     // Generate the term declaration document
     const docxBuffer = await generateTermoDeclaracao(termoData);
@@ -3995,13 +4042,21 @@ export const gerarTermoDeclaracao = async (req, res) => {
     );
     currentExtra.url_termo_declaracao = termoPath;
 
-    const casoAtualizadoRaw = await prisma.casos.update({
+    if (isSupabaseConfigured) {
+      const { error: iaError } = await supabase
+        .from("casos_ia")
+        .update({ dados_extraidos: currentExtra })
+        .eq("caso_id", id);
+      if (iaError) throw iaError;
+    } else {
+      await prisma.casos_ia.update({
+        where: { caso_id: BigInt(id) },
+        data: { dados_extraidos: currentExtra },
+      });
+    }
+
+    const casoAtualizadoRaw = await prisma.casos.findUnique({
       where: { id: BigInt(id) },
-      data: {
-        ia: {
-          update: { dados_extraidos: currentExtra },
-        },
-      },
       include: { partes: true, ia: true, juridico: true, documentos: true },
     });
     const casoAtualizado = await attachSignedUrls(mapCasoRelations(casoAtualizadoRaw));
@@ -4012,21 +4067,40 @@ export const gerarTermoDeclaracao = async (req, res) => {
   }
 };
 
+
 export const regerarMinuta = async (req, res) => {
   const { id } = req.params;
   try {
-    // Restrição: Apenas administradores
-    if (!req.user || req.user.cargo.toLowerCase() !== "admin") {
+    const dataRaw = await prisma.casos.findUnique({
+      where: { id: BigInt(id) },
+      include: { 
+        partes: true, 
+        ia: true, 
+        juridico: true, 
+        unidade: { select: { comarca: true } },
+        assistencia_casos: {
+          where: {
+            OR: [{ destinatario_id: req.user.id }, { remetente_id: req.user.id }],
+            status: "aceito",
+          },
+        },
+      },
+    });
+    if (!dataRaw) throw new Error("Caso não encontrado");
+
+    // 1. Permissões: Admin sempre pode. Dono ou Assistente (Compartilhado) também.
+    const isAdmin = req.user.cargo.toLowerCase() === "admin";
+    const isDono =
+      String(dataRaw.defensor_id) === String(req.user.id) ||
+      String(dataRaw.servidor_id) === String(req.user.id);
+    const isShared = (dataRaw.assistencia_casos || []).length > 0;
+
+    if (!isAdmin && !isDono && !isShared) {
       return res.status(403).json({
-        error: "Acesso negado. Apenas administradores podem regerar a minuta.",
+        error: "Acesso negado. Você não tem permissão para regerar a minuta deste caso.",
       });
     }
 
-    const dataRaw = await prisma.casos.findUnique({
-      where: { id: BigInt(id) },
-      include: { partes: true, ia: true, juridico: true, unidade: { select: { comarca: true } } },
-    });
-    if (!dataRaw) throw new Error("Caso não encontrado");
     const caso = mapCasoRelations(dataRaw);
 
     // 1. Prepara os dados baseados no estado atual do caso no banco
@@ -4238,11 +4312,19 @@ export const regerarMinuta = async (req, res) => {
     }
 
     // 6. Retorna o caso atualizado com as novas URLs assinadas
-    const casoAtualizado = await attachSignedUrls({
-      ...caso,
-      url_documento_gerado: docxPath,
+    // [FIX] Buscamos o caso atualizado do banco para garantir que attachSignedUrls tenha as chaves corretas (evita erro de Storage)
+    const casoAtualizadoRaw = await prisma.casos.findUnique({
+      where: { id: BigInt(id) },
+      include: {
+        partes: true,
+        ia: true,
+        juridico: true,
+        documentos: true,
+        unidade: { select: { comarca: true, sistema: true } },
+      },
     });
 
+    const casoAtualizado = await attachSignedUrls(mapCasoRelations(casoAtualizadoRaw));
     res.status(200).json(stringifyBigInts(casoAtualizado));
   } catch (error) {
     logger.error(`Erro ao regerar minuta: ${error.message}`);

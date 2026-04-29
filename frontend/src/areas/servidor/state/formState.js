@@ -73,6 +73,10 @@ export const initialState = {
   valor_honorarios: "",
   data_inicio_debito: "",
   data_fim_debito: "",
+  
+  // Guarda e Convivência
+  opcaoGuarda: "", // "nao" | "regularizar"
+  descricaoGuarda: "",
 
   // Relato e documentos
   relato: "",
