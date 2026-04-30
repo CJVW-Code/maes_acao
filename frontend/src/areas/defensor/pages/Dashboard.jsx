@@ -16,6 +16,7 @@ import {
   Users,
   Settings,
   X,
+  GraduationCap
 } from "lucide-react";
 import { authFetch } from "../../../utils/apiBase";
 import useSWR from "swr";
@@ -223,6 +224,28 @@ export const Dashboard = () => {
               Ver todos os casos
             </Link>
           </div>
+        </section>
+
+        {/* BANNER DE TREINAMENTO (Destaque) */}
+        <section className="bg-gradient-to-r from-primary/20 via-primary/10 to-transparent border border-primary/30 p-6 rounded-4xl flex flex-col md:flex-row items-center gap-6 shadow-xl shadow-primary/5">
+          <div className="w-16 h-16 rounded-3xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/40 shrink-0">
+            <GraduationCap size={32} />
+          </div>
+          <div className="grow space-y-1 text-center md:text-left">
+            <h2 className="text-xl font-black text-main flex items-center justify-center md:justify-start gap-2 uppercase tracking-tight">
+              Central de Treinamentos
+              <span className="bg-highlight text-[10px] text-white px-2 py-0.5 rounded-full animate-bounce">NOVO</span>
+            </h2>
+            <p className="text-muted text-sm 2xl:text-base font-medium">
+              Aprenda a realizar a exportação para o SOLAR, configurar o sistema e muito mais com nossos vídeos instrutivos.
+            </p>
+          </div>
+          <Link 
+            to="/painel/treinamentos" 
+            className="btn btn-primary px-8 py-3 rounded-2xl whitespace-nowrap shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+          >
+            Acessar Agora
+          </Link>
         </section>
 
         {/* Atalhos Rápidos para Gestão e Relatórios */}

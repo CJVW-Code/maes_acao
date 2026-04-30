@@ -26,6 +26,7 @@ import { CasosArquivados } from "./areas/defensor/pages/CasosArquivados";
 
 import { GerenciarEquipe } from "./areas/defensor/pages/GerenciarEquipe";
 import { ConfiguracoesSistema } from "./areas/defensor/pages/ConfiguracoesSistema";
+import { Treinamentos } from "./areas/defensor/pages/Treinamentos";
 import { NotFound } from "./pages/NotFound";
 
 const Relatorios = lazy(() => import("./areas/defensor/pages/Relatorios"));
@@ -205,6 +206,11 @@ function App() {
                       <Cadastro />
                     </TeamRoute>
                   }
+                />
+
+                <Route
+                  path="treinamentos"
+                  element={<Treinamentos />}
                 />
               </Route>
 
