@@ -72,6 +72,7 @@ export const GerenciarEquipe = () => {
   const [filtroUnidade, setFiltroUnidade] = useState("");
   const [filtroCargo, setFiltroCargo] = useState("");
   const [termoPesquisa, setTermoPesquisa] = useState("");
+  const [isLoadingUsuarios, setIsLoadingUsuarios] = useState(true);
 
   // --- CARREGAMENTO INICIAL ---
   useEffect(() => {
@@ -85,6 +86,8 @@ export const GerenciarEquipe = () => {
         if (unidRes.ok) setUnidades(await unidRes.json());
       } catch (error) {
         console.error("Erro ao carregar dados:", error);
+      } finally {
+        setIsLoadingUsuarios(false);
       }
     };
     if (token) fetchData();
@@ -522,7 +525,7 @@ export const GerenciarEquipe = () => {
             ))}
           </div>
 
-          {usuariosFiltrados.length === 0 && (
+          {!isLoadingUsuarios && usuariosFiltrados.length === 0 && (
             <div className="p-12 text-center text-muted animate-fade-in">
               <Users size={48} className="mx-auto mb-4 opacity-30" />
               <p className="text-lg font-semibold mb-2">Nenhum membro encontrado</p>

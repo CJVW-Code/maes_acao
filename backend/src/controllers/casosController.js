@@ -1078,7 +1078,18 @@ const formatCurrencyBr = (value) => {
  * Helper para extrair componentes de endereço da string formatada pelo EnderecoInput.jsx
  */
 const parseEnderecoParaSolar = (enderecoStr) => {
-  if (!enderecoStr || typeof enderecoStr !== "string") return null;
+  const emptyEndereco = {
+    cep: "",
+    logradouro: "",
+    numero: "",
+    complemento: "",
+    bairro: "",
+    municipio: "",
+    uf: "BA",
+    tipo_area: "urbana",
+    tipo_endereco: "residencial",
+  };
+  if (!enderecoStr || typeof enderecoStr !== "string") return emptyEndereco;
 
   const regexMap = {
     rua: /Rua: ([^,]*)/,
@@ -1114,7 +1125,13 @@ const buildSolarExportPayload = (caso = {}) => {
   
   // No mutirão Mães em Ação, o alvo principal da qualificação SOLAR é a MÃE (Representante)
   // sempre que o assistido direto é um filho incapaz.
-  const isIncapaz = caso.assistido_eh_incapaz === "sim" || dados.assistido_eh_incapaz === "sim";
+  const incapazFlag = String(
+    caso.assistido_eh_incapaz ??
+    dados.assistido_eh_incapaz ??
+    dados.assistidoEhIncapaz ??
+    "",
+  ).toLowerCase().trim();
+  const isIncapaz = incapazFlag === "sim";
 
   // Define os alvos com base na capacidade
   const targetCpf = isIncapaz 
@@ -1150,11 +1167,11 @@ const buildSolarExportPayload = (caso = {}) => {
     : (caso.assistido_ocupacao || dados.assistido_ocupacao);
 
   const targetNacionalidade = isIncapaz 
-    ? (caso.representante_nacionalidade || dados.representante_nacionalidade) 
+    ? (caso.representante_nacionalidade || dados.representante_nacionalidade || "brasileira")
     : (caso.assistido_nacionalidade || dados.assistido_nacionalidade || "brasileiro(a)");
 
   const targetEstadoCivil = isIncapaz 
-    ? (caso.representante_estado_civil || dados.representante_estado_civil) 
+    ? (caso.representante_estado_civil || dados.representante_estado_civil || "solteira")
     : (caso.assistido_estado_civil || dados.assistido_estado_civil || "solteiro(a)");
 
   return {
@@ -1171,7 +1188,7 @@ const buildSolarExportPayload = (caso = {}) => {
     ]
       .filter(Boolean)
       .join(", "),
-    representante_estado_civil: targetEstadoCivil,
+    representante_estado_civil: targetEstadoCivil || "",
     requerente_telefone:
       caso.telefone_assistido || caso.requerente_telefone || dados.requerente_telefone || "",
     requerente_email: caso.email_assistido || caso.requerente_email || dados.requerente_email || "",
@@ -1184,11 +1201,11 @@ const buildSolarExportPayload = (caso = {}) => {
     raca: dados.raca || "",
     naturalidade: dados.naturalidade || "",
     naturalidade_estado: dados.naturalidade_estado || "",
-    nacionalidade: targetNacionalidade,
+    nacionalidade: targetNacionalidade || "",
     naturalidade_pais: dados.naturalidade_pais || "",
     escolaridade: dados.escolaridade || "",
     tipo_trabalho: dados.tipo_trabalho || "",
-    representante_ocupacao: targetOcupacao,
+    representante_ocupacao: targetOcupacao || "",
     qtd_estado: dados.qtd_estado || "",
     moradia_tipo: dados.moradia_tipo || "",
     moradia_num_comodos: dados.moradia_num_comodos || "",
@@ -2595,7 +2612,9 @@ export const baixarTodosDocumentosZip = async (req, res) => {
             const { data, error } = await supabase.storage.from("documentos").download(objectPath);
             if (error) throw error;
             if (data) {
-              const filenameInZip = doc.nome_original || path.basename(objectPath);
+              const filenameInZip = path
+                .basename(String(doc.nome_original || path.basename(objectPath)))
+                .replace(/[\\/\r\n]+/g, "_");
               logger.info(`[ZIP] Adicionando arquivo: ${filenameInZip}`);
               archive.append(Buffer.from(await data.arrayBuffer()), {
                 name: filenameInZip,
@@ -2604,7 +2623,9 @@ export const baixarTodosDocumentosZip = async (req, res) => {
           } else {
             const localPath = path.resolve("uploads", "documentos", objectPath);
             if (fsSync.existsSync(localPath)) {
-              const filenameInZip = doc.nome_original || path.basename(objectPath);
+              const filenameInZip = path
+                .basename(String(doc.nome_original || path.basename(objectPath)))
+                .replace(/[\\/\r\n]+/g, "_");
               logger.info(`[ZIP] Adicionando arquivo local: ${filenameInZip}`);
               archive.file(localPath, {
                 name: filenameInZip,
