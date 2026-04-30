@@ -184,6 +184,7 @@ export const FormularioSubmissao = () => {
 
               <button
                 onClick={() => {
+                  localStorage.removeItem("rascunho_caso");
                   dispatch({ type: "RESET_FORM" });
                   setGeneratedCredentials(null);
                   setFormErrors({});

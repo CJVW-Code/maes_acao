@@ -72,6 +72,7 @@ export const GerenciarEquipe = () => {
   const [filtroUnidade, setFiltroUnidade] = useState("");
   const [filtroCargo, setFiltroCargo] = useState("");
   const [termoPesquisa, setTermoPesquisa] = useState("");
+  const [isLoadingUsuarios, setIsLoadingUsuarios] = useState(true);
 
   // --- CARREGAMENTO INICIAL ---
   useEffect(() => {
@@ -85,6 +86,8 @@ export const GerenciarEquipe = () => {
         if (unidRes.ok) setUnidades(await unidRes.json());
       } catch (error) {
         console.error("Erro ao carregar dados:", error);
+      } finally {
+        setIsLoadingUsuarios(false);
       }
     };
     if (token) fetchData();
@@ -338,7 +341,17 @@ export const GerenciarEquipe = () => {
           {/* Filtro por unidade */}
           <div className="px-6 py-4 border-b border-soft bg-surface-alt flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <h2 className="heading-3 flex items-center gap-2">
-              <Users size={18} /> Membros Cadastrados
+              <Users size={18} /> 
+              Membros Cadastrados
+              {usuariosFiltrados.length < usuarios.length ? (
+                <span className="badge-filter-count">
+                  {usuariosFiltrados.length} encontrados
+                </span>
+              ) : (
+                <span className="badge-filter-count bg-slate-500 shadow-none opacity-50">
+                  {usuarios.length} total
+                </span>
+              )}
             </h2>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
@@ -511,6 +524,14 @@ export const GerenciarEquipe = () => {
               </div>
             ))}
           </div>
+
+          {!isLoadingUsuarios && usuariosFiltrados.length === 0 && (
+            <div className="p-12 text-center text-muted animate-fade-in">
+              <Users size={48} className="mx-auto mb-4 opacity-30" />
+              <p className="text-lg font-semibold mb-2">Nenhum membro encontrado</p>
+              <p className="text-sm">Tente ajustar seus filtros ou o termo de pesquisa.</p>
+            </div>
+          )}
         </section>
       )}
 
@@ -519,7 +540,11 @@ export const GerenciarEquipe = () => {
         <section className="card p-0 overflow-hidden">
           <div className="px-6 py-4 border-b border-soft bg-surface-alt">
             <h2 className="heading-3 flex items-center gap-2">
-              <Building2 size={18} /> Unidades Cadastradas
+              <Building2 size={18} /> 
+              Unidades Cadastradas
+              <span className="badge-filter-count bg-slate-500 shadow-none opacity-50">
+                {unidades.length} total
+              </span>
             </h2>
           </div>
 

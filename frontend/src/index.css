@@ -439,4 +439,35 @@
     @apply w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold;
     @apply bg-primary/10 text-primary shadow-inner;
   }
+
+  /* TOOLTIP PREMIUM -- Resolvendo problemas de contraste */
+  .tooltip-premium {
+    @apply absolute z-50 p-3 rounded-2xl shadow-2xl border transition-all pointer-events-none;
+
+    background: rgba(15, 23, 42, 0.95); /* Slate 900 para contraste universal */
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #f8fafc; /* Slate 50 */
+    backdrop-filter: blur(12px);
+    font-size: 0.7rem;
+    line-height: 1.5;
+  }
+
+  :root[data-theme="dark"] .tooltip-premium {
+    background: rgba(30, 27, 75, 0.98); /* Deep Purple */
+    border-color: rgba(139, 92, 246, 0.3);
+  }
+  /* BADGE DE CONTAGEM DE FILTRO -- Premium & Animado */
+  .badge-filter-count {
+    @apply inline-flex items-center justify-center px-2 py-0.5 ml-2 text-[10px] font-extrabold rounded-full transition-all;
+
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-600) 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    animation: slide-in 0.3s ease-out;
+  }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
 }

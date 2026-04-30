@@ -1801,15 +1801,15 @@ export const DetalhesCaso = () => {
                     <HelpCircle size={16} className="cursor-help" />
                   </button>
                   <div
-                    className={`absolute bottom-full right-0 mb-2 w-72 origin-bottom transform-gpu transition-all duration-200 ease-in-out ${showStatusHelp ? "scale-100 opacity-100" : "scale-95 opacity-0 pointer-events-none"}`}
+                    className={`tooltip-premium bottom-full right-0 mb-2 w-72 origin-bottom transform-gpu transition-all duration-200 ease-in-out ${showStatusHelp ? "scale-100 opacity-100" : "scale-95 opacity-0 pointer-events-none"}`}
                     role="tooltip"
                   >
-                    <div className="rounded-md border border-soft bg-surface p-3 text-sm shadow-lg">
-                      <p className="font-bold capitalize">{statusKey.replace(/_/g, " ")}</p>
-                      <p className="text-muted">
-                        {statusDescriptions[statusKey] || "Sem descrição."}
-                      </p>
-                    </div>
+                    <p className="font-bold capitalize text-primary-600 dark:text-primary mb-1">
+                      {statusKey.replace(/_/g, " ")}
+                    </p>
+                    <p className="opacity-90">
+                      {statusDescriptions[statusKey] || "Sem descrição."}
+                    </p>
                   </div>
                 </div>
               </div>
