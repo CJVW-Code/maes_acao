@@ -71,6 +71,7 @@ export const GerenciarEquipe = () => {
   // --- FILTRO DE UNIDADE, CARGO E BUSCA NA EQUIPE ---
   const [filtroUnidade, setFiltroUnidade] = useState("");
   const [filtroCargo, setFiltroCargo] = useState("");
+  const [filtroRegional, setFiltroRegional] = useState("");
   const [termoPesquisa, setTermoPesquisa] = useState("");
   const [isLoadingUsuarios, setIsLoadingUsuarios] = useState(true);
 
@@ -269,8 +270,9 @@ export const GerenciarEquipe = () => {
     const matchUnidade =
       !filtroUnidade || u.unidade_nome?.toLowerCase().includes(filtroUnidade.toLowerCase());
     const matchCargo = !filtroCargo || u.cargo === filtroCargo;
+    const matchRegional = !filtroRegional || u.regional === filtroRegional;
     const matchBusca = !termoPesquisa || u.nome.toLowerCase().includes(termoPesquisa.toLowerCase());
-    return matchUnidade && matchCargo && matchBusca;
+    return matchUnidade && matchCargo && matchRegional && matchBusca;
   });
 
   const cargoBadge = (cargo) => {
@@ -388,6 +390,19 @@ export const GerenciarEquipe = () => {
               </div>
 
               <select
+                value={filtroRegional}
+                onChange={(e) => setFiltroRegional(e.target.value)}
+                className="input text-sm py-1.5 w-full sm:w-40"
+              >
+                <option value="">Todas Regionais</option>
+                {regionalOptions.filter(opt => opt.value !== "").map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
                 value={filtroCargo}
                 onChange={(e) => setFiltroCargo(e.target.value)}
                 className="input text-sm py-1.5 w-full sm:w-40"
@@ -412,6 +427,7 @@ export const GerenciarEquipe = () => {
                   <th className="px-6 py-3">Nome</th>
                   <th className="px-6 py-3">Email</th>
                   <th className="px-6 py-3">Cargo</th>
+                  <th className="px-6 py-3">Regional</th>
                   <th className="px-6 py-3">Unidade</th>
                   <th className="px-6 py-3 text-right">Ações</th>
                 </tr>
@@ -424,6 +440,11 @@ export const GerenciarEquipe = () => {
                     <td className="px-6 py-4">
                       <span className={`badge ${cargoBadge(u.cargo)}`}>
                         {u.cargo.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-bold uppercase tracking-wider text-muted/80">
+                        {u.regional || "N/A"}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -483,6 +504,9 @@ export const GerenciarEquipe = () => {
                     <p className="text-sm text-muted break-all">{u.email}</p>
                     <p className="text-xs text-muted flex items-center gap-1 mt-1">
                       <MapPin size={12} /> {u.unidade_nome || "Sem unidade"}
+                    </p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-primary/70 mt-1">
+                      Regional: {u.regional || "N/A"}
                     </p>
                   </div>
                   <span className={`badge text-xs ${cargoBadge(u.cargo)}`}>

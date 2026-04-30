@@ -326,6 +326,10 @@ export const atualizarDefensor = async (req, res) => {
       const userRegional = currentUser?.regional || currentUser?.unidade?.regional;
       const targetRegional = targetMemberFull.regional || targetMemberFull.unidade?.regional;
 
+      if (!userRegional) {
+        return res.status(403).json({ error: "Sua conta de Coordenador não possui uma regional vinculada." });
+      }
+
       if (targetRegional !== userRegional) {
         return res.status(403).json({ error: "Você só pode editar membros da sua regional." });
       }
@@ -455,6 +459,10 @@ export const deletarDefensor = async (req, res) => {
       });
       const userRegional = currentUser?.regional || currentUser?.unidade?.regional;
       const targetRegional = targetMemberFull.regional || targetMemberFull.unidade?.regional;
+
+      if (!userRegional) {
+        return res.status(403).json({ error: "Sua conta de Coordenador não possui uma regional vinculada." });
+      }
 
       if (targetRegional !== userRegional) {
         return res.status(403).json({ error: "Você só pode excluir membros da sua regional." });
