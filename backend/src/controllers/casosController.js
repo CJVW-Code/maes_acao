@@ -1111,80 +1111,84 @@ const parseEnderecoParaSolar = (enderecoStr) => {
 
 const buildSolarExportPayload = (caso = {}) => {
   const dados = caso.dados_formulario || {};
+  
+  // No mutirão Mães em Ação, o alvo principal da qualificação SOLAR é a MÃE (Representante)
+  // sempre que o assistido direto é um filho incapaz.
+  const isIncapaz = caso.assistido_eh_incapaz === "sim" || dados.assistido_eh_incapaz === "sim";
+
+  // Define os alvos com base na capacidade
+  const targetCpf = isIncapaz 
+    ? (caso.representante_cpf || dados.representante_cpf) 
+    : (caso.cpf_assistido || caso.cpf || dados.cpf);
+    
+  const targetNome = isIncapaz 
+    ? (caso.nome_representante || caso.REPRESENTANTE_NOME || dados.nome_representante || dados.REPRESENTANTE_NOME) 
+    : (caso.nome_assistido || caso.nome || dados.NOME || dados.nome);
+    
+  const targetNascimento = isIncapaz 
+    ? (caso.representante_data_nascimento || dados.representante_data_nascimento) 
+    : (caso.assistido_data_nascimento || caso.nascimento || dados.nascimento);
+    
+  const targetNomeMae = isIncapaz 
+    ? (caso.nome_mae_representante || dados.nome_mae_representante) 
+    : (caso.nome_mae_assistido || caso.nome_mae_representante || dados.nome_mae_assistido);
+    
+  const targetNomePai = isIncapaz 
+    ? (caso.nome_pai_representante || dados.nome_pai_representante) 
+    : (caso.nome_pai_assistido || caso.nome_pai_representante || dados.nome_pai_assistido);
+
+  const targetRg = isIncapaz 
+    ? (caso.representante_rg_numero || dados.representante_rg_numero || caso.assistido_rg_numero) 
+    : (caso.assistido_rg_numero || dados.assistido_rg_numero || caso.representante_rg_numero);
+
+  const targetEmissor = isIncapaz 
+    ? (caso.representante_rg_orgao || dados.representante_rg_orgao || caso.emissor_rg_exequente) 
+    : (caso.assistido_rg_orgao || dados.assistido_rg_orgao || caso.emissor_rg_exequente);
+
+  const targetOcupacao = isIncapaz 
+    ? (caso.representante_ocupacao || dados.representante_ocupacao) 
+    : (caso.assistido_ocupacao || dados.assistido_ocupacao);
+
+  const targetNacionalidade = isIncapaz 
+    ? (caso.representante_nacionalidade || dados.representante_nacionalidade) 
+    : (caso.assistido_nacionalidade || dados.assistido_nacionalidade || "brasileiro(a)");
+
+  const targetEstadoCivil = isIncapaz 
+    ? (caso.representante_estado_civil || dados.representante_estado_civil) 
+    : (caso.assistido_estado_civil || dados.assistido_estado_civil || "solteiro(a)");
 
   return {
-    cpf: caso.cpf_assistido || caso.cpf || dados.cpf || "",
-    NOME: caso.nome_assistido || caso.nome || dados.NOME || dados.nome || "",
-    nome_mae_representante:
-      caso.nome_mae_assistido || caso.nome_mae_representante || dados.nome_mae_representante || "",
-    nascimento:
-      caso.assistido_data_nascimento ||
-      caso.nascimento ||
-      formatDateBr(caso.partes?.data_nascimento_assistido) ||
-      "",
-    data_nascimento_assistido:
-      caso.assistido_data_nascimento ||
-      caso.nascimento ||
-      formatDateBr(caso.partes?.data_nascimento_assistido) ||
-      "",
-    nome_mae_assistido:
-      caso.nome_mae_assistido ||
-      caso.partes?.nome_mae_assistido ||
-      caso.nome_mae_representante ||
-      "",
-    nome_pai_assistido:
-      caso.nome_pai_assistido ||
-      caso.partes?.nome_pai_assistido ||
-      caso.nome_pai_representante ||
-      "",
+    cpf: (targetCpf || "").replace(/\D/g, ""),
+    NOME: (targetNome || "").toUpperCase(),
+    nome_mae_representante: targetNomeMae || "",
+    nascimento: formatDateBr(targetNascimento) || "",
+    data_nascimento_assistido: formatDateBr(targetNascimento) || "",
+    nome_mae_assistido: targetNomeMae || "",
+    nome_pai_assistido: targetNomePai || "",
     filiacao: [
-      caso.nome_mae_assistido || caso.partes?.nome_mae_assistido || caso.nome_mae_representante
-        ? `Mãe: ${caso.nome_mae_assistido || caso.partes?.nome_mae_assistido || caso.nome_mae_representante}`
-        : null,
-      caso.nome_pai_assistido || caso.partes?.nome_pai_assistido || caso.nome_pai_representante
-        ? `Pai: ${caso.nome_pai_assistido || caso.partes?.nome_pai_assistido || caso.nome_pai_representante}`
-        : null,
+      targetNomeMae ? `Mãe: ${targetNomeMae}` : null,
+      targetNomePai ? `Pai: ${targetNomePai}` : null,
     ]
       .filter(Boolean)
       .join(", "),
-    representante_estado_civil:
-      caso.assistido_estado_civil ||
-      caso.representante_estado_civil ||
-      dados.representante_estado_civil ||
-      "",
+    representante_estado_civil: targetEstadoCivil,
     requerente_telefone:
       caso.telefone_assistido || caso.requerente_telefone || dados.requerente_telefone || "",
     requerente_email: caso.email_assistido || caso.requerente_email || dados.requerente_email || "",
     genero: dados.genero || dados.sexo || "",
-    rg_executado:
-      caso.assistido_rg ||
-      caso.representante_rg ||
-      dados.assistido_rg_numero ||
-      dados.representante_rg_numero ||
-      "",
-    emissor_rg_executado:
-      caso.emissor_rg_exequente || dados.assistido_rg_orgao || dados.representante_rg_orgao || "",
+    rg_executado: targetRg || "",
+    emissor_rg_executado: targetEmissor || "",
     rg_data_expedicao: dados.rg_data_expedicao || "",
     certidao_tipo: dados.certidao_tipo || "",
     certidao_numero: dados.certidao_numero || "",
     raca: dados.raca || "",
     naturalidade: dados.naturalidade || "",
     naturalidade_estado: dados.naturalidade_estado || "",
-    nacionalidade:
-      caso.assistido_nacionalidade ||
-      caso.representante_nacionalidade ||
-      dados.nacionalidade ||
-      dados.representante_nacionalidade ||
-      "",
+    nacionalidade: targetNacionalidade,
     naturalidade_pais: dados.naturalidade_pais || "",
     escolaridade: dados.escolaridade || "",
     tipo_trabalho: dados.tipo_trabalho || "",
-    representante_ocupacao:
-      caso.assistido_ocupacao ||
-      caso.representante_ocupacao ||
-      dados.assistido_ocupacao ||
-      dados.representante_ocupacao ||
-      "",
+    representante_ocupacao: targetOcupacao,
     qtd_estado: dados.qtd_estado || "",
     moradia_tipo: dados.moradia_tipo || "",
     moradia_num_comodos: dados.moradia_num_comodos || "",

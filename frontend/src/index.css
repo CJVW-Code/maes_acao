@@ -455,4 +455,17 @@
     background: rgba(30, 27, 75, 0.98); /* Deep Purple */
     border-color: rgba(139, 92, 246, 0.3);
   }
+  /* BADGE DE CONTAGEM DE FILTRO -- Premium & Animado */
+  .badge-filter-count {
+    @apply inline-flex items-center justify-center px-2 py-0.5 ml-2 text-[10px] font-extrabold rounded-full transition-all;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-600) 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
 }

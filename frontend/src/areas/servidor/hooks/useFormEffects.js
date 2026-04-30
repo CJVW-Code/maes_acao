@@ -29,16 +29,28 @@ export const useFormEffects = ({ dispatch, formState, location, toast, forcaRepr
     hasLoadedData.current = true;
 
     const loadData = async () => {
-      // ETAPA 1: Carregar Rascunho Local (Alta Prioridade)
+      // ETAPA 1: Carregar Rascunho Local
       const rascunhoStr = localStorage.getItem("rascunho_caso");
       let currentDataOnLoad = { ...formState };
+      let rascunhoFoiCarregado = false;
 
       if (rascunhoStr) {
         try {
           const parsed = JSON.parse(rascunhoStr);
-          currentDataOnLoad = { ...currentDataOnLoad, ...parsed };
-          dispatch({ type: "LOAD_RASCUNHO", payload: parsed });
-          toast.info("Rascunho recuperado.");
+          
+          // Verificação de segurança: se viemos da busca, o rascunho deve ser da mesma pessoa
+          const cpfDaBusca = location.state?.initialCpf ? String(location.state.initialCpf).replace(/\D/g, "") : null;
+          const cpfDoRascunho = parsed.representante_cpf ? String(parsed.representante_cpf).replace(/\D/g, "") : null;
+          
+          if (!cpfDaBusca || cpfDaBusca === cpfDoRascunho) {
+            currentDataOnLoad = { ...currentDataOnLoad, ...parsed };
+            dispatch({ type: "LOAD_RASCUNHO", payload: parsed });
+            toast.info("Rascunho recuperado.");
+            rascunhoFoiCarregado = true;
+          } else {
+            console.log("[useFormEffects] Rascunho descartado por divergência de CPF.");
+            localStorage.removeItem("rascunho_caso");
+          }
         } catch (e) {
           console.error("Erro rascunho:", e);
         }
@@ -88,8 +100,8 @@ export const useFormEffects = ({ dispatch, formState, location, toast, forcaRepr
         }
       }
 
-      // ETAPA 3: Se não houver rascunho nem prefill, mas houver CPF da busca
-      if (location.state?.initialCpf && !rascunhoStr && !location.state?.protocoloOrigem) {
+      // ETAPA 3: Se não houver rascunho carregado nem prefill, mas houver CPF da busca
+      if (location.state?.initialCpf && !rascunhoFoiCarregado && !location.state?.protocoloOrigem) {
         dispatch({ 
           type: "UPDATE_FIELD", 
           field: "representante_cpf", 
