@@ -35,6 +35,7 @@ export const Header = () => {
             </p>
             <p className="text-xs text-muted font-medium mt-0.5 capitalize">
               {user?.cargo || "Servidor"} • {user?.unidade_nome || "Sem Unidade"}
+              {user?.regional ? ` (${user.regional})` : ""}
             </p>
           </div>
         </div>

@@ -664,7 +664,7 @@ export const GerenciarEquipe = () => {
                   <option value="visualizador">Visualizador</option>
                 </select>
               </div>
-              {editForm.cargo === "coordenador" ? (
+              {editForm.cargo === "coordenador" && (
                 <div>
                   <label className="label">Regional</label>
                   <select
@@ -679,23 +679,22 @@ export const GerenciarEquipe = () => {
                     ))}
                   </select>
                 </div>
-              ) : (
-                <div>
-                  <label className="label">Unidade</label>
-                  <select
-                    value={editForm.unidade_id}
-                    onChange={(e) => setEditForm({ ...editForm, unidade_id: e.target.value })}
-                    className="input"
-                  >
-                    <option value="">Sem unidade</option>
-                    {unidades.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               )}
+              <div>
+                <label className="label">Unidade</label>
+                <select
+                  value={editForm.unidade_id}
+                  onChange={(e) => setEditForm({ ...editForm, unidade_id: e.target.value })}
+                  className="input"
+                >
+                  <option value="">Sem unidade</option>
+                  {unidades.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <button
                 type="submit"

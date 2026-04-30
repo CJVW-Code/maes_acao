@@ -107,6 +107,7 @@ const Relatorios = () => {
     loading,
     exporting,
     error,
+    bloqueio,
     filtros,
     setFiltros,
     prefs,
@@ -121,6 +122,7 @@ const Relatorios = () => {
 
   const isPowerUser = user?.cargo === "admin" || user?.cargo === "gestor";
   const canSeeUnitsList = isPowerUser || user?.cargo === "coordenador";
+  const canUnlock = ["admin", "gestor", "coordenador"].includes(user?.cargo?.toLowerCase());
 
   useEffect(() => {
     if (!canSeeUnitsList) return;
@@ -158,9 +160,12 @@ const Relatorios = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtros.periodo, filtros.dataInicio, filtros.dataFim, filtros.regional, filtros.unidade_id, filtros.topN]);
 
-  if (data?.bloqueadoPorHorario) {
-    const canUnlock = user?.cargo === "admin" || user?.cargo === "gestor";
-    
+  // Guards pós-hooks
+  if (!permissions?.canViewBi) {
+    return <Navigate to="/painel" replace />;
+  }
+
+  if (bloqueio?.bloqueado) {
     const handleLiberarAgora = async () => {
       try {
         const response = await authFetch("/bi/overrides", {
@@ -190,7 +195,7 @@ const Relatorios = () => {
         </div>
         <h2 className="heading-1 text-amber-900 mb-2">Acesso Temporariamente Restrito</h2>
         <p className="text-amber-800 max-w-md mx-auto leading-relaxed mb-8">
-          O módulo de BI está configurado para acesso apenas em horários específicos ou foi bloqueado manualmente pela administração.
+          {bloqueio.mensagem || "O módulo de BI está configurado para acesso apenas em horários específicos."}
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4">
@@ -212,10 +217,6 @@ const Relatorios = () => {
         </div>
       </div>
     );
-  }
-
-  if (!permissions?.canViewBi) {
-    return <Navigate to="/painel" replace />;
   }
 
   const updateFiltro = (key, value) => {

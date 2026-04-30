@@ -32,6 +32,7 @@ export const Treinamentos = () => {
       title: "Exportação para o SOLAR",
       description: "Aprenda o passo a passo completo para utilizar a extensão Mães em Ação e automatizar o cadastro de atendimentos no sistema SOLAR da Defensoria.",
       url: "https://defensoriaba-my.sharepoint.com/personal/janaina_santos_defensoria_ba_def_br/_layouts/15/embed.aspx?UniqueId=088f0e74-15a8-48b5-a755-74801b0ba5e3&embed=%7B%22ust%22%3Atrue%2C%22hv%22%3A%22CopyEmbedCode%22%7D&referrer=StreamWebApp&referrerScenario=EmbedDialog.Create",
+      fallbackUrl: "https://defensoriaba-my.sharepoint.com/:v:/g/personal/janaina_santos_defensoria_ba_def_br/IQB0Do8IqBW1SKdVdIAbC6XjAfz9bYHWHJvi38vd7796Unw?e=mHl9fM&nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D",
       extraActionUrl: "/extensao maes acao defulsbahia solar.zip",
       extraActionLabel: "Baixar Extensão SOLAR",
       category: "Sistemas Externos"
@@ -88,6 +89,7 @@ export const Treinamentos = () => {
             {/* Player de Vídeo */}
             <VideoPlayer
               url={video.url}
+              fallbackUrl={video.fallbackUrl}
               title={video.title}
               description={video.description}
               extraActionUrl={video.extraActionUrl}

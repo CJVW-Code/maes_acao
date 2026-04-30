@@ -98,8 +98,8 @@ export const registrarDefensor = async (req, res) => {
         email,
         senha_hash,
         cargo_id: cargoDb.id,
-        unidade_id: normalizedCargoInput === "coordenador" ? null : unidade_id,
-        regional: normalizedCargoInput === "coordenador" ? regional : null,
+        unidade_id: unidade_id || null,
+        regional: regional || null,
       },
       include: {
         cargo: true,
@@ -186,6 +186,7 @@ export const loginDefensor = async (req, res) => {
         cargo: defensor.cargo?.nome || "operador",
         unidade_id: defensor.unidade_id,
         unidade_nome: defensor.unidade?.nome || null,
+        regional: defensor.regional || defensor.unidade?.regional || null,
       },
     });
   } catch (err) {
@@ -384,8 +385,10 @@ export const atualizarDefensor = async (req, res) => {
     const targetCargoText = (cargo || targetMemberFull.cargo.nome).toString().toLowerCase();
 
     if (targetCargoText === "coordenador") {
-      updateData.unidade_id = null;
       updateData.regional = regional || null;
+      if (unidade_id !== undefined) {
+        updateData.unidade_id = unidade_id || null;
+      }
     } else {
       updateData.regional = null;
       if (unidade_id !== undefined) {
