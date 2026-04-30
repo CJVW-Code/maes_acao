@@ -5183,7 +5183,7 @@ export const receberDocumentosComplementares = async (req, res) => {
             titulo: "Documentos Complementares",
             mensagem: mensagemNotif,
             tipo: "upload",
-            referencia_id: caso.id,
+            link: `/painel/casos/${caso.id}`,
             lida: false,
           });
 
@@ -5216,7 +5216,7 @@ export const receberDocumentosComplementares = async (req, res) => {
             titulo: "Documentos Complementares",
             mensagem: mensagemNotif,
             tipo: "upload",
-            referencia_id: caso.id,
+            link: `/painel/casos/${caso.id}`,
             lida: false,
           });
 
@@ -5309,7 +5309,28 @@ export const deletarCaso = async (req, res) => {
       logger.info(`[Local] Ignorando limpeza de storage para o caso ${id}`);
     }
 
-    // Excluir o caso do banco de dados
+    // --- LIMPEZA DE REFERÊNCIAS (Prevenção de erro de Constraint) ---
+    try {
+      // Notificações e Logs não possuem cascade total ou dependem de triggers
+      if (isSupabaseConfigured) {
+        // Desvincula logs para que a deleção do caso não seja impedida
+        await supabase.from("logs_auditoria").update({ caso_id: null }).eq("caso_id", id);
+        // Remove notificações vinculadas (buscando pelo padrão do link do caso)
+        await supabase.from("notificacoes").delete().ilike("link", `%/casos/${id}%`);
+      } else {
+        await prisma.logs_auditoria.updateMany({
+          where: { caso_id: BigInt(id) },
+          data: { caso_id: null },
+        });
+        await prisma.notificacoes.deleteMany({
+          where: { link: { contains: `/casos/${id}` } },
+        });
+      }
+    } catch (cleanupErr) {
+      logger.warn(`[DeletarCaso] Aviso: Limpeza parcial falhou para o caso ${id}: ${cleanupErr.message}`);
+    }
+
+    // Excluir o caso do banco de dados (Tabelas partes, juridico, ia e documentos possuem CASCADE)
     if (isSupabaseConfigured) {
       const { error: deleteError } = await supabase.from("casos").delete().eq("id", id);
       if (deleteError) throw deleteError;
@@ -5322,7 +5343,7 @@ export const deletarCaso = async (req, res) => {
     res.json({ message: "Caso excluído com sucesso." });
   } catch (err) {
     logger.error(`Erro ao deletar caso ${id}: ${err.message}`);
-    res.status(500).json({ error: "Erro ao excluir caso." });
+    res.status(500).json({ error: `Erro ao excluir caso: ${err.message}` });
   }
 };
 
