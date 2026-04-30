@@ -30,7 +30,9 @@ import {
   Search,
   UserPlus,
   Wand2,
+  Video,
 } from "lucide-react";
+import { VideoPlayer } from "../../../components/VideoPlayer";
 import { ModalDistribuicao } from "../components/casos/ModalDistribuicao";
 import { API_BASE } from "../../../utils/apiBase";
 import { formatTipoAcaoLabel } from "../../../utils/caseUtils";
@@ -1896,6 +1898,7 @@ export const DetalhesCaso = () => {
 
             {/* --- SEÇÃO: CÁLCULO E DADOS JURÍDICOS --- */}
             {/* --- ZONA DE FINALIZAÇÃO DO ESTAGIÁRIO --- */}
+            {/* 
             <div className="space-y-6 mb-8">
               <div className="card space-y-4 border-l-4 border-l-primary">
                 <div className="flex items-center gap-3">
@@ -1930,13 +1933,22 @@ export const DetalhesCaso = () => {
                 </div>
               </div>
             </div>
+            */}
             {/* Oculta o fluxo de finalização para servidor e estagiario */}
             {user?.cargo !== "servidor" && user?.cargo !== "estagiario" && (
-              <div className="mt-8 pt-8 border-t border-soft">
-                <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
-                  <CheckCircle className="text-green-500" />
+              <div className="mt-16 pt-10 border-t border-soft space-y-10">
+                <h2 className="text-2xl font-bold text-primary flex items-center gap-3">
+                  <CheckCircle className="text-green-500" size={28} />
                   Finalização e Encaminhamento (Solar)
                 </h2>
+
+                <VideoPlayer
+                  url="https://defensoriaba-my.sharepoint.com/personal/janaina_santos_defensoria_ba_def_br/_layouts/15/embed.aspx?UniqueId=088f0e74-15a8-48b5-a755-74801b0ba5e3&embed=%7B%22ust%22%3Atrue%2C%22hv%22%3A%22CopyEmbedCode%22%7D&referrer=StreamWebApp&referrerScenario=EmbedDialog.Create"
+                  title="Treinamento: Exportação para o SOLAR"
+                  description="Aprenda o passo a passo para exportar os dados do atendimento e realizar o protocolo no sistema SOLAR da Defensoria."
+                  extraActionUrl="/extensao maes acao defulsbahia solar.zip"
+                  extraActionLabel="Baixar Extensão SOLAR"
+                />
 
                 {caso.status === "protocolado" ? (
                   // SE JÁ ESTIVER FINALIZADO, MOSTRA OS DADOS
@@ -1987,12 +1999,12 @@ export const DetalhesCaso = () => {
                   // SE NÃO ESTIVER FINALIZADO, MOSTRA O FORMULÁRIO
                   <form
                     onSubmit={handleFinalizarCaso}
-                    className="bg-surface border border-soft p-6 rounded-xl space-y-4"
+                    className="bg-surface/50 backdrop-blur-sm border border-soft p-8 rounded-[2rem] space-y-8"
                   >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       {/* INPUT NÚMERO SOLAR */}
                       <div>
-                        <label className="block text-sm font-medium text-muted mb-1">
+                        <label className="block text-sm font-medium text-muted mb-2">
                           Número SOLAR/SIGAD
                         </label>
                         <input
@@ -2007,7 +2019,7 @@ export const DetalhesCaso = () => {
 
                       {/* INPUT NÚMERO PROCESSO */}
                       <div>
-                        <label className="block text-sm font-medium text-muted mb-1">
+                        <label className="block text-sm font-medium text-muted mb-2">
                           Número do Processo (PJE/TJ)
                         </label>
                         <input
@@ -2023,7 +2035,7 @@ export const DetalhesCaso = () => {
 
                     {/* UPLOAD CAPA */}
                     <div>
-                      <label className="block text-sm font-medium text-muted mb-1">
+                      <label className="block text-sm font-medium text-muted mb-2">
                         Anexar Capa Processual (PDF)
                       </label>
                       <div className="border-2 border-dashed border-soft rounded-lg p-6 flex flex-col items-center justify-center text-center hover:bg-white/5 transition-colors cursor-pointer relative">
@@ -2048,7 +2060,7 @@ export const DetalhesCaso = () => {
                     <button
                       type="submit"
                       disabled={enviandoFinalizacao}
-                      className="btn btn-primary w-full py-3 mt-4 flex items-center justify-center gap-2"
+                      className="btn btn-primary w-full py-4 mt-6 flex items-center justify-center gap-2 text-lg shadow-xl shadow-primary/20"
                     >
                       {enviandoFinalizacao ? "Processando..." : "Concluir Caso e Enviar ao Cidadão"}
                     </button>

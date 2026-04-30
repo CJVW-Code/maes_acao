@@ -10,7 +10,8 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  Settings
+  Settings,
+  GraduationCap
 } from "lucide-react";
 
 export const Sidebar = ({ isExpanded, setIsExpanded }) => {
@@ -26,6 +27,7 @@ export const Sidebar = ({ isExpanded, setIsExpanded }) => {
     { icon: BarChart3, label: "Relatórios", path: "/painel/relatorios", show: permissions.canViewBi },
     { icon: UserPlus, label: "Gerenciar Equipe", path: "/painel/equipe", show: permissions.canManageTeam },
     { icon: Settings, label: "Configurações", path: "/painel/configuracoes", show: permissions.canEditConfig },
+    { icon: GraduationCap, label: "Treinamentos", path: "/painel/treinamentos", show: true, highlight: true },
   ].filter(item => item.show);
 
   const mobileLinkClass = ({ isActive }) =>
@@ -103,6 +105,11 @@ export const Sidebar = ({ isExpanded, setIsExpanded }) => {
                         }}
                       >
                         {item.label}
+                        {item.highlight && isExpanded && (
+                          <span className="ml-auto px-1.5 py-0.5 bg-highlight text-[10px] text-white font-black rounded uppercase animate-pulse">
+                            Novo
+                          </span>
+                        )}
                       </span>
 
                       {/* Tooltip Inteiro (Cobre o botão e expande como a Sidebar) */}
