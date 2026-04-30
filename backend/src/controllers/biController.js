@@ -76,18 +76,15 @@ const verificarBloqueioHorario = async (user) => {
 
     // Suporte para janelas que cruzam a meia-noite (ex: 22:00 até 02:00)
     const { inicio, fim } = janela;
-    let horaMatch = false;
     
     if (inicio <= fim) {
       // Janela padrão no mesmo dia (ex: 08:00 às 18:00)
-      horaMatch = horaAtualStr >= inicio && horaAtualStr <= fim;
+      return horaAtualStr >= inicio && horaAtualStr <= fim;
     } else {
       // Janela que cruza meia-noite (ex: 22:00 às 02:00)
       // É match se for DEPOIS do início (23:00) OU ANTES do fim (01:00)
-      horaMatch = horaAtualStr >= inicio || horaAtualStr <= fim;
+      return horaAtualStr >= inicio || horaAtualStr <= fim;
     }
-
-    return horaMatch;
   });
 
   if (janelaMatch) {

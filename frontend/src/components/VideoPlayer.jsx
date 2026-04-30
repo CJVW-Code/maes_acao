@@ -126,7 +126,7 @@ export const VideoPlayer = ({ url, fallbackUrl, title, description, className = 
             >
               <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={18} />
               <p className="text-sm text-amber-700 dark:text-amber-400 leading-relaxed">
-                <strong>Erro de conexão?</strong> Se o vídeo não carregar ou mostrar "A conexão foi recusada" (devido a bloqueios de segurança da rede da DPE), clique no botão <strong>"Ver no SharePoint"</strong> acima para assistir em uma nova guia.
+                <strong>Erro de conexão?</strong> Se o vídeo não carregar ou mostrar "A conexão foi recusada" (devido a bloqueios de segurança da rede da DPE), clique no botão <strong>"Ver no SharePoint"</strong> acima para assistir em uma nova guia. <br/>Se ainda assim não conseguir acessar, <strong>fale com o seu coordenador</strong> para solicitar acesso ao arquivo.
               </p>
             </Motion.div>
           )}
