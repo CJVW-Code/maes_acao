@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap");
 @import "tailwindcss";
 
 /* index.css -- Purple & Lilac Edition */
@@ -8,20 +8,20 @@
 ---------------------------------------------------------------- */
 :root {
   /* Core - Tons de Roxo Vibrante & Lilas (Maes em Acao Identity) */
-  --color-primary: #8b5cf6;       /* Violet 500 - Lilas Vibrante */
-  --color-primary-600: #7c3aed;   /* Violet 600 - Roxo Profundo */
-  --color-secondary: #c084fc;     /* Purple 400 - Lilas Suave */
+  --color-primary: #8b5cf6; /* Violet 500 - Lilas Vibrante */
+  --color-primary-600: #7c3aed; /* Violet 600 - Roxo Profundo */
+  --color-secondary: #c084fc; /* Purple 400 - Lilas Suave */
   --color-secondary-600: #a855f7; /* Purple 500 - Lilas Forte */
-  --color-special: #6366f1;       /* Indigo - Contraste */
-  --color-laranja: #f59e0b;       /* Alertas */
+  --color-special: #6366f1; /* Indigo - Contraste */
+  --color-laranja: #f59e0b; /* Alertas */
 
   /* Surfaces & Text */
-  --color-bg: #f8f7ff;            /* Lavanda Suave (Warm White) */
-  --color-surface: #fdfbff;       /* Lilas Perolado (Off-white para contrastar com bordas) */
-  --color-border: #ddd6fe;        
+  --color-bg: #f8f7ff; /* Lavanda Suave (Warm White) */
+  --color-surface: #fdfbff; /* Lilas Perolado (Off-white para contrastar com bordas) */
+  --color-border: #ddd6fe;
 
-  --color-text: #2e1065;          /* Roxo Imperial escuro */
-  --color-text-muted: #7c3aed;    
+  --color-text: #2e1065; /* Roxo Imperial escuro */
+  --color-text-muted: #7c3aed;
   --color-text-thirt: #8b5cf6;
 
   /* Feedback */
@@ -32,9 +32,10 @@
   /* Acessibilidade & Efeitos */
   --color-focus: #8b5cf6;
   --ring-offset: 2px;
-  --radius: 1rem; 
+  --radius: 1rem;
   --radius-sm: 0.6rem;
-  --shadow-soft: 0 20px 25px -5px rgba(139, 92, 246, 0.1), 0 10px 10px -5px rgba(139, 92, 246, 0.04);
+  --shadow-soft:
+    0 20px 25px -5px rgba(139, 92, 246, 0.1), 0 10px 10px -5px rgba(139, 92, 246, 0.04);
   --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.3);
   color-scheme: light;
 }
@@ -43,22 +44,22 @@
    2) Tema escuro (Dark - Deep Midnight Purple)
 ---------------------------------------------------------------- */
 :root[data-theme="dark"] {
-  --color-primary: #c084fc;       
+  --color-primary: #c084fc;
   --color-primary-600: #d8b4fe;
   --color-secondary: #a855f7;
   --color-secondary-600: #8b5cf6;
   --color-special: #818cf8;
-  
-  --color-bg: #0f172a;            /* Navy Escuro para melhor contraste com roxo */
-  --color-surface: #1e1b4b;       
-  --color-border: #312e81;        
-  
+
+  --color-bg: #0f172a; /* Navy Escuro para melhor contraste com roxo */
+  --color-surface: #1e1b4b;
+  --color-border: #312e81;
+
   --color-text: #f5f3ff;
   --color-text-muted: #c084fc;
 
   --color-success: #34d399;
   --color-error: #f87171;
-  --color-highlight: #e879f9; 
+  --color-highlight: #e879f9;
 
   --color-focus: #c084fc;
   --shadow-soft: 0 12px 40px rgba(0, 0, 0, 0.6);
@@ -86,7 +87,7 @@
   --color-secondary: var(--color-secondary);
   --color-secondary-600: var(--color-secondary-600);
   --color-special: var(--color-special);
-  
+
   --color-app: var(--color-bg);
   --color-surface: var(--color-surface);
   --color-border: var(--color-border);
@@ -109,8 +110,9 @@
    4) Base & Layers (Mantendo a estrutura semantica)
 ---------------------------------------------------------------- */
 @layer base {
-  html, body {
-    font-family: 'DM Sans', sans-serif;
+  html,
+  body {
+    font-family: "DM Sans", sans-serif;
     background-color: var(--color-bg);
     color: var(--color-text);
   }
@@ -123,9 +125,15 @@
 }
 
 @layer utilities {
-  .bg-app { background-color: var(--color-bg); }
-  .bg-surface { background-color: var(--color-surface); }
-  .text-muted { color: var(--color-text-muted); }
+  .bg-app {
+    background-color: var(--color-bg);
+  }
+  .bg-surface {
+    background-color: var(--color-surface);
+  }
+  .text-muted {
+    color: var(--color-text-muted);
+  }
 }
 
 @layer components {
@@ -135,11 +143,21 @@
     box-shadow: 0 8px 32px 0 rgba(139, 92, 246, 0.15);
   }
 
-  .btn-sm { @apply px-3 py-1.5 text-xs rounded-lg; }
-  .btn-md { @apply px-5 py-2.5 text-sm rounded-xl; }
-  .btn-ghost { @apply bg-transparent hover:bg-surface/50 text-muted transition-colors; }
-  .bg-soft { @apply bg-surface border border-soft; }
-  .text-soft { @apply text-muted/70; }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs rounded-lg;
+  }
+  .btn-md {
+    @apply px-5 py-2.5 text-sm rounded-xl;
+  }
+  .btn-ghost {
+    @apply bg-transparent hover:bg-surface/50 text-muted transition-colors;
+  }
+  .bg-soft {
+    @apply bg-surface border border-soft;
+  }
+  .text-soft {
+    @apply text-muted/70;
+  }
 
   .card-solid {
     @apply bg-surface dark:bg-surface border border-soft shadow-md rounded-xl;
@@ -147,11 +165,11 @@
 
   /* Cards: Agora com suporte a Glassmorphism e toque lilas */
   .card {
-     padding: 2rem;
-     border-radius: 2rem;
-     border: 1.5px solid var(--color-border);
-     background-color: var(--color-surface);
-     box-shadow: var(--shadow-soft);
+    padding: 2rem;
+    border-radius: 2rem;
+    border: 1.5px solid var(--color-border);
+    background-color: var(--color-surface);
+    box-shadow: var(--shadow-soft);
   }
 
   :root[data-theme="dark"] .card {
@@ -178,7 +196,7 @@
     color: var(--color-text);
     border: 1.5px solid var(--color-border);
   }
-  
+
   :root[data-theme="dark"] .input {
     background-color: #1a1a2e;
   }
@@ -228,7 +246,7 @@
     border-color: #a7f3d0;
     color: #065f46;
   }
-  
+
   /* Dark Mode Adjustments for Alerts */
   :root[data-theme="dark"] .alert-success {
     background: color-mix(in oklab, var(--color-success) 10%, transparent);
@@ -237,10 +255,18 @@
   }
 
   /* Tipografia */
-  .heading-hero { @apply text-3xl md:text-4xl font-bold tracking-tight text-main; }
-  .heading-1 { @apply text-2xl font-bold text-main; }
-  .heading-2 { @apply text-xl font-bold text-main; }
-  .heading-3 { @apply text-lg font-bold text-main; }
+  .heading-hero {
+    @apply text-3xl md:text-4xl font-bold tracking-tight text-main;
+  }
+  .heading-1 {
+    @apply text-2xl font-bold text-main;
+  }
+  .heading-2 {
+    @apply text-xl font-bold text-main;
+  }
+  .heading-3 {
+    @apply text-lg font-bold text-main;
+  }
 
   /* Premium Upload & Download Buttons */
   .btn-download {
@@ -253,7 +279,9 @@
     @apply shadow-lg scale-[1.02];
     background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
   }
-  .btn-download:active { @apply scale-[0.98]; }
+  .btn-download:active {
+    @apply scale-[0.98];
+  }
 
   .btn-upload {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm;
@@ -265,7 +293,9 @@
     @apply shadow-lg scale-[1.02];
     filter: brightness(1.1);
   }
-  .btn-upload:active { @apply scale-[0.98]; }
+  .btn-upload:active {
+    @apply scale-[0.98];
+  }
 
   .btn-regenerate {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm;
@@ -305,7 +335,11 @@
 
   /* Destaque para casos compartilhados no Dashboard */
   .card-compartilhado-highlight {
-    background: linear-gradient(to right, color-mix(in oklab, var(--color-highlight) 15%, transparent), transparent) !important;
+    background: linear-gradient(
+      to right,
+      color-mix(in oklab, var(--color-highlight) 15%, transparent),
+      transparent
+    ) !important;
     border-left: 4px solid var(--color-highlight) !important;
   }
 
@@ -390,7 +424,7 @@
     background-color: var(--color-surface);
   }
 
-    @media (min-width: 1536px) {
+  @media (min-width: 1536px) {
     .alert-card {
       @apply p-6;
     }
@@ -398,7 +432,12 @@
 
   /* REFINAMENTOS DASHBOARD 3.2 -- CORES SEMANTICAS */
   .hero-gradient {
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-600) 60%, #4f46e5 100%);
+    background: linear-gradient(
+      135deg,
+      var(--color-primary) 0%,
+      var(--color-primary-600) 60%,
+      #4f46e5 100%
+    );
     @apply border-none shadow-xl;
   }
 
@@ -467,8 +506,14 @@
   }
 
   @keyframes slide-in {
-    from { opacity: 0; transform: translateX(-10px); }
-    to { opacity: 1; transform: translateX(0); }
+    from {
+      opacity: 0;
+      transform: translateX(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
   }
 
   @keyframes shine {

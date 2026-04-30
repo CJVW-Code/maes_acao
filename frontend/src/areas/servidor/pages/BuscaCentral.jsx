@@ -27,7 +27,7 @@ export const HomeCidadao = () => {
   };
 
   // Função para consultar API
-  const consultarCpf = useCallback(async (cpf) => {
+  const consultarCpf = useCallback(async (cpf, signal) => {
     const cleanedCpf = cleanCpf(cpf);
     if (cleanedCpf.length !== 11) return;
 
@@ -40,6 +40,7 @@ export const HomeCidadao = () => {
       // Utilizamos a rota V2.0 que verifica tanto o CPF do filho quanto da mãe
       // Enviamos a API Key no cabeçalho para funcionar sem precisar de Login
       const response = await fetch(`${API_BASE}/casos/buscar-cpf?cpf=${cleanedCpf}`, {
+        signal,
         headers: {
           "x-api-key": import.meta.env.VITE_API_KEY_BALCAO || "",
         },
@@ -56,7 +57,8 @@ export const HomeCidadao = () => {
       } else {
         setCaseFound(data);
       }
-    } catch {
+    } catch (err) {
+      if (err?.name === "AbortError") return;
       setError("Erro ao consultar CPF. Tente novamente.");
     } finally {
       setLoading(false);
@@ -67,10 +69,14 @@ export const HomeCidadao = () => {
   useEffect(() => {
     const cleaned = cleanCpf(cpfInput);
     if (cleaned.length === 11) {
+      const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        consultarCpf(cpfInput);
+        consultarCpf(cpfInput, controller.signal);
       }, 800);
-      return () => clearTimeout(timeoutId);
+      return () => {
+        clearTimeout(timeoutId);
+        controller.abort();
+      };
     } else {
       setLoading(false);
       setError(null);

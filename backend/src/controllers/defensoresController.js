@@ -55,17 +55,14 @@ export const registrarDefensor = async (req, res) => {
 
     // Se for coordenador, valida se a unidade alvo pertence à sua regional
     if (userCargo === "coordenador") {
-      if (!req.user.unidade_id) {
-        return res.status(403).json({ error: "Sua conta de Coordenador não possui uma unidade vinculada." });
-      }
+      const currentUser = await prisma.defensores.findUnique({
+        where: { id: req.user.id },
+        include: { unidade: true }
+      });
+      const userRegional = currentUser?.regional || currentUser?.unidade?.regional;
 
-      const userUnidade = await prisma.unidades.findUnique({
-        where: { id: req.user.unidade_id },
-        select: { regional: true }
-      }).catch(() => null);
-
-      if (!userUnidade) {
-        return res.status(403).json({ error: "Sua unidade de atuação não foi encontrada ou está inativa." });
+      if (!userRegional) {
+        return res.status(403).json({ error: "Sua conta de Coordenador não possui uma regional vinculada." });
       }
       
       if (unidade_id) {
@@ -74,8 +71,12 @@ export const registrarDefensor = async (req, res) => {
           select: { regional: true }
         });
         
-        if (targetUnidade?.regional !== userUnidade?.regional) {
+        if (targetUnidade?.regional !== userRegional) {
           return res.status(403).json({ error: "Você só pode cadastrar membros para unidades da sua regional." });
+        }
+      } else if (regional) {
+        if (regional !== userRegional) {
+          return res.status(403).json({ error: "Você só pode cadastrar membros para a sua regional." });
         }
       }
     }
@@ -99,7 +100,7 @@ export const registrarDefensor = async (req, res) => {
         senha_hash,
         cargo_id: cargoDb.id,
         unidade_id: unidade_id || null,
-        regional: regional || null,
+        regional: unidade_id ? null : (regional || null),
       },
       include: {
         cargo: true,
@@ -209,31 +210,23 @@ export const listarDefensores = async (req, res) => {
     let whereClause = {};
 
     if (userCargo === "coordenador") {
-      if (!req.user.unidade_id) {
-        return res.status(403).json({ error: "Sua conta de Coordenador não possui uma unidade vinculada." });
+      const currentUser = await prisma.defensores.findUnique({
+        where: { id: req.user.id },
+        include: { unidade: true }
+      });
+      const userRegional = currentUser?.regional || currentUser?.unidade?.regional;
+
+      if (!userRegional) {
+        return res.status(403).json({ error: "Sua conta de Coordenador não possui uma regional vinculada." });
       }
 
-      // 1. Busca a regional da unidade do coordenador
-      const userUnidade = await prisma.unidades.findUnique({
-        where: { id: req.user.unidade_id },
-        select: { regional: true }
-      }).catch(() => null);
-
-      if (!userUnidade) {
-        return res.status(403).json({ error: "Sua unidade de atuação não foi encontrada ou está inativa." });
-      }
-
-      if (userUnidade.regional) {
-        // 2. Filtra membros cujas unidades pertencem à mesma regional
-        whereClause = {
-          unidade: {
-            regional: userUnidade.regional
-          }
-        };
-      } else {
-        // Fallback: se a unidade do coordenador não tiver regional, vê só a dele
-        whereClause = { unidade_id: req.user.unidade_id };
-      }
+      // 2. Filtra membros cujas unidades pertencem à mesma regional ou a própria regional é a mesma
+      whereClause = {
+        OR: [
+          { unidade: { regional: userRegional } },
+          { regional: userRegional }
+        ]
+      };
     } else if (userCargo !== "admin" && userCargo !== "gestor") {
       // Outros cargos que tenham permissão mas não são admin/gestor/coordenador (ex: recepção se permitido)
       whereClause = { unidade_id: req.user.unidade_id };
@@ -248,6 +241,7 @@ export const listarDefensores = async (req, res) => {
         created_at: true,
         ativo: true,
         unidade_id: true,
+        regional: true,
         cargo: {
           select: { nome: true },
         },
@@ -262,7 +256,7 @@ export const listarDefensores = async (req, res) => {
       ...d,
       cargo: d.cargo.nome,
       unidade_nome: d.unidade?.nome || "Sem unidade",
-      regional: d.unidade?.regional || "N/A"
+      regional: d.regional || d.unidade?.regional || "N/A"
     }));
 
     res.json(data);
@@ -325,12 +319,14 @@ export const atualizarDefensor = async (req, res) => {
 
     // Se for coordenador, valida se o membro alvo pertence à sua regional
     if (userCargo === "coordenador") {
-      const userUnidade = await prisma.unidades.findUnique({
-        where: { id: req.user.unidade_id },
-        select: { regional: true }
+      const currentUser = await prisma.defensores.findUnique({
+        where: { id: req.user.id },
+        include: { unidade: true }
       });
+      const userRegional = currentUser?.regional || currentUser?.unidade?.regional;
+      const targetRegional = targetMemberFull.regional || targetMemberFull.unidade?.regional;
 
-      if (targetMemberFull.unidade?.regional !== userUnidade?.regional) {
+      if (targetRegional !== userRegional) {
         return res.status(403).json({ error: "Você só pode editar membros da sua regional." });
       }
 
@@ -340,9 +336,11 @@ export const atualizarDefensor = async (req, res) => {
           where: { id: req.body.unidade_id },
           select: { regional: true }
         });
-        if (targetNewUnidade?.regional !== userUnidade?.regional) {
+        if (targetNewUnidade?.regional !== userRegional) {
           return res.status(403).json({ error: "A unidade de destino deve pertencer à sua regional." });
         }
+      } else if (req.body.regional && req.body.regional !== userRegional) {
+        return res.status(403).json({ error: "Você só pode alocar membros para a sua regional." });
       }
     }
 
@@ -384,16 +382,19 @@ export const atualizarDefensor = async (req, res) => {
     let updateData = { nome, email, ativo };
     const targetCargoText = (cargo || targetMemberFull.cargo.nome).toString().toLowerCase();
 
+    // Determinar qual será a unidade_id final após o update
+    const finalUnidadeId = unidade_id !== undefined ? (unidade_id || null) : targetMemberFull.unidade_id;
+
     if (targetCargoText === "coordenador") {
-      updateData.regional = regional || null;
-      if (unidade_id !== undefined) {
-        updateData.unidade_id = unidade_id || null;
+      updateData.unidade_id = finalUnidadeId;
+      if (finalUnidadeId) {
+        updateData.regional = null;
+      } else {
+        updateData.regional = regional !== undefined ? (regional || null) : targetMemberFull.regional;
       }
     } else {
       updateData.regional = null;
-      if (unidade_id !== undefined) {
-        updateData.unidade_id = unidade_id || null; // null = remover unidade
-      }
+      updateData.unidade_id = finalUnidadeId;
     }
 
     if (cargo) {
@@ -448,12 +449,14 @@ export const deletarDefensor = async (req, res) => {
 
     // Se for coordenador, valida se o membro alvo pertence à sua regional
     if (userCargo === "coordenador") {
-      const userUnidade = await prisma.unidades.findUnique({
-        where: { id: req.user.unidade_id },
-        select: { regional: true }
+      const currentUser = await prisma.defensores.findUnique({
+        where: { id: req.user.id },
+        include: { unidade: true }
       });
+      const userRegional = currentUser?.regional || currentUser?.unidade?.regional;
+      const targetRegional = targetMemberFull.regional || targetMemberFull.unidade?.regional;
 
-      if (targetMemberFull.unidade?.regional !== userUnidade?.regional) {
+      if (targetRegional !== userRegional) {
         return res.status(403).json({ error: "Você só pode excluir membros da sua regional." });
       }
     }
