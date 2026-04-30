@@ -3,21 +3,17 @@ export const varasMapping = {
   // --- Ações de Família ---
   "Fixação de Pensão Alimentícia ": "Vara de Família",
   "Divórcio Litigioso": "Vara de Família",
-  "Divórcio Consesual": "Vara de Família", // Corrigido para "Consensual"
+  "Divórcio Consesual": "Vara de Família",
   "Divórcio Consensual": "Vara de Família",
   "Reconhecimento e Dissolução de União Estável": "Vara de Família",
-  "Dissolução Liitigiosa de União Estável": "Vara de Família", // Corrigido para "Litigiosa"
+  "Dissolução Liitigiosa de União Estável": "Vara de Família",
   "Dissolução Litigiosa de União Estável": "Vara de Família",
   "Guarda de Filhos": "Vara de Família",
   "Execução de Alimentos Rito Penhora/Prisão": "Vara de Família",
-  "Revisao de Alimentos (Majoração)": "Vara de Família", // Corrigido para "Revisão"
+  "Revisao de Alimentos (Majoração)": "Vara de Família",
   "Revisão de Alimentos (Majoração)": "Vara de Família",
-  "Revisao de Alimentos (Redução)": "Vara de Família", // Corrigido para "Revisão"
+  "Revisao de Alimentos (Redução)": "Vara de Família",
   "Revisão de Alimentos (Redução)": "Vara de Família",
-
-  // --- Ações de Sucessões ---
-  "Reconhecimento de União Estável Post Mortem": "Vara de Sucessões",
-  "Alvará": "Vara de Sucessões",
 };
 
 /**

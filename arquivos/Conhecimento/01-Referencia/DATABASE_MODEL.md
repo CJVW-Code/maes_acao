@@ -1,6 +1,6 @@
 # Modelo de Dados e Persistência Híbrida — Mães em Ação
 
-> **Versão:** 3.2 · **Atualizado em:** 2026-04-24 (Representative CPF Mandatory)
+> **Versão:** 4.0 · **Atualizado em:** 2026-04-30 (System Configurations + Unit Soft-Lock Metadata)
 > **Fonte:** `backend/prisma/schema.prisma`
 
 O sistema utiliza uma abordagem híbrida para persistência, combinando o **Prisma ORM** (gestão de equipe e RBAC) com o **Supabase JS Client** (core dos casos e pipeline de IA).
@@ -132,6 +132,12 @@ Auditoria de colaborações entre defensores.
 | `supabase_uid` | `String? UNIQUE` | UID do Supabase Auth (para integração futura) |
 | `senha_hash` | `String?` | Agora opcional — permite auth externa |
 
+### 3.8 Tabela `configuracoes_sistema`
+Armazena configurações globais e avisos do sistema.
+- `chave`: PK (ex: `AVISO_GLOBAL`, `BI_BLOCK_WINDOWS`).
+- `valor`: Valor da configuração (string ou JSON serializado).
+- `descricao`: Texto explicativo sobre a finalidade da chave.
+
 ---
 
 ## 4. Índices Estratégicos (Performance para o Mutirão)
@@ -171,7 +177,7 @@ aguardando_documentos → documentacao_completa → processando_ia
 
 ### `tipo_acao`
 
-Conforme `dicionarioAcoes.js`: `fixacao_alimentos`, `exec_penhora`, `exec_prisao`, `exec_cumulado`, `def_penhora`, `def_prisao`, `def_cumulado`, `alimentos_gravidicos`, `termo_declaracao`
+Conforme `schema.prisma`: `exec_penhora`, `exec_prisao`, `exec_cumulado`, `def_penhora`, `def_prisao`, `def_cumulado`, `fixacao_alimentos`, `alimentos_gravidicos`
 
 ### `status_job`
 

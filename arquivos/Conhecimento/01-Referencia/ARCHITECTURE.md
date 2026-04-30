@@ -1,6 +1,6 @@
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 4.5 · **Atualizado em:** 2026-04-27 (Security Hardening Audit + Case Distribution L1/L2)
+> **Versão:** 5.0 · **Atualizado em:** 2026-04-30 (Announcements + Unit Soft-Lock + Guide Integration)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
@@ -43,9 +43,9 @@ O **Mães em Ação** é um sistema Full Stack desenvolvido para apoiar o mutir�
 - **Fallback local** → `setImmediate()` quando QStash indisponível
 
 ### IA & OCR
-- **Gemini Vision (Google)** → OCR primário para documentos
+- **Gemini Vision (Google)** → OCR primário para documentos (Opcional/Desativado no mutirão por performance)
 - **Groq Llama 3.3 70B** → Geração de texto jurídico (DOS FATOS)
-- **Fallbacks:** Tesseract.js (imagens), Gemini Flash (texto)
+- **Fallbacks:** Gemini Flash (texto) para contingência
 
 ### Autenticação
 - **JWT** gerado no próprio backend Express (não Supabase Auth)
@@ -96,7 +96,6 @@ graph TB
 
     WORKER -->|"OCR docs"| GEMINI
     WORKER -->|"Dos Fatos"| GROQ
-    GROQ -.->|"Fallback"| GEMINI
     WORKER -->|"5. Salva resultados"| DB
     WORKER -->|"6. Upload .docx"| STORAGE
 
@@ -173,9 +172,6 @@ stateDiagram-v2
     em_atendimento --> liberado_para_protocolo : Servidor libera
     liberado_para_protocolo --> em_protocolo : Defensor atribui
     em_protocolo --> protocolado : Defensor protocola
-
-    aguardando_documentos --> documentos_entregues : Upload complementar
-    documentos_entregues --> documentacao_completa : Scanner processa
 ```
 
 ### Locking — Sessões e Concorrência
@@ -188,6 +184,8 @@ stateDiagram-v2
 - **Distribuição Protegida:** Apenas `admin`, `gestor` e `coordenador` podem distribuir casos. Servidores e estagiários são bloqueados com HTTP 403.
 - **Concorrência Atômica (Fallback Prisma):** Operações críticas de status (como distribuição) utilizam `updateMany` com cláusula `where` composta (ID + Status Permitido) para evitar condições de corrida (Race Conditions). Retorna HTTP 409 em caso de conflito.
 - **Auto-release:** Lock liberado após 30min de inatividade.
+- **Sistema de Avisos (Announcements):** Administradores podem emitir comunicados globais ou por unidade via `configuracoes_sistema`. Exibidos no topo de todas as áreas do sistema.
+- **Soft-Lock de Unidade (Inactive State):** Unidades marcadas como `ativo: false` impedem a criação de novos casos e restringem o acesso operacional de membros vinculados, servindo como modo de manutenção ou encerramento de sede.
 
 ---
 
@@ -345,6 +343,7 @@ sequenceDiagram
 > **Distribuição de Casos (L1/L2):** O sistema agora valida o cargo do usuário alvo na distribuição. Atendimentos (L1) podem ser distribuídos para qualquer cargo operacional. Protocolos (L2) são restritos a Defensores, Coordenadores, Gestores e Admins.
 > **RBAC Case-Insensitive:** Todas as verificações de cargo no backend agora utilizam `.toLowerCase()` para garantir consistência entre o banco de dados e a lógica de aplicação, evitando bloqueios indevidos por capitalização.
 > **Power User Bypass:** O cargo `gestor` foi adicionado ao bypass de lock na função `carregarCasoDetalhado`, permitindo auditoria e downloads administrativos de casos bloqueados por outros usuários.
+> **Sistema de Avisos:** Permite broadcast de avisos críticos. Integrado ao `ConfiguracoesSistema.jsx` no frontend.
 
 ---
 
