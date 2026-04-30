@@ -4,6 +4,8 @@ import { jsPDF } from "jspdf";
 import { API_BASE, authFetch } from "../../../utils/apiBase";
 
 const PREFS_KEY = "bi_prefs_v1";
+const DATA_CACHE_KEY = "bi_data_cache_v2";
+const FILTROS_CACHE_KEY = "bi_filtros_cache_v2";
 
 const defaultFiltros = {
   periodo: "7d",
@@ -186,13 +188,16 @@ const sanitizePdfClone = (documentClone) => {
   documentClone.head.appendChild(fixStyle);
 };
 
-const DATA_CACHE_KEY = "bi_data_cache_v2";
-const FILTROS_CACHE_KEY = "bi_filtros_cache_v2";
+
 
 const loadDataCache = () => {
   try {
     const stored = sessionStorage.getItem(DATA_CACHE_KEY);
-    return stored ? JSON.parse(stored) : null;
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    // Nunca restaurar um payload de bloqueio como dado real de relatório
+    if (parsed?.bloqueadoPorHorario) return null;
+    return parsed;
   } catch {
     return null;
   }
@@ -214,6 +219,7 @@ export const useBiData = () => {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
+  const [bloqueio, setBloqueio] = useState(null);
 
   useEffect(() => {
     localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
@@ -247,6 +253,13 @@ export const useBiData = () => {
         const msg = result.details ? `${result.error} (${result.details})` : (result.error || "Falha ao gerar relatorio.");
         throw new Error(msg);
       }
+      // Se o backend sinalizou bloqueio por horário, NÃO salva como dado de relatório
+      if (result.bloqueadoPorHorario) {
+        setBloqueio({ bloqueado: true, mensagem: result.mensagem });
+        return result;
+      }
+      // Dado real: limpa bloqueio anterior e persiste
+      setBloqueio(null);
       setData(result);
       return result;
     } catch (err) {
@@ -382,6 +395,7 @@ export const useBiData = () => {
     loading,
     exporting,
     error,
+    bloqueio,
     filtros,
     setFiltros,
     prefs,

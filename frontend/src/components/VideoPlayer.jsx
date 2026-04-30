@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import { Play, ExternalLink, Video, Download } from "lucide-react";
+import { Play, ExternalLink, Video, Download, AlertTriangle } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "motion/react";
 
 /**
  * Componente VideoPlayer premium para exibir treinamentos via links externos (SharePoint/YouTube/etc)
  */
-export const VideoPlayer = ({ url, title, description, className = "", extraActionUrl, extraActionLabel }) => {
+export const VideoPlayer = ({ url, fallbackUrl, title, description, className = "", extraActionUrl, extraActionLabel }) => {
   const [showVideo, setShowVideo] = useState(false);
 
   // Tenta converter link do SharePoint para versão embed se necessário
@@ -55,7 +55,7 @@ export const VideoPlayer = ({ url, title, description, className = "", extraActi
                 </button>
               )}
               <a 
-                href={url} 
+                href={fallbackUrl || url} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="btn btn-ghost border border-soft px-6 py-4 rounded-2xl flex items-center gap-2 hover:bg-soft/50 transition-colors text-sm"
@@ -117,6 +117,19 @@ export const VideoPlayer = ({ url, title, description, className = "", extraActi
               )}
             </AnimatePresence>
           </div>
+
+          {showVideo && (
+            <Motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-2 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex gap-3 items-start"
+            >
+              <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={18} />
+              <p className="text-sm text-amber-700 dark:text-amber-400 leading-relaxed">
+                <strong>Erro de conexão?</strong> Se o vídeo não carregar ou mostrar "A conexão foi recusada" (devido a bloqueios de segurança da rede da DPE), clique no botão <strong>"Ver no SharePoint"</strong> acima para assistir em uma nova guia. <br/>Se ainda assim não conseguir acessar, <strong>fale com o seu coordenador</strong> para solicitar acesso ao arquivo.
+              </p>
+            </Motion.div>
+          )}
         </div>
 
         {/* Efeito de brilho no hover */}

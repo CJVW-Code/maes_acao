@@ -259,7 +259,7 @@ export const Dashboard = () => {
                 <Users size={28} />
               </div>
               <div>
-                <h3 className="font-bold text-gray-800 2xl:text-xl">Gerenciar Equipe</h3>
+                <h3 className="font-bold text-main 2xl:text-xl">Gerenciar Equipe</h3>
                 <p className="text-sm text-muted 2xl:text-base">Membros e unidades.</p>
               </div>
             </Link>
@@ -273,7 +273,7 @@ export const Dashboard = () => {
                 <FileText size={28} />
               </div>
               <div>
-                <h3 className="font-bold text-gray-800 2xl:text-xl">Relatórios BI</h3>
+                <h3 className="font-bold text-main 2xl:text-xl">Relatórios BI</h3>
                 <p className="text-sm text-muted 2xl:text-base">Indicadores e produtividade.</p>
               </div>
             </Link>
@@ -287,7 +287,7 @@ export const Dashboard = () => {
                 <Settings size={28} />
               </div>
               <div>
-                <h3 className="font-bold text-gray-800 2xl:text-xl">Configurações</h3>
+                <h3 className="font-bold text-main 2xl:text-xl">Configurações</h3>
                 <p className="text-sm text-muted 2xl:text-base">Horários e sistema.</p>
               </div>
             </Link>
