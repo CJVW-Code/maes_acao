@@ -8,10 +8,10 @@
 ---------------------------------------------------------------- */
 :root {
   /* Core - Tons de Roxo Vibrante & Lilas (Maes em Acao Identity) */
-  --color-primary: #8b5cf6; /* Violet 500 - Lilas Vibrante */
-  --color-primary-600: #7c3aed; /* Violet 600 - Roxo Profundo */
-  --color-secondary: #c084fc; /* Purple 400 - Lilas Suave */
-  --color-secondary-600: #a855f7; /* Purple 500 - Lilas Forte */
+  --color-primary: #7c3aed; /* Violet 600 - Melhor Contraste */
+  --color-primary-600: #6d28d9; /* Violet 700 */
+  --color-secondary: #a855f7; /* Purple 500 */
+  --color-secondary-600: #9333ea; /* Purple 600 */
   --color-special: #6366f1; /* Indigo - Contraste */
   --color-laranja: #f59e0b; /* Alertas */
 
@@ -97,6 +97,7 @@
 
   --color-success: var(--color-success);
   --color-error: var(--color-error);
+  --color-laranja: var(--color-laranja);
   --color-focus: var(--color-focus);
   --color-highlight: var(--color-highlight);
 
@@ -523,5 +524,19 @@
   }
   .animate-shine {
     animation: shine 0.8s;
+  }
+
+  /* ALERTAS CRITICOS - PREMIUM CONTRAST */
+  .alert-critical-premium {
+    background-color: #fffbeb !important;
+    border-color: #fde68a !important;
+    color: #451a03 !important;
+    box-shadow: 0 20px 25px -5px rgba(120, 53, 15, 0.05);
+  }
+
+  :root[data-theme="dark"] .alert-critical-premium {
+    background-color: rgba(245, 158, 11, 0.1) !important;
+    border-color: rgba(245, 158, 11, 0.2) !important;
+    color: #fef3c7 !important;
   }
 }

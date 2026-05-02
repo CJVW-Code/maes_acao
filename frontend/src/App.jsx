@@ -27,6 +27,7 @@ import { CasosArquivados } from "./areas/defensor/pages/CasosArquivados";
 import { GerenciarEquipe } from "./areas/defensor/pages/GerenciarEquipe";
 import { ConfiguracoesSistema } from "./areas/defensor/pages/ConfiguracoesSistema";
 import { Treinamentos } from "./areas/defensor/pages/Treinamentos";
+import { GuiaOperacional } from "./areas/defensor/pages/GuiaOperacional";
 import { NotFound } from "./pages/NotFound";
 
 const Relatorios = lazy(() => import("./areas/defensor/pages/Relatorios"));
@@ -211,6 +212,15 @@ function App() {
                 <Route
                   path="treinamentos"
                   element={<Treinamentos />}
+                />
+
+                <Route
+                  path="guia"
+                  element={
+                    <DefensorRoute>
+                      <GuiaOperacional />
+                    </DefensorRoute>
+                  }
                 />
               </Route>
 
