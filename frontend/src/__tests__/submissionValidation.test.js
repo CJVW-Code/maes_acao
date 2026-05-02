@@ -39,6 +39,7 @@ function makeFormState(overrides = {}) {
     calculo_arquivo: null,
     CIDADEASSINATURA: "Teixeira de Freitas",
     VARA: "1",
+    opcaoGuarda: "manter",
     ...overrides,
   };
 }

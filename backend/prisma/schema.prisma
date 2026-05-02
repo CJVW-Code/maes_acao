@@ -266,7 +266,7 @@ model logs_auditoria {
   criado_em   DateTime    @default(dbgenerated("timezone('America/Sao_Paulo'::text, now())")) @db.Timestamptz(6)
   entidade    String?
   registro_id String?
-  caso        casos?      @relation(fields: [caso_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  caso        casos?      @relation(fields: [caso_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   usuario     defensores? @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([caso_id], map: "idx_logs_auditoria_caso")

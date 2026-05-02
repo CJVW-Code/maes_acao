@@ -8,6 +8,7 @@ export const SecaoCamposGeraisFamilia = ({
   formState,
   handleFieldChange,
   camposGerais = {},
+  formErrors = {},
 }) => {
   const {
     ocultarDetalhesGerais = false,
@@ -29,8 +30,10 @@ export const SecaoCamposGeraisFamilia = ({
   }
 
   return (
-    <div className="space-y-4 pt-4 border-t border-soft">
-      <h4 className="font-semibold text-primary">Guarda da Criança e Direito de Convivência / Visitas</h4>
+    <div className={`space-y-4 pt-4 border-t ${formErrors.opcaoGuarda ? "border-error bg-error/5 p-4 rounded-xl" : "border-soft"}`}>
+      <h4 className={`font-semibold ${formErrors.opcaoGuarda ? "text-error" : "text-primary"}`}>
+        Guarda da Criança e Direito de Convivência / Visitas *
+      </h4>
 
       {/* Toggle de opção */}
       <div className="space-y-2">
@@ -59,11 +62,17 @@ export const SecaoCamposGeraisFamilia = ({
         </label>
       </div>
 
+      {formErrors.opcaoGuarda && (
+        <span className="text-xs text-error font-medium block mt-1">
+          {formErrors.opcaoGuarda}
+        </span>
+      )}
+
       {/* Textarea condicional */}
       {querRegularizar && (
-        <div>
+        <div className="pt-2 animate-in fade-in slide-in-from-top-1">
           <label htmlFor="descricaoGuarda" className="label">
-            Descreva como será a guarda e o direito de visitas
+            Descreva como será a guarda e o direito de visitas *
           </label>
           <textarea
             id="descricaoGuarda"
@@ -72,8 +81,13 @@ export const SecaoCamposGeraisFamilia = ({
             onChange={handleFieldChange}
             rows="4"
             placeholder="Ex: A guarda será compartilhada, a residência fixa da minha filha será na minha casa. O pai poderá visitar todos os finais de semana, buscando a criança na sexta-feira às 17 horas."
-            className="input"
+            className={`input ${formErrors.descricaoGuarda ? "border-error ring-1 ring-error" : ""}`}
           ></textarea>
+          {formErrors.descricaoGuarda && (
+            <span className="text-xs text-error mt-1 block">
+              {formErrors.descricaoGuarda}
+            </span>
+          )}
         </div>
       )}
     </div>

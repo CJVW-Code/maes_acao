@@ -152,6 +152,40 @@ Commit focado em **11 arquivos** com correções críticas.
 
 ---
 
+## 🛡️ Fase 7 — BI Premium & Hardening RBAC (`26/04/2026`)
+
+### O que foi entregue
+- **Módulo de BI Premium:** Relatórios v4.0 com rankings de produtividade individual (Defensores vs Servidores).
+- **Cargo Gestor:** Implementação completa do perfil de Gestor com bypass global e acesso administrativo ao BI.
+- **Bloqueio de Horário:** Sistema de controle de acesso ao BI baseado em janelas de tempo com overrides emergenciais.
+- **Hardening Segurança:** Isloamento de unidade (IDOR protection) em rotas de busca por CPF e distribuição.
+- **Distribuição L1/L2:** Regras estritas de cargo para distribuição de atendimentos e protocolos.
+
+---
+
+## ⚡ Fase 8 — Sistema de Controle & Treinamento (`30/04/2026`)
+
+### O que foi entregue
+- **Sistema de Avisos (Announcements):** Broadcast de comunicados globais ou por unidade via `configuracoes_sistema`.
+- **Soft-Lock de Unidade (Inactive State):** Togle administrativo para desativar unidades e bloquear novos casos.
+- **Treinamentos Integrados:** Nova página de Treinamentos com tutoriais em vídeo e PDF (fallback SharePoint).
+- **Validação de Guarda:** Obrigatoriedade de seleção de rito de guarda em ações de família com filhos.
+- **Normalização SOLAR:** Refinamento dos campos de endereço e filiação (`exequentes` JSONB) para exportação ZIP.
+- **Integridade de Coordenadores:** Correção de bugs de stripping de unidade em atualizações de membros da equipe.
+
+---
+
+## 🧹 Fase 9 — Reconciliação e Limpeza de Regras Obsoletas (`30/04/2026`)
+
+### O que foi entregue
+- **Pruning de Regras:** Remoção de regras de negócio de "Sucessões" e status legados (`documentos_entregues`) para foco total em Família.
+- **Sincronização de Docs:** `ARCHITECTURE.md`, `BUSINESS_RULES.md` e `DATABASE_MODEL.md` reconciliados com o código real.
+- **Desativação de OCR:** Clarificação arquitetural de que o OCR está desativado por padrão no mutirão para priorizar latência.
+- **Pruning de Planos:** Movimentação de documentos de estratégia v2.0 e planos de refatoração antigos para a pasta de Legado (`arquivos/Conhecimento/99-Legado`).
+- **Otimização do Master File:** Regeneração do `claude.md` removendo ruídos e focando na fonte da verdade técnica.
+
+---
+
 ## 🐳 Docker + Prisma — Comandos de Ambiente
 
 ### Subir o ambiente Docker
@@ -202,5 +236,7 @@ const caso = await prisma.casos.findUnique({
 | Frontend | ✅ React 18 + Vite — SPA modular |
 | Pipeline IA | ✅ QStash + GPT-4o-mini + Groq Llama 3.3 |
 | Colaboração | ✅ `assistencia_casos` + flag `compartilhado` |
-| Scanner Balcão | ✅ `ScannerBalcao.jsx` criado |
-| Testes | ✅ Jest suite completa |
+| BI Premium | ✅ Rankings + Overrides + Gestor Role |
+| Avisos & Unidades| ✅ Broadcast de Avisos + Soft-Lock Inativo |
+| Treinamento | ✅ Portal de Treinamento Integrado |
+| Testes | ✅ Jest suite completa + reporter coverage |

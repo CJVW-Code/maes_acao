@@ -1,6 +1,6 @@
 # Regras de Negócio — Mães em Ação · DPE-BA
 
-> **Versão:** 3.5 · **Atualizado em:** 2026-04-27 (Hardening Distribuição + RBAC Solicitante)  
+> **Versão:** 4.0 · **Atualizado em:** 2026-04-30 (Custody Validation + Unit Inactive State + SOLAR Export)  
 > **Fonte:** Análise da codebase (controllers, services, middleware, config)  
 > **Propósito:** Referência canônica para treinamento de IAs e orientação de defensores
 
@@ -12,18 +12,12 @@ O campo `tipo_acao` da tabela `casos` determina qual template DOCX e qual prompt
 
 ### 1.1 Mapeamento completo
 
-| # | `acaoKey` (chave interna) | Template DOCX | Prompt IA | Vara Competente |
-|---|:--------------------------|:--------------|:----------|:----------------|
-| 1 | `fixacao_alimentos` | `fixacao_alimentos1.docx` | ✅ System prompt específico (dicionário) | Vara de Família |
-| 2 | `exec_penhora` | `executacao_alimentos_penhora.docx` | ❌ Usa fallback legado | Vara de Família |
-| 3 | `exec_prisao` | `executacao_alimentos_prisao.docx` | ❌ Usa fallback legado | Vara de Família |
-| 4 | `exec_cumulado` | `executacao_alimentos_cumulado.docx` | ❌ Usa fallback legado | Vara de Família |
-| 5 | `def_penhora` | `cumprimento_penhora.docx` | ❌ Usa fallback legado | Vara de Família |
-| 6 | `def_prisao` | `cumprimento_prisao.docx` | ❌ Usa fallback legado | Vara de Família |
-| 7 | `def_cumulado` | `cumprimento_cumulado.docx` | ❌ Usa fallback legado | Vara de Família |
-| 8 | `alimentos_gravidicos` | `alimentos_gravidicos.docx` | ❌ Usa fallback legado | Vara de Família |
-| 9 | `termo_declaracao` | `termo_declaracao.docx` | ❌ (N/A — gerado separadamente) | — |
-| — | `default` (fallback) | `fixacao_alimentos1.docx` | ❌ Usa fallback legado | `[VARA NÃO ESPECIFICADA]` |
+| 1 | `fixacao_alimentos` | `fixacao_alimentos1.docx` | ✅ Ativo (Família) | Vara de Família |
+| 2 | `execucao_alimentos` | `executacao_alimentos_penhora.docx` | ✅ Ativo (Família - Multi) | Vara de Família |
+| 3 | `termo_declaracao` | `termo_declaracao.docx` | ✅ Ativo (Apoio) | — |
+| 4 | `default` | `fixacao_alimentos1.docx` | ❌ Fallback | — |
+
+> **Nota:** As chaves `exec_penhora`, `exec_prisao`, `exec_cumulado` etc., são consideradas legadas ou sub-tipos internos. O frontend utiliza prioritariamente as chaves acima.
 
 > **Regra de fallback:** Se `acaoKey` está vazio ou não existe no dicionário, a config `default` é usada com log de aviso.
 
@@ -67,9 +61,8 @@ O `tipo_acao` (versão descritiva, ex: "Fixação de Pensão Alimentícia") é m
 | Guarda de Filhos | Vara de Família |
 | Execução de Alimentos Rito Penhora/Prisão | Vara de Família |
 | Revisão de Alimentos (Majoração/Redução) | Vara de Família |
-| Alimentos Gravídicos | Vara de Família |
-| Reconhecimento de União Estável Post Mortem | Vara de Sucessões |
-| Alvará | Vara de Sucessões |
+
+> **Escopo:** Ações de Sucessões (Alvará, Post Mortem) foram removidas do escopo do mutirão Mães em Ação.
 
 > Se o tipo não for encontrado no mapeamento, retorna `"[VARA NÃO ESPECIFICADA]"`.
 
@@ -276,6 +269,7 @@ Para garantir que a busca seja resiliente a diferentes formatos de entrada, o si
 | Campo | Regra | Comportamento |
 |:------|:------|:--------------|
 | `relato` | Obrigatório (não vazio) | Bloqueia envio se vazio — **não** há mínimo de caracteres |
+| `opcao_guarda` | Obrigatório para Ações de Família | Deve selecionar uma opção de guarda/convivência se houver filhos |
 | `valor_debito` | Obrigatório quando `exigeDadosProcessoOriginal = true` | Bloqueia envio para execuções sem o valor do débito |
 | `calculo_arquivo` | Obrigatório quando `exigeDadosProcessoOriginal = true` e "Enviar depois" = false | Bloqueia envio de execuções sem o demonstrativo de cálculo anexado |
 
@@ -464,7 +458,6 @@ O assistido não vê os status internos do sistema. O `statusController` convert
 | `processado` | `em triagem` |
 | `em_analise` | `em triagem` |
 | `aguardando_docs` | `documentos pendente` |
-| `documentos_entregues` | `documentos entregues` |
 | `reuniao_agendada` | `reuniao agendada` |
 | `reuniao_online_agendada` | `reuniao online` |
 | `reuniao_presencial_agendada` | `reuniao presencial` |
@@ -665,3 +658,31 @@ O módulo de BI é restrito exclusivamente a administradores e foca em métricas
 - **Métricas de Produtividade:** Ranking de profissionais por casos protocolados e atendimentos realizados.
 - **Ações de Gestão:** Histórico de auditoria de distribuições e movimentações manuais de status.
 - **Exportação Padrão:** O arquivo XLSX gerado agora inclui automaticamente as abas de Produtividade e Gestão para usuários com cargo `admin` ou `gestor`.
+
+---
+
+## 13. Integração SOLAR (Exportação)
+
+A exportação para o sistema SOLAR exige uma normalização estrita de endereços e filiação.
+
+### 13.1 Normalização de Endereço
+O sistema converte a string única de endereço (`endereco_assistido`) em componentes estruturados:
+- `logradouro`, `numero`, `bairro`, `cidade`, `estado`, `cep`.
+- Caso a estrutura falhe, o sistema envia o endereço completo no campo `logradouro` como fallback para evitar perda de dados.
+
+### 13.2 Filiação e Dependentes
+- O campo `exequentes` (JSONB) armazena todos os filhos da ação.
+- Na exportação, cada exequente é mapeado com nome, CPF e data de nascimento.
+
+---
+
+## 14. Controle Administrativo de Unidades
+
+### 14.1 Estado Inativo (Soft-Lock)
+Unidades podem ser desativadas via painel administrativo.
+- **Bloqueio de Triagem:** Novos casos não podem ser criados para unidades inativas.
+- **Restrição de Acesso:** Usuários vinculados a unidades inativas recebem um aviso de "Unidade Inativa" e acesso limitado.
+
+### 14.2 Avisos do Sistema (Announcements)
+- Administradores podem cadastrar avisos globais ou específicos para unidades.
+- Avisos são exibidos como banners de alta visibilidade no dashboard.

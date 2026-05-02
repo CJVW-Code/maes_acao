@@ -42,6 +42,7 @@ export const StepDetalhesCaso = React.memo(({
         formState={formState}
         handleFieldChange={handleFieldChange}
         camposGerais={configAcao?.camposGerais}
+        formErrors={formErrors}
       />
     </section>
   );

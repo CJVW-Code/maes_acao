@@ -80,6 +80,15 @@ export const processSubmission = async ({
     }
   }
 
+  // Validação de Guarda (Seção Campos Gerais)
+  if (!configAcao?.camposGerais?.ocultarDetalhesGerais) {
+    if (!formState.opcaoGuarda) {
+      validationErrors.opcaoGuarda = "O preenchimento de Guarda da Criança e Direito de Convivência / Visitas é obrigatório.";
+    } else if (formState.opcaoGuarda === "regularizar" && !formState.descricaoGuarda?.trim()) {
+      validationErrors.descricaoGuarda = "Descreva como deseja que funcione a guarda e visitas.";
+    }
+  }
+
   if (configAcao?.secoes?.includes("processo_original")) {
     if (configAcao?.exigeDadosProcessoOriginal) {
       if (!formState.data_inicio_debito)

@@ -5183,7 +5183,7 @@ export const receberDocumentosComplementares = async (req, res) => {
             titulo: "Documentos Complementares",
             mensagem: mensagemNotif,
             tipo: "upload",
-            referencia_id: caso.id,
+            link: `/painel/casos/${caso.id}`,
             lida: false,
           });
 
@@ -5216,7 +5216,7 @@ export const receberDocumentosComplementares = async (req, res) => {
             titulo: "Documentos Complementares",
             mensagem: mensagemNotif,
             tipo: "upload",
-            referencia_id: caso.id,
+            link: `/painel/casos/${caso.id}`,
             lida: false,
           });
 
@@ -5309,7 +5309,42 @@ export const deletarCaso = async (req, res) => {
       logger.info(`[Local] Ignorando limpeza de storage para o caso ${id}`);
     }
 
-    // Excluir o caso do banco de dados
+    // --- LIMPEZA DE REFERÊNCIAS (Prevenção de erro de Constraint) ---
+    // Bug Fix: Supabase update/delete não lançam exceções — retornam { error }.
+    // Bug Fix: Match de notificações deve ser exato para não apagar notificações de outros casos
+    //          cujo ID seja prefixo do atual (ex: /casos/12 e /casos/123).
+    if (isSupabaseConfigured) {
+      const { error: logsCleanupError } = await supabase
+        .from("logs_auditoria")
+        .update({ caso_id: null })
+        .eq("caso_id", id);
+
+      if (logsCleanupError) {
+        logger.error(`[DeletarCaso] Falha ao desvincular logs_auditoria do caso ${id}: ${logsCleanupError.message}`);
+        throw new Error(`Falha ao desvincular logs de auditoria: ${logsCleanupError.message}`);
+      }
+
+      const { error: notifCleanupError } = await supabase
+        .from("notificacoes")
+        .delete()
+        .eq("link", `/painel/casos/${id}`);
+
+      if (notifCleanupError) {
+        logger.error(`[DeletarCaso] Falha ao remover notificações do caso ${id}: ${notifCleanupError.message}`);
+        throw new Error(`Falha ao remover notificações: ${notifCleanupError.message}`);
+      }
+    } else {
+      await prisma.logs_auditoria.updateMany({
+        where: { caso_id: BigInt(id) },
+        data: { caso_id: null },
+      });
+      // Usa endsWith para match exato do sufixo, evitando /casos/12 cassar com /casos/123
+      await prisma.notificacoes.deleteMany({
+        where: { link: { endsWith: `/casos/${id}` } },
+      });
+    }
+
+    // Excluir o caso do banco de dados (Tabelas partes, juridico, ia e documentos possuem CASCADE)
     if (isSupabaseConfigured) {
       const { error: deleteError } = await supabase.from("casos").delete().eq("id", id);
       if (deleteError) throw deleteError;
@@ -5322,7 +5357,7 @@ export const deletarCaso = async (req, res) => {
     res.json({ message: "Caso excluído com sucesso." });
   } catch (err) {
     logger.error(`Erro ao deletar caso ${id}: ${err.message}`);
-    res.status(500).json({ error: "Erro ao excluir caso." });
+    res.status(500).json({ error: `Erro ao excluir caso: ${err.message}` });
   }
 };
 

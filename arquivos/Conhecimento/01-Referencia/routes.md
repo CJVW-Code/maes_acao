@@ -1,6 +1,6 @@
 # Referência da API — Mães em Ação · DPE-BA
 
-> **Versão:** 4.2 · **Atualizado em:** 2026-04-27 (RBAC Distribuição + Concorrência Atômica)
+> **Versão:** 4.5 · **Atualizado em:** 2026-04-30 (System Configs + Announcements + BI Overrides)
 
 Esta documentação lista as principais rotas do backend do Mães em Ação.  
 Todas as rotas são prefixadas com `/api`. Exemplo: `https://api.mutirao.dpe.ba.gov.br/api/casos`.
@@ -287,23 +287,31 @@ Webhook para processamento assíncrono gerenciado pelo [Upstash QStash].
 
 ---
 
-## 5. Sistema e Debug
-
-| Método | Rota          | Segurança  | Descrição                                                      |
-| :----- | :------------ | :--------- | :------------------------------------------------------------- |
-| `GET`  | `/api/health` | 🌐 Pública | Verificação de integridade (Health Check).                     |
-| `GET`  | `/api/status` | 🌐 Pública | Pode expor endpoints gerais do status dos serviços auxiliares. |
-
-### Detalhamento API Sistema
-
-#### `GET /api/health` (ou `/api/debug/ping`)
-*Pública*
-* **Response (200 OK):** Retorna `ok`, ms pinging Supabase.
-
-#### `GET /api/status`
-*Pública* — Motor do portal de acompanhamento pelo assistido (Cidadao).
-* **Request:** Query params: `cpf`, `chave`.
 * **Response (200 OK):** Capaz de tratar colisões limpo de multi-casos em PostgreSQL relativos a este CPF numérico (pois podem existir vários casos perfeitamente válidos pro CPF pai), decifrando qual deles é visível a partir daquela `chave` recebida descritografada. Status é mapeado em strings mais humanas para o front (`em triagem` ao invés da linguagem back e IAs).
+
+---
+
+## 6. Configurações (`/api/config`)
+
+Gerenciamento de parâmetros do sistema, janelas de BI e avisos.
+
+| Método | Rota | Segurança | Descrição |
+| :----- | :--- | :-------- | :---------- |
+| `GET`  | `/`  | 🔒 Protegida | Retorna todas as configurações do sistema. |
+| `POST` | `/`  | 🔒 Admin     | Atualiza ou cria configurações (aceita lote ou individual). |
+| `GET`  | `/bi/overrides` | 🔒 Protegida | Retorna overrides de acesso ao BI. |
+| `POST` | `/bi/overrides` | 🔒 Admin     | Define overrides de acesso para cargos específicos. |
+
+---
+
+## 7. BI e Relatórios (`/api/bi`)
+
+| Método | Rota | Segurança | Descrição |
+| :----- | :--- | :-------- | :---------- |
+| `GET`  | `/stats` | 🔒 BI Access | Retorna estatísticas agregadas. |
+| `GET`  | `/export` | 🔒 BI Access | Gera e baixa relatório XLSX. |
+
+> **Acesso ao BI:** Protegido por janelas de horário e overrides configurados em `/api/config`.
 
 ---
 
