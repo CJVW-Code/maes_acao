@@ -5310,24 +5310,38 @@ export const deletarCaso = async (req, res) => {
     }
 
     // --- LIMPEZA DE REFERÊNCIAS (Prevenção de erro de Constraint) ---
-    try {
-      // Notificações e Logs não possuem cascade total ou dependem de triggers
-      if (isSupabaseConfigured) {
-        // Desvincula logs para que a deleção do caso não seja impedida
-        await supabase.from("logs_auditoria").update({ caso_id: null }).eq("caso_id", id);
-        // Remove notificações vinculadas (buscando pelo padrão do link do caso)
-        await supabase.from("notificacoes").delete().ilike("link", `%/casos/${id}%`);
-      } else {
-        await prisma.logs_auditoria.updateMany({
-          where: { caso_id: BigInt(id) },
-          data: { caso_id: null },
-        });
-        await prisma.notificacoes.deleteMany({
-          where: { link: { contains: `/casos/${id}` } },
-        });
+    // Bug Fix: Supabase update/delete não lançam exceções — retornam { error }.
+    // Bug Fix: Match de notificações deve ser exato para não apagar notificações de outros casos
+    //          cujo ID seja prefixo do atual (ex: /casos/12 e /casos/123).
+    if (isSupabaseConfigured) {
+      const { error: logsCleanupError } = await supabase
+        .from("logs_auditoria")
+        .update({ caso_id: null })
+        .eq("caso_id", id);
+
+      if (logsCleanupError) {
+        logger.error(`[DeletarCaso] Falha ao desvincular logs_auditoria do caso ${id}: ${logsCleanupError.message}`);
+        throw new Error(`Falha ao desvincular logs de auditoria: ${logsCleanupError.message}`);
       }
-    } catch (cleanupErr) {
-      logger.warn(`[DeletarCaso] Aviso: Limpeza parcial falhou para o caso ${id}: ${cleanupErr.message}`);
+
+      const { error: notifCleanupError } = await supabase
+        .from("notificacoes")
+        .delete()
+        .eq("link", `/painel/casos/${id}`);
+
+      if (notifCleanupError) {
+        logger.error(`[DeletarCaso] Falha ao remover notificações do caso ${id}: ${notifCleanupError.message}`);
+        throw new Error(`Falha ao remover notificações: ${notifCleanupError.message}`);
+      }
+    } else {
+      await prisma.logs_auditoria.updateMany({
+        where: { caso_id: BigInt(id) },
+        data: { caso_id: null },
+      });
+      // Usa endsWith para match exato do sufixo, evitando /casos/12 cassar com /casos/123
+      await prisma.notificacoes.deleteMany({
+        where: { link: { endsWith: `/casos/${id}` } },
+      });
     }
 
     // Excluir o caso do banco de dados (Tabelas partes, juridico, ia e documentos possuem CASCADE)

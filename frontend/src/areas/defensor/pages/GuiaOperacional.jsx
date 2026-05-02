@@ -126,7 +126,8 @@ const secoes = [
       },
       {
         tipo: "passo",
-        texto: "Envia o caso → sistema gera o Protocolo automaticamente e gera a minuta",
+        texto:
+          "Envia o caso → sistema gera o Protocolo automaticamente. A minuta é gerada após o upload dos documentos e o processamento em background.",
       },
     ],
     campos: [
