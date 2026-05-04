@@ -159,7 +159,7 @@ export const DetalhesCaso = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { confirm } = useConfirm();
-  // const [isGenerating, setIsGenerating] = useState(false); // Para uso futuro (Gerar Fatos IA)
+  const [isGenerating, setIsGenerating] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [savingFeedback, setSavingFeedback] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -283,6 +283,27 @@ export const DetalhesCaso = () => {
   const handleStatusChange = async (novoStatus) => {
     if (!caso || !novoStatus || novoStatus === caso.status) return;
 
+    const cargo = user?.cargo?.toLowerCase();
+    const isServidorOuEstagiario = cargo === "servidor" || cargo === "estagiario";
+
+    // Bloqueia transições que o cargo não tem permissão — com feedback visual
+    if (isServidorOuEstagiario && novoStatus === "em_protocolo") {
+      toast.warning(
+        "Seu cargo não tem permissão para enviar o caso para protocolo. Apenas defensores podem realizar essa etapa.",
+      );
+      return;
+    }
+    if (isServidorOuEstagiario && novoStatus === "protocolado") {
+      toast.warning("Somente defensores podem marcar um caso como protocolado.");
+      return;
+    }
+    if (cargo === "estagiario" && novoStatus === "liberado_para_protocolo") {
+      toast.warning(
+        "Estagiários não podem liberar casos para protocolo. Solicite a um servidor ou defensor.",
+      );
+      return;
+    }
+
     setIsUpdating(true);
     try {
       const response = await fetch(`${API_BASE}/casos/${id}/status`, {
@@ -299,12 +320,27 @@ export const DetalhesCaso = () => {
       });
 
       if (!response.ok) {
-        throw new Error("Falha ao atualizar o status.");
+        const errData = await response.json().catch(() => ({}));
+        const mensagem = errData.error || "Falha ao atualizar o status.";
+        // Detecta erro de permissão e exibe mensagem amigável
+        if (response.status === 403) {
+          toast.warning(`Permissão negada: ${mensagem}`);
+        } else {
+          throw new Error(mensagem);
+        }
+        return;
       }
 
       await response.json();
-      toast.success("Status atualizado com sucesso!");
-      mutate(); // CORRIGIDO
+
+      // Se liberou para protocolo, força revalidação completa para limpar o lock visual
+      if (novoStatus === "liberado_para_protocolo") {
+        toast.success("Caso liberado para protocolo! O servidor foi desvinculado automaticamente.");
+        mutate(undefined, { revalidate: true });
+      } else {
+        toast.success("Status atualizado com sucesso!");
+        mutate();
+      }
     } catch (error) {
       console.error(error);
       toast.error(error.message);
@@ -357,8 +393,15 @@ export const DetalhesCaso = () => {
   // A função renderDataField que estava aqui pode ser apagada se você já levou para o InfoAssistido!
   // Se ainda estiver usando aqui fora, pode deixar.
 
-  /* 
   const handleGenerateFatos = async () => {
+    if (
+      !(await confirm(
+        "Deseja que a IA reescreva toda a sessão 'Dos Fatos' com base no relato atual? Isso substituirá qualquer edição manual feita no rascunho da petição.",
+        "Regerar Texto com IA?",
+      ))
+    )
+      return;
+
     setIsGenerating(true);
     try {
       const response = await fetch(`${API_BASE}/casos/${id}/gerar-fatos`, {
@@ -373,9 +416,9 @@ export const DetalhesCaso = () => {
         throw new Error("Falha ao gerar a sessão dos fatos.");
       }
 
-      await response.json();
-      mutate();
-      toast.success("Solicitação enviada. O sistema está processando...");
+      const newData = await response.json();
+      mutate(newData, { revalidate: true });
+      toast.success("O texto dos fatos foi regerado com sucesso pela IA!");
     } catch (error) {
       console.error(error);
       toast.error(error.message);
@@ -383,7 +426,6 @@ export const DetalhesCaso = () => {
       setIsGenerating(false);
     }
   };
-  */
 
   const handleGenerateTermo = useCallback(async () => {
     setIsGeneratingTermo(true);
@@ -434,8 +476,8 @@ export const DetalhesCaso = () => {
 
         if (!response.ok) throw new Error("Falha ao regerar minuta.");
 
-        await response.json();
-        mutate(); // CORRIGIDO
+        const newData = await response.json();
+        mutate(newData, { revalidate: true });
         toast.success("Minuta regerada com sucesso!");
       } catch (error) {
         toast.error(error.message);
@@ -1174,54 +1216,60 @@ export const DetalhesCaso = () => {
             </div>
           </div>
 
-          {caso.assistencia_casos && caso.assistencia_casos.length > 0 && (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold text-indigo-700/70 uppercase tracking-wider bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
-                Colaboradores envolvidos:
-              </span>
-              {Array.from(
-                new Map(
-                  caso.assistencia_casos.map((a) => [
-                    a.remetente_id === user?.id ? a.destinatario_id : a.remetente_id,
-                    a,
-                  ]),
-                ).values(),
-              ).map((a, i) => {
-                const isMine = a.remetente_id === user?.id;
-                const targetName = isMine ? a.destinatario?.nome : a.remetente?.nome;
-                if (!targetName) return null;
+          {caso.assistencia_casos &&
+            caso.assistencia_casos.filter((a) => a.status !== "recusado" && a.acao !== "recusado")
+              .length > 0 && (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <span className="text-xs font-bold text-indigo-700/70 uppercase tracking-wider bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
+                  Colaboradores envolvidos:
+                </span>
+                {Array.from(
+                  new Map(
+                    caso.assistencia_casos
+                      .filter((a) => a.status !== "recusado" && a.acao !== "recusado")
+                      .map((a) => [
+                        a.remetente_id === user?.id ? a.destinatario_id : a.remetente_id,
+                        a,
+                      ]),
+                  ).values(),
+                ).map((a, i) => {
+                  const isMine = a.remetente_id === user?.id;
+                  const targetName = isMine ? a.destinatario?.nome : a.remetente?.nome;
+                  if (!targetName) return null;
 
-                return (
-                  <div
-                    key={i}
-                    className="flex items-center gap-1.5 px-3 py-1 bg-white border border-indigo-100 rounded-full text-xs text-indigo-900 shadow-sm transition-all hover:border-indigo-300 hover:shadow"
-                    title={
-                      isMine
-                        ? `Aguardando ${targetName} aceitar`
-                        : `${targetName} compartilhou com você`
-                    }
-                  >
-                    <div className="bg-indigo-100 w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] text-indigo-700">
-                      {targetName.charAt(0).toUpperCase()}
+                  const status = a.status || a.acao;
+
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-center gap-1.5 px-3 py-1 bg-white border border-indigo-100 rounded-full text-xs text-indigo-900 shadow-sm transition-all hover:border-indigo-300 hover:shadow"
+                      title={
+                        isMine
+                          ? `Aguardando ${targetName} aceitar`
+                          : `${targetName} compartilhou com você`
+                      }
+                    >
+                      <div className="bg-indigo-100 w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] text-indigo-700">
+                        {targetName.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="font-medium">{targetName.split(" ")[0]}</span>
+                      {status === "pendente" && (
+                        <span
+                          className="w-2 h-2 rounded-full bg-amber-400 ml-1"
+                          title="Pendente"
+                        ></span>
+                      )}
+                      {status === "aceito" && (
+                        <span
+                          className="w-2 h-2 rounded-full bg-green-500 ml-1"
+                          title="Aceito"
+                        ></span>
+                      )}
                     </div>
-                    <span className="font-medium">{targetName.split(" ")[0]}</span>
-                    {a.status === "pendente" && (
-                      <span
-                        className="w-2 h-2 rounded-full bg-amber-400 ml-1"
-                        title="Pendente"
-                      ></span>
-                    )}
-                    {a.status === "aceito" && (
-                      <span
-                        className="w-2 h-2 rounded-full bg-green-500 ml-1"
-                        title="Aceito"
-                      ></span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
         </div>
         <div className="flex flex-col md:items-end gap-2">
           <button
@@ -1569,7 +1617,52 @@ export const DetalhesCaso = () => {
                           />
                           {isRegeneratingMinuta ? "Regerando..." : "Regerar Minuta com Novos Dados"}
                         </button>
+
+                        {user?.cargo === "admin" && (
+                          <button
+                            type="button"
+                            onClick={handleGenerateFatos}
+                            disabled={isGenerating || isSavingJuridico}
+                            className="btn btn-ghost border border-highlight/30 bg-highlight/5 text-highlight flex items-center gap-2 hover:bg-highlight/10"
+                          >
+                            <Wand2 size={18} className={isGenerating ? "animate-spin" : ""} />
+                            {isGenerating ? "Processando IA..." : "Regerar Texto com IA"}
+                          </button>
+                        )}
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* BOTÃO UNIVERSAL DE REGERAÇÃO PARA ADMIN (Se não for cumulado) */}
+                {!exibirPainelCumulado && user?.cargo === "admin" && (
+                  <div className="card border border-border bg-bg/50 mb-6 flex flex-wrap gap-3 items-center justify-between animate-fade-in">
+                    <div className="flex flex-col">
+                      <h4 className="text-sm font-bold text-main">Ações de Administrador</h4>
+                      <p className="text-xs text-muted">
+                        Atualize o texto ou o documento Word com um clique.
+                      </p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => handleRegenerateMinuta(false)}
+                        disabled={isRegeneratingMinuta}
+                        className="btn btn-ghost border border-primary/30 bg-primary/5 text-primary flex items-center gap-2"
+                      >
+                        <RefreshCw
+                          size={18}
+                          className={isRegeneratingMinuta ? "animate-spin" : ""}
+                        />
+                        Regerar Documento (.docx)
+                      </button>
+                      <button
+                        onClick={handleGenerateFatos}
+                        disabled={isGenerating}
+                        className="btn btn-ghost border border-highlight/30 bg-highlight/5 text-highlight flex items-center gap-2"
+                      >
+                        <Wand2 size={18} className={isGenerating ? "animate-spin" : ""} />
+                        Regerar Texto com IA
+                      </button>
                     </div>
                   </div>
                 )}
@@ -1632,6 +1725,24 @@ export const DetalhesCaso = () => {
                                   >
                                     <Download size={20} />
                                   </a>
+
+                                  {user?.cargo === "admin" &&
+                                    doc.key !== "url_termo_declaracao" && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleGenerateFatos();
+                                        }}
+                                        disabled={isGenerating}
+                                        className="p-2 text-highlight hover:scale-110 transition-transform"
+                                        title="Regerar Texto (IA)"
+                                      >
+                                        <Wand2
+                                          size={18}
+                                          className={isGenerating ? "animate-spin" : ""}
+                                        />
+                                      </button>
+                                    )}
 
                                   {doc.handler && (
                                     <button

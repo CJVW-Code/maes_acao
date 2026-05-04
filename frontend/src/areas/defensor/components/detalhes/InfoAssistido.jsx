@@ -235,8 +235,13 @@ export const InfoAssistido = ({ caso }) => {
                     pickFirst(dados.valor_pensao, dados.valor_pensao_atual, caso.valor_pensao),
                   )}
                 {renderDataField("Dados Bancários para Depósito", pickFirst(dados.dados_bancarios_exequente, dados.dados_bancarios_deposito, caso.dados_bancarios_exequente))}
-                {renderDataField("Opção de Guarda", pickFirst(dados.opcao_guarda, caso.juridico?.opcao_guarda))}
-                {renderDataField("Descrição da Guarda", pickFirst(dados.descricao_guarda, caso.juridico?.descricao_guarda))}
+                {renderDataField("Opção de Guarda", pickFirst(dados.opcao_guarda, dados.opcaoGuarda, caso.juridico?.opcao_guarda))}
+                <div>
+                  <p className="text-xs text-muted uppercase tracking-wide">Descrição da Guarda</p>
+                  <p className="font-semibold break-words whitespace-pre-wrap">
+                    {formatValue(pickFirst(dados.descricao_guarda, dados.descricaoGuarda, caso.juridico?.descricao_guarda))}
+                  </p>
+                </div>
                 {renderDataField("Cidade para assinatura", pickFirst(dados.CIDADEASSINATURA, dados.cidade_assinatura, caso.cidade_assinatura, caso.CIDADEASSINATURA))}
               </div>
             </div>

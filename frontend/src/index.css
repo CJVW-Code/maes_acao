@@ -401,7 +401,7 @@
   }
 
   .case-item-link .case-name {
-    @apply font-bold text-base leading-tight text-slate-800 dark:text-slate-100;
+    @apply font-bold text-base leading-tight text-main;
   }
 
   @media (min-width: 1536px) {
