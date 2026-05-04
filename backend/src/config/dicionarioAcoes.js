@@ -41,7 +41,9 @@ Inclua este parágrafo SOMENTE se o contexto contiver "[FLAG_GUARDA: SIM]". Se a
 ❌ PROIBIDO o termo "menor" — use "criança", "adolescente", "filho(a)" ou "alimentando(a)".
 ❌ PROIBIDO citar CPF, RG ou datas de nascimento no texto — esses dados constam na qualificação das partes.
 ❌ PROIBIDO inventar fatos não contidos no relato fornecido.
-❌ PROIBIDO usar listas, marcadores ou tópicos — apenas parágrafos coesos.`,
+❌ PROIBIDO usar listas, marcadores ou tópicos — apenas parágrafos coesos.
+ ❌ PROIBIDO usar listas, marcadores ou tópicos — apenas parágrafos coesos.
++❌ PROIBIDO reproduzir no texto os títulos §1–§6 — esses marcadores são apenas instruções internas de estrutura, não devem aparecer no texto final.`,
 
       buildUserPrompt: null,
     },
