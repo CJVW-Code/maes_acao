@@ -27,16 +27,65 @@ const DEFAULT_PROCESSO = "[NÚMERO DO PROCESSO/DEPENDÊNCIA]";
 const PLACEHOLDER_FIELD = "[DADO PENDENTE]";
 
 // --- PÓS-PROCESSADOR DE SAÍDA DA IA ---
+
+const removePrimeiraPessoa = (text) => {
+  if (!text) return text;
+  return text
+    .replace(/\b(Eu|Sou|Estou|Tenho|Quero|Desejo|Meu|Minha|Meu filho|Minha filha)\b/gi, (match) => {
+      if (/meu filho/i.test(match)) return "o alimentando";
+      if (/minha filha/i.test(match)) return "a alimentanda";
+      return "";
+    })
+    .trim();
+};
+
+const removeFrasesDuplicadas = (text) => {
+  if (!text) return text;
+  const frases = text.split(/(?<=\.)\s+/);
+  const usadas = new Set();
+
+  return frases
+    .filter((f) => {
+      const clean = f.trim().toLowerCase().replace(/[^\w\s]/g, "");
+      if (clean.length < 15) return true;
+      if (usadas.has(clean)) return false;
+      usadas.add(clean);
+      return true;
+    })
+    .join(" ");
+};
+
+const normalizarNomesParaPapeis = (text, nomeMae, nomePai) => {
+  if (!text) return text;
+  let result = text;
+  if (nomeMae && nomeMae.length > 3) {
+    const escaped = nomeMae.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    result = result.replace(new RegExp(`\\b${escaped}\\b`, "gi"), "a genitora");
+  }
+  if (nomePai && nomePai.length > 3) {
+    const escaped = nomePai.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    result = result.replace(new RegExp(`\\b${escaped}\\b`, "gi"), "o requerido");
+  }
+  return result;
+};
+
+const validarQualidadeTexto = (text) => {
+  const erros = [];
+  if (/\b(Eu|Sou|Estou|Tenho|Meu|Minha)\b/i.test(text)) erros.push("primeira_pessoa");
+  
+  const termosRepetitivos = ["se afastou", "não contribui", "necessidades", "insuficiente"];
+  termosRepetitivos.forEach(termo => {
+    const count = (text.toLowerCase().match(new RegExp(termo, "g")) || []).length;
+    if (count > 2) erros.push(`repeticao_${termo.replace(" ", "_")}`);
+  });
+
+  return erros;
+};
+
 /**
- * Limpa e valida o texto gerado pela IA antes de salvar.
- * Resolve os pontos 6 e 7a da análise de qualidade:
- * - Remove expressões proibidas que "vazaram" do modelo
- * - Remove cabeçalhos de seção (§1–§6) que o modelo às vezes inclui
- * - Remove vozes em 1ª pessoa detectáveis
- * - Comprime múltiplas linhas em branco em uma só
- * - Alerta no log se o nº de parágrafos divergir do esperado
+ * Filtra e higieniza a saída da IA antes de salvar no banco ou DOCX.
  */
-const postProcessDosFatos = (texto, nParasEsperado = 4) => {
+const postProcessDosFatos = async (texto, nParasEsperado = 4, piiContext = {}) => {
   if (!texto) return texto;
 
   const expressoes_proibidas = [
@@ -44,32 +93,54 @@ const postProcessDosFatos = (texto, nParasEsperado = 4) => {
     /\bnesse diapas[aã]o\b/gi,
     /\binsta salientar\b/gi,
     /\bé o que se infere que\b/gi,
-    /\bmenor(es)?\b(?!\s+(prazo|valor|quantia|montante|de idade))/gi, // "menor" isolado (exceto expressões jurídicas legítimas)
+    /\bmenor(es)?\b(?!\s+(prazo|valor|quantia|montante|de idade))/gi,
   ];
 
   const cabecalhos_secao = /^§\d[\s—–-].*$/gm;
 
   let resultado = texto;
 
-  // 1. Remove cabeçalhos de seção que o modelo não deveria ter incluído
+  // 1. Limpeza básica
   resultado = resultado.replace(cabecalhos_secao, "").trim();
-
-  // 2. Remove expressões proibidas (substitui por espaço para não quebrar a frase)
   expressoes_proibidas.forEach((regex) => {
     resultado = resultado.replace(regex, "");
   });
 
-  // 3. Comprime múltiplas linhas em branco em uma única linha em branco
-  resultado = resultado.replace(/\n{3,}/g, "\n\n").trim();
+  // 2. Sanitização semântica
+  resultado = removePrimeiraPessoa(resultado);
+  resultado = removeFrasesDuplicadas(resultado);
+  resultado = normalizarNomesParaPapeis(resultado, piiContext.nomeMae, piiContext.nomePai);
 
-  // 4. Validação: conta parágrafos e loga aviso se divergir
-  const parasContados = resultado.split(/\n\n+/).filter((p) => p.trim().length > 0).length;
+  // 3. Validação e Refinamento
+  const erros = validarQualidadeTexto(resultado);
+  if (erros.length > 0) {
+    logger.warn(`[IA-Validador] Detectados problemas (${erros.join(", ")}). Refinando...`);
+    try {
+      const promptRefinamento = `Atue como revisor jurídico. Reescreva o texto abaixo removendo repetições e marcas de primeira pessoa, mantendo tom técnico e impessoal. 
+IMPORTANTE: Mantenha EXATAMENTE ${nParasEsperado} parágrafos. NÃO altere os fatos.
+
+TEXTO:
+"""
+${resultado}
+"""`;
+      const textoRefinado = await generateLegalText(
+        `Você é um revisor de petições. Limpe o estilo sem alterar os fatos. Retorne EXATAMENTE ${nParasEsperado} parágrafos.`,
+        promptRefinamento,
+        0.1
+      );
+      if (textoRefinado && textoRefinado.length > resultado.length * 0.5) {
+        resultado = textoRefinado;
+      }
+    } catch (e) {
+      logger.error(`[IA-Validador] Erro refinamento: ${e.message}`);
+    }
+  }
+
+  // 4. Normalização final
+  resultado = resultado.replace(/\n{3,}/g, "\n\n").trim();
+  const parasContados = resultado.split(/\n\s*\n/).filter((p) => p.trim().length > 0).length;
   if (parasContados !== nParasEsperado) {
-    logger.warn(
-      `[pós-proc] Parágrafos esperados: ${nParasEsperado}, gerados: ${parasContados}. Revisar output da IA.`,
-    );
-  } else {
-    logger.info(`[pós-proc] ✅ Estrutura OK — ${parasContados} parágrafos.`);
+    logger.warn(`[pós-proc] Parágrafos esperados: ${nParasEsperado}, gerados: ${parasContados}.`);
   }
 
   return resultado;
@@ -535,7 +606,10 @@ ${paragrafos.join("\n\n")}`;
     );
 
     // --- PÓS-PROCESSAMENTO: VALIDADOR E LIMPEZA DE SAÍDA ---
-    const textoPosProcessado = postProcessDosFatos(textoGerado.trim(), nParas);
+    const textoPosProcessado = await postProcessDosFatos(textoGerado.trim(), nParas, {
+      nomeMae: normalized.requerente?.representante,
+      nomePai: normalized.requerido?.nome,
+    });
 
     return sanitizeLegalAbbreviations(textoPosProcessado);
   } catch (error) {
