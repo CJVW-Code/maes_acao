@@ -42,7 +42,7 @@ describe("DICIONARIO_ACOES_BACKEND", () => {
     expect(config.promptIA).toBeDefined();
     expect(config.promptIA.systemPrompt).toBeDefined();
     expect(config.promptIA.systemPrompt).toContain("Defensor Público");
-    expect(config.promptIA.systemPrompt).toContain('NUNCA use "menor"');
+    expect(config.promptIA.systemPrompt).toContain('PROIBIDO o termo "menor"');
   });
 
   it("ações scaffold devem ter promptIA null", () => {

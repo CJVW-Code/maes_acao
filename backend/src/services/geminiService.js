@@ -358,30 +358,38 @@ export const generateDosFatos = async (caseData = {}, acaoKey) => {
     logger.info(`[IA] acaoKey="${acaoKey}" → prompt=${usandoDicionario ? 'DICIONÁRIO' : 'FALLBACK_LEGADO'}`);
 
     // Fallback legado: prompt original de família/fixação (sempre funciona)
-    const SYSTEM_PROMPT_LEGADO = `Você é um Defensor Público experiente na Bahia.
+    const SYSTEM_PROMPT_LEGADO = `Você é um Defensor Público experiente na Bahia, especializado em Direito de Família.
 Seu estilo de escrita é extremamente formal, culto e padronizado (juridiquês clássico).
-Você DEVE utilizar conectivos jurídicos adequados como: "No caso em tela", "Como é sabido", "aduzir". Evite o uso repetitivo de "Ocorre que" e não inicie o texto com "Insta salientar".
-REGRA CRÍTICA: NUNCA use o termo "menor" para se referir a uma criança ou adolescente. Em vez disso, use "criança", "adolescente" ou "filho(a)".
-REGRA DE OURO: NÃO cite números de documentos (CPF, RG) ou datas de nascimento no texto narrativo, pois estes dados já constam na qualificação das partes.
-Não use listas ou tópicos na resposta final. Escreva apenas parágrafos coesos.`;
+
+PAPÉIS PROCESSUAIS CRÍTICOS:
+- Os AUTORES (requerentes) desta ação são os filhos (alimentandos), representados pela genitora.
+- A mãe é a "representante legal" ou "genitora" — JAMAIS a chame de "requerente" ou "autora".
+- O pai é o "requerido".
+
+USO DE CONECTIVOS: Use "No caso em tela", "Nesse diapasão", "Com efeito", "Cumpre ressaltar", "Destarte".
+❌ PROIBIDO usar "Ocorre que" em qualquer hipótese.
+❌ PROIBIDO iniciar parágrafos com "Insta salientar" — esse conectivo pressupõe algo já afirmado anteriormente.
+❌ NUNCA use o termo "menor" — use "criança", "adolescente", "filho(a)" ou "alimentando(a)".
+❌ NUNCA cite CPF, RG ou datas de nascimento no texto — constam na qualificação das partes.
+Não use listas ou tópicos. Escreva apenas parágrafos coesos.`;
 
     const systemPrompt = configBackend?.promptIA?.systemPrompt || SYSTEM_PROMPT_LEGADO;
 
-    const userPrompt = `Abaixo estão os dados para a redação da seção "DOS FATOS". 
-LEIA atentamente o "Relato Informal" e EXTRAIA dele os detalhes sobre trabalho, renda, necessidades e o histórico do conflito para enriquecer o texto, seguindo a estrutura de parágrafos solicitada no System Prompt.
+    const userPrompt = `Abaixo estão os dados para a redação da seção "DOS FATOS".
+LEIA atentamente o "Relato Informal" e EXTRAIA dele os detalhes sobre trabalho, renda, necessidades e o histórico do conflito para enriquecer o texto, respeitando rigorosamente os papéis processuais e regras do System Prompt.
 
 TIPO DE AÇÃO: ${normalized.tipo_acao || "Fixação de Alimentos"}
 
 DADOS DOS ENVOLVIDOS:
-- Assistidos (Autores): ${listaAutoresTexto} (Total: ${todosAutores.length})
-- Representante Legal: ${normalized.requerente?.representante || "Não informado"}
-- Requerido (Parte Contrária): ${cleanText(normalized.requerido?.nome)}
+- Alimentandos/Autores da ação: ${listaAutoresTexto} (Total: ${todosAutores.length})
+- Representante Legal (genitora que representa os filhos): ${normalized.requerente?.representante || "Não informado"}
+- Requerido (genitor demandado): ${cleanText(normalized.requerido?.nome)}
 
 CONTEXTO DE TRIAGEM (DADOS ESTRUTURADOS):
-- Necessidades/Guarda: ${contextFilhosGuarda || "Ver relato informal"}
-- Situação da Autora/Mãe: ${situacaoAssistido}
-- Situação do Requerido/Pai: ${situacaoRequerido}
-- Valor do Pedido: R$ ${valorPensao}
+- Flags de Guarda: ${contextFilhosGuarda || "[FLAG_GUARDA: NÃO]"}
+- Situação Financeira da Representante Legal: ${situacaoAssistido}
+- Situação do Requerido: ${situacaoRequerido}
+- Valor do Pedido de Alimentos: R$ ${valorPensao}
 - Documentos Fornecidos: ${documentosList}
 ${contextoExtra}
 
@@ -390,7 +398,7 @@ RELATO INFORMAL (FONTE PRINCIPAL DE FATOS):
 ${relatoBase}
 """
 
-INSTRUÇÃO FINAL: Se o relato informal contiver detalhes sobre o trabalho do requerido ou despesas específicas da criança, esses detalhes DEVEM ser incluídos nos parágrafos de "Capacidade do Requerido" e "Necessidades dos Alimentandos" respectivamente.`;
+INSTRUÇÃO FINAL: Extraia do relato detalhes concretos sobre o trabalho do requerido ou despesas da criança e utilize-os nos parágrafos de Capacidade Contributiva e Necessidades dos Alimentandos. Lembre-se: a mãe é REPRESENTANTE LEGAL, nunca requerente.`;
 
     // Chamada Segura: Envia o mapa PII para sanitização automática no aiService
     logger.info(
