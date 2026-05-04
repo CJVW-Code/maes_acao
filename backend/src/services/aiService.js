@@ -8,7 +8,9 @@ const IA_TIMEOUT_MS = 30000; // 30 segundos
 dotenv.config();
 
 // Inicialização dos Clientes
-const geminiClient = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
+const geminiClient = process.env.GEMINI_API_KEY
+  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+  : null;
 const groqClient = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 
 // Função auxiliar para escapar caracteres especiais em Regex (segurança)
@@ -21,11 +23,7 @@ function escapeRegExp(string) {
  * Processa imagens de documentos.
  * Nota: OCR geralmente não passa por sanitização prévia pois a entrada é binária (imagem).
  */
-export const visionOCR = async (
-  bufferImagem,
-  mimeType,
-  promptContexto = "",
-) => {
+export const visionOCR = async (bufferImagem, mimeType, promptContexto = "") => {
   const model = geminiClient.getGenerativeModel({
     model: "gemini-2.5-flash",
   });
@@ -48,12 +46,17 @@ export const visionOCR = async (
       const response = await result.response;
       return response.text();
     } catch (error) {
-      const isRateLimit = error.status === 429 || error.message?.includes("429") || error.message?.includes("Too Many Requests");
+      const isRateLimit =
+        error.status === 429 ||
+        error.message?.includes("429") ||
+        error.message?.includes("Too Many Requests");
 
       if (isRateLimit && tentativa < MAX_RETRIES - 1) {
         const delay = 6000 * (tentativa + 1); // 6s, 12s
-        console.warn(`⏳ [OCR] Rate limit (429). Retry ${tentativa + 1}/${MAX_RETRIES} em ${delay / 1000}s...`);
-        await new Promise(r => setTimeout(r, delay));
+        console.warn(
+          `⏳ [OCR] Rate limit (429). Retry ${tentativa + 1}/${MAX_RETRIES} em ${delay / 1000}s...`,
+        );
+        await new Promise((r) => setTimeout(r, delay));
         continue;
       }
 
@@ -75,7 +78,7 @@ export const visionOCR = async (
 export const generateLegalText = async (
   systemPrompt,
   userPrompt,
-  temperature = 0.3,
+  temperature = 0.1,
   piiMap = {},
 ) => {
   // --- ETAPA 1: SANITIZAÇÃO (ANONIMIZAÇÃO) ---
@@ -106,10 +109,7 @@ export const generateLegalText = async (
   console.log("---------------------------------------------------");
   console.log("DADOS SENSÍVEIS DETECTADOS E MASCARADOS:", piiKeys.length);
   // console.log("SYS:", safeSystemPrompt.substring(0, 50) + "..."); // Opcional
-  console.log(
-    "USER PROMPT (TRECHO):",
-    safeUserPrompt.substring(0, 300) + "...",
-  );
+  console.log("USER PROMPT (TRECHO):", safeUserPrompt.substring(0, 300) + "...");
   console.log("---------------------------------------------------\n");
   let generatedText = "";
 
@@ -134,16 +134,16 @@ export const generateLegalText = async (
         ],
         model: "llama-3.3-70b-versatile",
         temperature: temperature,
-        max_tokens: 4096,
+        max_tokens: 1200,
+        top_p: 0.8,
+        frequency_penalty: 0.4,
+        presence_penalty: 0.1,
       });
 
       // Adiciona timeout à chamada Groq
       const groqWithTimeout = Promise.race([
         groqPromise,
-        createTimeoutPromise(
-          IA_TIMEOUT_MS,
-          "Timeout: Chamada Groq excedeu o limite de tempo",
-        ),
+        createTimeoutPromise(IA_TIMEOUT_MS, "Timeout: Chamada Groq excedeu o limite de tempo"),
       ]);
 
       const completion = await groqWithTimeout;
@@ -167,10 +167,7 @@ export const generateLegalText = async (
         const geminiCall = model.generateContent(fullPrompt);
         const geminiWithTimeout = Promise.race([
           geminiCall,
-          createTimeoutPromise(
-            IA_TIMEOUT_MS,
-            "Timeout: Chamada Gemini excedeu o limite de tempo",
-          ),
+          createTimeoutPromise(IA_TIMEOUT_MS, "Timeout: Chamada Gemini excedeu o limite de tempo"),
         ]);
 
         const result = await geminiWithTimeout;
@@ -178,20 +175,17 @@ export const generateLegalText = async (
         generatedText = response.text();
       } catch (geminiError) {
         console.error("❌ Erro na chamada Gemini:", geminiError.message);
-        throw new Error(
-          "Ambos os serviços de IA falharam ou excederam o tempo limite.",
-          { cause: geminiError },
-        );
+        throw new Error("Ambos os serviços de IA falharam ou excederam o tempo limite.", {
+          cause: geminiError,
+        });
       }
     }
   } catch (error) {
     console.error("❌ Erro Crítico IA:", error.message);
-    throw new Error(
-      "Serviço de Inteligência Artificial indisponível no momento.",
-      { cause: error },
-    );
+    throw new Error("Serviço de Inteligência Artificial indisponível no momento.", {
+      cause: error,
+    });
   }
-
 
   // --- ETAPA 3: DESANITIZAÇÃO (RESTAURAÇÃO) ---
   // Troca os placeholders de volta pelos dados reais no texto gerado pela IA

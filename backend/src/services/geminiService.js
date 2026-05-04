@@ -26,6 +26,55 @@ const DEFAULT_TRIAGEM = "[TRIAGEM SIGAD/SOLAR]";
 const DEFAULT_PROCESSO = "[NÚMERO DO PROCESSO/DEPENDÊNCIA]";
 const PLACEHOLDER_FIELD = "[DADO PENDENTE]";
 
+// --- PÓS-PROCESSADOR DE SAÍDA DA IA ---
+/**
+ * Limpa e valida o texto gerado pela IA antes de salvar.
+ * Resolve os pontos 6 e 7a da análise de qualidade:
+ * - Remove expressões proibidas que "vazaram" do modelo
+ * - Remove cabeçalhos de seção (§1–§6) que o modelo às vezes inclui
+ * - Remove vozes em 1ª pessoa detectáveis
+ * - Comprime múltiplas linhas em branco em uma só
+ * - Alerta no log se o nº de parágrafos divergir do esperado
+ */
+const postProcessDosFatos = (texto, nParasEsperado = 4) => {
+  if (!texto) return texto;
+
+  const expressoes_proibidas = [
+    /\bocorre que\b/gi,
+    /\bnesse diapas[aã]o\b/gi,
+    /\binsta salientar\b/gi,
+    /\bé o que se infere que\b/gi,
+    /\bmenor(es)?\b(?!\s+(prazo|valor|quantia|montante|de idade))/gi, // "menor" isolado (exceto expressões jurídicas legítimas)
+  ];
+
+  const cabecalhos_secao = /^§\d[\s—–-].*$/gm;
+
+  let resultado = texto;
+
+  // 1. Remove cabeçalhos de seção que o modelo não deveria ter incluído
+  resultado = resultado.replace(cabecalhos_secao, "").trim();
+
+  // 2. Remove expressões proibidas (substitui por espaço para não quebrar a frase)
+  expressoes_proibidas.forEach((regex) => {
+    resultado = resultado.replace(regex, "");
+  });
+
+  // 3. Comprime múltiplas linhas em branco em uma única linha em branco
+  resultado = resultado.replace(/\n{3,}/g, "\n\n").trim();
+
+  // 4. Validação: conta parágrafos e loga aviso se divergir
+  const parasContados = resultado.split(/\n\n+/).filter((p) => p.trim().length > 0).length;
+  if (parasContados !== nParasEsperado) {
+    logger.warn(
+      `[pós-proc] Parágrafos esperados: ${nParasEsperado}, gerados: ${parasContados}. Revisar output da IA.`,
+    );
+  } else {
+    logger.info(`[pós-proc] ✅ Estrutura OK — ${parasContados} parágrafos.`);
+  }
+
+  return resultado;
+};
+
 // --- FUNÇÕES UTILITÁRIAS DE NORMALIZAÇÃO ---
 
 const formatName = (name) => {
@@ -359,66 +408,136 @@ export const generateDosFatos = async (caseData = {}, acaoKey) => {
 
     // Fallback legado: prompt original de família/fixação (sempre funciona)
     const SYSTEM_PROMPT_LEGADO = `Você é um Defensor Público experiente na Bahia, especializado em Direito de Família.
-Seu estilo de escrita é extremamente formal, culto e padronizado (juridiquês clássico).
+Redija EXCLUSIVAMENTE a seção "DOS FATOS". Linguagem: terceira pessoa técnica, juridiquês clássico, parágrafos coesos.
 
-PAPÉIS PROCESSUAIS CRÍTICOS:
-- Os AUTORES (requerentes) desta ação são os filhos (alimentandos), representados pela genitora.
-- A mãe é a "representante legal" ou "genitora" — JAMAIS a chame de "requerente" ou "autora".
+PAPÉIS PROCESSUAIS:
+- AUTORES (requerentes) = os filhos (alimentandos), representados pela genitora.
+- A mãe é a "representante legal" ou "genitora" — JAMAIS "requerente", "autora" ou "assistida".
 - O pai é o "requerido".
 
-USO DE CONECTIVOS: Use "No caso em tela", "Nesse diapasão", "Com efeito", "Cumpre ressaltar", "Destarte".
-❌ PROIBIDO usar "Ocorre que" em qualquer hipótese.
-❌ PROIBIDO iniciar parágrafos com "Insta salientar" — esse conectivo pressupõe algo já afirmado anteriormente.
-❌ NUNCA use o termo "menor" — use "criança", "adolescente", "filho(a)" ou "alimentando(a)".
-❌ NUNCA cite CPF, RG ou datas de nascimento no texto — constam na qualificação das partes.
-Não use listas ou tópicos. Escreva apenas parágrafos coesos.`;
+PRINCÍPIO: cada parágrafo tem UMA função. Diga uma vez, com precisão. Não repita.
+Sequência obrigatória: FATO → CONSEQUÊNCIA → NECESSIDADE → PEDIDO.
+
+CONECTIVOS PERMITIDOS (máximo 1 por parágrafo, com função lógica real):
+  "No caso em tela," / "Cumpre registrar que" / "Com efeito," / "Nesse contexto," / "Contudo," / "Destarte,"
+
+PROIBIDO em absoluto: "Ocorre que", "Nesse diapasão", "Insta salientar" (início de parágrafo), "É o que se infere que".
+PROIBIDO: "menor" — use "criança", "adolescente", "filho(a)" ou "alimentando(a)".
+PROIBIDO: CPF, RG, datas de nascimento no texto narrativo.
+PROIBIDO: listas ou tópicos. PROIBIDO: inventar fatos não contidos no relato.
+
+IMPORTANTE: Retorne EXCLUSIVAMENTE o texto final, sem checklist, comentários ou notas adicionais.`;
+
 
     const systemPrompt = configBackend?.promptIA?.systemPrompt || SYSTEM_PROMPT_LEGADO;
 
-    const userPrompt = `Abaixo estão os dados para a redação da seção "DOS FATOS".
-LEIA atentamente o "Relato Informal" e EXTRAIA dele os detalhes sobre trabalho, renda, necessidades e o histórico do conflito para enriquecer o texto, respeitando rigorosamente os papéis processuais e regras do System Prompt.
+    // --- CONSTRUÇÃO DINÂMICA DO USER PROMPT ---
+    // A lógica condicional dos parágrafos §5 e §6 é resolvida AQUI em JS.
+    // O modelo recebe apenas uma lista definitiva e não-ambígua de parágrafos a redigir.
 
+    const temGuarda = (contextFilhosGuarda || "").toLowerCase().includes("guarda") ||
+      (contextFilhosGuarda || "").toLowerCase().includes("conviv");
+    const temDadosRequerido =
+      situacaoRequerido &&
+      !situacaoRequerido.includes("Sem detalhes") &&
+      situacaoRequerido.trim().length > 10;
+
+    // Bloco de dados estruturados para o modelo
+    const blocoReferencia = `
+DADOS DE REFERÊNCIA (use somente estes):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ALIMENTANDOS (autores da ação): ${listaAutoresTexto}
+REPRESENTANTE LEGAL (genitora): ${normalized.requerente?.representante || "Não informado"}
+REQUERIDO (genitor demandado): ${cleanText(normalized.requerido?.nome)}
 TIPO DE AÇÃO: ${normalized.tipo_acao || "Fixação de Alimentos"}
-
-DADOS DOS ENVOLVIDOS:
-- Alimentandos/Autores da ação: ${listaAutoresTexto} (Total: ${todosAutores.length})
-- Representante Legal (genitora que representa os filhos): ${normalized.requerente?.representante || "Não informado"}
-- Requerido (genitor demandado): ${cleanText(normalized.requerido?.nome)}
-
-CONTEXTO DE TRIAGEM (DADOS ESTRUTURADOS):
-- Flags de Guarda: ${contextFilhosGuarda || "[FLAG_GUARDA: NÃO]"}
-- Situação Financeira da Representante Legal: ${situacaoAssistido}
-- Situação do Requerido: ${situacaoRequerido}
-- Valor do Pedido de Alimentos: R$ ${valorPensao}
-- Documentos Fornecidos: ${documentosList}
+VALOR DO PEDIDO: R$ ${valorPensao}
+SITUAÇÃO FINANCEIRA DA REPRESENTANTE LEGAL: ${situacaoAssistido}
+${temDadosRequerido ? `SITUAÇÃO DO REQUERIDO: ${situacaoRequerido}` : "SITUAÇÃO DO REQUERIDO: [SEM DADOS — NÃO ESCREVA SOBRE CAPACIDADE CONTRIBUTIVA]"}
+${temGuarda ? `DADOS DE GUARDA: ${contextFilhosGuarda}` : "GUARDA: [NÃO SOLICITADA — NÃO ESCREVA SOBRE GUARDA OU VISITAS]"}
+DOCUMENTOS: ${documentosList}
 ${contextoExtra}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-RELATO INFORMAL (FONTE PRINCIPAL DE FATOS):
+RELATO INFORMAL (FONTE PRINCIPAL — extraia fatos concretos daqui):
 """
 ${relatoBase}
-"""
+"""`;
 
-INSTRUÇÃO FINAL: Extraia do relato detalhes concretos sobre o trabalho do requerido ou despesas da criança e utilize-os nos parágrafos de Capacidade Contributiva e Necessidades dos Alimentandos. Lembre-se: a mãe é REPRESENTANTE LEGAL, nunca requerente.`;
+    // Parágrafos fixos (sempre presentes)
+    const paragrafos = [
+      `PARÁGRAFO 1 — VÍNCULO E CONTEXTO:
+Apresente: quem são os alimentandos, quem é o requerido, e o contexto do fim do relacionamento.
+PROIBIDO neste parágrafo: qualquer menção a dinheiro, omissão ou dificuldade financeira.
+Limite: 3–4 linhas.`,
+
+      `PARÁGRAFO 2 — OMISSÃO DO REQUERIDO:
+Descreva que o requerido não contribui voluntariamente para o sustento dos filhos.
+Use APENAS fatos concretos do relato (ex: contribuições esporádicas, recusa, ausência).
+PROIBIDO neste parágrafo: mencionar a situação financeira da genitora ou repetir dados do §1.
+Limite: 3–4 linhas.`,
+
+      `PARÁGRAFO 3 — HIPOSSUFICIÊNCIA DA REPRESENTANTE LEGAL:
+Demonstre que a genitora não consegue, sozinha, prover as necessidades dos filhos.
+Se constar no relato: mencione ocupação e renda. Se não constar: foque na impossibilidade sem inventar valores.
+PROIBIDO neste parágrafo: repetir a omissão do requerido. PROIBIDO: repetir dados dos §1 ou §2.
+Limite: 3–4 linhas.`,
+
+      `PARÁGRAFO 4 — NECESSIDADES DOS ALIMENTANDOS E VALOR PEDIDO:
+Liste as necessidades concretas dos alimentandos com base no relato (alimentação, saúde, educação, vestuário, moradia).
+Vincule o valor pedido (R$ ${valorPensao}) a essas despesas reais. Se o valor não estiver no relato, fundamente nas necessidades básicas.
+PROIBIDO neste parágrafo: repetir dados dos parágrafos anteriores.
+Limite: 4–5 linhas.`,
+    ];
+
+    // Parágrafo condicional §5 — só se houver dados reais do requerido
+    if (temDadosRequerido) {
+      paragrafos.push(`PARÁGRAFO ${paragrafos.length + 1} — CAPACIDADE CONTRIBUTIVA DO REQUERIDO:
+Com base EXCLUSIVAMENTE nos dados fornecidos sobre o requerido (${situacaoRequerido}), demonstre que ele tem condições de pagar.
+PROIBIDO: inventar qualquer dado não informado. PROIBIDO: repetir a omissão do §2.
+Limite: 2–3 linhas.`);
+    }
+
+    // Parágrafo condicional §6 — só se guarda foi solicitada
+    if (temGuarda) {
+      paragrafos.push(`PARÁGRAFO ${paragrafos.length + 1} — GUARDA E CONVIVÊNCIA:
+Descreva a situação atual da guarda com base nos dados fornecidos (${contextFilhosGuarda}).
+Inclua o pedido de regularização e o regime de visitas proposto.
+PROIBIDO: generalizar. Use apenas o que foi informado sobre guarda.
+Limite: 3–4 linhas.`);
+    }
+
+    const nParas = paragrafos.length;
+
+    const userPrompt = `${blocoReferencia}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TAREFA: Redija exatamente ${nParas} parágrafo${nParas > 1 ? "s" : ""} conforme as instruções abaixo.
+Separe cada parágrafo com UMA linha em branco. Sem títulos, sem rótulos, sem comentários.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${paragrafos.join("\n\n")}`;
 
     // Chamada Segura: Envia o mapa PII para sanitização automática no aiService
     logger.info(
       `🤖 [IA] Gerando seção 'Dos Fatos' para ${
         normalized.requerente?.nome || "Desconhecido"
-      }...`,
+      } (${nParas} parágrafos esperados)...`,
     );
     const start = Date.now();
     const textoGerado = await generateLegalText(
       systemPrompt,
       userPrompt,
-      0.3,
+      0.1,
       piiMap,
     );
     logger.info(
-      `✅ [IA] 'Dos Fatos' gerado em ${((Date.now() - start) / 1000).toFixed(
-        2,
-      )}s`,
+      `✅ [IA] 'Dos Fatos' gerado em ${((Date.now() - start) / 1000).toFixed(2)}s`,
     );
-    return sanitizeLegalAbbreviations(textoGerado.trim());
+
+    // --- PÓS-PROCESSAMENTO: VALIDADOR E LIMPEZA DE SAÍDA ---
+    const textoPosProcessado = postProcessDosFatos(textoGerado.trim(), nParas);
+
+    return sanitizeLegalAbbreviations(textoPosProcessado);
   } catch (error) {
     logger.error(
       `❌ Erro ao gerar a seção 'Dos Fatos' com IA: ${error.message}`,

@@ -651,7 +651,7 @@ export const Dashboard = () => {
                         <CheckCircle2 size={16} />
                       </button>
                     </div>
-                    <h4 className="text-sm 2xl:text-base font-bold leading-snug text-slate-800 dark:text-slate-100">
+                    <h4 className="text-sm 2xl:text-base font-bold leading-snug text-main">
                       {alerta.titulo}
                     </h4>
                     <p className="text-xs 2xl:text-sm text-muted mt-2 leading-relaxed">

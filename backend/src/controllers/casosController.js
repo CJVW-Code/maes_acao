@@ -3538,31 +3538,42 @@ export const obterDetalhesCaso = async (req, res) => {
     // Vínculo Automático (Apenas para o dono primário, colaboradores NÃO vinculam irmãos)
     // SEGURANÇA: Só pode assumir a autoria de um caso se ele pertencer à sua própria unidade.
     if (!isObserver && !data.defensor_id && !data.servidor_id && !isShared) {
-      if (String(req.user.unidade_id) !== String(data.unidade_id)) {
-        return res.status(403).json({
-          error: "Acesso Negado",
-          message: "Você não tem permissão para assumir um caso de outra unidade.",
-        });
-      }
-
-      const updateData = {};
       const isDefensor = req.user.cargo.toLowerCase().includes("defensor");
+      const isServidor = req.user.cargo.toLowerCase() === "servidor" || req.user.cargo.toLowerCase() === "estagiario";
 
-      if (isDefensor) {
-        updateData.defensor_id = req.user.id;
-        updateData.defensor_at = new Date();
-        data.defensor_id = req.user.id;
-      } else {
-        updateData.servidor_id = req.user.id;
-        updateData.servidor_at = new Date();
-        data.servidor_id = req.user.id;
+      // BUG FIX: Se o status for 'liberado_para_protocolo', o servidor NÃO deve assumir o caso automaticamente.
+      // Isso permite que o servidor libere o caso e ele continue livre para o defensor.
+      let podeAssumir = false;
+      if (isDefensor && ["liberado_para_protocolo", "em_protocolo"].includes(data.status)) {
+        podeAssumir = true;
+      } else if (isServidor && ["pronto_para_analise", "em_atendimento"].includes(data.status)) {
+        podeAssumir = true;
       }
 
-      // Atualiza o caso atual
-      await prisma.casos.update({
-        where: { id: BigInt(id) },
-        data: updateData,
-      });
+      if (podeAssumir) {
+        if (String(req.user.unidade_id) !== String(data.unidade_id)) {
+          return res.status(403).json({
+            error: "Acesso Negado",
+            message: "Você não tem permissão para assumir um caso de outra unidade.",
+          });
+        }
+
+        const updateData = {};
+        if (isDefensor) {
+          updateData.defensor_id = req.user.id;
+          updateData.defensor_at = new Date();
+          data.defensor_id = req.user.id;
+        } else {
+          updateData.servidor_id = req.user.id;
+          updateData.servidor_at = new Date();
+          data.servidor_id = req.user.id;
+        }
+
+        // Atualiza o caso atual
+        await prisma.casos.update({
+          where: { id: BigInt(id) },
+          data: updateData,
+        });
 
       // NOVO: Vincular automaticamente todos os outros casos da mesma família
       const cpfRepresentante = data.representante_cpf; // Usar exclusivamente cpf_representante
@@ -3627,6 +3638,7 @@ export const obterDetalhesCaso = async (req, res) => {
         } catch (err) {
           logger.error(`Erro ao vincular casos familiares (Prisma): ${err.message}`);
         }
+      }
       }
     }
 
@@ -4110,6 +4122,8 @@ export const regenerarDosFatos = async (req, res) => {
         .from("casos_ia")
         .update({
           dos_fatos_gerado: dosFatosTexto,
+          peticao_inicial_rascunho: currentExtra.peticao_inicial_rascunho,
+          peticao_completa_texto: null, // Limpa o snapshot completo para forçar exibição do novo rascunho
           dados_extraidos: currentExtra,
         })
         .eq("caso_id", id);
@@ -4128,6 +4142,8 @@ export const regenerarDosFatos = async (req, res) => {
         where: { caso_id: BigInt(id) },
         data: {
           dos_fatos_gerado: dosFatosTexto,
+          peticao_inicial_rascunho: currentExtra.peticao_inicial_rascunho,
+          peticao_completa_texto: null,
           dados_extraidos: currentExtra,
         },
       });
