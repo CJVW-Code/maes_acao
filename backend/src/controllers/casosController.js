@@ -1971,13 +1971,13 @@ export const processarCasoEmBackground = async (
       select: { status: true, documentos: { select: { id: true } } },
     });
 
-    if (
-      casoAtual?.status === "aguardando_documentos" ||
-      (casoAtual?.documentos?.length === 0 && !urls_documentos?.length)
-    ) {
-      logger.warn(`[Background] Caso ${protocolo} sem documentos. Processamento abortado.`);
+    if (casoAtual?.status === "aguardando_documentos") {
+      logger.warn(`[Background] Caso ${protocolo} ainda aguardando documentos. Processamento abortado.`);
       return; // Mantém status aguardando_documentos
     }
+
+    // Mesmo sem documentos, casos enviados como "sem documento" devem gerar minuta.
+    // O processamento segue com urls_documentos vazias e usa apenas os dados do formulário.
     // Extrair a chave do dicionário enviada pelo frontend
     let acaoRaw =
       dados_formulario.acaoEspecifica ||
