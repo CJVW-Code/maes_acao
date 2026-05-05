@@ -496,7 +496,10 @@ export const deletarDefensor = async (req, res) => {
 // --- RESETAR SENHA (Apenas Admin) ---
 export const resetarSenhaDefensor = async (req, res) => {
   try {
-    if (!req.user || req.user.cargo?.toLowerCase() !== "admin") {
+    const userCargo = req.user?.cargo?.toLowerCase();
+    const ALLOWED_MANAGERS = ["admin", "gestor", "coordenador"];
+
+    if (!req.user || !ALLOWED_MANAGERS.includes(userCargo)) {
       return res.status(403).json({ error: "Acesso negado." });
     }
 
@@ -507,6 +510,47 @@ export const resetarSenhaDefensor = async (req, res) => {
       return res
         .status(400)
         .json({ error: "A nova senha deve ter pelo menos 6 caracteres." });
+    }
+
+    // Busca o membro alvo para validar hierarquia e regional
+    const targetMemberFull = await prisma.defensores.findUnique({
+      where: { id },
+      include: { cargo: true, unidade: true }
+    });
+
+    if (!targetMemberFull) {
+      return res.status(404).json({ error: "Membro não encontrado." });
+    }
+
+    // Se for coordenador, valida se o membro alvo pertence à sua regional
+    if (userCargo === "coordenador") {
+      const currentUser = await prisma.defensores.findUnique({
+        where: { id: req.user.id },
+        include: { unidade: true }
+      });
+      const userRegional = currentUser?.regional || currentUser?.unidade?.regional;
+      const targetRegional = targetMemberFull.regional || targetMemberFull.unidade?.regional;
+
+      if (!userRegional) {
+        return res.status(403).json({ error: "Sua conta de Coordenador não possui uma regional vinculada." });
+      }
+
+      if (targetRegional !== userRegional) {
+        return res.status(403).json({ error: "Você só pode resetar senhas de membros da sua regional." });
+      }
+    }
+
+    const myWeight = PESO_CARGO[userCargo] ?? 0;
+    const targetWeight = PESO_CARGO[targetMemberFull.cargo.nome.toLowerCase()] ?? 0;
+
+    // 1. Não pode resetar senha de alguém de nível superior ou igual (exceto se for Admin)
+    if (userCargo !== "admin" && targetWeight >= myWeight) {
+      return res.status(403).json({ error: "Acesso negado. Você só pode resetar senhas de usuários com cargo estritamente inferior ao seu." });
+    }
+
+    // 2. Proteção Admin: apenas admins mexem em admins
+    if (targetMemberFull.cargo.nome.toLowerCase() === "admin" && userCargo !== "admin") {
+      return res.status(403).json({ error: "Acesso negado. Apenas administradores podem resetar senhas de outros administradores." });
     }
 
     const senha_hash = await hashPassword(novaSenha);

@@ -238,7 +238,7 @@ export const SecaoProcessoOriginal = ({
                 });
               }
             }}
-            className={`input py-2 text-sm ${formErrors.calculo_geral ? "border-error ring-1 ring-error" : ""}`}
+            className="input py-2 text-sm"
           />
         </div>
 
@@ -257,15 +257,11 @@ export const SecaoProcessoOriginal = ({
                 });
               }
             }}
-            className={`input py-2 text-sm ${formErrors.calculo_geral ? "border-error ring-1 ring-error" : ""}`}
+            className="input py-2 text-sm"
           />
         </div>
 
-        {formErrors.calculo_geral && (
-          <div className="md:col-span-2">
-            <p className="text-xs text-error font-medium mt-1">{formErrors.calculo_geral}</p>
-          </div>
-        )}
+
         <div>
           <label
             htmlFor="link_calculadora"

@@ -83,7 +83,8 @@ export const processSubmission = async ({
   // Validação de Guarda (Seção Campos Gerais)
   if (!configAcao?.camposGerais?.ocultarDetalhesGerais) {
     if (!formState.opcaoGuarda) {
-      validationErrors.opcaoGuarda = "O preenchimento de Guarda da Criança e Direito de Convivência / Visitas é obrigatório.";
+      validationErrors.opcaoGuarda =
+        "O preenchimento de Guarda da Criança e Direito de Convivência / Visitas é obrigatório.";
     } else if (formState.opcaoGuarda === "regularizar" && !formState.descricaoGuarda?.trim()) {
       validationErrors.descricaoGuarda = "Descreva como deseja que funcione a guarda e visitas.";
     }
@@ -136,7 +137,6 @@ export const processSubmission = async ({
   // Validação CPF e Data de Nascimento - Outros Filhos
   if (formState.outrosFilhos && formState.outrosFilhos.length > 0) {
     formState.outrosFilhos.forEach((filho, index) => {
-      
       if (filho.cpf && !validateCpfAlgorithm(filho.cpf)) {
         validationErrors[`filho_cpf_${index}`] = `O CPF do Filho(a) ${index + 2} é inválido.`;
       }
@@ -176,22 +176,20 @@ export const processSubmission = async ({
     if (!formState.valor_debito) {
       validationErrors.valor_debito = "O valor total do débito é obrigatório.";
     }
-    if (!formState.calculo_prisao_arquivo && !formState.calculo_penhora_arquivo && !formState.enviarDocumentosDepois) {
-      validationErrors.calculo_geral = "Você deve anexar pelo menos um demonstrativo do cálculo (Prisão ou Penhora).";
-    }
+
   }
 
-    // 3. Validação de Quantidade Mínima de Documentos
+  // 3. Validação de Quantidade Mínima de Documentos
   const isEnviarDepois =
-    formState.enviarDocumentosDepois === true || 
-    formState.enviarDocumentosDepois === "true" || 
+    formState.enviarDocumentosDepois === true ||
+    formState.enviarDocumentosDepois === "true" ||
     Boolean(formState.enviarDocumentosDepois) === true;
 
   if (!isEnviarDepois) {
-    // RG do Responsável (Frente/Verso), Residência, Renda = 4. 
+    // RG do Responsável (Frente/Verso), Residência, Renda = 4.
     // Se for incapaz, +1 (Certidão) = 5.
-    let minDocs = formState.assistidoEhIncapaz === "nao" ? 4 : 5; 
-    
+    let minDocs = formState.assistidoEhIncapaz === "nao" ? 4 : 5;
+
     // Incrementa se exigir documentos do processo original (Ex: Cópia da Sentença)
     if (configAcao?.exigeDadosProcessoOriginal) {
       minDocs += 1;
@@ -211,9 +209,11 @@ export const processSubmission = async ({
         formState.assistidoEhIncapaz === "nao"
           ? "RG (Frente e Verso), Comprovante de Residência e Comprovante de Renda"
           : "RG do Responsável (Frente e Verso), Comprovante de Residência, Comprovante de Renda e Certidão de Nascimento";
-      
-      const extraMsg = configAcao?.exigeDadosProcessoOriginal ? " + Documentos do Processo Original/Cálculos" : "";
-      
+
+      const extraMsg = configAcao?.exigeDadosProcessoOriginal
+        ? " + Documentos do Processo Original/Cálculos"
+        : "";
+
       validationErrors.documentos = `É necessário anexar pelo menos ${minDocs} documentos: ${docsNecessarios}${extraMsg}. Atual: ${totalAnexados}.`;
     }
   }

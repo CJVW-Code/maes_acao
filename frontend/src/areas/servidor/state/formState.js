@@ -7,11 +7,11 @@ export const initialState = {
   // Dados pessoais do assistido
   assistidoEhIncapaz: "nao", // "sim" ou "nao"
   // Dados pessoais do assistido (Criança ou Autor Adulto)
-  NOME: "",            // Nome do assistido principal (criança ou adulto)
-  nascimento: "",      // Data nascimento assistido principal
-  cpf: "",             // CPF do assistido principal
+  NOME: "", // Nome do assistido principal (criança ou adulto)
+  nascimento: "", // Data nascimento assistido principal
+  cpf: "", // CPF do assistido principal
   nacionalidade: "Brasileira",
-  
+
   // Dados do representante (Genitora em casos de incapaz) ou Autor Adulto (mesmo campo para template)
   REPRESENTANTE_NOME: "",
   representante_cpf: "",
@@ -73,7 +73,7 @@ export const initialState = {
   valor_honorarios: "",
   data_inicio_debito: "",
   data_fim_debito: "",
-  
+
   // Guarda e Convivência
   opcaoGuarda: "", // "nao" | "regularizar"
   descricaoGuarda: "",
@@ -147,18 +147,14 @@ export const formReducer = (state, action) => {
     case "REMOVE_FILHO":
       return {
         ...state,
-        outrosFilhos: state.outrosFilhos.filter(
-          (_, index) => index !== action.index,
-        ),
+        outrosFilhos: state.outrosFilhos.filter((_, index) => index !== action.index),
       };
 
     case "UPDATE_FILHO":
       return {
         ...state,
         outrosFilhos: state.outrosFilhos.map((filho, index) =>
-          index === action.index
-            ? { ...filho, [action.field]: action.value }
-            : filho,
+          index === action.index ? { ...filho, [action.field]: action.value } : filho,
         ),
       };
 
