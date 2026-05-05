@@ -43,6 +43,8 @@ import { Client } from "@upstash/qstash";
 import { TAGS_OFICIAIS } from "../config/dicionarioTags.js";
 import { safeFormData } from "../utils/helpers.js";
 import { validateTransition } from "../utils/stateMachine.js";
+import { sanitizeFilename } from "../middleware/upload.js";
+
 
 // Colunas físicas da tabela casos_ia que podem ser atualizadas diretamente
 const DIRECT_COLUMN_KEYS = new Set(["url_peticao", "url_peticao_penhora", "url_peticao_prisao"]);
@@ -4825,7 +4827,7 @@ export const finalizarCasoSolar = async (req, res) => {
   try {
     if (req.file) {
       const file = req.file;
-      const safeOriginalName = path.basename(file.originalname);
+      const safeOriginalName = sanitizeFilename(path.basename(file.originalname));
       const filePath = `capas/${id}_${Date.now()}_${safeOriginalName}`;
 
       if (isSupabaseConfigured) {
@@ -5064,7 +5066,7 @@ export const receberDocumentosComplementares = async (req, res) => {
     // 2. Processa e sobe os arquivos
     if (req.files && req.files.documentos) {
       for (const docFile of req.files.documentos) {
-        const safeName = docFile.originalname.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const safeName = sanitizeFilename(docFile.originalname);
         const filePath = `${caso.protocolo}/complementar_${Date.now()}_${safeName}`;
 
         if (isSupabaseConfigured) {

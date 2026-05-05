@@ -5,7 +5,15 @@ import { motion as Motion, AnimatePresence } from "motion/react";
 /**
  * Componente VideoPlayer premium para exibir treinamentos via links externos (SharePoint/YouTube/etc)
  */
-export const VideoPlayer = ({ url, fallbackUrl, title, description, className = "", extraActionUrl, extraActionLabel }) => {
+export const VideoPlayer = ({
+  url,
+  fallbackUrl,
+  title,
+  description,
+  className = "",
+  extraActionUrl,
+  extraActionLabel,
+}) => {
   const [showVideo, setShowVideo] = useState(false);
 
   // Tenta converter link do SharePoint para versão embed se necessário
@@ -20,7 +28,7 @@ export const VideoPlayer = ({ url, fallbackUrl, title, description, className = 
 
   return (
     <div className={`w-full ${className}`}>
-      <Motion.div 
+      <Motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
@@ -35,18 +43,21 @@ export const VideoPlayer = ({ url, fallbackUrl, title, description, className = 
                   <Video size={32} strokeWidth={1.5} />
                 </div>
               </div>
-              
+
               <div className="space-y-1">
-                <h4 className="font-serif font-bold text-xl text-special">{title || "Tutorial do Sistema"}</h4>
+                <h4 className="font-serif font-bold text-xl text-special">
+                  {title || "Tutorial do Sistema"}
+                </h4>
                 <p className="text-sm text-muted max-w-md">
-                  {description || "Assista ao vídeo de treinamento abaixo para aprender a utilizar as funcionalidades do sistema."}
+                  {description ||
+                    "Assista ao vídeo de treinamento abaixo para aprender a utilizar as funcionalidades do sistema."}
                 </p>
               </div>
             </div>
 
             <div className="flex gap-3">
               {!showVideo && (
-                <button 
+                <button
                   onClick={() => setShowVideo(true)}
                   className="btn btn-primary px-8 py-4 rounded-2xl flex items-center gap-3 shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95"
                 >
@@ -54,9 +65,9 @@ export const VideoPlayer = ({ url, fallbackUrl, title, description, className = 
                   <span>Carregar Vídeo</span>
                 </button>
               )}
-              <a 
-                href={fallbackUrl || url} 
-                target="_blank" 
+              <a
+                href={fallbackUrl || url}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="btn btn-ghost border border-soft px-6 py-4 rounded-2xl flex items-center gap-2 hover:bg-soft/50 transition-colors text-sm"
               >
@@ -65,12 +76,12 @@ export const VideoPlayer = ({ url, fallbackUrl, title, description, className = 
               </a>
 
               {extraActionUrl && (
-                <a 
+                <a
                   href={extraActionUrl}
                   download
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="btn bg-highlight/10 text-highlight border border-highlight/20 px-6 py-4 rounded-2xl flex items-center gap-2 hover:bg-highlight/20 transition-all shadow-sm"
+                  className="btn bg-primary/10 text-primary-600 border border-primary/20 px-6 py-4 rounded-2xl flex items-center gap-2 hover:bg-primary/20 transition-all shadow-sm"
                 >
                   <Download size={18} />
                   <span className="font-bold">{extraActionLabel || "Baixar Arquivo"}</span>
@@ -83,7 +94,7 @@ export const VideoPlayer = ({ url, fallbackUrl, title, description, className = 
           <div className="relative w-full aspect-video rounded-3xl overflow-hidden bg-black/5 border border-soft shadow-inner">
             <AnimatePresence mode="wait">
               {!showVideo ? (
-                <Motion.div 
+                <Motion.div
                   key="placeholder"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -99,13 +110,13 @@ export const VideoPlayer = ({ url, fallbackUrl, title, description, className = 
                   </p>
                 </Motion.div>
               ) : (
-                <Motion.div 
+                <Motion.div
                   key="video"
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="w-full h-full"
                 >
-                  <iframe 
+                  <iframe
                     src={getEmbedUrl(url)}
                     className="w-full h-full"
                     frameBorder="0"
@@ -119,14 +130,20 @@ export const VideoPlayer = ({ url, fallbackUrl, title, description, className = 
           </div>
 
           {showVideo && (
-            <Motion.div 
+            <Motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               className="mt-2 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex gap-3 items-start"
             >
               <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={18} />
               <p className="text-sm text-amber-700 dark:text-amber-400 leading-relaxed">
-                <strong>Erro de conexão?</strong> Se o vídeo não carregar ou mostrar "A conexão foi recusada" (devido a bloqueios de segurança da rede da DPE), clique no botão <strong>"Ver no SharePoint"</strong> acima para assistir em uma nova guia. <br/>Se ainda assim não conseguir acessar, <strong>fale com o seu coordenador</strong> para solicitar acesso ao arquivo.
+                <strong>Erro de conexão?</strong> Se o vídeo não carregar ou mostrar "A conexão foi
+                recusada" (devido a bloqueios de segurança da rede da DPE), clique no botão{" "}
+                <strong>"Ver no SharePoint"</strong> acima para assistir em uma nova guia. <br />
+                Se ainda assim não conseguir acessar, <strong>
+                  fale com o seu coordenador
+                </strong>{" "}
+                para solicitar acesso ao arquivo.
               </p>
             </Motion.div>
           )}

@@ -8,7 +8,7 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
 
-const sanitizeFilename = (rawName = "arquivo") => {
+export const sanitizeFilename = (rawName = "arquivo") => {
   const toUtf8 = Buffer.from(rawName, "latin1").toString("utf8");
   const trimmed = toUtf8.trim() || "arquivo";
   const sanitized = trimmed

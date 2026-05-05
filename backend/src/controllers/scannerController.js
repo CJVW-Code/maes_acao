@@ -6,19 +6,9 @@ import path from "path";
 import fs from "fs/promises";
 import fsSync from "fs";
 import crypto from "crypto";
+import { sanitizeFilename } from "../middleware/upload.js";
 
-const sanitizeFilename = (rawName = "arquivo") => {
-  const normalized = rawName
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
 
-  return normalized
-    .trim()
-    .replace(/\s+/g, "_")
-    .replace(/[^\w.-]+/g, "_")
-    .replace(/_+/g, "_")
-    .replace(/^_+|_+$/g, "") || "arquivo";
-};
 
 /**
  * Controller focado em receber documentos do aplicativo de scanner
