@@ -5,7 +5,21 @@ import logger from "../utils/logger.js";
 import path from "path";
 import fs from "fs/promises";
 import fsSync from "fs";
+import crypto from "crypto";
 import { Client } from "@upstash/qstash";
+
+const sanitizeFilename = (rawName = "arquivo") => {
+  const normalized = rawName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  return normalized
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/[^\w.-]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "") || "arquivo";
+};
 
 /**
  * Controller focado em receber documentos do aplicativo de scanner
@@ -47,8 +61,9 @@ export const scannerUpload = async (req, res) => {
       const file = req.files[i];
       const tipoArquivo = tiposArray[i] || "outro";
       
-      const safeOriginalName = path.basename(file.originalname);
-      const filePath = `${protocolo}/${Date.now()}_${safeOriginalName}`;
+      const safeOriginalName = sanitizeFilename(path.basename(file.originalname));
+      const fileId = `${Date.now()}-${i}-${crypto.randomUUID().slice(0, 8)}`;
+      const filePath = `${protocolo}/${fileId}_${safeOriginalName}`;
 
       if (isSupabaseConfigured) {
         const fileStream = fsSync.createReadStream(file.path);
@@ -61,9 +76,9 @@ export const scannerUpload = async (req, res) => {
 
         if (uploadError) {
           logger.error(
-            `[Scanner] Erro upload Supabase: ${uploadError.message}`,
+            `[Scanner] Erro upload Supabase: ${uploadError.message} (filePath=${filePath})`,
           );
-          throw uploadError;
+          throw new Error(`Supabase upload failed for ${safeOriginalName}: ${uploadError.message}`);
         }
         urls_documentos.push(filePath);
       } else {
