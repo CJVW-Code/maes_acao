@@ -144,6 +144,12 @@ export const normalizePromptData = (raw = {}) => {
   };
 };
 
+/**
+ * Clean and standardize common "Dos Fatos" headings and a set of legal/child-related terms in a text.
+ *
+ * Removes common "Dos Fatos" headings and normalizes certain abbreviations and references to minors to standardized legal wording.
+ * @param {string} text - The input text to sanitize.
+ * @returns {string} The sanitized text with headings removed and specified terms normalized. */
 function sanitizeLegalAbbreviations(text) {
   let cleaned = text.replace(/#+\s*Dos Fatos/gi, "").replace(/\*\*Dos Fatos\*\*/gi, "");
   cleaned = cleaned.replace(/^Dos Fatos\n/i, "").trim();

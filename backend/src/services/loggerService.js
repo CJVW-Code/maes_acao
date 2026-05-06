@@ -1,8 +1,13 @@
 import { prisma } from "../config/prisma.js";
 
 /**
- * Máscara dados sensíveis em objetos de log (LGPD)
- */
+ * Recursively mask personally identifiable information (PII) in an object or array for safe logging.
+ *
+ * Known sensitive keys are replaced with "[REDACTED]", and common patterns such as CPF and email addresses
+ * found in string values are replaced with "[CPF_REDACTED]" and "[EMAIL_REDACTED]" respectively.
+ *
+ * @param {Object|Array<any>} obj - The input object or array to be scanned and masked; returned unchanged if falsy or not an object.
+ * @returns {Object|Array<any>} A shallow-copied object or array with sensitive fields and detected patterns redacted.
 function maskPII(obj) {
   if (!obj || typeof obj !== "object") return obj;
 
@@ -33,6 +38,18 @@ function maskPII(obj) {
   return masked;
 }
 
+/**
+ * Record an audit log entry in the database, associating it with a case when applicable.
+ *
+ * Attempts to resolve a case ID when `entidade` is "casos" and `registroId` is provided (treated as a protocol),
+ * masks personally identifiable information in `detalhes` before persisting, and stores the created timestamp.
+ *
+ * @param {any} usuarioId - The user identifier for the actor; may be falsy to indicate an anonymous/system action.
+ * @param {string} acao - A short description of the action being logged.
+ * @param {string} entidade - The entity type related to the log (e.g., "casos").
+ * @param {any} registroId - Identifier of the related record; when present it is stored as a string and, if `entidade` is "casos", used to look up the associated case ID.
+ * @param {Object} [detalhes={}] - Additional details to include in the log; sensitive PII fields and common patterns (CPF, email) are masked before storage.
+ */
 export async function registrarLog(
   usuarioId,
   acao,

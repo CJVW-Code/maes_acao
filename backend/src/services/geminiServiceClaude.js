@@ -237,6 +237,13 @@ const cleanText = (value, fallback = "") => {
   return text.length ? text : fallback;
 };
 
+/**
+ * Clean and normalize common legal headings and abbreviations in a "Dos Fatos" text.
+ *
+ * Replaces Markdown or plain headings for "Dos Fatos", ensures "art" is formatted as "art.", and normalizes child-related terms to consistent wording (e.g., "menor" → "criança", "o menor" → "o alimentando").
+ * @param {string} text - The input text to sanitize.
+ * @returns {string} The sanitized text with headings removed and standardized abbreviations/terms.
+ */
 function sanitizeLegalAbbreviations(text) {
   let cleaned = text.replace(/#+\s*Dos Fatos/gi, "").replace(/\*\*Dos Fatos\*\*/gi, "");
   cleaned = cleaned.replace(/^Dos Fatos\n/i, "").trim();

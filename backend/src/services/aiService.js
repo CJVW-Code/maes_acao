@@ -17,7 +17,12 @@ const openaiClient = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
 
-// Função auxiliar para escapar caracteres especiais em Regex (segurança)
+/**
+ * Escape all characters in a string that have special meaning in regular expressions.
+ *
+ * @param {string} string - The input to escape for safe use in a regex pattern.
+ * @returns {string} The input with regex-special characters prefixed by backslashes.
+ */
 function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
