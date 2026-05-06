@@ -28,7 +28,7 @@ const app = express();
 const PORT = process.env.PORT || 8000;
 
 // Configurações Globais de Segurança
-app.set("trust proxy", 1); // Necessário para rate-limiting atrás de proxies (Vercel/Railway)
+app.set("trust proxy", 1); // Necessário para rate-limiting atrás de proxies (Vercel/Cloud Run)
 app.use(helmet());
 app.use(globalLimiter);
 

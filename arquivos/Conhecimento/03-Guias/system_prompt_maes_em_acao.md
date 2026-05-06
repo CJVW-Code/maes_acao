@@ -22,7 +22,7 @@ O **Mães em Ação** é uma evolução do sistema anterior, adaptado para um mu
 
 ```
 Frontend:   React 18 + Vite → Vercel (Free — SPA estática, sem serverless)
-Backend:    Node.js + Express → Railway Pro ($20/mês)
+Backend:    Node.js + Express → Google Cloud Run ($20/mês)
 Banco:      Supabase Pro (PostgreSQL, sa-east-1) — projeto ISOLADO da versão anterior
 Storage:    Supabase Storage (S3-compatible) — apenas signed URLs, nunca públicas
 Fila:       QStash (Upstash) Pay-as-you-go — US Region
@@ -30,11 +30,11 @@ OCR:        GPT-4o-mini (OpenAI) — substitui Gemini da versão anterior
 Redação IA: Groq Llama 3.3 70B — mantido da versão anterior (free tier, ~zero custo)
 Templates:  docxtemplater + pizzip — um .docx por tipo de ação
 Auth:       JWT gerado no próprio backend Express (não Supabase Auth)
-            Secret: variável JWT_SECRET no Railway (mínimo 64 chars)
+            Secret: variável JWT_secret no Cloud Run (mínimo 64 chars)
             Expiração: 12h (cobre um dia de mutirão)
 ```
 
-**Variáveis de ambiente obrigatórias no Railway:**
+**Variáveis de ambiente obrigatórias no Google Cloud Run:**
 
 ```
 SUPABASE_URL                  → URL do projeto Mães em Ação (isolado da versão anterior)
@@ -46,7 +46,7 @@ QSTASH_URL                    → Endpoint QStash para publicar mensagens
 QSTASH_TOKEN                  → Token de autenticação QStash
 QSTASH_CURRENT_SIGNING_KEY    → Validação de webhooks /api/jobs
 QSTASH_NEXT_SIGNING_KEY       → Rotação de chaves QStash
-WEBHOOK_URL                   → URL pública do Railway para o QStash chamar
+WEBHOOK_URL                   → URL pública do Google Cloud Run para o QStash chamar
 API_KEY_SERVIDORES            → Chave de acesso triagem/scanner (64 chars aleatórios)
 JWT_SECRET                    → Secret JWT (64 chars aleatórios)
 NODE_ENV                      → production
@@ -218,7 +218,7 @@ Exclusivos dos modelos cumulados (prov_cumulado e def_cumulado):
 
 ```
 NUNCA chamar GPT-4o-mini ou Groq de forma síncrona em request HTTP.
-Railway tem timeout de 30s — documentos pesados ultrapassam esse limite.
+Google Cloud Run tem timeout de 30s — documentos pesados ultrapassam esse limite.
 ```
 
 **Fluxo:**
@@ -257,7 +257,7 @@ Railway tem timeout de 30s — documentos pesados ultrapassam esse limite.
 - Storage: apenas `signed URLs` com expiração de 1 hora — zero URLs públicas permanentes
 - Logs: nunca registrar CPF, nome ou dados pessoais — apenas `caso_id`, `acao`, timestamps
 - Região: sa-east-1 (Brasil) exclusivamente
-- JWT: gerado no backend com `jsonwebtoken`, secret no Railway, expiração 12h
+- JWT: gerado no backend com `jsonwebtoken`, secret no Cloud Run, expiração 12h
 - API Key servidores: header `X-API-Key`, string aleatória 64 chars
 
 **Perfis de acesso:**
@@ -314,7 +314,7 @@ Para evitar sugestões fora do escopo:
 - ❌ Não há Supabase Auth — autenticação é JWT próprio
 - ❌ Não há WebSocket — polling simples a cada 20s no painel
 - ❌ Não há cidadão com acesso direto ao sistema — servidor é o intermediário
-- ❌ Não há serverless functions no Vercel — backend é exclusivamente Railway
+- ❌ Não há serverless functions no Vercel — backend é exclusivamente Google Cloud Run
 - ❌ A extensão SOLAR/SIGAD é um PLUS externo — não faz parte deste repositório
 
 ---

@@ -46,7 +46,7 @@ A decisão é **não reescrever o que funciona**. Prisma continua sendo usado pa
 
 ```
 Frontend:   React 18 + Vite → Vercel Free (SPA estática — sem serverless functions)
-Backend:    Node.js 18+ Express + ES Modules → Railway Pro ($20/mês mínimo)
+Backend:    Node.js 18+ Express + ES Modules → Google Cloud Run ($20/mês mínimo)
 Banco:      Supabase Pro (PostgreSQL, sa-east-1) — projeto ISOLADO da versão anterior
 ORM:        Prisma para tabelas de usuários | Supabase JS para tabelas de casos
 Storage:    Supabase Storage — apenas signed URLs com expiração de 1h, NUNCA públicas
@@ -58,7 +58,7 @@ Templates:  docxtemplater + pizzip — um .docx por tipo de ação
 Auth:       JWT gerado no backend Express — secret em JWT_SECRET (64 chars)
 ```
 
-### 2.2 Variáveis de ambiente obrigatórias no Railway
+### 2.2 Variáveis de ambiente obrigatórias no Google Cloud Run
 
 ```env
 # Supabase
@@ -76,7 +76,7 @@ QSTASH_URL=https://qstash.upstash.io/v2/publish/
 QSTASH_TOKEN=eyJ...
 QSTASH_CURRENT_SIGNING_KEY=sig_...
 QSTASH_NEXT_SIGNING_KEY=sig_...
-WEBHOOK_URL=https://SEU_APP.up.railway.app/api/jobs
+WEBHOOK_URL=https://SEU_APP.up.Google Cloud Run.app/api/jobs
 
 # Auth
 JWT_SECRET=64_chars_aleatorios
@@ -1609,7 +1609,7 @@ O backend deve SEMPRE enviar estas chaves duplicadas no objeto de merge, sem ló
 
 ### 9.2 Teste de carga pré-mutirão
 
-Usar k6 ou Artillery para simular 40 requests simultâneos por 10 minutos. Métricas alvo: tempo de resposta das rotas críticas abaixo de 2 segundos, taxa de erro abaixo de 1%, RAM do Railway abaixo de 70%.
+Usar k6 ou Artillery para simular 40 requests simultâneos por 10 minutos. Métricas alvo: tempo de resposta das rotas críticas abaixo de 2 segundos, taxa de erro abaixo de 1%, RAM do Google Cloud Run abaixo de 70%.
 
 ---
 
@@ -1620,7 +1620,7 @@ Múltiplos alicerces originais já foram desenvolvidos nas sessões recentes (fo
 - [ ] 1. Rodar os scripts de banco (`casos_ia`, schemas parciais de fila) faltantes no Supabase Pro.
 - [ ] 2. Rodar as funções RPC de Lock Transacional (`lock_caso_servidor`, `lock_caso_defensor`).
 - [x] 3. Atualizar `schema.prisma` (Unidade, CaseStatus e Roles estruturalmente implementados).
-- [ ] 4. Efetivar variáveis no Railway de Prod (atenção ao Database_URL com pgBouncer na porta 6543).
+- [ ] 4. Efetivar variáveis no Google Cloud Run de Prod (atenção ao Database_URL com pgBouncer na porta 6543).
 - [x] 5. Reescrever e revisar de cabo a rabo a arquitetura de `dicionarioAcoes.js` (Evoluído na adequação local).
 - [x] 6. Migrar processamentos de Merge do docxtemplater para absorção nativa.
 - [ ] 7. Confirmar o orquestrador `pipelineService.js` no Job Queue.
@@ -1651,12 +1651,12 @@ Esta seção existe para evitar erros comuns ao trabalhar com IA de código.
 
 **Não usar WebSocket.** O polling simples a cada 20s no painel do defensor é suficiente para o volume do mutirão.
 
-**Não adicionar serverless functions no Vercel.** O backend é exclusivamente o Railway.
+**Não adicionar serverless functions no Vercel.** O backend é exclusivamente o Google Cloud Run.
 
 **Não salvar URLs públicas permanentes no Storage.** Sempre `storage_path`, sempre signed URLs na hora de servir.
 
 **Não remover o Gemini como fallback no aiService.js.** Ele serve de segurança se o Groq falhar durante o mutirão.
 
-**Não usar `localhost` no WEBHOOK_URL.** O QStash precisa de uma URL pública acessível — a URL do Railway em produção.
+**Não usar `localhost` no WEBHOOK_URL.** O QStash precisa de uma URL pública acessível — a URL do Google Cloud Run em produção.
 
 **Não fazer deploy sem popular a tabela `unidades`.** O campo `CIDADE` no template vem da comarca da unidade — sem isso todos os documentos saem com valor vazio ou erro.

@@ -6,7 +6,7 @@ Este plano visa resolver as inconsistências de persistência de dados, implemen
 
 > [!IMPORTANT]
 > **Migração de Dados**: A normalização dos documentos deixará de usar o campo `urls_documentos` (array) na tabela `casos` para usar exclusivamente a tabela `documentos`.
-> **QStash em Produção**: Precisaremos garantir que as variáveis de ambiente `API_BASE_URL` e `QSTASH_TOKEN` estejam configuradas corretamente no painel da Railway/Vercel.
+> **QStash em Produção**: Precisaremos garantir que as variáveis de ambiente `API_BASE_URL` e `QSTASH_TOKEN` estejam configuradas corretamente no painel da Google Cloud Run/Vercel.
 
 ## Proposed Changes
 

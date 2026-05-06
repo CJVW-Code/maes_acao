@@ -34,7 +34,7 @@ O **Mães em Ação** é um sistema Full Stack desenvolvido para apoiar o mutir�
 - **React Router** → Navegação SPA
 
 ### Backend
-- **Node.js + Express** → Railway Pro
+- **Node.js + Express** → Google Cloud Run
 - **ES Modules** → `"type": "module"` no `package.json`
 - **Prisma ORM** → Abstração do banco (equipe/RBAC)
 - **Supabase JS Client** → Core de casos e pipeline IA
@@ -79,7 +79,7 @@ graph TB
         DEF["Área do Defensor<br/>React + Vite"]
     end
 
-    subgraph "Backend (Railway)"
+    subgraph "Backend (Google Cloud Run)"
         direction TB
         API["Express API<br/>Node.js"]
         WORKER["Worker em Background<br/>processarCasoEmBackground()"]
@@ -336,7 +336,7 @@ sequenceDiagram
 - **Storage:** apenas `signed URLs` com expiração de 1 hora
 - **Logs:** nunca registrar CPF, nome ou dados pessoais — apenas `caso_id`, `acao`, timestamps
 - **Região:** sa-east-1 (Brasil) exclusivamente
-- **JWT:** gerado no backend com `jsonwebtoken`, secret no Railway, expiração 12h
+- **JWT:** gerado no backend com `jsonwebtoken`, secret no Cloud Run, expiração 12h
 - **API Key servidores:** header `X-API-Key`, string aleatória 64 chars
 - **Download Ticket:** `POST /:id/gerar-ticket-download` gera JWT `{ purpose: "download", caso_id }` para downloads sem expor o token principal nas URLs de download direto
 
@@ -491,7 +491,7 @@ services:
 ### Ambientes
 
 - **Desenvolvimento:** Docker local + Prisma
-- **Produção:** Railway Pro (backend) + Vercel (frontend) + Supabase Pro (banco/storage)
+- **Produção:** Google Cloud Run (backend) + Vercel (frontend) + Supabase Pro (banco/storage)
 
 ### Variáveis de Ambiente Essenciais
 

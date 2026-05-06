@@ -41,9 +41,9 @@ export const Treinamentos = () => {
       subtitle: "Exportação Inteligente de Casos",
       description:
         "Domine a integração entre o Mães em Ação e o sistema SOLAR. Aprenda a utilizar nossa extensão para automatizar o cadastro de atendimentos, reduzindo o tempo de protocolo em até 80%.",
-      url: "https://defensoriaba-my.sharepoint.com/personal/janaina_santos_defensoria_ba_def_br/_layouts/15/embed.aspx?UniqueId=088f0e74-15a8-48b5-a755-74801b0ba5e3&embed=%7B%22ust%22%3Atrue%2C%22hv%22%3A%22CopyEmbedCode%22%7D&referrer=StreamWebApp&referrerScenario=EmbedDialog.Create",
+      url: "https://defensoriaba-my.sharepoint.com/personal/janaina_santos_defensoria_ba_def_br/_layouts/15/embed.aspx?UniqueId=088f0e74-15a8-48b5-a755-74801b0ba5e3&embed={%22ust%22:true,%22hv%22:%22CopyEmbedCode%22}&referrer=StreamWebApp&referrerScenario=EmbedDialog.Create%22",
       fallbackUrl:
-        "https://defensoriaba-my.sharepoint.com/:v:/g/personal/janaina_santos_defensoria_ba_def_br/IQB0Do8IqBW1SKdVdIAbC6XjAbz9bYHWHJvi38vd7796Unw?e=mHl9fM&nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D",
+        "https://defensoriaba-my.sharepoint.com/personal/janaina_santos_defensoria_ba_def_br/_layouts/15/stream.aspx?id=%2Fpersonal%2Fjanaina%5Fsantos%5Fdefensoria%5Fba%5Fdef%5Fbr%2FDocuments%2FGrava%C3%A7%C3%A3o%2D20260429%5F232605%2Ewebm&ga=1&referrer=StreamWebApp%2EWeb&referrerScenario=AddressBarCopied%2Eview%2Ecd107d84%2Dc099%2D4b66%2D99de%2D7a8168db93b5",
       extraActionUrl: "/extensao maes acao defulsbahia solar.zip",
       extraActionLabel: "Download da Extensão",
       category: "Produtividade",

@@ -5,7 +5,8 @@ import logger from "../utils/logger.js";
 import path from "path";
 import fs from "fs/promises";
 import fsSync from "fs";
-import { Client } from "@upstash/qstash";
+import crypto from "crypto";
+import { sanitizeFilename } from "../middleware/upload.js";
 
 /**
  * Controller focado em receber documentos do aplicativo de scanner
@@ -47,8 +48,9 @@ export const scannerUpload = async (req, res) => {
       const file = req.files[i];
       const tipoArquivo = tiposArray[i] || "outro";
       
-      const safeOriginalName = path.basename(file.originalname);
-      const filePath = `${protocolo}/${Date.now()}_${safeOriginalName}`;
+      const safeOriginalName = sanitizeFilename(path.basename(file.originalname));
+      const fileId = `${Date.now()}-${i}-${crypto.randomUUID().slice(0, 8)}`;
+      const filePath = `${protocolo}/${fileId}_${safeOriginalName}`;
 
       if (isSupabaseConfigured) {
         const fileStream = fsSync.createReadStream(file.path);
@@ -61,9 +63,9 @@ export const scannerUpload = async (req, res) => {
 
         if (uploadError) {
           logger.error(
-            `[Scanner] Erro upload Supabase: ${uploadError.message}`,
+            `[Scanner] Erro upload Supabase: ${uploadError.message} (filePath=${filePath})`,
           );
-          throw uploadError;
+          throw new Error(`Supabase upload failed for ${safeOriginalName}: ${uploadError.message}`);
         }
         urls_documentos.push(filePath);
       } else {
@@ -97,65 +99,27 @@ export const scannerUpload = async (req, res) => {
       );
     }
 
-    // 5. Disparar reprocessamento se o caso estiver pendente ou com erro
-    const qstashToken = process.env.QSTASH_TOKEN;
-    const apiBaseUrl = process.env.API_BASE_URL;
-
-    if (qstashToken && apiBaseUrl) {
-      const qstashClient = new Client({ token: qstashToken });
-      try {
-        const jobUrl = `${apiBaseUrl.replace(/\/$/, "")}/api/jobs/process`;
-        logger.info(`[QStash] Tentando disparar job para ${protocolo} em ${jobUrl}`);
-
-        await qstashClient.publishJSON({
-          url: jobUrl,
-          body: { protocolo },
-        });
-
-        logger.info(`[QStash] ✅ Job de reprocessamento enviado com sucesso para ${protocolo}`);
-      } catch (qstashError) {
-        logger.error(`[QStash] ❌ Erro ao disparar job para ${protocolo}: ${qstashError.message}`);
-      }
-    } else {
-      logger.warn(
-        `[Scanner Fallback] QStash não configurado (Falta TOKEN ou URL). Disparando processamento local para ${protocolo}. URL: ${apiBaseUrl ? "OK" : "MISSING"}, Token: ${qstashToken ? "OK" : "MISSING"}`,
-      );
-
-      const { processarCasoEmBackground } = await import("./casosController.js");
-
-      const dados_extraidos =
-        typeof caso.ia?.dados_extraidos === "string"
-          ? JSON.parse(caso.ia.dados_extraidos)
-          : caso.ia?.dados_extraidos || {};
-
-      setImmediate(async () => {
-        try {
-          await processarCasoEmBackground(protocolo, dados_extraidos, urls_documentos, null, null);
-        } catch (e) {
-          logger.error(`[Scanner Fallback Local] Erro fatal no processamento: ${e.message}`);
-        }
-      });
-    }
-
+    // 5. O scanner apenas anexa documentos ao caso.
+    // A geração de minuta não deve ser disparada por este endpoint.
+    // O caso seguirá como "documentacao_completa" e aguardará o fluxo normal de análise.
 
     res.status(200).json({
       message: "Documentos recebidos com sucesso!",
       protocolo,
-      total: documentosCriados.length,
+      documentos: documentosCriados,
     });
   } catch (error) {
     logger.error(`[Scanner] Erro ao processar upload: ${error.message}`);
-    res.status(500).json({ error: "Falha ao processar documentos." });
+    res.status(500).json({ error: "Erro interno ao processar documentos." });
   } finally {
-    // Limpeza de temporários
+    // Limpeza de arquivos temporários do Multer
     if (req.files) {
       for (const file of req.files) {
         try {
           await fs.unlink(file.path);
         } catch (e) {
-          // Ignora erro na limpeza de temporários
+          // ignore
         }
-
       }
     }
   }
