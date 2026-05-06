@@ -76,6 +76,7 @@ jobs:
       API_KEY_SERVIDORES: "ci_test_api_key_64_chars_for_scanner_balcao_valid_1234567890abcdef"
       GEMINI_API_KEY: "dummy_gemini_key_for_ci"
       GROQ_API_KEY: "gsk_dummy_groq_key_for_ci_testing_purposes"
+      OPENAI_API_KEY: "dummy_openai_key_for_ci"
       DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_test"
       DIRECT_URL: "postgresql://ci:ci@localhost:5432/ci_test"
       SUPABASE_URL: "https://dummy.supabase.co"

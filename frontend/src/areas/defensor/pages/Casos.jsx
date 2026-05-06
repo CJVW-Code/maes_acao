@@ -192,6 +192,7 @@ export const Casos = () => {
                   <tr className="text-muted uppercase text-xs tracking-wide">
                     <th className="px-4 py-3">Protocolo</th>
                     <th className="px-4 py-3">Nome do cidadão</th>
+                    <th className="px-4 py-3">Unidade</th>
                     <th className="px-4 py-3">Data de abertura</th>
                     <th className="px-4 py-3">Responsável</th>
                     <th className="px-4 py-3">Status</th>
@@ -223,6 +224,11 @@ export const Casos = () => {
                               Representante: {caso.nome_representante}
                             </div>
                           )}
+                        </td>
+                        <td className="p-4">
+                          <div className="font-medium text-xs uppercase tracking-wider text-primary-700 bg-primary/5 px-2 py-1 rounded inline-block">
+                            {caso.unidade?.nome || "N/I"}
+                          </div>
                         </td>
                         <td className="p-4 text-muted">
                           {new Date(caso.created_at).toLocaleDateString("pt-BR")}
@@ -313,11 +319,16 @@ export const Casos = () => {
                           )}
                         </p>
                       </div>
-                      <span
-                        className={`badge text-xs capitalize ${badgeStyle}`}
-                      >
-                        {statusKey.replace("_", " ")}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        {caso.unidade?.nome && (
+                          <span className="text-[10px] font-bold text-primary uppercase bg-primary/5 px-1.5 py-0.5 rounded border border-primary/10 w-fit">
+                            {caso.unidade.nome}
+                          </span>
+                        )}
+                        <span className={`badge text-xs capitalize ${badgeStyle}`}>
+                          {statusKey.replace("_", " ")}
+                        </span>
+                      </div>
                     </div>
 
                     {caso.numero_solar && (

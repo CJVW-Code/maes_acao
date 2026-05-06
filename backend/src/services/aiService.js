@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Groq from "groq-sdk";
+import OpenAI from "openai";
 import dotenv from "dotenv";
 
 // Configuração de timeout para chamadas de IA (em milissegundos)
@@ -12,6 +13,9 @@ const geminiClient = process.env.GEMINI_API_KEY
   ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
   : null;
 const groqClient = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
+const openaiClient = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
 
 // Função auxiliar para escapar caracteres especiais em Regex (segurança)
 function escapeRegExp(string) {
@@ -21,9 +25,9 @@ function escapeRegExp(string) {
 /**
  * SERVIÇO 1: VISÃO (OCR) - Exclusivo Gemini 2.5 Flash
  * Processa imagens de documentos.
- * Nota: OCR geralmente não passa por sanitização prévia pois a entrada é binária (imagem).
  */
 export const visionOCR = async (bufferImagem, mimeType, promptContexto = "") => {
+  if (!geminiClient) throw new Error("Cliente Gemini não configurado.");
   const model = geminiClient.getGenerativeModel({
     model: "gemini-2.5-flash",
   });
@@ -70,9 +74,9 @@ export const visionOCR = async (bufferImagem, mimeType, promptContexto = "") => 
 
 /**
  * SERVIÇO 2: REDAÇÃO JURÍDICA BLINDADA (Sanitização PII + Híbrido)
- * * @param {string} systemPrompt - Instruções de persona e estilo.
+ * @param {string} systemPrompt - Instruções de persona e estilo.
  * @param {string} userPrompt - O pedido com os dados do caso.
- * @param {number} temperature - Criatividade (0.3 recomendado para jurídico).
+ * @param {number} temperature - Criatividade (0.1 recomendado para jurídico).
  * @param {object} piiMap - Objeto mapeando { "Valor Real": "[PLACEHOLDER]" }.
  */
 export const generateLegalText = async (
@@ -82,40 +86,27 @@ export const generateLegalText = async (
   piiMap = {},
 ) => {
   // --- ETAPA 1: SANITIZAÇÃO (ANONIMIZAÇÃO) ---
-  // Substitui dados reais por placeholders ANTES de sair do servidor
-
   let safeSystemPrompt = systemPrompt;
   let safeUserPrompt = userPrompt;
 
-  // Ordena chaves por tamanho (decrescente) para evitar substituições parciais incorretas
-  // Ex: Substituir "Maria da Silva" antes de substituir apenas "Maria"
   const piiKeys = Object.keys(piiMap).sort((a, b) => b.length - a.length);
 
   piiKeys.forEach((realValue) => {
-    // Ignora valores vazios ou muito curtos para evitar falsos positivos
     if (!realValue || realValue.length < 3) return;
-
     const placeholder = piiMap[realValue];
-    // Cria regex global e case-insensitive para substituir todas as ocorrências
     const regex = new RegExp(escapeRegExp(realValue), "gi");
-
     safeSystemPrompt = safeSystemPrompt.replace(regex, placeholder);
     safeUserPrompt = safeUserPrompt.replace(regex, placeholder);
   });
 
-  // --- 🛡️ LOG DE AUDITORIA DE SEGURANÇA 🛡️ ---
-  // Isso prova no terminal que os dados reais NÃO estão saindo
   console.log("\n🔒 [AUDITORIA LGPD] Payload Seguro Enviado para IA:");
   console.log("---------------------------------------------------");
   console.log("DADOS SENSÍVEIS DETECTADOS E MASCARADOS:", piiKeys.length);
-  // console.log("SYS:", safeSystemPrompt.substring(0, 50) + "..."); // Opcional
   console.log("USER PROMPT (TRECHO):", safeUserPrompt.substring(0, 300) + "...");
   console.log("---------------------------------------------------\n");
+
   let generatedText = "";
 
-  // --- ETAPA 2: CHAMADA À IA (Com texto anonimizado e timeout) ---
-
-  // Função para criar uma Promise de timeout
   const createTimeoutPromise = (timeoutMs, errorMessage) => {
     return new Promise((_, reject) => {
       setTimeout(() => {
@@ -127,6 +118,11 @@ export const generateLegalText = async (
   try {
     // TENTATIVA 1: Groq (Llama 3.3) - Prioridade: Velocidade
     try {
+      if (!groqClient) throw new Error("Cliente Groq não configurado.");
+
+      // DESATIVADO TEMPORARIAMENTE PARA TESTES COM OPENAI
+      // throw new Error("MODO DE TESTE: Forçando uso da OpenAI (GPT-4o-mini)");
+
       const groqPromise = groqClient.chat.completions.create({
         messages: [
           { role: "system", content: safeSystemPrompt },
@@ -134,13 +130,10 @@ export const generateLegalText = async (
         ],
         model: "llama-3.3-70b-versatile",
         temperature: temperature,
-        max_tokens: 1200,
+        max_tokens: 1500,
         top_p: 0.8,
-        frequency_penalty: 0.4,
-        presence_penalty: 0.1,
       });
 
-      // Adiciona timeout à chamada Groq
       const groqWithTimeout = Promise.race([
         groqPromise,
         createTimeoutPromise(IA_TIMEOUT_MS, "Timeout: Chamada Groq excedeu o limite de tempo"),
@@ -150,33 +143,34 @@ export const generateLegalText = async (
       generatedText = completion.choices[0]?.message?.content || "";
     } catch (groqError) {
       console.warn(
-        "⚠️ Groq instável ou Rate Limit. Ativando Fallback para Gemini...",
+        "⚠️ Groq instável ou Rate Limit. Ativando Fallback para OpenAI (4o-mini)...",
         groqError.message,
       );
 
-      // TENTATIVA 2: Gemini 2.5 Flash (Fallback: Segurança)
+      // TENTATIVA 2: OpenAI GPT-4o-mini (Fallback: Inteligência)
       try {
-        const model = geminiClient.getGenerativeModel({
-          model: "gemini-2.5-flash",
+        if (!openaiClient) throw new Error("Cliente OpenAI não configurado.", { cause: groqError });
+        const openaiPromise = openaiClient.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: safeSystemPrompt },
+            { role: "user", content: safeUserPrompt },
+          ],
+          temperature: temperature,
+          max_tokens: 1500,
         });
 
-        // Gemini não usa roles separados, concatenamos
-        const fullPrompt = `${safeSystemPrompt}\n\n--- INSTRUÇÃO DO USUÁRIO ---\n${safeUserPrompt}`;
-
-        // Adiciona timeout à chamada Gemini
-        const geminiCall = model.generateContent(fullPrompt);
-        const geminiWithTimeout = Promise.race([
-          geminiCall,
-          createTimeoutPromise(IA_TIMEOUT_MS, "Timeout: Chamada Gemini excedeu o limite de tempo"),
+        const openaiWithTimeout = Promise.race([
+          openaiPromise,
+          createTimeoutPromise(IA_TIMEOUT_MS, "Timeout: Chamada OpenAI excedeu o limite de tempo"),
         ]);
 
-        const result = await geminiWithTimeout;
-        const response = await result.response;
-        generatedText = response.text();
-      } catch (geminiError) {
-        console.error("❌ Erro na chamada Gemini:", geminiError.message);
-        throw new Error("Ambos os serviços de IA falharam ou excederam o tempo limite.", {
-          cause: geminiError,
+        const completion = await openaiWithTimeout;
+        generatedText = completion.choices[0]?.message?.content || "";
+      } catch (openaiError) {
+        console.error("❌ Erro na chamada OpenAI:", openaiError.message);
+        throw new Error("Ambos os serviços de IA (Groq/OpenAI) falharam.", {
+          cause: openaiError,
         });
       }
     }
@@ -188,11 +182,8 @@ export const generateLegalText = async (
   }
 
   // --- ETAPA 3: DESANITIZAÇÃO (RESTAURAÇÃO) ---
-  // Troca os placeholders de volta pelos dados reais no texto gerado pela IA
-
   piiKeys.forEach((realValue) => {
     const placeholder = piiMap[realValue];
-    // Busca o placeholder (ex: [NOME_AUTOR]) e devolve o nome real
     const regex = new RegExp(escapeRegExp(placeholder), "gi");
     generatedText = generatedText.replace(regex, realValue);
   });

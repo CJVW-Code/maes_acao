@@ -1,6 +1,6 @@
 # Regras de Negócio — Mães em Ação · DPE-BA
 
-> **Versão:** 4.0 · **Atualizado em:** 2026-04-30 (Custody Validation + Unit Inactive State + SOLAR Export)  
+> **Versão:** 4.1 · **Atualizado em:** 2026-05-06 (Apex Ultimate Sync + Access Key Deprecation)  
 > **Fonte:** Análise da codebase (controllers, services, middleware, config)  
 > **Propósito:** Referência canônica para treinamento de IAs e orientação de defensores
 
@@ -347,7 +347,9 @@ O sistema agora suporta a geração e visualização simultânea de múltiplos d
 |:------|:---------|
 | **Nunca usar "menor"** | Deve usar "criança", "adolescente" ou "filho(a)" |
 | **Não citar documentos no texto** | CPF, RG e datas de nascimento não devem aparecer no texto narrativo |
-| **Conectivos obrigatórios** | "Insta salientar", "Ocorre que, no caso em tela", "Como é sabido", "aduzir" |
+| **Conectivos obrigatórios** | "Ocorre que" e "Insta salientar" foram **REMOVIDOS** dos prompts Apex por serem clichês; priorize "demonstra", "evidencia". |
+| **Estrutura Apex** | Texto atomizado e reconstruído via Clusters (Vínculo -> Omissão -> Hipossuficiência -> Necessidade -> Capacidade -> Guarda). |
+| **Anáfora/Sujeito** | O motor de pós-processamento rastreia o último sujeito (Genitora/Requerido) para aplicar pesos de clusters dinamicamente. |
 | **Formato** | Parágrafos coesos, sem tópicos/listas |
 | **Estilo** | Extremamente formal, culto e padronizado (juridiquês clássico) |
 
@@ -374,7 +376,7 @@ O sistema agora suporta a geração e visualização simultânea de múltiplos d
 | Componente | Fallback |
 |:-----------|:---------|
 | OCR (Gemini Vision) | Tesseract.js (apenas para imagens, não PDFs) |
-| Geração de texto (Groq) | Gemini 2.5 Flash |
+| Geração de texto (Groq) | OpenAI GPT-4o-mini |
 | Dos Fatos (IA) | `buildFallbackDosFatos()` — texto templateado sem IA |
 | QStash (fila) | `setImmediate()` — processamento local |
 
@@ -611,9 +613,9 @@ Os tipos são inferidos pelo status do caso ao qual o agendamento está vinculad
 
 > **Observação:** O ID da categoria é determinado pelo parâmetro `casoTipo` recebido pela função, que recebe o `tipoAcao`. A maioria das ações mapeará para `"outro"` (4), já que o mapa usa chaves genéricas (`familia`, `consumidor`, etc.) e não as chaves específicas do dicionário. `[INFERIDO]`
 
-<!-- VALIDAR COM DEFENSOR: O campo casoTipo que alimenta o mapa de categorias (familia=0, consumidor=1...) recebe o tipoAcao do formulário. Porém, o tipoAcao tem valor como "Família - fixacao_alimentos", e não as chaves do mapa (familia, consumidor...). Isso faz com que a maioria dos protocolos caia na categoria 4 (outro). É intencional? -->
+### 9.2 Formato da Chave de Acesso [DESATIVADO/DEPRECATED]
 
-### 9.2 Formato da Chave de Acesso
+> **Aviso:** O sistema não utiliza mais Chaves de Acesso para autenticação de assistidos (referência: `casosController.js:5026`). O campo `chave_acesso_hash` permanece no banco apenas para compatibilidade legada.
 
 ```
 DPB-{5_DIGITOS}-0{5_DIGITOS}

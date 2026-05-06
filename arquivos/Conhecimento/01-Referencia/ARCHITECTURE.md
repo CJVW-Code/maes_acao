@@ -1,6 +1,6 @@
 # Arquitetura do Sistema — Mães em Ação · DPE-BA
 
-> **Versão:** 5.0 · **Atualizado em:** 2026-04-30 (Announcements + Unit Soft-Lock + Guide Integration)
+> **Versão:** 5.1 · **Atualizado em:** 2026-05-06 (IA Fallback GPT-4o-mini + Apex Ultimate Sync)
 > **Contexto:** Mutirão estadual da Defensoria Pública da Bahia
 
 ---
@@ -45,7 +45,7 @@ O **Mães em Ação** é um sistema Full Stack desenvolvido para apoiar o mutir�
 ### IA & OCR
 - **Gemini Vision (Google)** → OCR primário para documentos (Opcional/Desativado no mutirão por performance)
 - **Groq Llama 3.3 70B** → Geração de texto jurídico (DOS FATOS)
-- **Fallbacks:** Gemini Flash (texto) para contingência
+- **Fallbacks:** OpenAI GPT-4o-mini (texto) para contingência (Groq instável) e Gemini Flash (OCR)
 
 ### Autenticação
 - **JWT** gerado no próprio backend Express (não Supabase Auth)
@@ -299,8 +299,9 @@ sequenceDiagram
     Q->>B: Webhook (retry automático)
     B->>G: OCR + Extração
     G->>B: Texto extraído
-    B->>Groq: Geração DOS FATOS
-    Groq->>B: Texto jurídico
+    B->>Groq: Geração DOS FATOS (Apex Ultimate)
+    Groq->>B: Texto jurídico atomizado
+    B->>B: Pós-processamento Apex (Clusters + Anáfora)
     B->>D: Merge template
     D->>B: .docx gerado
     B->>B: Atualiza status = pronto_para_analise
@@ -310,7 +311,7 @@ sequenceDiagram
 
 - **Gemini 429/500** → QStash retry automático (transparente)
 - **Gemini 500** → status `erro_processamento` + alerta painel admin
-- **Groq falha** → Gemini Flash como fallback de texto
+- **Groq falha** → OpenAI GPT-4o-mini como fallback de inteligência
 - **Dos Fatos falha** → `buildFallbackDosFatos()` — texto templateado sem IA
 - **QStash indisponível** → `setImmediate()` para processamento local síncrono
 
