@@ -37,7 +37,7 @@ const jsonFormat = winston.format.combine(
 );
 
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || "debug",
+  level: process.env.LOG_LEVEL || "info",
   levels,
   transports: [
     new winston.transports.Console({

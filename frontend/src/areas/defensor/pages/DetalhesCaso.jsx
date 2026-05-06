@@ -287,22 +287,7 @@ export const DetalhesCaso = () => {
     const isServidorOuEstagiario = cargo === "servidor" || cargo === "estagiario";
 
     // Bloqueia transições que o cargo não tem permissão — com feedback visual
-    if (isServidorOuEstagiario && novoStatus === "em_protocolo") {
-      toast.warning(
-        "Seu cargo não tem permissão para enviar o caso para protocolo. Apenas defensores podem realizar essa etapa.",
-      );
-      return;
-    }
-    if (isServidorOuEstagiario && novoStatus === "protocolado") {
-      toast.warning("Somente defensores podem marcar um caso como protocolado.");
-      return;
-    }
-    if (cargo === "estagiario" && novoStatus === "liberado_para_protocolo") {
-      toast.warning(
-        "Estagiários não podem liberar casos para protocolo. Solicite a um servidor ou defensor.",
-      );
-      return;
-    }
+    // Restrições de status removidas para permitir que Servidores e Estagiários protocolem
 
     setIsUpdating(true);
     try {
@@ -2045,8 +2030,8 @@ export const DetalhesCaso = () => {
               </div>
             </div>
             */}
-            {/* Oculta o fluxo de finalização para servidor e estagiario */}
-            {user?.cargo !== "servidor" && user?.cargo !== "estagiario" && (
+            {/* Fluxo de finalização liberado para todos os cargos autorizados */}
+            {user?.cargo !== "visualizador" && (
               <div className="mt-16 pt-10 border-t border-soft space-y-10">
                 <h2 className="text-2xl font-bold text-primary flex items-center gap-3">
                   <CheckCircle className="text-green-500" size={28} />
@@ -2244,7 +2229,7 @@ export const DetalhesCaso = () => {
               permanentemente.
             </p>
           )}
-          <TimelineAuditoria registroId={caso.id} />
+          {user?.cargo === "admin" && <TimelineAuditoria registroId={caso.id} />}
         </div>
       </div>
 

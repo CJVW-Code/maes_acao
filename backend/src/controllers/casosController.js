@@ -3575,13 +3575,18 @@ export const obterDetalhesCaso = async (req, res) => {
         req.user.cargo.toLowerCase() === "servidor" ||
         req.user.cargo.toLowerCase() === "estagiario";
 
-      // BUG FIX: Se o status for 'liberado_para_protocolo', o servidor NÃO deve assumir o caso automaticamente.
-      // Isso permite que o servidor libere o caso e ele continue livre para o defensor.
+      // Vínculo Automático (Lock Automático ao abrir detalhes)
       let podeAssumir = false;
-      if (isDefensor && ["liberado_para_protocolo", "em_protocolo"].includes(data.status)) {
-        podeAssumir = true;
-      } else if (isServidor && ["pronto_para_analise", "em_atendimento"].includes(data.status)) {
-        podeAssumir = true;
+      if (isDefensor) {
+        // Defensor pode assumir em qualquer fase de análise ou protocolo
+        if (["pronto_para_analise", "em_atendimento", "liberado_para_protocolo", "em_protocolo"].includes(data.status)) {
+          podeAssumir = true;
+        }
+      } else if (isServidor) {
+        // Servidor/Estagiário assume se estiver pronto para análise ou já em atendimento
+        if (["pronto_para_analise", "em_atendimento"].includes(data.status)) {
+          podeAssumir = true;
+        }
       }
 
       if (podeAssumir) {
@@ -3597,10 +3602,25 @@ export const obterDetalhesCaso = async (req, res) => {
           updateData.defensor_id = req.user.id;
           updateData.defensor_at = new Date();
           data.defensor_id = req.user.id;
+
+          // Mudança automática de status ao assumir
+          if (data.status === "liberado_para_protocolo") {
+            updateData.status = "em_protocolo";
+            data.status = "em_protocolo";
+          } else if (data.status === "pronto_para_analise") {
+            updateData.status = "em_atendimento";
+            data.status = "em_atendimento";
+          }
         } else {
           updateData.servidor_id = req.user.id;
           updateData.servidor_at = new Date();
           data.servidor_id = req.user.id;
+
+          // Servidor assume -> em_atendimento (se estiver pronto para análise)
+          if (data.status === "pronto_para_analise") {
+            updateData.status = "em_atendimento";
+            data.status = "em_atendimento";
+          }
         }
 
         // Atualiza o caso atual
@@ -3958,13 +3978,7 @@ export const atualizarStatusCaso = async (req, res) => {
       );
     }
 
-    const isServidorOrEstagiario =
-      req.user?.cargo === "servidor" || req.user?.cargo === "estagiario";
-    if (status === "em_protocolo" && isServidorOrEstagiario) {
-      return res.status(403).json({
-        error: "Acesso Negado. Seu cargo não permite enviar casos para protocolo.",
-      });
-    }
+    // Bloqueio removido: Servidores e Estagiários agora podem protocolar conforme solicitado
 
     const updateData = {};
     if (status !== undefined) updateData.status = status;
@@ -3972,9 +3986,12 @@ export const atualizarStatusCaso = async (req, res) => {
     if (numero_solar !== undefined) updateData.numero_solar = numero_solar;
 
     // Ao liberar para protocolo, desvincula o servidor para que o defensor possa assumir
-    if (status === "liberado_para_protocolo") {
+    // Ao liberar para protocolo ou análise, limpa os locks
+    if (status === "liberado_para_protocolo" || status === "pronto_para_analise") {
       updateData.servidor_id = null;
       updateData.servidor_at = null;
+      updateData.defensor_id = null;
+      updateData.defensor_at = null;
     }
 
     if (Object.keys(updateData).length === 0) {

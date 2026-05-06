@@ -84,9 +84,7 @@ export const processJob = async (req, res) => {
       })
       .eq("protocolo", protocolo);
 
-    logger.info(
-      `🔄 Iniciando processamento do caso ${protocolo} via QStash (Background)`,
-    );
+    logger.info(`🔄 Iniciando processamento do caso ${protocolo} via QStash (Background)`);
 
     // Responde IMEDIATAMENTE ao QStash para evitar timeout (Erro 500)
     res.status(200).json({
@@ -98,9 +96,7 @@ export const processJob = async (req, res) => {
     // Executa o processamento pesado sem bloquear a resposta HTTP
     setImmediate(async () => {
       const startTime = Date.now();
-      logger.info(
-        `🚀 [Background] Iniciando processamento pesado para o caso ${protocolo}...`,
-      );
+      logger.info(`🚀 [Background] Iniciando processamento pesado para o caso ${protocolo}...`);
       try {
         // [REFATORAÇÃO] Busca todos os documentos vinculados ao caso no banco
         // Deixamos de depender apenas de 'urls_documentos' no payload ou na tabela casos
@@ -139,7 +135,6 @@ export const processJob = async (req, res) => {
           `✅ [Background] Processamento concluído com sucesso para ${protocolo} em ${duration}s`,
         );
       } catch (err) {
-
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         logger.error(
           `❌ [Background] Erro crítico após ${duration}s no caso ${protocolo}: ${err.message}`,
@@ -163,9 +158,7 @@ export const processJob = async (req, res) => {
           })
           .eq("protocolo", req.body.protocolo);
       } catch (updateError) {
-        logger.error(
-          `❌ Falha ao atualizar status de erro: ${updateError.message}`,
-        );
+        logger.error(`❌ Falha ao atualizar status de erro: ${updateError.message}`);
       }
     }
 

@@ -39,6 +39,14 @@ export const lockCaso = async (req, res) => {
     if (nivelLock === 2) {
       updateData.defensor_id = userId;
       updateData.defensor_at = new Date();
+      
+      // Mudança automática de status ao travar como Defensor
+      if (casoAtual.status === "liberado_para_protocolo") {
+        updateData.status = "em_protocolo";
+      } else if (casoAtual.status === "pronto_para_analise") {
+        updateData.status = "em_atendimento";
+      }
+
       if (!isAdmin) {
         whereClause.OR = [
           { defensor_id: null },
@@ -48,6 +56,12 @@ export const lockCaso = async (req, res) => {
     } else {
       updateData.servidor_id = userId;
       updateData.servidor_at = new Date();
+
+      // Servidor assume -> em_atendimento (se estiver pronto para análise)
+      if (casoAtual.status === "pronto_para_analise") {
+        updateData.status = "em_atendimento";
+      }
+
       if (!isAdmin) {
         whereClause.OR = [
           { servidor_id: null },

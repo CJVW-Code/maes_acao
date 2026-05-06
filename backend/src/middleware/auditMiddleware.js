@@ -1,4 +1,5 @@
 import { registrarLog } from "../services/loggerService.js";
+import { sanitize } from "../utils/sanitizer.js";
 
 export const auditMiddleware = (req, res, next) => {
   // Ignoramos GET para não encher o banco com logs de visualização simples
@@ -24,22 +25,6 @@ export const auditMiddleware = (req, res, next) => {
         entidade = parts[0] || "geral";
       }
 
-
-      // Sanitização recursiva de dados sensíveis
-      const sensitiveKeys = new Set(['senha', 'password', 'cpf', 'token', 'authorization']);
-      const sanitize = (obj) => {
-        if (!obj || typeof obj !== 'object') return obj;
-        if (Array.isArray(obj)) return obj.map(sanitize);
-        const sanitized = {};
-        for (const [k, v] of Object.entries(obj)) {
-          if (sensitiveKeys.has(k.toLowerCase())) {
-            sanitized[k] = "***";
-          } else {
-            sanitized[k] = (v && typeof v === 'object') ? sanitize(v) : v;
-          }
-        }
-        return sanitized;
-      };
 
       const detalhes = sanitize(req.body);
 
