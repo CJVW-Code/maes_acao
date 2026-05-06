@@ -41,6 +41,8 @@ jest.unstable_mockModule("../../src/services/aiService.js", () => ({
 
 jest.unstable_mockModule("../../src/services/loggerService.js", () => ({
   registrarLog: jest.fn().mockResolvedValue(undefined),
+  maskStringPII: (str) => str,
+  maskPII: (obj) => obj,
 }));
 
 const { default: app } = await import("../../server.js");

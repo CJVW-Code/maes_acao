@@ -61,12 +61,39 @@ export const Treinamentos = () => {
     { n: 6, t: "Abrir Caso", d: "Acesse o painel do Mães em Ação.", phase: 1 },
     { n: 7, t: "Baixar Tudo", d: "Clicar em Baixar Tudo (.zip).", phase: 1 },
     { n: 8, t: "Abrir SOLAR", d: "Manter aba logada e ativa.", phase: 2 },
-    { n: 9, t: "Carregar na Extensão", d: "Selecionar o ZIP baixado.", phase: 2 },
-    { n: 10, t: "Executar Automação", d: "Iniciar preenchimento no SOLAR.", phase: 2 },
-    { n: 11, t: "Juntar Documentos", d: "Anexar docs pessoais no cadastro.", phase: 3 },
-    { n: 12, t: "Criar Atendimento", d: "Seguir para fluxo de atendimento.", phase: 3 },
-    { n: 13, t: "Conferir Tudo", d: "Validar dados antes de salvar.", phase: 3 },
-    { n: 14, t: "Registrar Saída", d: "Observar mensagens de sucesso/erro.", phase: 3 },
+    {
+      n: 9,
+      t: "Extrair o Caso (.zip)",
+      d: "No Windows: Clique com o botão direito no ZIP do caso > 'Extrair Tudo' > 'Extrair'.",
+      phase: 2,
+    },
+    {
+      n: 10,
+      t: "Selecionar Dados",
+      d: "Abra a extensão, clique em 'Escolher arquivos' e selecione a PASTA extraída.",
+      phase: 2,
+    },
+    {
+      n: 11,
+      t: "Executar Automação",
+      d: "Clique em 'Executar automação do assistido' para preencher os dados.",
+      phase: 2,
+    },
+    {
+      n: 12,
+      t: "Navegar para Anexos",
+      d: "No sistema SOLAR, localize o botão ou aba 'Anexos' e clique para abrir.",
+      phase: 3,
+    },
+    {
+      n: 13,
+      t: "Juntar Documentos",
+      d: "Na página de anexos, use a extensão e clique em 'Juntar docs pessoas do assistido'.",
+      phase: 3,
+    },
+    { n: 14, t: "Criar Atendimento", d: "Seguir para fluxo de atendimento normal.", phase: 3 },
+    { n: 15, t: "Conferir Tudo", d: "Validar dados antes de salvar o protocolo.", phase: 3 },
+    { n: 16, t: "Registrar Saída", d: "Observar mensagens de sucesso/erro no SOLAR.", phase: 3 },
   ];
 
   const phases = [
@@ -155,7 +182,7 @@ export const Treinamentos = () => {
                     <span className="text-[#d97706] dark:text-amber-400 underline decoration-2 underline-offset-2">
                       endereço
                     </span>
-                    . Outros campos exigem inserção manual.
+                    . Outros campos, como os dados da criança, exigem inserção manual.
                   </p>
                 </div>
               </Motion.div>

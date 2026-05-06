@@ -539,4 +539,46 @@
     border-color: rgba(245, 158, 11, 0.2) !important;
     color: #fef3c7 !important;
   }
+
+  /* PIPELINE ATÔMICO IA 2.0 */
+  .pipeline-atom-item {
+    @apply flex items-center justify-between p-4 rounded-2xl border border-soft transition-all duration-300;
+    @apply bg-surface hover:bg-primary/5 hover:translate-x-1;
+  }
+
+  .pipeline-atom-item.pending {
+    @apply opacity-50 grayscale border-dashed;
+  }
+
+  .pipeline-atom-item.processing {
+    @apply border-primary ring-2 ring-primary/20 animate-pulse;
+
+    background: linear-gradient(90deg, var(--color-surface) 0%, color-mix(in oklab, var(--color-primary) 5%, var(--color-surface)) 100%);
+  }
+
+  .pipeline-atom-item.success {
+    @apply border-success/30 bg-success/5;
+  }
+
+  .pipeline-progress-bar {
+    @apply h-1.5 w-full bg-soft rounded-full overflow-hidden relative;
+  }
+
+  .pipeline-progress-fill {
+    @apply h-full bg-primary transition-all duration-500 ease-out;
+
+    background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  }
+
+  .pipeline-progress-fill.loading {
+    animation: shimmer 2s infinite linear;
+    background-size: 200% 100%;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
 }
+
+

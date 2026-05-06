@@ -9,11 +9,10 @@ jest.unstable_mockModule("../src/utils/logger.js", () => ({
   },
 }));
 
-// Mock aiService (não queremos chamar IA real nos testes)
+// Mock aiService
 jest.unstable_mockModule("../src/services/aiService.js", () => ({
   generateLegalText: jest.fn().mockResolvedValue(
-    "O autor é filho do requerido, conforme é possível aduzir pela documentação. " +
-    "Ocorre que, no caso em tela, o genitor não contribui regularmente."
+    "Fragmento de texto jurídico gerado pela IA."
   ),
   __esModule: true,
 }));
@@ -39,98 +38,91 @@ describe("normalizePromptData", () => {
     expect(result.requerente.nome).toBeDefined();
     expect(result.requerido.nome).toBeDefined();
     expect(result.relato).toBe("Pai não paga pensão");
-    expect(result.tipo_acao).toBe("fixacao_alimentos");
-    expect(result.comarca).toBeDefined();
-  });
-
-  it("deve usar defaults quando dados estão vazios", () => {
-    const result = normalizePromptData({});
-    expect(result.comarca).toContain("Teixeira de Freitas");
-    expect(result.relato).toBe("");
+    expect(result.triagemNumero).toBeDefined();
   });
 });
 
-describe("generateDosFatos", () => {
+describe("generateDosFatos (Pipeline Atômico Apex 2.0)", () => {
   const dadosCasoBase = {
     nome_assistido: "PEDRO HENRIQUE SILVA",
-    cpf_assistido: "123.456.789-00",
-    requerente_data_nascimento: "2020-05-15",
-    nome_requerido: "CARLOS SOUZA",
-    cpf_requerido: "987.654.321-00",
     relato_texto: "O pai não contribui para as despesas do filho.",
     tipo_acao: "fixacao_alimentos",
-    valor_mensal_pensao: "500",
-    descricao_guarda: "A guarda é exercida pela mãe",
+    valor_pensao: "500",
+    opcao_guarda: "regularizar",
     situacao_financeira_genitora: "Desempregada",
-    assistido_eh_incapaz: "sim",
+    ocupacao_requerido: "Mecânico",
     representante_nome: "ANA MARIA SILVA",
+    nome_requerido: "CARLOS SOUZA"
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("deve chamar generateLegalText com acaoKey fixacao_alimentos (DICIONÁRIO)", async () => {
+  it("deve disparar múltiplas chamadas (Atoms) para fixacao_alimentos", async () => {
     await generateDosFatos(dadosCasoBase, "fixacao_alimentos");
 
-    expect(generateLegalText).toHaveBeenCalledTimes(1);
-
-    const [systemPrompt] = generateLegalText.mock.calls[0];
-    expect(systemPrompt).toContain("Defensor Público");
-    expect(systemPrompt).toContain('"menor" — use "filho"');
-
+    // VINCULO, OMISSAO, HIPOSSUFICIENCIA, NECESSIDADES, CAPACIDADE, GUARDA = 6 chamadas
+    expect(generateLegalText).toHaveBeenCalledTimes(6);
+    
     expect(logger.info).toHaveBeenCalledWith(
-      expect.stringContaining("DICIONÁRIO")
+      expect.stringContaining("Iniciando Pipeline Atômico")
     );
   });
 
-  it("deve usar FALLBACK_LEGADO para ação sem prompt (divorcio)", async () => {
-    await generateDosFatos(dadosCasoBase, "divorcio");
+  it("deve EXCLUIR o Atom de GUARDA se opcao_guarda for 'nao'", async () => {
+    const dadosSemGuarda = { ...dadosCasoBase, opcao_guarda: "nao" };
+    
+    generateLegalText.mockImplementation((sys, user) => {
+      if (user.includes("TEMA DO PARÁGRAFO: GUARDA")) {
+        return "Texto sobre [FLAG_GUARDA: NÃO].";
+      }
+      return "Texto genérico.";
+    });
 
-    expect(generateLegalText).toHaveBeenCalledTimes(1);
+    const resultado = await generateDosFatos(dadosSemGuarda, "fixacao_alimentos");
 
-    const [systemPrompt] = generateLegalText.mock.calls[0];
-    // Fallback usa o mesmo prompt (Defensor Público)
-    expect(systemPrompt).toContain("Defensor Público");
-
-    expect(logger.info).toHaveBeenCalledWith(
-      expect.stringContaining("FALLBACK_LEGADO")
-    );
+    // 6 - 1 (GUARDA) = 5 chamadas
+    expect(generateLegalText).toHaveBeenCalledTimes(5);
+    expect(resultado.toLowerCase()).not.toContain("guarda");
   });
 
-  it("deve usar FALLBACK_LEGADO para acaoKey undefined", async () => {
-    await generateDosFatos(dadosCasoBase, undefined);
+  it("deve pular o Atom de CAPACIDADE se não houver ocupacao_requerido", async () => {
+    const dadosSemOcupacao = { ...dadosCasoBase, ocupacao_requerido: "" };
+    await generateDosFatos(dadosSemOcupacao, "fixacao_alimentos");
 
-    expect(generateLegalText).toHaveBeenCalledTimes(1);
-    expect(logger.info).toHaveBeenCalledWith(
-      expect.stringContaining("FALLBACK_LEGADO")
-    );
+    // 6 - 1 (CAPACIDADE) = 5 chamadas
+    expect(generateLegalText).toHaveBeenCalledTimes(5);
   });
 
-  it("deve sanitizar o texto retornado (remover títulos MD)", async () => {
-    generateLegalText.mockResolvedValueOnce(
-      "## Dos Fatos\n\nO autor é filho do requerido."
-    );
+  it("deve aplicar conectores determinísticos nos parágrafos", async () => {
+    generateLegalText.mockImplementation((sys, user) => {
+      if (user.includes("vincule ao valor pretendido")) return "IA gerou necessidades.";
+      return "IA gerou texto.";
+    });
 
     const resultado = await generateDosFatos(dadosCasoBase, "fixacao_alimentos");
-    expect(resultado).not.toContain("## Dos Fatos");
-    expect(resultado).toContain("O autor é filho do requerido");
+    
+    // Verifica se o conector de NECESSIDADES foi aplicado
+    expect(resultado).toContain("Nesse contexto, iA gerou necessidades.");
   });
 
-  it("deve propagar erro quando IA falha", async () => {
-    generateLegalText.mockRejectedValueOnce(new Error("Timeout na IA"));
-
-    await expect(
-      generateDosFatos(dadosCasoBase, "fixacao_alimentos")
-    ).rejects.toThrow("Timeout na IA");
+  it("deve sanitizar fragmentos individuais (Nuker - destruir sentença com 1ª pessoa)", async () => {
+    generateLegalText.mockResolvedValue("Eu acho que ele deve pagar. No entanto, o requerido é solvente.");
+    
+    const resultado = await generateDosFatos(dadosCasoBase, "fixacao_alimentos");
+    expect(resultado).not.toContain("Eu acho");
+    expect(resultado).toContain("No entanto, o requerido é solvente");
   });
 
-  it("deve enviar piiMap para sanitização", async () => {
+  it("deve usar PII Map para mascarar nomes nos Atoms", async () => {
     await generateDosFatos(dadosCasoBase, "fixacao_alimentos");
 
-    // O 4º argumento do generateLegalText é o piiMap
     const piiMap = generateLegalText.mock.calls[0][3];
-    expect(piiMap).toBeDefined();
-    expect(typeof piiMap).toBe("object");
+    // Nomes são formatados (Proper Case) pelo normalizePromptData
+    expect(piiMap["Pedro Henrique Silva"]).toBe("[NOME_AUTOR_PRINCIPAL]");
+    expect(piiMap["Ana Maria Silva"]).toBe("[NOME_REPRESENTANTE]");
   });
 });
+
+

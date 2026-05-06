@@ -30,9 +30,9 @@ import {
   Search,
   UserPlus,
   Wand2,
-  Video,
+  PlayCircle,
+  ExternalLink,
 } from "lucide-react";
-import { VideoPlayer } from "../../../components/VideoPlayer";
 import { ModalDistribuicao } from "../components/casos/ModalDistribuicao";
 import { API_BASE } from "../../../utils/apiBase";
 import { formatTipoAcaoLabel } from "../../../utils/caseUtils";
@@ -283,28 +283,9 @@ export const DetalhesCaso = () => {
   const handleStatusChange = async (novoStatus) => {
     if (!caso || !novoStatus || novoStatus === caso.status) return;
 
-    const cargo = user?.cargo?.toLowerCase();
-    const isServidorOuEstagiario = cargo === "servidor" || cargo === "estagiario";
-
-    // Bloqueia transições que o cargo não tem permissão — com feedback visual
-    if (isServidorOuEstagiario && novoStatus === "em_protocolo") {
-      toast.warning(
-        "Seu cargo não tem permissão para enviar o caso para protocolo. Apenas defensores podem realizar essa etapa.",
-      );
-      return;
-    }
-    if (isServidorOuEstagiario && novoStatus === "protocolado") {
-      toast.warning("Somente defensores podem marcar um caso como protocolado.");
-      return;
-    }
-    if (cargo === "estagiario" && novoStatus === "liberado_para_protocolo") {
-      toast.warning(
-        "Estagiários não podem liberar casos para protocolo. Solicite a um servidor ou defensor.",
-      );
-      return;
-    }
 
     setIsUpdating(true);
+
     try {
       const response = await fetch(`${API_BASE}/casos/${id}/status`, {
         method: "PATCH",
@@ -1182,10 +1163,15 @@ export const DetalhesCaso = () => {
             Voltar para o dashboard
           </Link>
           <h1 className="heading-1 mt-3">{caso.nome_assistido}</h1>
-          <div className="flex flex-wrap items-center gap-4 mt-2">
+          <div className="flex flex-wrap items-center gap-3 mt-2">
             <p className="text-muted text-sm">
               Protocolo {caso.protocolo} • {formatTipoAcaoLabel(caso.tipo_acao)}
             </p>
+            {caso.unidade?.nome && (
+              <span className="bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border border-primary/20 shadow-sm animate-fade-in">
+                Unidade: {caso.unidade.nome}
+              </span>
+            )}
             <div className="flex items-center gap-2 bg-surface border border-soft rounded-md px-3 py-1.5 shadow-sm">
               <label
                 htmlFor="numeroSolar"
@@ -2045,21 +2031,35 @@ export const DetalhesCaso = () => {
               </div>
             </div>
             */}
-            {/* Oculta o fluxo de finalização para servidor e estagiario */}
-            {user?.cargo !== "servidor" && user?.cargo !== "estagiario" && (
+            {/* Fluxo de finalização liberado para todos os cargos autorizados */}
+            {user?.cargo?.toLowerCase() !== "visualizador" && (
               <div className="mt-16 pt-10 border-t border-soft space-y-10">
                 <h2 className="text-2xl font-bold text-primary flex items-center gap-3">
                   <CheckCircle className="text-green-500" size={28} />
                   Finalização e Encaminhamento (Solar)
                 </h2>
 
-                <VideoPlayer
-                  url="https://defensoriaba-my.sharepoint.com/personal/janaina_santos_defensoria_ba_def_br/_layouts/15/embed.aspx?UniqueId=088f0e74-15a8-48b5-a755-74801b0ba5e3&embed=%7B%22ust%22%3Atrue%2C%22hv%22%3A%22CopyEmbedCode%22%7D&referrer=StreamWebApp&referrerScenario=EmbedDialog.Create"
-                  title="Treinamento: Exportação para o SOLAR"
-                  description="Aprenda o passo a passo para exportar os dados do atendimento e realizar o protocolo no sistema SOLAR da Defensoria."
-                  extraActionUrl="/extensao maes acao defulsbahia solar.zip"
-                  extraActionLabel="Baixar Extensão SOLAR"
-                />
+                <div className="card bg-primary/5 border border-primary/20 p-6 flex flex-col md:flex-row items-center justify-between gap-6 hover:bg-primary/10 transition-colors animate-fade-in group rounded-2xl">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform shadow-inner">
+                      <PlayCircle size={28} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-main">Extensao para o Solar?</h3>
+                      <p className="text-sm text-muted">
+                        Acesse nosso tutorial de como instalar e utilizar a extensao para o Solar na
+                        Central de Treinamentos.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    to="/painel/treinamentos"
+                    className="btn btn-primary flex items-center gap-2 whitespace-nowrap shadow-lg shadow-primary/20"
+                  >
+                    <ExternalLink size={18} />
+                    Ver Treinamentos
+                  </Link>
+                </div>
 
                 {caso.status === "protocolado" ? (
                   // SE JÁ ESTIVER FINALIZADO, MOSTRA OS DADOS
@@ -2244,7 +2244,7 @@ export const DetalhesCaso = () => {
               permanentemente.
             </p>
           )}
-          <TimelineAuditoria registroId={caso.id} />
+          {user?.cargo === "admin" && <TimelineAuditoria registroId={caso.id} />}
         </div>
       </div>
 
