@@ -1604,18 +1604,11 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
   // para preservar a formatação (negritos, parágrafos, etc).
   const HAS_GUARDA = temPedidoGuarda;
 
-  // ── Injeção de cláusula de Guarda e Convivência no dos_fatos ──────────────
-  // Se o campo descricaoGuarda estiver preenchido, acrescenta ao final dos
-  // fatos um parágrafo jurídico padrão para não precisar alterar o .docx.
-  // A tag {dos_fatos} no Word absorve todo o texto.
+  // IMPORTANTE: A injeção manual do 'descricaoGuardaTexto' bruto no final de 'dosFatosTexto' foi removida.
+  // O texto descritivo da guarda agora é gerado e sanitizado de forma atômica pela IA (Atom: GUARDA),
+  // garantindo que não haja vazamento de 1ª pessoa.
   let dosFatosComGuarda = dosFatosTexto || "[DESCREVER OS FATOS]";
-  if (isFixacaoOuGravidicos && descricaoGuardaTexto && descricaoGuardaTexto.trim()) {
-    const clausulaGuarda = `\n\nSobre a guarda e convivência: ${descricaoGuardaTexto.trim()}`;
-    // Evita duplicar o parágrafo se já estiver presente (reprocessamento)
-    if (!dosFatosComGuarda.includes("Sobre a guarda e convivência:")) {
-      dosFatosComGuarda = dosFatosComGuarda + clausulaGuarda;
-    }
-  }
+
 
   // 1:1 Mapeamento Total focado estritamente no TAGS_OFICIAIS.js
   const payload = {};

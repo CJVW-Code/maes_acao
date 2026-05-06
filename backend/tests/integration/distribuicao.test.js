@@ -80,6 +80,7 @@ describe("POST /api/casos/:id/distribuir", () => {
   it("bloqueia distribuição por servidor (RBAC) → 403", async () => {
     const token = makeJwt("servidor");
     mockPrismaDefensores.findUnique.mockResolvedValue(makeProfile("servidor"));
+    mockPrismaCasos.findUnique.mockResolvedValue({ id: 1, status: "pronto_para_analise", unidade_id: "u1" });
 
     const res = await request(app)
       .post("/api/casos/1/distribuir")
@@ -135,7 +136,12 @@ describe("POST /api/casos/:id/distribuir", () => {
       .mockResolvedValueOnce(makeProfile("coordenador", { id: "uuid-1" }))
       .mockResolvedValueOnce(makeProfile("defensor", { id: "u2" }));
 
-    mockPrismaCasos.findUnique.mockResolvedValue({ id: 1, status: "pronto_para_analise", unidade_id: "u1" });
+    mockPrismaCasos.findUnique.mockResolvedValue({ 
+      id: 1, 
+      status: "pronto_para_analise", 
+      unidade_id: "u1",
+      unidade: { regional: "1ª Regional - Feira de Santana" }
+    });
     
     // Simula erro P2025
     const error = new Error("Record not found");
