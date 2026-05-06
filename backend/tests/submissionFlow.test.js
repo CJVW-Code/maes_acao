@@ -47,7 +47,21 @@ jest.unstable_mockModule("../src/config/prisma.js", () => ({
     casos_ia: {
       upsert: jest.fn().mockResolvedValue({}),
     },
+    logs_auditoria: {
+      create: jest.fn().mockResolvedValue({}),
+    },
   },
+}));
+
+// Mock para evitar chamadas REAIS de IA durante os testes (Consumo de Tokens)
+jest.unstable_mockModule("../src/services/aiService.js", () => ({
+  generateLegalText: jest.fn().mockResolvedValue("Texto de teste gerado pelo Mock (sem gasto de tokens)"),
+  visionOCR: jest.fn().mockResolvedValue("Texto OCR Mock"),
+}));
+
+jest.unstable_mockModule("../src/services/geminiService.js", () => ({
+  generateDosFatos: jest.fn().mockResolvedValue("Dos Fatos gerado por Mock."),
+  normalizePromptData: (d) => d,
 }));
 
 const { default: app } = await import("../server.js");

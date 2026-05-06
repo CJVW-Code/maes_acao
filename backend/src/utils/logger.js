@@ -6,6 +6,7 @@ dotenv.config();
 // Regex para padrões comuns de PII (Brasil)
 const CPF_REGEX = /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b|\b\d{11}\b/g;
 const RG_REGEX = /\b\d{1,2}\.?\d{3}\.?\d{3}-?[\dX]\b/gi;
+const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 
 /**
  * Função utilitária para sanitização recursiva de objetos
@@ -13,7 +14,7 @@ const RG_REGEX = /\b\d{1,2}\.?\d{3}\.?\d{3}-?[\dX]\b/gi;
 const sanitizeObject = (obj, piiMap = null, seen = new WeakSet()) => {
   if (!obj || typeof obj !== "object") {
     if (typeof obj === "string") {
-      let sanitized = obj.replace(CPF_REGEX, "[MASCARADO_CPF]").replace(RG_REGEX, "[MASCARADO_RG]");
+      let sanitized = obj.replace(CPF_REGEX, "[MASCARADO_CPF]").replace(RG_REGEX, "[MASCARADO_RG]").replace(EMAIL_REGEX, "[MASCARADO_EMAIL]");
       if (piiMap) {
         const keys = Object.keys(piiMap).sort((a, b) => b.length - a.length);
         keys.forEach((key) => {
@@ -57,11 +58,10 @@ const piiSanitizer = winston.format((info) => {
   const piiMap = info.piiMap;
   const sanitizedInfo = sanitizeObject(info, piiMap);
   
-  if (sanitizedInfo.piiMap) {
-    delete sanitizedInfo.piiMap;
-  }
-
-  return Object.assign(info, sanitizedInfo);
+  const result = Object.assign(info, sanitizedInfo);
+  delete result.piiMap;
+  
+  return result;
 });
 
 const levels = {

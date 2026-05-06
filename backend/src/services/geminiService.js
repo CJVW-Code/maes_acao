@@ -53,7 +53,7 @@ const sanitizarAtomo = (texto, piiContext = {}) => {
     .replace(/#+\s*/g, "")
     .replace(/\*+/g, "")
     .replace(/Dos Fatos[:-]?\s*/gi, "")
-    .replace(/(Sobre|Quanto|No que tange|Em relação|Acerca|Relato|Informação) [aàs]*\s*(guarda|convivência|visitas|pensão|necessidades|capacidade|fatos|detalhes).*?[:-]\s*/gi, "")
+    .replace(/(Sobre|Quanto|No que tange|Em relação|Acerca|Relato|Informação) (?:[aà]s?)?\s*(guarda|convivência|visitas|pensão|necessidades|capacidade|fatos|detalhes).*?[:-]\s*/gi, "")
     .trim();
 
   // 1. O NUKER DEFINITIVO: Destrói qualquer sentença que contenha palavras proibidas
@@ -81,7 +81,7 @@ const sanitizarAtomo = (texto, piiContext = {}) => {
     if (!hasForbidden && sentence.trim().length > 0) {
       rebuilt += sentence + delimiter;
     } else if (hasForbidden) {
-      logger.warn(`☢️ [NUKER] Sentença destruída por conter 1ª pessoa: "${sentence.substring(0, 50)}..."`);
+      logger.warn(`☢️ [NUKER] Sentença destruída por conter 1ª pessoa. (Conteúdo ocultado por segurança LGPD)`);
     }
   }
   
@@ -139,7 +139,7 @@ export const normalizePromptData = (raw = {}) => {
     ...raw,
     requerente,
     requerido,
-    relato: maskStringPII(raw.relato_texto || raw.relato || raw.relatoBruto || raw.relato_adicional || ""),
+    relato: raw.relato_texto || raw.relato || raw.relatoBruto || raw.relato_adicional || "",
     valorMensalPensao: raw.valorMensalPensao ?? raw.valor_pensao,
     triagemNumero: raw.triagemNumero || raw.triagem_numero || raw.protocolo || DEFAULT_TRIAGEM,
   };

@@ -31,7 +31,7 @@ export const sanitize = (obj) => {
     const keyLower = k.toLowerCase();
     
     // Verifica se a chave contém algum dos termos sensíveis
-    const isSensitive = Array.from(SENSITIVE_KEYS).some(s => keyLower.includes(s));
+    const isSensitive = Array.from(SENSITIVE_KEYS).some(s => s.length <= 3 ? keyLower === s || keyLower.split('_').includes(s) : keyLower.includes(s));
 
     if (isSensitive) {
       sanitized[k] = "***";

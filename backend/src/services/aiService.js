@@ -115,7 +115,13 @@ export const generateLegalText = async (
     try {
       if (!groqClient) throw new Error("Cliente Groq não configurado.");
 
-      const completion = await groqClient.chat.completions.create({
+      // Inicializa cliente local com fetchOptions para suportar o AbortSignal adequadamente
+      const localGroqClient = new Groq({ 
+        apiKey: process.env.GROQ_API_KEY, 
+        fetchOptions: { signal: groqController.signal } 
+      });
+
+      const completion = await localGroqClient.chat.completions.create({
         messages: [
           { role: "system", content: safeSystemPrompt },
           { role: "user", content: safeUserPrompt },
@@ -124,7 +130,7 @@ export const generateLegalText = async (
         temperature: temperature,
         max_tokens: 1500,
         top_p: 0.8,
-      }, { signal: groqController.signal });
+      });
 
       clearTimeout(groqTimeout);
       generatedText = completion.choices[0]?.message?.content || "";

@@ -182,8 +182,7 @@ export const Treinamentos = () => {
                     <span className="text-[#d97706] dark:text-amber-400 underline decoration-2 underline-offset-2">
                       endereço
                     </span>
-                    . Outros campos exigem inserção manual. (EX: Dados da criança. foi decidido
-                    assim no momento da criação da extensão)
+                    . Outros campos, como os dados da criança, exigem inserção manual.
                   </p>
                 </div>
               </Motion.div>

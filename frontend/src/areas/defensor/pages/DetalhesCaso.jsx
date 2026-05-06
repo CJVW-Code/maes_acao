@@ -2032,7 +2032,7 @@ export const DetalhesCaso = () => {
             </div>
             */}
             {/* Fluxo de finalização liberado para todos os cargos autorizados */}
-            {user?.cargo !== "visualizador" && (
+            {user?.cargo?.toLowerCase() !== "visualizador" && (
               <div className="mt-16 pt-10 border-t border-soft space-y-10">
                 <h2 className="text-2xl font-bold text-primary flex items-center gap-3">
                   <CheckCircle className="text-green-500" size={28} />
