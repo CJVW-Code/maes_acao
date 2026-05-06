@@ -421,7 +421,7 @@ const carregarCasoDetalhado = async (id, reqUser) => {
         documentos(*),
         defensor:defensores!casos_defensor_id_fkey(nome),
         servidor:defensores!casos_servidor_id_fkey(nome),
-        unidade:unidades(sistema),
+        unidade:unidades(nome, sistema),
         assistencia_casos:assistencia_casos(
           status,
           destinatario_id,
@@ -455,7 +455,7 @@ const carregarCasoDetalhado = async (id, reqUser) => {
         documentos: true,
         defensor: { select: { nome: true } },
         servidor: { select: { nome: true } },
-        unidade: { select: { sistema: true } },
+        unidade: { select: { nome: true, sistema: true } },
         assistencia_casos: {
           where: {
             OR: [{ destinatario_id: reqUser.id }, { remetente_id: reqUser.id }],
@@ -3282,7 +3282,7 @@ export const listarCasos = async (req, res) => {
         documentos: true,
         defensor: { select: { id: true, nome: true } },
         servidor: { select: { id: true, nome: true } },
-        unidade: { select: { sistema: true, regional: true } },
+        unidade: { select: { nome: true, sistema: true, regional: true } },
       },
     };
 

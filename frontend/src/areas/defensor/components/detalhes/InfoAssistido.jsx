@@ -98,6 +98,7 @@ export const InfoAssistido = ({ caso }) => {
         {renderDataField("Telefone principal", telefonePrincipal)}
         {renderDataField("Tipo de ação", formatTipoAcaoLabel(caso.tipo_acao))}
         {renderDataField("Protocolo", caso.protocolo)}
+        {caso.unidade?.nome && renderDataField("Unidade Defensoria", caso.unidade.nome)}
       </div>
 
       <div className="pt-4">

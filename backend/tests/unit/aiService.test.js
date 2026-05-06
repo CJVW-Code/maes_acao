@@ -7,6 +7,7 @@ import { jest } from "@jest/globals";
 // Resposta padrão de sucesso para ambos
 const mockGroqCreate = jest.fn();
 const mockGeminiGenerate = jest.fn();
+const mockOpenAICreate = jest.fn();
 
 jest.unstable_mockModule("groq-sdk", () => ({
   default: class MockGroq {
@@ -24,11 +25,20 @@ jest.unstable_mockModule("@google/generative-ai", () => ({
   },
 }));
 
+jest.unstable_mockModule("openai", () => ({
+  default: class MockOpenAI {
+    constructor() {
+      this.chat = { completions: { create: mockOpenAICreate } };
+    }
+  },
+}));
+
 process.env.GROQ_API_KEY = "dummy_groq_key_for_testing";
 process.env.GEMINI_API_KEY = "dummy_gemini_key_for_testing";
+process.env.OPENAI_API_KEY = "dummy_openai_key_for_testing";
 
 // Carrega o módulo DEPOIS dos mocks (padrão ESM)
-const { generateLegalText, } = await import(
+const { generateLegalText } = await import(
   "../../src/services/aiService.js"
 );
 
@@ -41,9 +51,9 @@ function makeGroqSuccess(text) {
   });
 }
 
-function makeGeminiSuccess(text) {
+function makeOpenAISuccess(text) {
   return Promise.resolve({
-    response: { text: () => text },
+    choices: [{ message: { content: text } }],
   });
 }
 
@@ -139,25 +149,25 @@ describe("aiService — generateLegalText: PII Sanitization", () => {
 });
 
 // ──────────────────────────────────────────────────────────
-// generateLegalText — Fallback para Gemini
+// generateLegalText — Fallback para OpenAI
 // ──────────────────────────────────────────────────────────
-describe("aiService — generateLegalText: Fallback Groq → Gemini", () => {
+describe("aiService — generateLegalText: Fallback Groq → OpenAI", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("usa Gemini quando Groq lança erro", async () => {
+  it("usa OpenAI quando Groq lança erro", async () => {
     mockGroqCreate.mockRejectedValueOnce(new Error("Groq rate limit"));
-    mockGeminiGenerate.mockResolvedValueOnce(makeGeminiSuccess("Texto do Gemini fallback"));
+    mockOpenAICreate.mockResolvedValueOnce(makeOpenAISuccess("Texto do OpenAI fallback"));
 
     const result = await generateLegalText("sys", "prompt", 0.3, {});
-    expect(result).toBe("Texto do Gemini fallback");
-    expect(mockGeminiGenerate).toHaveBeenCalledTimes(1);
+    expect(result).toBe("Texto do OpenAI fallback");
+    expect(mockOpenAICreate).toHaveBeenCalledTimes(1);
   });
 
   it("lança erro quando ambos falham", async () => {
     mockGroqCreate.mockRejectedValueOnce(new Error("Groq down"));
-    mockGeminiGenerate.mockRejectedValueOnce(new Error("Gemini down"));
+    mockOpenAICreate.mockRejectedValueOnce(new Error("OpenAI down"));
 
     await expect(generateLegalText("sys", "prompt", 0.3, {})).rejects.toThrow(
       /Inteligência Artificial indisponível|ambos.*falharam/i
@@ -169,13 +179,13 @@ describe("aiService — generateLegalText: Fallback Groq → Gemini", () => {
 // generateLegalText — Timeout
 // ──────────────────────────────────────────────────────────
 describe("aiService — generateLegalText: Timeout", () => {
-  it("lança erro quando Groq excede 30s (via timeout mock)", async () => {
+  it("lança erro quando Groq excede o tempo limite", async () => {
     jest.clearAllMocks();
-    // Simula Groq nunca resolvendo e Gemini também falhando
+    // Simula Groq nunca resolvendo (timeout real excedido)
     mockGroqCreate.mockImplementationOnce(
-      () => new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout: Chamada Groq excedeu o limite de tempo")), 50))
+      () => new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout: Chamada Groq excedeu o limite de tempo")), 10))
     );
-    mockGeminiGenerate.mockRejectedValueOnce(new Error("Gemini also failed"));
+    mockOpenAICreate.mockRejectedValueOnce(new Error("OpenAI also failed"));
 
     await expect(generateLegalText("sys", "prompt", 0.3, {})).rejects.toThrow();
   }, 10000);

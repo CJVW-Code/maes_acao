@@ -12,8 +12,10 @@ jest.unstable_mockModule("../src/utils/logger.js", () => ({
 // Mock aiService (não queremos chamar IA real nos testes)
 jest.unstable_mockModule("../src/services/aiService.js", () => ({
   generateLegalText: jest.fn().mockResolvedValue(
-    "O autor é filho do requerido, conforme é possível aduzir pela documentação. " +
-    "Ocorre que, no caso em tela, o genitor não contribui regularmente."
+    "O alimentando é fruto da relação entre as partes. " +
+    "Ocorre que o genitor não contribui voluntariamente para o sustento. " +
+    "A genitora vem arcando sozinha com todas as despesas. " +
+    "As necessidades mensais giram em torno de R$ 500,00."
   ),
   __esModule: true,
 }));
@@ -109,12 +111,12 @@ describe("generateDosFatos", () => {
 
   it("deve sanitizar o texto retornado (remover títulos MD)", async () => {
     generateLegalText.mockResolvedValueOnce(
-      "## Dos Fatos\n\nO autor é filho do requerido."
+      "## Dos Fatos\n\nO alimentando é fruto da relação entre as partes."
     );
 
     const resultado = await generateDosFatos(dadosCasoBase, "fixacao_alimentos");
     expect(resultado).not.toContain("## Dos Fatos");
-    expect(resultado).toContain("O autor é filho do requerido");
+    expect(resultado).toContain("O alimentando é fruto da relação");
   });
 
   it("deve propagar erro quando IA falha", async () => {
