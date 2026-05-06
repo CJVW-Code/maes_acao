@@ -12,10 +12,10 @@
 ID: 01
 File Path: `backend/.env`
 Context: Arquivo de variáveis de ambiente do backend. Atualmente não contém `API_BASE_URL`, forçando fallback de processamento síncrono local.
-Action: Adicionar a variável `API_BASE_URL` com a URL base do backend (local ou Railway).
+Action: Adicionar a variável `API_BASE_URL` com a URL base do backend (local ou Google Cloud Run).
 Logic Details:
   - Inserir linha: `API_BASE_URL=http://localhost:8001` para desenvolvimento local.
-  - Em produção (Railway), usar a URL pública do serviço (ex: `https://api.mutirao.dpe.ba.gov.br`).
+  - Em produção (Google Cloud Run), usar a URL pública do serviço (ex: `https://api.mutirao.dpe.ba.gov.br`).
   - A variável é consumida em `buildSignedUrl` (ln 824) e na publicação de jobs QStash para montar o webhook de retorno.
   - **Não** adicionar `/api` ao final — o sufixo já é adicionado internamente onde necessário.
 Acceptance Criteria:

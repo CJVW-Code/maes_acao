@@ -70,6 +70,16 @@ const summaryFilterLabels = {
   meus: "meus atendimentos",
 };
 
+const filterMapping = {
+  aguardando_documentos: ["aguardando_documentos"],
+  documentacao_completa: ["documentacao_completa"],
+  pronto_para_analise: ["pronto_para_analise"],
+  em_atendimento: ["em_atendimento"],
+  liberado_para_protocolo: ["liberado_para_protocolo"],
+  em_protocolo: ["em_protocolo"],
+  protocolado: ["protocolado"],
+};
+
 export const Dashboard = () => {
   const { token, user, notificacoes, marcarNotificacaoLida, permissions } = useAuth();
   const navigate = useNavigate();
@@ -106,9 +116,19 @@ export const Dashboard = () => {
     dedupingInterval: 10000, // 10 segundos
   });
 
-  // Lista recente: apenas os últimos casos (id, nome, protocolo, status, data)
-  const { data: casosRecentes = [], error: casosError } = useSWR(
-    token ? "/casos?limite=10" : null,
+  // Chave dinâmica para SWR: busca filtrada ou os 10 recentes
+  const casosUrl = useMemo(() => {
+    if (!token) return null;
+    if (statusFilter === "meus") return "/casos?meusAtendimentos=true";
+    if (statusFilter && filterMapping[statusFilter]) {
+      return `/casos?status=${filterMapping[statusFilter].join(",")}`;
+    }
+    return "/casos?limite=10";
+  }, [token, statusFilter]);
+
+  // Lista de casos (filtrada no servidor ou recente)
+  const { data: casosSource = [], error: casosError } = useSWR(
+    casosUrl,
     fetcherCasos,
     {
       revalidateOnFocus: false,
@@ -122,35 +142,17 @@ export const Dashboard = () => {
 
   const contagens = resumo?.contagens || {};
 
-  // Paginação da lista recente filtrada por status
+  // Paginação e formatação da lista (que já vem filtrada do servidor)
   const [casosFiltered, totalPages] = useMemo(() => {
-    if (!statusFilter) return [casosRecentes.slice(0, 6), 0];
+    if (!casosSource || !Array.isArray(casosSource)) return [[], 0];
 
-    const filterMapping = {
-      aguardando_documentos: ["aguardando_documentos", "aguardando_docs", "recebido"],
-      documentacao_completa: ["documentacao_completa", "documentos_entregues"],
-      pronto_para_analise: ["pronto_para_analise", "processado"],
-      em_atendimento: ["em_atendimento", "em_analise"],
-      liberado_para_protocolo: ["liberado_para_protocolo"],
-      em_protocolo: ["em_protocolo"],
-      protocolado: ["protocolado", "encaminhado_solar"],
-      meus: ["meus"],
-    };
+    // Se não houver filtro, pegamos os 6 primeiros para o visual "limpo" do Dashboard
+    const dataToDisplay = !statusFilter ? casosSource.slice(0, 6) : casosSource;
 
-    const filtered = casosRecentes.filter((c) => {
-      if (statusFilter === "meus") {
-        return c.servidor_id === user?.id || c.defensor_id === user?.id;
-      }
-
-      const s = normalizeStatus(c.status);
-      const statuses = filterMapping[statusFilter] || [];
-      return statuses.includes(s);
-    });
-
-    const pages = Math.ceil(filtered.length / itemsPerPage);
+    const pages = Math.ceil(dataToDisplay.length / itemsPerPage);
     const start = (currentPage - 1) * itemsPerPage;
-    return [filtered.slice(start, start + itemsPerPage), pages];
-  }, [casosRecentes, statusFilter, currentPage, user]);
+    return [dataToDisplay.slice(start, start + itemsPerPage), pages];
+  }, [casosSource, statusFilter, currentPage]);
 
   const handleSummaryClick = (key) => {
     setStatusFilter((previous) => (previous === key ? null : key));
@@ -431,7 +433,7 @@ export const Dashboard = () => {
             </Link>
           </div>
 
-          {casosRecentes.length === 0 ? (
+          {casosSource.length === 0 ? (
             <div className="p-8 text-muted text-center 2xl:text-lg">Nenhum caso encontrado.</div>
           ) : (
             <div className="overflow-x-auto">

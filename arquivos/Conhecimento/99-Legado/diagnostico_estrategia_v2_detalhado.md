@@ -13,7 +13,7 @@ A premissa número um do documento é que o pico do evento pode sobrecarregar a 
 - **Preparação de Fallback (Desenvolvimento):** Geração nativa e buffers já conseguem tratar geração Prisma offline.
 
 ### 🔴 O que NÃO está alinhado (Falta / Urgente):
-- **O Pipeline QStash (Rate Limiting de Vida ou Morte):** Segundo a estratégia, é EXAUSTIVAMENTE PROIBITIVO carregar o OCR ou a LLama Groq numa thread HTTP síncrona. O Railway que hospedará a aplicação tem um limite de 30s de timeout. 
+- **O Pipeline QStash (Rate Limiting de Vida ou Morte):** Segundo a estratégia, é EXAUSTIVAMENTE PROIBITIVO carregar o OCR ou a LLama Groq numa thread HTTP síncrona. O Google Cloud Run que hospedará a aplicação tem um limite de 30s de timeout. 
   - **Status atual:** Estamos processando/simulando as inteligências em background nativo (`setImmediate` local), o que derreterá sob uso massivo em contêineres. 
   - **Ação:** Refatorar o roteamento para delegar obrigatoriamente a fila ao **QStash** (endpoint assíncrono), recebendo e orquestrando requests separadas (`/api/jobs`) de forma fragmentada.
 - **Transição Gemini para GPT-4o-mini:** O projeto atual no seu *core AI* carrega resquícios robustos do Google Gemini. A estratégia v2.0 requer OCR via OpenAI GPT-4o-mini (Multimodal rápido) priorizado, limitando o LLM Groq 70B somente para mineração da seção "DOS FATOS".
@@ -63,7 +63,7 @@ Os mutirões prevêem separações literais de embasamento jurídico por modelos
 
 ### 🟡 O que está Parcialmente alinhado:
 - **Signed URLs temporárias**: Exigência magna que todos os URLs sejam expirados numa hora, visados no Storage de sa-east-1 (Sp-Supabase). O backend de geração de peça cumpre parcialmente essa camada, mas será vital rodar a revisão global no roteamento para garantir que NENHUMA string de arquivo chegue ao Prisma ou a interface como "Link público".
-- **Logs imaculados**: Falta homologar se todos os traceadores do Express realmente interceptam lixos JSON de CPF sem cuspir na stdout que vai para o Railway Monitor.
+- **Logs imaculados**: Falta homologar se todos os traceadores do Express realmente interceptam lixos JSON de CPF sem cuspir na stdout que vai para o Google Cloud Run Monitor.
 
 ---
 
@@ -75,4 +75,4 @@ A missão primordial que sobra agora foca puramente em **Redes Isoladas e Resili
 **Ordem Tática para Atacar:**
 1. ✅ Implantar **Lock Controller + RPC no DataBase**, fazendo cards de travamento de UI funcionarem com o Código HTTP 423.
 2. ✅ Escrever endpoint de **Scanner Dedicado (`/api/scanner`)** separando o Upload da Triagem.
-3. ✅ Converter o processamento pesado de Groq/Documentos via **Polling QStash**. Sem isso o Mutirão travará sob Timeout na Vercel e Railway.
+3. ✅ Converter o processamento pesado de Groq/Documentos via **Polling QStash**. Sem isso o Mutirão travará sob Timeout na Vercel e Google Cloud Run.

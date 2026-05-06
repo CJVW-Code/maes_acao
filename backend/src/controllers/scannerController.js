@@ -8,8 +8,6 @@ import fsSync from "fs";
 import crypto from "crypto";
 import { sanitizeFilename } from "../middleware/upload.js";
 
-
-
 /**
  * Controller focado em receber documentos do aplicativo de scanner
  * ou da recepção de forma rápida e segura.
@@ -108,21 +106,20 @@ export const scannerUpload = async (req, res) => {
     res.status(200).json({
       message: "Documentos recebidos com sucesso!",
       protocolo,
-      total: documentosCriados.length,
+      documentos: documentosCriados,
     });
   } catch (error) {
     logger.error(`[Scanner] Erro ao processar upload: ${error.message}`);
-    res.status(500).json({ error: "Falha ao processar documentos." });
+    res.status(500).json({ error: "Erro interno ao processar documentos." });
   } finally {
-    // Limpeza de temporários
+    // Limpeza de arquivos temporários do Multer
     if (req.files) {
       for (const file of req.files) {
         try {
           await fs.unlink(file.path);
         } catch (e) {
-          // Ignora erro na limpeza de temporários
+          // ignore
         }
-
       }
     }
   }

@@ -45,7 +45,6 @@ import { safeFormData } from "../utils/helpers.js";
 import { validateTransition } from "../utils/stateMachine.js";
 import { sanitizeFilename } from "../middleware/upload.js";
 
-
 // Colunas físicas da tabela casos_ia que podem ser atualizadas diretamente
 const DIRECT_COLUMN_KEYS = new Set(["url_peticao", "url_peticao_penhora", "url_peticao_prisao"]);
 
@@ -137,8 +136,7 @@ const mapCasoRelations = (caso) => {
     enriched.representante_ocupacao =
       partes.profissao_representante || dadosFormulario.representante_ocupacao || "";
     enriched.representante_rg_numero = partes.rg_representante;
-    enriched.representante_rg_orgao =
-      partes.emissor_rg_representante;
+    enriched.representante_rg_orgao = partes.emissor_rg_representante;
     enriched.emissor_rg_exequente = partes.emissor_rg_representante;
     enriched.nome_mae_representante = partes.nome_mae_representante;
     enriched.nome_pai_representante = partes.nome_pai_representante;
@@ -1075,7 +1073,6 @@ const formatCurrencyBr = (value) => {
     .replace(/\u00A0/g, " ");
 };
 
-
 /**
  * Helper para extrair componentes de endereço da string formatada pelo EnderecoInput.jsx
  */
@@ -1124,57 +1121,59 @@ const parseEnderecoParaSolar = (enderecoStr) => {
 
 const buildSolarExportPayload = (caso = {}) => {
   const dados = caso.dados_formulario || {};
-  
+
   // No mutirão Mães em Ação, o alvo principal da qualificação SOLAR é a MÃE (Representante)
   // sempre que o assistido direto é um filho incapaz.
   const incapazFlag = String(
-    caso.assistido_eh_incapaz ??
-    dados.assistido_eh_incapaz ??
-    dados.assistidoEhIncapaz ??
-    "",
-  ).toLowerCase().trim();
+    caso.assistido_eh_incapaz ?? dados.assistido_eh_incapaz ?? dados.assistidoEhIncapaz ?? "",
+  )
+    .toLowerCase()
+    .trim();
   const isIncapaz = incapazFlag === "sim";
 
   // Define os alvos com base na capacidade
-  const targetCpf = isIncapaz 
-    ? (caso.representante_cpf || dados.representante_cpf) 
-    : (caso.cpf_assistido || caso.cpf || dados.cpf);
-    
-  const targetNome = isIncapaz 
-    ? (caso.nome_representante || caso.REPRESENTANTE_NOME || dados.nome_representante || dados.REPRESENTANTE_NOME) 
-    : (caso.nome_assistido || caso.nome || dados.NOME || dados.nome);
-    
-  const targetNascimento = isIncapaz 
-    ? (caso.representante_data_nascimento || dados.representante_data_nascimento) 
-    : (caso.assistido_data_nascimento || caso.nascimento || dados.nascimento);
-    
-  const targetNomeMae = isIncapaz 
-    ? (caso.nome_mae_representante || dados.nome_mae_representante) 
-    : (caso.nome_mae_assistido || caso.nome_mae_representante || dados.nome_mae_assistido);
-    
-  const targetNomePai = isIncapaz 
-    ? (caso.nome_pai_representante || dados.nome_pai_representante) 
-    : (caso.nome_pai_assistido || caso.nome_pai_representante || dados.nome_pai_assistido);
+  const targetCpf = isIncapaz
+    ? caso.representante_cpf || dados.representante_cpf
+    : caso.cpf_assistido || caso.cpf || dados.cpf;
 
-  const targetRg = isIncapaz 
-    ? (caso.representante_rg_numero || dados.representante_rg_numero || caso.assistido_rg_numero) 
-    : (caso.assistido_rg_numero || dados.assistido_rg_numero || caso.representante_rg_numero);
+  const targetNome = isIncapaz
+    ? caso.nome_representante ||
+      caso.REPRESENTANTE_NOME ||
+      dados.nome_representante ||
+      dados.REPRESENTANTE_NOME
+    : caso.nome_assistido || caso.nome || dados.NOME || dados.nome;
 
-  const targetEmissor = isIncapaz 
-    ? (caso.representante_rg_orgao || dados.representante_rg_orgao || caso.emissor_rg_exequente) 
-    : (caso.assistido_rg_orgao || dados.assistido_rg_orgao || caso.emissor_rg_exequente);
+  const targetNascimento = isIncapaz
+    ? caso.representante_data_nascimento || dados.representante_data_nascimento
+    : caso.assistido_data_nascimento || caso.nascimento || dados.nascimento;
 
-  const targetOcupacao = isIncapaz 
-    ? (caso.representante_ocupacao || dados.representante_ocupacao) 
-    : (caso.assistido_ocupacao || dados.assistido_ocupacao);
+  const targetNomeMae = isIncapaz
+    ? caso.nome_mae_representante || dados.nome_mae_representante
+    : caso.nome_mae_assistido || caso.nome_mae_representante || dados.nome_mae_assistido;
 
-  const targetNacionalidade = isIncapaz 
-    ? (caso.representante_nacionalidade || dados.representante_nacionalidade || "brasileira")
-    : (caso.assistido_nacionalidade || dados.assistido_nacionalidade || "brasileiro(a)");
+  const targetNomePai = isIncapaz
+    ? caso.nome_pai_representante || dados.nome_pai_representante
+    : caso.nome_pai_assistido || caso.nome_pai_representante || dados.nome_pai_assistido;
 
-  const targetEstadoCivil = isIncapaz 
-    ? (caso.representante_estado_civil || dados.representante_estado_civil || "solteira")
-    : (caso.assistido_estado_civil || dados.assistido_estado_civil || "solteiro(a)");
+  const targetRg = isIncapaz
+    ? caso.representante_rg_numero || dados.representante_rg_numero || caso.assistido_rg_numero
+    : caso.assistido_rg_numero || dados.assistido_rg_numero || caso.representante_rg_numero;
+
+  const targetEmissor = isIncapaz
+    ? caso.representante_rg_orgao || dados.representante_rg_orgao || caso.emissor_rg_exequente
+    : caso.assistido_rg_orgao || dados.assistido_rg_orgao || caso.emissor_rg_exequente;
+
+  const targetOcupacao = isIncapaz
+    ? caso.representante_ocupacao || dados.representante_ocupacao
+    : caso.assistido_ocupacao || dados.assistido_ocupacao;
+
+  const targetNacionalidade = isIncapaz
+    ? caso.representante_nacionalidade || dados.representante_nacionalidade || "brasileira"
+    : caso.assistido_nacionalidade || dados.assistido_nacionalidade || "brasileiro(a)";
+
+  const targetEstadoCivil = isIncapaz
+    ? caso.representante_estado_civil || dados.representante_estado_civil || "solteira"
+    : caso.assistido_estado_civil || dados.assistido_estado_civil || "solteiro(a)";
 
   return {
     cpf: (targetCpf || "").replace(/\D/g, ""),
@@ -1590,13 +1589,12 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
 
   // Leitura dos campos de guarda, bens e situação financeira:
   // Prioridade: tabela casos_juridico (atualizada pelo defensor) > dados_formulario (triagem)
-  const descricaoGuardaTexto =
-    baseData.descricao_guarda || baseData.descricaoGuarda || "";
-  const temPedidoGuarda = 
-    baseData.opcaoGuarda === "regularizar" || (descricaoGuardaTexto && descricaoGuardaTexto.trim().length > 0);
+  const descricaoGuardaTexto = baseData.descricao_guarda || baseData.descricaoGuarda || "";
+  const temPedidoGuarda =
+    baseData.opcaoGuarda === "regularizar" ||
+    (descricaoGuardaTexto && descricaoGuardaTexto.trim().length > 0);
 
-  const bensPartilhaTexto =
-    baseData.bens_partilha || baseData.bensPartilha || "";
+  const bensPartilhaTexto = baseData.bens_partilha || baseData.bensPartilha || "";
   const situacaoFinanceiraTexto =
     baseData.situacao_financeira_genitora || baseData.situacaoFinanceiraGenitora || "";
 
@@ -1611,8 +1609,7 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
   // A tag {dos_fatos} no Word absorve todo o texto.
   let dosFatosComGuarda = dosFatosTexto || "[DESCREVER OS FATOS]";
   if (isFixacaoOuGravidicos && descricaoGuardaTexto && descricaoGuardaTexto.trim()) {
-    const clausulaGuarda =
-      `\n\nSobre a guarda e convivência: ${descricaoGuardaTexto.trim()}`;
+    const clausulaGuarda = `\n\nSobre a guarda e convivência: ${descricaoGuardaTexto.trim()}`;
     // Evita duplicar o parágrafo se já estiver presente (reprocessamento)
     if (!dosFatosComGuarda.includes("Sobre a guarda e convivência:")) {
       dosFatosComGuarda = dosFatosComGuarda + clausulaGuarda;
@@ -1637,15 +1634,15 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
     VARA: formatVara(baseData.VARA || baseData.varaOriginaria || "______"),
     vara: formatVara(baseData.VARA || baseData.varaOriginaria || "______"),
     CIDADEASSINATURA: String(
-      baseData.CIDADEASSINATURA || baseData.cidade_assinatura || "______",
+      baseData.CIDADEASSINATURA || baseData.cidade_assinatura || "Não informada",
     ).toUpperCase(),
     comarca: String(
-      baseData.CIDADEASSINATURA || baseData.cidade_assinatura || "______",
+      baseData.CIDADEASSINATURA || baseData.cidade_assinatura || "Não informada",
     ).toUpperCase(),
     tipo_decisao: baseData.tipo_decisao || "Sentença/Acordo",
-    processoOrigemNumero: baseData.processoOrigemNumero || "______",
+    processoOrigemNumero: baseData.processoOrigemNumero || "Não informado",
     varaOriginaria: formatVara(baseData.varaOriginaria || "______"),
-    cidadeOriginaria: baseData.cidadeOriginaria || "______",
+    cidadeOriginaria: baseData.cidadeOriginaria || "Não informada",
     data_atual: baseData.data_atual || dataAtualTexto,
     DATA_ATUAL: baseData.data_atual || dataAtualTexto,
     cidade_data_assinatura:
@@ -1653,7 +1650,7 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
       baseData.cidade_assinatura ||
       `${String(baseData.CIDADEASSINATURA || baseData.cidade_assinatura || "______").toUpperCase()}, ${dataAtualTexto}`,
     defensoraNome: baseData.defensoraNome || "DEFENSOR(A) PÚBLICO(A)",
-    
+
     // Título Dinâmico da Ação (Multi-tag para evitar undefined no Word)
     tipo_acao: (() => {
       if (isFixacaoOuGravidicos) {
@@ -1663,7 +1660,7 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
         }
         return titulo.toUpperCase();
       }
-      
+
       const mapaAmigavel = {
         exec_penhora: "EXECUÇÃO DE ALIMENTOS PELO RITO DA PENHORA",
         exec_prisao: "EXECUÇÃO DE ALIMENTOS PELO RITO DA PRISÃO",
@@ -1673,7 +1670,12 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
         def_cumulado: "CUMPRIMENTO DE SENTENÇA (RITOS DA PRISÃO E PENHORA)",
       };
 
-      const baseAcao = (baseData.tipo_acao || baseData.acao_especifica || baseData.tipoAcao || "").toLowerCase();
+      const baseAcao = (
+        baseData.tipo_acao ||
+        baseData.acao_especifica ||
+        baseData.tipoAcao ||
+        ""
+      ).toLowerCase();
       return (mapaAmigavel[baseAcao] || baseAcao || "PETIÇÃO INICIAL").toUpperCase();
     })(),
     TIPO_ACAO: (() => {
@@ -1684,7 +1686,7 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
         }
         return titulo.toUpperCase();
       }
-      
+
       const mapaAmigavel = {
         exec_penhora: "EXECUÇÃO DE ALIMENTOS PELO RITO DA PENHORA",
         exec_prisao: "EXECUÇÃO DE ALIMENTOS PELO RITO DA PRISÃO",
@@ -1694,7 +1696,12 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
         def_cumulado: "CUMPRIMENTO DE SENTENÇA (RITOS DA PRISÃO E PENHORA)",
       };
 
-      const baseAcao = (baseData.tipo_acao || baseData.acao_especifica || baseData.tipoAcao || "").toLowerCase();
+      const baseAcao = (
+        baseData.tipo_acao ||
+        baseData.acao_especifica ||
+        baseData.tipoAcao ||
+        ""
+      ).toLowerCase();
       return (mapaAmigavel[baseAcao] || baseAcao || "PETIÇÃO INICIAL").toUpperCase();
     })(),
     tipoAcao: (() => {
@@ -1705,7 +1712,7 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
         }
         return titulo.toUpperCase();
       }
-      
+
       const mapaAmigavel = {
         exec_penhora: "EXECUÇÃO DE ALIMENTOS PELO RITO DA PENHORA",
         exec_prisao: "EXECUÇÃO DE ALIMENTOS PELO RITO DA PRISÃO",
@@ -1715,7 +1722,12 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
         def_cumulado: "CUMPRIMENTO DE SENTENÇA (RITOS DA PRISÃO E PENHORA)",
       };
 
-      const baseAcao = (baseData.tipo_acao || baseData.acao_especifica || baseData.tipoAcao || "").toLowerCase();
+      const baseAcao = (
+        baseData.tipo_acao ||
+        baseData.acao_especifica ||
+        baseData.tipoAcao ||
+        ""
+      ).toLowerCase();
       return (mapaAmigavel[baseAcao] || baseAcao || "PETIÇÃO INICIAL").toUpperCase();
     })(),
 
@@ -1727,44 +1739,40 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
     // Representante (Genitora) / Requerente
     // Requerente (Assistido/Criança)
     requerente_nome: String(
-      baseData.nome_assistido ||
-        baseData.NOME ||
-        baseData.nome ||
-        "______",
+      baseData.nome_assistido || baseData.NOME || baseData.nome || "______",
     ).toUpperCase(),
     requerente_data_nascimento: baseData.assistido_data_nascimento || "______",
-    requerente_cpf: baseData.cpf_assistido || "______",
-    dados_adicionais_requerente: baseData.dados_adicionais_requerente || "______",
+    requerente_cpf: baseData.cpf_assistido || "Não inscrito(a)",
+    dados_adicionais_requerente:
+      baseData.dados_adicionais_requerente || "Nenhuma informação adicional",
 
     // Representante (Genitora)
     REPRESENTANTE_NOME: String(baseData.REPRESENTANTE_NOME || "______").toUpperCase(),
     representante_nome: String(
-      baseData.REPRESENTANTE_NOME ||
-        baseData.nome_representante ||
-        "______",
+      baseData.REPRESENTANTE_NOME || baseData.nome_representante || "______",
     ).toUpperCase(),
     representante_nacionalidade: baseData.representante_nacionalidade || "brasileira",
     representante_estado_civil: baseData.representante_estado_civil || "solteira",
-    representante_ocupacao: baseData.representante_ocupacao || "______",
+    representante_ocupacao: baseData.representante_ocupacao || "Não informada",
     representante_rg:
-      baseData.representante_rg || baseData.representante_rg_numero || "não informado",
+      baseData.representante_rg || baseData.representante_rg_numero || "Não informado",
     representante_rg_numero:
-      baseData.representante_rg_numero || baseData.representante_rg || "não informado",
+      baseData.representante_rg_numero || baseData.representante_rg || "Não informado",
     emissor_rg_exequente:
-      baseData.emissor_rg_exequente || baseData.representante_rg_orgao || "não informado",
+      baseData.emissor_rg_exequente || baseData.representante_rg_orgao || "Não informado",
     representante_rg_orgao:
-      baseData.representante_rg_orgao || baseData.emissor_rg_exequente || "não informado",
-    representante_cpf: baseData.representante_cpf || "______",
-    nome_mae_representante: baseData.nome_mae_representante || "não informado",
-    nome_pai_representante: baseData.nome_pai_representante || "não informado",
+      baseData.representante_rg_orgao || baseData.emissor_rg_exequente || "Não informado",
+    representante_cpf: baseData.representante_cpf || "Não informado",
+    nome_mae_representante: baseData.nome_mae_representante || "Não informado",
+    nome_pai_representante: baseData.nome_pai_representante || "Não informado",
     requerente_endereco_residencial:
-      baseData.requerente_endereco_residencial || baseData.endereco_assistido || "não informado",
+      baseData.requerente_endereco_residencial || baseData.endereco_assistido || "Não informado",
     representante_endereco_profissional:
-      baseData.representante_endereco_profissional || "não informado",
-    requerente_telefone: baseData.requerente_telefone || "não informado",
+      baseData.representante_endereco_profissional || "Não informado",
+    requerente_telefone: baseData.requerente_telefone || "Não informado",
     representante_telefone:
-      baseData.representante_telefone || baseData.telefone_assistido || "não informado",
-    requerente_email: baseData.requerente_email || "não informado",
+      baseData.representante_telefone || baseData.telefone_assistido || "Não informado",
+    requerente_email: baseData.requerente_email || "Não informado",
     dados_bancarios_exequente:
       baseData.dados_bancarios_exequente || baseData.dados_bancarios_deposito || "Não informados",
     dados_bancarios_requerente:
@@ -1777,25 +1785,26 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
     ).toUpperCase(),
     executado_nacionalidade: baseData.executado_nacionalidade || "brasileiro(a)",
     executado_estado_civil: baseData.executado_estado_civil || "solteiro(a)",
-    executado_ocupacao: baseData.executado_ocupacao || "______",
-    nome_mae_executado: baseData.nome_mae_executado || "não informado",
-    nome_pai_executado: baseData.nome_pai_executado || "não informado",
-    rg_executado: baseData.rg_executado || baseData.requerido_rg_numero || "não informado",
-    requerido_rg_numero: baseData.requerido_rg_numero || baseData.rg_executado || "não informado",
+    executado_ocupacao: baseData.executado_ocupacao || "Não informada",
+    nome_mae_executado: baseData.nome_mae_executado || "Não informado",
+    nome_pai_executado: baseData.nome_pai_executado || "Não informado",
+    rg_executado: baseData.rg_executado || baseData.requerido_rg_numero || "Não informado",
+    requerido_rg_numero: baseData.requerido_rg_numero || baseData.rg_executado || "Não informado",
     emissor_rg_executado:
-      baseData.emissor_rg_executado || baseData.requerido_rg_orgao || "não informado",
+      baseData.emissor_rg_executado || baseData.requerido_rg_orgao || "Não informado",
     requerido_rg_orgao:
-      baseData.requerido_rg_orgao || baseData.emissor_rg_exequente || "não informado",
-    executado_cpf: baseData.executado_cpf || baseData.cpf_requerido || "______",
-    cpf_requerido: baseData.cpf_requerido || baseData.executado_cpf || "______",
-    executado_endereco_residencial: baseData.executado_endereco_residencial || "______",
+      baseData.requerido_rg_orgao || baseData.emissor_rg_exequente || "Não informado",
+    executado_cpf: baseData.executado_cpf || baseData.cpf_requerido || "Não informado",
+    cpf_requerido: baseData.cpf_requerido || baseData.executado_cpf || "Não informado",
+    executado_endereco_residencial: baseData.executado_endereco_residencial || "Não informado",
     requerido_endereco_residencial:
-      baseData.endereco_requerido || baseData.executado_endereco_residencial || "______",
-    executado_endereco_profissional: baseData.executado_endereco_profissional || "não informado",
-    executado_telefone: baseData.executado_telefone || "não informado",
-    executado_email: baseData.executado_email || "não informado",
-    empregador_nome: baseData.empregador_nome || "______",
-    dados_adicionais_requerido: baseData.dados_adicionais_requerido || "______",
+      baseData.endereco_requerido || baseData.executado_endereco_residencial || "Não informado",
+    executado_endereco_profissional: baseData.executado_endereco_profissional || "Não informado",
+    executado_telefone: baseData.executado_telefone || "Não informado",
+    executado_email: baseData.executado_email || "Não informado",
+    empregador_nome: baseData.empregador_nome || "Não informado",
+    dados_adicionais_requerido:
+      baseData.dados_adicionais_requerido || "Nenhuma informação adicional",
 
     // Filhos / Assistidos
     lista_filhos,
@@ -1859,11 +1868,14 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
     // valor_causa: para fixação, SEMPRE usa o cálculo x12 do backend (regra de negócio inegociável).
     // Para execuções e cumprimentos, usa a soma dos débitos ou o valor informado.
     valor_causa: isFixacaoOuGravidicos
-      ? (valorCausaFixacaoCalculado > 0 ? formatCurrencyBr(valorCausaFixacaoCalculado) : "______")
-      : (baseData.valor_causa || (valorCausaCalculado > 0 ? formatCurrencyBr(valorCausaCalculado) : "______")),
+      ? valorCausaFixacaoCalculado > 0
+        ? formatCurrencyBr(valorCausaFixacaoCalculado)
+        : "______"
+      : baseData.valor_causa ||
+        (valorCausaCalculado > 0 ? formatCurrencyBr(valorCausaCalculado) : "______"),
     valor_causa_extenso: isFixacaoOuGravidicos
       ? valorCausaFixacaoExtenso
-      : (baseData.valor_causa_extenso || valorCausaExtenso || "______"),
+      : baseData.valor_causa_extenso || valorCausaExtenso || "______",
 
     // ── Tags exclusivas de Fixação de Alimentos (adicione ao .docx conforme necessário) ──
     // {valor_mensal_pensao}         → valor bruto da pensão mensal (ex: R$ 500,00)
@@ -1967,16 +1979,15 @@ export const processarCasoEmBackground = async (
   url_peticao,
 ) => {
   try {
-    // [EIXO 3] Guarda: verificar se o caso tem documentos antes de processar
     const casoAtual = await prisma.casos.findUnique({
       where: { protocolo },
-      select: { status: true, documentos: { select: { id: true } } },
+      select: { status: true },
     });
+    const statusOriginal = casoAtual?.status || "documentacao_completa";
 
-    if (casoAtual?.status === "aguardando_documentos") {
-      logger.warn(`[Background] Caso ${protocolo} ainda aguardando documentos. Processamento abortado.`);
-      return; // Mantém status aguardando_documentos
-    }
+    logger.info(
+      `[Background] Iniciando processamento do protocolo=${protocolo}. Status original: ${statusOriginal}`,
+    );
 
     // Mesmo sem documentos, casos enviados como "sem documento" devem gerar minuta.
     // O processamento segue com urls_documentos vazias e usa apenas os dados do formulário.
@@ -2371,11 +2382,14 @@ export const processarCasoEmBackground = async (
       url_peticao_cumulado,
     };
 
+    const finalStatus =
+      statusOriginal === "aguardando_documentos" ? "aguardando_documentos" : "pronto_para_analise";
+
     // Finalizar processamento - Atualiza Status no Caso e Dados na IA
     await prisma.casos.update({
       where: { protocolo },
       data: {
-        status: "pronto_para_analise",
+        status: finalStatus,
         processed_at: new Date(),
         ia: {
           upsert: {
@@ -3066,20 +3080,21 @@ export const criarNovoCaso = async (req, res) => {
 
     // Se vai enviar documentos depois, responde e NÃO processa em background
     if (enviarDocDepois) {
-      logger.info(`📋 Caso ${protocolo} aguardando documentos. Processamento adiado.`);
+      logger.info(
+        `📋 Caso ${protocolo} aguardando documentos. Processamento iniciado (Minuta em background).`,
+      );
       res.status(201).json({
         ...responsePayload,
-        message: "Caso registrado! Envie os documentos quando possível.",
+        message: "Caso registrado! A minuta está sendo gerada enquanto você anexa os documentos.",
         status: "aguardando_documentos",
       });
-      return; // pula todo o pipeline de processamento
+    } else {
+      res.status(201).json({
+        ...responsePayload,
+        message: "Caso registrado! Processando...",
+        status: "documentacao_completa",
+      });
     }
-
-    res.status(201).json({
-      ...responsePayload,
-      message: "Caso registrado! Processando...",
-      status: "documentacao_completa",
-    });
 
     const qstashToken = process.env.QSTASH_TOKEN;
     const apiBaseUrl = process.env.API_BASE_URL;
@@ -3172,7 +3187,7 @@ export const criarNovoCaso = async (req, res) => {
 
 export const listarCasos = async (req, res) => {
   try {
-    const { cpf, arquivado, limite, meusAtendimentos, unidade_id } = req.query;
+    const { cpf, arquivado, limite, meusAtendimentos, unidade_id, status } = req.query;
     const arquivadoBool = arquivado === "true";
     const userCargo = (req.user?.cargo || "").toLowerCase();
 
@@ -3191,6 +3206,11 @@ export const listarCasos = async (req, res) => {
 
     // 2. Filtros de Unidade/Regional
     let whereClause = { arquivado: arquivadoBool, ...baseFilter };
+
+    if (status) {
+      const statusList = status.split(",");
+      whereClause.status = { in: statusList };
+    }
 
     if (userCargo === "admin" || userCargo === "gestor" || userCargo === "coordenador") {
       if (unidade_id && unidade_id !== "todas") {
@@ -3329,10 +3349,12 @@ export const resumoCasos = async (req, res) => {
     let partesWhere = { caso: { arquivado: false } };
     if (!isPowerUser && req.user?.unidade_id) {
       if (req.user.cargo?.toLowerCase() === "coordenador") {
-        const userUnidade = await prisma.unidades.findUnique({
-          where: { id: req.user.unidade_id },
-          select: { regional: true }
-        }).catch(() => null);
+        const userUnidade = await prisma.unidades
+          .findUnique({
+            where: { id: req.user.unidade_id },
+            select: { regional: true },
+          })
+          .catch(() => null);
 
         if (userUnidade?.regional) {
           partesWhere.caso.unidade = { regional: userUnidade.regional };
@@ -3541,7 +3563,9 @@ export const obterDetalhesCaso = async (req, res) => {
     // SEGURANÇA: Só pode assumir a autoria de um caso se ele pertencer à sua própria unidade.
     if (!isObserver && !data.defensor_id && !data.servidor_id && !isShared) {
       const isDefensor = req.user.cargo.toLowerCase().includes("defensor");
-      const isServidor = req.user.cargo.toLowerCase() === "servidor" || req.user.cargo.toLowerCase() === "estagiario";
+      const isServidor =
+        req.user.cargo.toLowerCase() === "servidor" ||
+        req.user.cargo.toLowerCase() === "estagiario";
 
       // BUG FIX: Se o status for 'liberado_para_protocolo', o servidor NÃO deve assumir o caso automaticamente.
       // Isso permite que o servidor libere o caso e ele continue livre para o defensor.
@@ -3577,70 +3601,70 @@ export const obterDetalhesCaso = async (req, res) => {
           data: updateData,
         });
 
-      // NOVO: Vincular automaticamente todos os outros casos da mesma família
-      const cpfRepresentante = data.representante_cpf; // Usar exclusivamente cpf_representante
-      if (cpfRepresentante && isSupabaseConfigured) {
-        try {
-          // Busca casos irmãos via Supabase (mesma mãe/representante)
-          const { data: outrosCasos, error: searchError } = await supabase
-            .from("casos_partes")
-            .select("caso_id")
-            .eq("cpf_representante", cpfRepresentante);
+        // NOVO: Vincular automaticamente todos os outros casos da mesma família
+        const cpfRepresentante = data.representante_cpf; // Usar exclusivamente cpf_representante
+        if (cpfRepresentante && isSupabaseConfigured) {
+          try {
+            // Busca casos irmãos via Supabase (mesma mãe/representante)
+            const { data: outrosCasos, error: searchError } = await supabase
+              .from("casos_partes")
+              .select("caso_id")
+              .eq("cpf_representante", cpfRepresentante);
 
-          if (!searchError && outrosCasos?.length > 0) {
-            const idsIrmaos = outrosCasos
-              .map((c) => String(c.caso_id))
-              .filter((cid) => cid !== String(id));
+            if (!searchError && outrosCasos?.length > 0) {
+              const idsIrmaos = outrosCasos
+                .map((c) => String(c.caso_id))
+                .filter((cid) => cid !== String(id));
 
-            if (idsIrmaos.length > 0) {
-              // Só vincula se o caso irmão:
-              // 1. NÃO tiver um lock ativo (defensor/servidor)
-              // 2. Pertencer à mesma unidade do profissional (Isolamento de Unidades)
-              const { error: batchError } = await supabase
-                .from("casos")
-                .update(updateData)
-                .in("id", idsIrmaos)
-                .eq("unidade_id", req.user.unidade_id)
-                .is("defensor_id", null)
-                .is("servidor_id", null);
+              if (idsIrmaos.length > 0) {
+                // Só vincula se o caso irmão:
+                // 1. NÃO tiver um lock ativo (defensor/servidor)
+                // 2. Pertencer à mesma unidade do profissional (Isolamento de Unidades)
+                const { error: batchError } = await supabase
+                  .from("casos")
+                  .update(updateData)
+                  .in("id", idsIrmaos)
+                  .eq("unidade_id", req.user.unidade_id)
+                  .is("defensor_id", null)
+                  .is("servidor_id", null);
 
-              if (!batchError) {
-                logger.info(
-                  `Vinculado automaticamente ${idsIrmaos.length} caso(s) irmão(s) da unidade ${req.user.unidade_id} ao usuário ${req.user.id}`,
-                );
+                if (!batchError) {
+                  logger.info(
+                    `Vinculado automaticamente ${idsIrmaos.length} caso(s) irmão(s) da unidade ${req.user.unidade_id} ao usuário ${req.user.id}`,
+                  );
+                }
               }
             }
+          } catch (err) {
+            logger.error(`Erro ao vincular casos familiares: ${err.message}`);
           }
-        } catch (err) {
-          logger.error(`Erro ao vincular casos familiares: ${err.message}`);
-        }
-      } else if (cpfRepresentante && !isSupabaseConfigured) {
-        // Fallback Prisma (mantendo lógica segura)
-        try {
-          const outrosCasos = await prisma.casos_partes.findMany({
-            where: { cpf_representante: cpfRepresentante },
-            select: { caso_id: true },
-          });
-
-          const idsIrmaos = outrosCasos
-            .map((c) => c.caso_id)
-            .filter((cid) => cid.toString() !== id.toString());
-
-          if (idsIrmaos.length > 0) {
-            await prisma.casos.updateMany({
-              where: {
-                id: { in: idsIrmaos },
-                unidade_id: req.user.unidade_id,
-                defensor_id: null,
-                servidor_id: null,
-              },
-              data: updateData,
+        } else if (cpfRepresentante && !isSupabaseConfigured) {
+          // Fallback Prisma (mantendo lógica segura)
+          try {
+            const outrosCasos = await prisma.casos_partes.findMany({
+              where: { cpf_representante: cpfRepresentante },
+              select: { caso_id: true },
             });
+
+            const idsIrmaos = outrosCasos
+              .map((c) => c.caso_id)
+              .filter((cid) => cid.toString() !== id.toString());
+
+            if (idsIrmaos.length > 0) {
+              await prisma.casos.updateMany({
+                where: {
+                  id: { in: idsIrmaos },
+                  unidade_id: req.user.unidade_id,
+                  defensor_id: null,
+                  servidor_id: null,
+                },
+                data: updateData,
+              });
+            }
+          } catch (err) {
+            logger.error(`Erro ao vincular casos familiares (Prisma): ${err.message}`);
           }
-        } catch (err) {
-          logger.error(`Erro ao vincular casos familiares (Prisma): ${err.message}`);
         }
-      }
       }
     }
 
@@ -4168,8 +4192,8 @@ export const gerarTermoDeclaracao = async (req, res) => {
   try {
     const casoRaw = await prisma.casos.findUnique({
       where: { id: BigInt(id) },
-      include: { 
-        partes: true, 
+      include: {
+        partes: true,
         ia: true,
         juridico: true,
         assistencia_casos: {
@@ -4187,7 +4211,9 @@ export const gerarTermoDeclaracao = async (req, res) => {
     const userCargo = req.user.cargo.toLowerCase();
     const isAdmin = userCargo === "admin";
     const isGestor = userCargo === "gestor";
-    const isDono = String(caso.defensor_id) === String(req.user.id) || String(caso.servidor_id) === String(req.user.id);
+    const isDono =
+      String(caso.defensor_id) === String(req.user.id) ||
+      String(caso.servidor_id) === String(req.user.id);
     const isShared = (caso.assistencia_casos || []).length > 0;
     const lockAtivo = !isDono && (caso.defensor_id || caso.servidor_id);
 
@@ -4213,7 +4239,7 @@ export const gerarTermoDeclaracao = async (req, res) => {
       caso.partes || {},
       caso.relato_texto || "",
       baseDataForPayload,
-      normalizeAcaoKey(caso.tipo_acao)
+      normalizeAcaoKey(caso.tipo_acao),
     );
 
     // Generate the term declaration document
@@ -4273,16 +4299,15 @@ export const gerarTermoDeclaracao = async (req, res) => {
   }
 };
 
-
 export const regerarMinuta = async (req, res) => {
   const { id } = req.params;
   try {
     const dataRaw = await prisma.casos.findUnique({
       where: { id: BigInt(id) },
-      include: { 
-        partes: true, 
-        ia: true, 
-        juridico: true, 
+      include: {
+        partes: true,
+        ia: true,
+        juridico: true,
         unidade: { select: { comarca: true } },
         assistencia_casos: {
           where: {
@@ -4307,7 +4332,8 @@ export const regerarMinuta = async (req, res) => {
     if (!isAdmin && !isDono && !isShared) {
       if (!isGestor || lockAtivo) {
         return res.status(403).json({
-          error: "Acesso negado. Você não tem permissão para regerar a minuta deste caso ou ele está bloqueado.",
+          error:
+            "Acesso negado. Você não tem permissão para regerar a minuta deste caso ou ele está bloqueado.",
         });
       }
     }
@@ -5266,27 +5292,19 @@ export const deletarCaso = async (req, res) => {
       });
     }
 
-    let caso;
-    if (isSupabaseConfigured) {
-      const { data, error: fetchError } = await supabase
-        .from("casos")
-        .select("*")
-        .eq("id", id)
-        .single();
+    // --- BUSCA COMPLETA ANTES DE DELETAR (Necessário para limpar storage devido ao CASCADE) ---
+    // Buscamos via Prisma para garantir que as relações IA e Documentos venham juntas
+    const casoRaw = await prisma.casos.findUnique({
+      where: { id: BigInt(id) },
+      include: { ia: true, documentos: true },
+    });
 
-      if (fetchError || !data) {
-        return res.status(404).json({ error: "Caso não encontrado." });
-      }
-      caso = data;
-    } else {
-      const data = await prisma.casos.findUnique({
-        where: { id: BigInt(id) },
-      });
-      if (!data) {
-        return res.status(404).json({ error: "Caso não encontrado." });
-      }
-      caso = data;
+    if (!casoRaw) {
+      return res.status(404).json({ error: "Caso não encontrado." });
     }
+
+    // Enriquecer dados para garantir que virtual fields de URLs existam (url_peticao, etc)
+    const caso = mapCasoRelations(casoRaw);
 
     // --- REMOVER ARQUIVOS DO STORAGE (Apenas se Supabase configurado) ---
     if (isSupabaseConfigured) {
@@ -5297,28 +5315,46 @@ export const deletarCaso = async (req, res) => {
       };
 
       const addFile = (bucket, path) => {
+        if (!path) return;
         const cleanPath = extractObjectPath(path);
-        if (cleanPath) filesToDelete[bucket].push(cleanPath);
+        if (cleanPath && !filesToDelete[bucket].includes(cleanPath)) {
+          filesToDelete[bucket].push(cleanPath);
+        }
       };
 
+      // 1. Audio
       addFile(storageBuckets.audios, caso.url_audio);
+
+      // 2. Petições / Minutas (Todas as possíveis chaves do schema e dados_extraidos)
       addFile(storageBuckets.peticoes, caso.url_peticao);
+      addFile(storageBuckets.peticoes, caso.url_peticao_penhora);
+      addFile(storageBuckets.peticoes, caso.url_peticao_prisao);
+      addFile(storageBuckets.peticoes, caso.url_peticao_cumulado);
       addFile(storageBuckets.peticoes, caso.url_documento_gerado);
       addFile(storageBuckets.peticoes, caso.url_termo_declaracao);
+      
+      // Chaves extras dinâmicas (se houver no JSONB dados_extraidos)
       URL_KEYS_DOCUMENTOS_GERADOS.forEach((key) => addFile(storageBuckets.peticoes, caso[key]));
-      addFile(storageBuckets.documentos, caso.url_capa_processual);
 
+      // 3. Documentos Originais e Capa
+      addFile(storageBuckets.documentos, caso.url_capa_processual);
+      
+      // Documentos da tabela documentos (via mapCasoRelations, ficam em urls_documentos)
       if (Array.isArray(caso.urls_documentos)) {
-        caso.urls_documentos.forEach((doc) => addFile(storageBuckets.documentos, doc));
+        caso.urls_documentos.forEach((docPath) => addFile(storageBuckets.documentos, docPath));
       }
 
+      // Executar deleção em paralelo por bucket para otimização
       await Promise.all(
         Object.entries(filesToDelete).map(async ([bucket, files]) => {
           if (files.length > 0) {
             logger.info(
-              `🗑️ Excluindo ${files.length} arquivos do bucket '${bucket}' vinculados ao caso ${id}`,
+              `🗑️ Storage: Excluindo ${files.length} arquivos do bucket '${bucket}' (Caso ${id})`,
             );
-            await supabase.storage.from(bucket).remove(files);
+            const { error: storageError } = await supabase.storage.from(bucket).remove(files);
+            if (storageError) {
+              logger.warn(`[Storage] Erro parcial ao remover arquivos do bucket ${bucket}: ${storageError.message}`);
+            }
           }
         }),
       );
@@ -5329,40 +5365,25 @@ export const deletarCaso = async (req, res) => {
 
     // --- LIMPEZA DE REFERÊNCIAS (Prevenção de erro de Constraint) ---
     // Bug Fix: Supabase update/delete não lançam exceções — retornam { error }.
-    // Bug Fix: Match de notificações deve ser exato para não apagar notificações de outros casos
-    //          cujo ID seja prefixo do atual (ex: /casos/12 e /casos/123).
     if (isSupabaseConfigured) {
-      const { error: logsCleanupError } = await supabase
-        .from("logs_auditoria")
-        .update({ caso_id: null })
-        .eq("caso_id", id);
-
-      if (logsCleanupError) {
-        logger.error(`[DeletarCaso] Falha ao desvincular logs_auditoria do caso ${id}: ${logsCleanupError.message}`);
-        throw new Error(`Falha ao desvincular logs de auditoria: ${logsCleanupError.message}`);
-      }
-
-      const { error: notifCleanupError } = await supabase
-        .from("notificacoes")
-        .delete()
-        .eq("link", `/painel/casos/${id}`);
-
-      if (notifCleanupError) {
-        logger.error(`[DeletarCaso] Falha ao remover notificações do caso ${id}: ${notifCleanupError.message}`);
-        throw new Error(`Falha ao remover notificações: ${notifCleanupError.message}`);
-      }
+      // Logs de auditoria: mantém o log histórico mas desvincula do caso (SetNull)
+      await supabase.from("logs_auditoria").update({ caso_id: null }).eq("caso_id", id);
+      
+      // Notificações: apaga as notificações ligadas a este link exato
+      await supabase.from("notificacoes").delete().eq("link", `/painel/casos/${id}`);
     } else {
       await prisma.logs_auditoria.updateMany({
         where: { caso_id: BigInt(id) },
         data: { caso_id: null },
       });
-      // Usa endsWith para match exato do sufixo, evitando /casos/12 cassar com /casos/123
+      // Usa endsWith para match exato do sufixo, evitando colisão entre IDs similares (12 vs 123)
       await prisma.notificacoes.deleteMany({
         where: { link: { endsWith: `/casos/${id}` } },
       });
     }
 
-    // Excluir o caso do banco de dados (Tabelas partes, juridico, ia e documentos possuem CASCADE)
+    // --- EXCLUSÃO FINAL DO CASO ---
+    // Tabelas partes, juridico, ia e documentos possuem CASCADE no Prisma/Postgres
     if (isSupabaseConfigured) {
       const { error: deleteError } = await supabase.from("casos").delete().eq("id", id);
       if (deleteError) throw deleteError;
@@ -5372,9 +5393,10 @@ export const deletarCaso = async (req, res) => {
       });
     }
 
+    logger.info(`✅ Caso ${id} (Protocolo: ${caso.protocolo}) excluído com sucesso por admin.`);
     res.json({ message: "Caso excluído com sucesso." });
   } catch (err) {
-    logger.error(`Erro ao deletar caso ${id}: ${err.message}`);
+    logger.error(`❌ Erro ao deletar caso ${id}: ${err.message}`);
     res.status(500).json({ error: `Erro ao excluir caso: ${err.message}` });
   }
 };
@@ -5454,10 +5476,10 @@ export const reprocessarCaso = async (req, res) => {
     // Reconstrói dados_bancarios_exequente a partir dos campos normalizados no DB
     // Apenas sobrescreve se o defensor tiver preenchido os campos no painel jurídico
     const dadosBancariosDerivados = (() => {
-      const banco   = juridicoDB.conta_banco   || "";
+      const banco = juridicoDB.conta_banco || "";
       const agencia = juridicoDB.conta_agencia || "";
       const operacao = juridicoDB.conta_operacao || "";
-      const numero  = juridicoDB.conta_numero  || "";
+      const numero = juridicoDB.conta_numero || "";
       if (!banco && !agencia && !numero) return {};
       const partes = [banco, agencia, operacao, numero].filter(Boolean).join(" / ");
       return {
@@ -5472,19 +5494,30 @@ export const reprocessarCaso = async (req, res) => {
 
     // Campos extras do juridicoDB que alimentam o template diretamente
     const camposJuridicoExtras = {
-      ...(juridicoDB.descricao_guarda     ? { descricao_guarda: juridicoDB.descricao_guarda }       : {}),
-      ...(juridicoDB.bens_partilha        ? { bens_partilha: juridicoDB.bens_partilha }             : {}),
+      ...(juridicoDB.descricao_guarda ? { descricao_guarda: juridicoDB.descricao_guarda } : {}),
+      ...(juridicoDB.bens_partilha ? { bens_partilha: juridicoDB.bens_partilha } : {}),
       ...(juridicoDB.situacao_financeira_genitora
-        ? { situacao_financeira_genitora: juridicoDB.situacao_financeira_genitora }                  : {}),
-      ...(juridicoDB.vencimento_dia       ? { dia_pagamento: String(juridicoDB.vencimento_dia) }    : {}),
-      ...(juridicoDB.debito_valor         ? { valor_mensal_pensao: juridicoDB.debito_valor }        : {}),
-      ...(juridicoDB.debito_penhora_valor ? { debito_penhora_valor: juridicoDB.debito_penhora_valor } : {}),
-      ...(juridicoDB.debito_penhora_extenso ? { debito_penhora_extenso: juridicoDB.debito_penhora_extenso } : {}),
-      ...(juridicoDB.debito_prisao_valor  ? { debito_prisao_valor: juridicoDB.debito_prisao_valor } : {}),
-      ...(juridicoDB.debito_prisao_extenso ? { debito_prisao_extenso: juridicoDB.debito_prisao_extenso } : {}),
-      ...(juridicoDB.opcao_guarda          ? { opcao_guarda: juridicoDB.opcao_guarda, opcaoGuarda: juridicoDB.opcao_guarda } : {}),
-      ...(juridicoDB.empregador_nome       ? { empregador_nome: juridicoDB.empregador_nome } : {}),
-      ...(juridicoDB.empregador_email      ? { empregador_email: juridicoDB.empregador_email } : {}),
+        ? { situacao_financeira_genitora: juridicoDB.situacao_financeira_genitora }
+        : {}),
+      ...(juridicoDB.vencimento_dia ? { dia_pagamento: String(juridicoDB.vencimento_dia) } : {}),
+      ...(juridicoDB.debito_valor ? { valor_mensal_pensao: juridicoDB.debito_valor } : {}),
+      ...(juridicoDB.debito_penhora_valor
+        ? { debito_penhora_valor: juridicoDB.debito_penhora_valor }
+        : {}),
+      ...(juridicoDB.debito_penhora_extenso
+        ? { debito_penhora_extenso: juridicoDB.debito_penhora_extenso }
+        : {}),
+      ...(juridicoDB.debito_prisao_valor
+        ? { debito_prisao_valor: juridicoDB.debito_prisao_valor }
+        : {}),
+      ...(juridicoDB.debito_prisao_extenso
+        ? { debito_prisao_extenso: juridicoDB.debito_prisao_extenso }
+        : {}),
+      ...(juridicoDB.opcao_guarda
+        ? { opcao_guarda: juridicoDB.opcao_guarda, opcaoGuarda: juridicoDB.opcao_guarda }
+        : {}),
+      ...(juridicoDB.empregador_nome ? { empregador_nome: juridicoDB.empregador_nome } : {}),
+      ...(juridicoDB.empregador_email ? { empregador_email: juridicoDB.empregador_email } : {}),
     };
 
     const dados_extraidos = {

@@ -256,6 +256,6 @@ Os seguintes arquivos estavam no diretório `04-Historico/` e não foram rastrea
 ## Próximos Passos Sugeridos
 
 - [ ] Commit e tag de versão `v2.2-pre`
-- [ ] Testar fluxo completo de download via ticket em produção (Railway)
+- [ ] Testar fluxo completo de download via ticket em produção (Google Cloud Run)
 - [ ] Validar upload de minuta manual em casos reais
 - [ ] Verificar se `temCasoOcioso` está sendo calculado corretamente no endpoint `/resumo`

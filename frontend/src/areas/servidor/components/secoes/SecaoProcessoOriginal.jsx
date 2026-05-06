@@ -31,8 +31,8 @@ export const SecaoProcessoOriginal = ({
           )}
         </div>
         <div>
-          <label htmlFor="percentualSalarioMinimo" className="label font-bold text-">
-            Percentual do Salário Mínimo (%)
+          <label htmlFor="percentualSalarioMinimo" className="label font-bold">
+            Percentual do Salário Mínimo (%) *
           </label>
           <div className="relative">
             <input
@@ -42,12 +42,16 @@ export const SecaoProcessoOriginal = ({
               name="percentual_salario_minimo"
               value={formState.percentual_salario_minimo}
               onChange={handleFieldChange}
-              className="input border-primary/50 pr-10"
+              className={`input pr-10 ${formErrors.percentual_salario_minimo ? "border-error ring-1 ring-error" : "border-primary/50"}`}
+              {...validar("Informe o percentual do salário mínimo.")}
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted font-bold">
               %
             </span>
           </div>
+          {formErrors.percentual_salario_minimo && (
+            <p className="text-xs text-error font-medium mt-1">{formErrors.percentual_salario_minimo}</p>
+          )}
         </div>
         {/* Campo "Valor Mensal Fixo" removido conforme solicitação */}
       </div>

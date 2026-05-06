@@ -176,7 +176,9 @@ export const processSubmission = async ({
     if (!formState.valor_debito) {
       validationErrors.valor_debito = "O valor total do débito é obrigatório.";
     }
-
+    if (!formState.percentual_salario_minimo) {
+      validationErrors.percentual_salario_minimo = "O percentual do salário mínimo é obrigatório.";
+    }
   }
 
   // 3. Validação de Quantidade Mínima de Documentos

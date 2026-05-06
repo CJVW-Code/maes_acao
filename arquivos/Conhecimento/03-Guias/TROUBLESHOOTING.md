@@ -29,7 +29,7 @@ Este manual contém resoluções rápidas para as ocorrências mais comuns duran
 
 **Cenário:** O caso fica preso com status de erro após o scanner.
 - **Causa 1 (Timeout):** O documento era muito grande ou a rede falhou ao enviar ao Gemini Vision.
-- **Causa 2 (QStash Signing):** Falha na validação da assinatura de segurança entre o QStash e o Railway.
+- **Causa 2 (QStash Signing):** Falha na validação da assinatura de segurança entre o QStash e o Google Cloud Run.
 - **Solução:** No painel administrativo do caso, clique em **Reprocessar**. Isso disparará o pipeline novamente ignorando a fila do QStash (uso do `setImmediate` local).
 
 ---
@@ -54,7 +54,7 @@ Este manual contém resoluções rápidas para as ocorrências mais comuns duran
 
 **Cenário:** Erro de conexão (ECONNREFUSED) entre frontend e backend.
 - **Causa:** O backend está rodando em uma porta diferente da configurada no frontend.
-- **Solução:** Verifique o arquivo `frontend/src/utils/apiBase.js`. Em produção, a variável `VITE_API_URL` deve apontar para a URL correta do Railway. Em desenvolvimento local (Docker), deve ser `http://localhost:8001/api`.
+- **Solução:** Verifique o arquivo `frontend/src/utils/apiBase.js`. Em produção, a variável `VITE_API_URL` deve apontar para a URL correta do Google Cloud Run. Em desenvolvimento local (Docker), deve ser `http://localhost:8001/api`.
 
 ---
 

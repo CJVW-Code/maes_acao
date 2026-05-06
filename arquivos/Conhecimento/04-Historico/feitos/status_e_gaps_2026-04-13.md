@@ -13,7 +13,7 @@ Este documento descreve o estado atual do sistema após os 9 commits registrados
 | Componente       | Tecnologia                         | Status          |
 | :--------------- | :--------------------------------- | :-------------- |
 | Frontend         | React 18 + Vite → Vercel           | ✅ Operacional  |
-| Backend          | Node.js + Express → Railway        | ✅ Operacional  |
+| Backend          | Node.js + Express → Google Cloud Run        | ✅ Operacional  |
 | Banco            | Supabase PostgreSQL (sa-east-1)    | ✅ Operacional  |
 | Storage          | Supabase Storage (3 buckets)       | ✅ Operacional  |
 | Fila IA          | Upstash QStash                     | ✅ Operacional  |
