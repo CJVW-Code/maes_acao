@@ -20,7 +20,7 @@ export function maskPII(obj, seen = new WeakSet()) {
   if (seen.has(obj)) return "[CIRCULAR]";
   seen.add(obj);
 
-  const sensitiveKeys = ["cpf", "rg", "email", "telefone", "nome", "nome_assistido", "representante_nome", "nome_requerido", "senha", "token", "password"];
+  const sensitiveKeys = ["cpf", "rg", "email", "telefone", "nome", "mae", "pai", "nome_assistido", "representante_nome", "nome_requerido", "senha", "token", "password"];
   const masked = Array.isArray(obj) ? [...obj] : { ...obj };
 
   for (const key in masked) {
@@ -29,8 +29,18 @@ export function maskPII(obj, seen = new WeakSet()) {
     } else if (typeof masked[key] === "string") {
       const lowerKey = key.toLowerCase();
       
+      // Normaliza camelCase para snake_case para extrair segmentos (ex: nomeMae -> nome_mae)
+      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`).toLowerCase();
+      const segments = new Set([...lowerKey.split('_'), ...snakeKey.split('_')]);
+
       // Se a chave for conhecida como sensível, mascara o valor inteiro
-      if (sensitiveKeys.some(k => lowerKey.includes(k))) {
+      // Para tokens curtos (<=3), exige match exato de um dos segmentos para evitar falso positivo (ex: rg em cargo)
+      const isSensitive = sensitiveKeys.some(k => {
+        if (k.length <= 3) return segments.has(k);
+        return lowerKey.includes(k);
+      });
+
+      if (isSensitive) {
         masked[key] = "[REDACTED]";
       } 
       // Caso contrário, tenta detectar padrões no valor (CPF, Email, RG)

@@ -17,21 +17,41 @@ export const TRANSICOES_PERMITIDAS = Object.freeze({
  * @param {string} role - Cargo do usuário (deve estar em lowercase)
  * @returns {Object} - { ok: boolean, adminBypass: boolean, reason?: string }
  */
+/**
+ * Valida se uma transição de status é permitida.
+ * @param {string} from - Status atual
+ * @param {string} to - Status desejado
+ * @param {string} role - Cargo do usuário
+ * @returns {Object} - { ok: boolean, adminBypass: boolean, reason?: string }
+ */
 export function validateTransition(from, to, role) {
-  const allowed = TRANSICOES_PERMITIDAS[from] || [];
-  const isAdmin = role === "admin";
-
   if (from === to) return { ok: true, adminBypass: false };
 
-  if (!allowed.includes(to)) {
-    if (isAdmin) {
-      return { ok: true, adminBypass: true };
-    }
+  const isAdmin = role === "admin";
+
+  // Admin sempre pode forçar qualquer transição
+  if (isAdmin) return { ok: true, adminBypass: true };
+
+  // O status 'protocolado' é especial e terminal. 
+  // Bloqueamos a mudança MANUAL para 'protocolado' (deve ser via finalizarCasoSolar)
+  if (to === "protocolado") {
     return {
       ok: false,
-      reason: `Transição inválida: ${from} -> ${to}`,
+      reason: "O status 'Protocolado' só pode ser definido através da finalização oficial do caso.",
     };
   }
 
+  // Se o caso já estiver 'protocolado', só permitimos voltar para 'aguardando_documentos' (regra original)
+  if (from === "protocolado") {
+    if (to === "aguardando_documentos") {
+      return { ok: true, adminBypass: false };
+    }
+    return {
+      ok: false,
+      reason: "Um caso protocolado só pode retornar para o status 'Aguardando Documentos'.",
+    };
+  }
+
+  // Para todos os outros status (antes do protocolo), permitimos livre trânsito (sem restrição de ordem)
   return { ok: true, adminBypass: false };
 }

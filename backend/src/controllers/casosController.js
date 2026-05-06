@@ -949,6 +949,7 @@ const attachSignedUrls = async (caso) => {
     docPenhora,
     docPrisao,
     docCumulado,
+    capaProcessual,
     ...docsExtras
   ] = await Promise.all([
     buildSignedUrl(storageBuckets.peticoes, caso.url_documento_gerado),
@@ -958,12 +959,14 @@ const attachSignedUrls = async (caso) => {
     buildSignedUrl(storageBuckets.peticoes, iaPenhoraUrl),
     buildSignedUrl(storageBuckets.peticoes, iaPrisaoUrl),
     buildSignedUrl(storageBuckets.peticoes, iaCumuladoUrl),
+    buildSignedUrl(storageBuckets.documentos, caso.url_capa_processual),
     ...docKeysExtras.map((entry) => buildSignedUrl(storageBuckets.peticoes, entry.value)),
   ]);
   enriched.url_documento_gerado = docGerado;
   enriched.url_audio = audio;
   enriched.url_peticao = peticao;
   enriched.url_termo_declaracao = termoDeclaracao;
+  enriched.url_capa_processual = capaProcessual;
   if (docPenhora) enriched.url_peticao_penhora = docPenhora;
   if (docPrisao) enriched.url_peticao_prisao = docPrisao;
   if (docCumulado) enriched.url_peticao_cumulado = docCumulado;

@@ -283,7 +283,6 @@ export const DetalhesCaso = () => {
   const handleStatusChange = async (novoStatus) => {
     if (!caso || !novoStatus || novoStatus === caso.status) return;
 
-
     setIsUpdating(true);
 
     try {
@@ -1956,17 +1955,22 @@ export const DetalhesCaso = () => {
                 className="input disabled:opacity-70 disabled:cursor-not-allowed border-2 border-primary/20 focus:border-primary focus:ring-4 focus:ring-primary/10 font-medium text-primary-900"
                 onChange={(e) => handleStatusChange(e.target.value)}
                 value={statusKey}
-                // TRAVA: Desabilita se estiver atualizando OU se já estiver finalizado/encaminhado
+                // Bloqueia se estiver atualizando OU se já estiver protocolado (finalizado)
                 disabled={isUpdating || statusKey === "protocolado"}
               >
-                {/* LÓGICA DE EXIBIÇÃO INTELIGENTE: */}
-
-                {/* 1. Se o caso JÁ estiver finalizado, mostra essa opção extra apenas para leitura */}
+                {/* 1. Se estiver protocolado, mostra apenas como leitura */}
                 {statusKey === "protocolado" && (
                   <option value="protocolado">✅ Concluído / Protocolado</option>
                 )}
 
-                {/* 2. Opção atual (se automática/não listada nas manuais) */}
+                {/* 2. Mostra todas as opções manuais sem restrição de ordem */}
+                {manualStatusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+
+                {/* 3. Opção atual caso não esteja na lista manual (ex: processando_ia) */}
                 {statusKey !== "protocolado" &&
                   !manualStatusOptions.find((o) => o.value === statusKey) && (
                     <option value={statusKey} disabled>
@@ -1974,13 +1978,6 @@ export const DetalhesCaso = () => {
                       (Atual)
                     </option>
                   )}
-
-                {/* 3. Opções manuais permitidas */}
-                {manualStatusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
               </select>
 
               {/* Aviso visual extra */}
