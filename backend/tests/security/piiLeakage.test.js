@@ -20,12 +20,30 @@ describe("Security — PII Leakage in Audit Logs", () => {
   });
 
   const piiPatterns = [
-    /\d{3}\.\d{3}\.\d{3}-\d{2}/, // CPF
+    /\d{3}\.\d{3}\.\d{3}-\d{2}/, // CPF formatado
+    /\b\d{11}\b/, // CPF puro (11 dígitos)
     /\d{2}\.\d{3}\.\d{3}-\d{1}/, // RG (comum)
     /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/, // Email
   ];
 
-  it("não deve conter CPF no campo 'detalhes' do log", async () => {
+  it("não deve conter CPF no campo 'detalhes' do log (mesmo sem formatação)", async () => {
+    const detalhesComPii = { 
+      msg: "Tentativa de acesso com dados brutos", 
+      cpf_bruto: "98765432109",
+      observacao: "O CPF da assistida é 98765432109 informado verbalmente"
+    };
+
+    await registrarLog("user1", "update", "casos", "20260001", detalhesComPii);
+
+    const callArgs = mockPrismaCreate.mock.calls[0][0];
+    const logDetails = JSON.stringify(callArgs.data.detalhes);
+
+    expect(logDetails).not.toContain("98765432109");
+    expect(logDetails).toContain("[REDACTED]");
+    expect(logDetails).toContain("[CPF_REDACTED]");
+  });
+
+  it("não deve conter nomes e CPFs formatados no campo 'detalhes' do log", async () => {
     const detalhesComPii = { 
       msg: "Usuário atualizou o caso", 
       cpf: "123.456.789-00", 
@@ -42,7 +60,6 @@ describe("Security — PII Leakage in Audit Logs", () => {
       expect(logDetails).not.toMatch(pattern);
     });
     
-    // Verifica nomes específicos (difícil via regex genérica, mas podemos testar campos comuns)
     expect(logDetails).not.toContain("Maria da Silva");
   });
 

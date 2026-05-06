@@ -8,31 +8,60 @@ const CPF_REGEX = /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b|\b\d{11}\b/g;
 const RG_REGEX = /\b\d{1,2}\.?\d{3}\.?\d{3}-?[\dX]\b/gi;
 
 /**
+ * Função utilitária para sanitização recursiva de objetos
+ */
+const sanitizeObject = (obj, piiMap = null, seen = new WeakSet()) => {
+  if (!obj || typeof obj !== "object") {
+    if (typeof obj === "string") {
+      let sanitized = obj.replace(CPF_REGEX, "[MASCARADO_CPF]").replace(RG_REGEX, "[MASCARADO_RG]");
+      if (piiMap) {
+        const keys = Object.keys(piiMap).sort((a, b) => b.length - a.length);
+        keys.forEach((key) => {
+          if (key.length > 3) {
+            const regex = new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+            sanitized = sanitized.replace(regex, "[REDACTED_PII]");
+          }
+        });
+      }
+      return sanitized;
+    }
+    return obj;
+  }
+
+  if (seen.has(obj)) {
+    return "[CIRCULAR]";
+  }
+  seen.add(obj);
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeObject(item, piiMap, seen));
+  }
+
+  const sanitizedObj = {};
+  for (const [key, value] of Object.entries(obj)) {
+    // Evita loop infinito em referências circulares ou objetos internos do Winston
+    if (key === 'level' || key === 'timestamp' || key === 'label' || key === 'splat') {
+      sanitizedObj[key] = value;
+      continue;
+    }
+    sanitizedObj[key] = sanitizeObject(value, piiMap, seen);
+  }
+  return sanitizedObj;
+};
+
+/**
  * Formato customizado para sanitização de PII.
  * Procura por padrões fixos (CPF/RG) e chaves contidas em um piiMap opcional nos metadados.
  */
 const piiSanitizer = winston.format((info) => {
-  let message = info.message;
-
-  // 1. Sanitização baseada em piiMap (se fornecido nos metadados)
-  if (info.piiMap && typeof info.piiMap === "object") {
-    const keys = Object.keys(info.piiMap).sort((a, b) => b.length - a.length);
-    keys.forEach((key) => {
-      if (key.length > 3) {
-        const regex = new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
-        message = message.replace(regex, "[REDACTED_PII]");
-      }
-    });
-    // Remove o piiMap dos metadados para não logar o mapeamento real
-    delete info.piiMap;
+  const piiMap = info.piiMap;
+  const sanitizedInfo = sanitizeObject(info, piiMap);
+  
+  if (sanitizedInfo.piiMap) {
+    delete sanitizedInfo.piiMap;
   }
 
-  // 2. Sanitização baseada em padrões fixos (Safety Net)
-  info.message = message
-    .replace(CPF_REGEX, "[MASCARADO_CPF]")
-    .replace(RG_REGEX, "[MASCARADO_RG]");
-
-  return info;
+  return Object.assign(info, sanitizedInfo);
 });
 
 const levels = {

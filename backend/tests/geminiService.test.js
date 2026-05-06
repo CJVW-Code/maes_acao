@@ -73,8 +73,12 @@ describe("generateDosFatos (Pipeline Atômico Apex 2.0)", () => {
   it("deve EXCLUIR o Atom de GUARDA se opcao_guarda for 'nao'", async () => {
     const dadosSemGuarda = { ...dadosCasoBase, opcao_guarda: "nao" };
     
-    // Configura o mock para retornar texto que contenha a palavra "guarda" para testar o filtro
-    generateLegalText.mockResolvedValue("Texto sobre o tema.");
+    generateLegalText.mockImplementation((sys, user) => {
+      if (user.includes("TEMA DO PARÁGRAFO: GUARDA")) {
+        return "Texto sobre [FLAG_GUARDA: NÃO].";
+      }
+      return "Texto genérico.";
+    });
 
     const resultado = await generateDosFatos(dadosSemGuarda, "fixacao_alimentos");
 

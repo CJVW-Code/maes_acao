@@ -4,6 +4,7 @@ import { generateLegalText } from "./aiService.js";
 import dotenv from "dotenv";
 import logger from "../utils/logger.js";
 import { getConfigAcaoBackend, ATOMS_CONFIG_FATOS, SYSTEM_PROMPT_ATOMIC } from "../config/dicionarioAcoes.js";
+import { maskStringPII } from "./loggerService.js";
 
 dotenv.config();
 
@@ -138,7 +139,7 @@ export const normalizePromptData = (raw = {}) => {
     ...raw,
     requerente,
     requerido,
-    relato: raw.relato_texto || raw.relato || raw.relatoBruto || raw.relato_adicional || "",
+    relato: maskStringPII(raw.relato_texto || raw.relato || raw.relatoBruto || raw.relato_adicional || ""),
     valorMensalPensao: raw.valorMensalPensao ?? raw.valor_pensao,
     triagemNumero: raw.triagemNumero || raw.triagem_numero || raw.protocolo || DEFAULT_TRIAGEM,
   };
@@ -165,7 +166,17 @@ export const generateDosFatos = async (caseData = {}, acaoKey) => {
     
     if (!configBackend?.usarPipelineAtomico) {
       logger.warn(`⚠️ [IA] Ação '${acaoKey}' não está configurada para Pipeline Atômico. Usando lógica legada simplificada.`);
-      // Fallback legado ou erro pode ser implementado aqui se necessário
+      
+      const piiMap = {};
+      const addToPii = (value, placeholder) => { if (value && value.length > 3) piiMap[value] = placeholder; };
+      addToPii(normalized.requerente?.nome, "[NOME_AUTOR]");
+      addToPii(normalized.requerido?.nome, "[NOME_REU]");
+
+      const legacySystemPrompt = configBackend?.promptIA?.systemPrompt || SYSTEM_PROMPT_ATOMIC;
+      const legacyUserPrompt = `Redija a seção DOS FATOS para uma ação de ${acaoKey}. Dados do caso: ${normalized.relato}`;
+      
+      const legacyResult = await generateLegalText(legacySystemPrompt, legacyUserPrompt, 0.1, piiMap);
+      return sanitizeLegalAbbreviations(legacyResult);
     }
 
     const piiMap = {};

@@ -552,6 +552,7 @@
 
   .pipeline-atom-item.processing {
     @apply border-primary ring-2 ring-primary/20 animate-pulse;
+
     background: linear-gradient(90deg, var(--color-surface) 0%, color-mix(in oklab, var(--color-primary) 5%, var(--color-surface)) 100%);
   }
 
@@ -565,6 +566,7 @@
 
   .pipeline-progress-fill {
     @apply h-full bg-primary transition-all duration-500 ease-out;
+
     background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%);
   }
 

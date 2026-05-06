@@ -107,23 +107,15 @@ export const generateLegalText = async (
 
   let generatedText = "";
 
-  const createTimeoutPromise = (timeoutMs, errorMessage) => {
-    return new Promise((_, reject) => {
-      setTimeout(() => {
-        reject(new Error(errorMessage));
-      }, timeoutMs);
-    });
-  };
-
   try {
     // TENTATIVA 1: Groq (Llama 3.3) - Prioridade: Velocidade
+    const groqController = new AbortController();
+    const groqTimeout = setTimeout(() => groqController.abort(), IA_TIMEOUT_MS);
+
     try {
       if (!groqClient) throw new Error("Cliente Groq não configurado.");
 
-      // DESATIVADO TEMPORARIAMENTE PARA TESTES COM OPENAI
-      // throw new Error("MODO DE TESTE: Forçando uso da OpenAI (GPT-4o-mini)");
-
-      const groqPromise = groqClient.chat.completions.create({
+      const completion = await groqClient.chat.completions.create({
         messages: [
           { role: "system", content: safeSystemPrompt },
           { role: "user", content: safeUserPrompt },
@@ -132,25 +124,30 @@ export const generateLegalText = async (
         temperature: temperature,
         max_tokens: 1500,
         top_p: 0.8,
-      });
+      }, { signal: groqController.signal });
 
-      const groqWithTimeout = Promise.race([
-        groqPromise,
-        createTimeoutPromise(IA_TIMEOUT_MS, "Timeout: Chamada Groq excedeu o limite de tempo"),
-      ]);
-
-      const completion = await groqWithTimeout;
+      clearTimeout(groqTimeout);
       generatedText = completion.choices[0]?.message?.content || "";
     } catch (groqError) {
+      clearTimeout(groqTimeout);
+      
+      const isAbort = groqError.name === 'AbortError' || groqError.message?.includes('abort');
+      if (isAbort) {
+        console.warn("⏱️ Timeout real na Groq (Abortado).");
+      }
+
       console.warn(
         "⚠️ Groq instável ou Rate Limit. Ativando Fallback para OpenAI (4o-mini)...",
         groqError.message,
       );
 
       // TENTATIVA 2: OpenAI GPT-4o-mini (Fallback: Inteligência)
+      const openaiController = new AbortController();
+      const openaiTimeout = setTimeout(() => openaiController.abort(), IA_TIMEOUT_MS);
+
       try {
         if (!openaiClient) throw new Error("Cliente OpenAI não configurado.", { cause: groqError });
-        const openaiPromise = openaiClient.chat.completions.create({
+        const completion = await openaiClient.chat.completions.create({
           model: "gpt-4o-mini",
           messages: [
             { role: "system", content: safeSystemPrompt },
@@ -158,18 +155,16 @@ export const generateLegalText = async (
           ],
           temperature: temperature,
           max_tokens: 1500,
-        });
+        }, { signal: openaiController.signal });
 
-        const openaiWithTimeout = Promise.race([
-          openaiPromise,
-          createTimeoutPromise(IA_TIMEOUT_MS, "Timeout: Chamada OpenAI excedeu o limite de tempo"),
-        ]);
-
-        const completion = await openaiWithTimeout;
+        clearTimeout(openaiTimeout);
         generatedText = completion.choices[0]?.message?.content || "";
       } catch (openaiError) {
-        console.error("❌ Erro na chamada OpenAI:", openaiError.message);
-        throw new Error("Ambos os serviços de IA (Groq/OpenAI) falharam.", {
+        clearTimeout(openaiTimeout);
+        const isAbortOpenAI = openaiError.name === 'AbortError' || openaiError.message?.includes('abort');
+        
+        console.error(`❌ Erro na chamada OpenAI ${isAbortOpenAI ? '(Timeout/Abortado)' : ''}:`, openaiError.message);
+        throw new Error("Ambos os serviços de IA (Groq/OpenAI) falharam ou excederam o tempo limite.", {
           cause: openaiError,
         });
       }

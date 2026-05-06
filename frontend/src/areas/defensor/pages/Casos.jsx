@@ -326,7 +326,7 @@ export const Casos = () => {
                           </span>
                         )}
                         <span className={`badge text-xs capitalize ${badgeStyle}`}>
-                          {statusKey.replace("_", " ")}
+                          {statusKey.replaceAll("_", " ")}
                         </span>
                       </div>
                     </div>
