@@ -283,13 +283,9 @@ export const DetalhesCaso = () => {
   const handleStatusChange = async (novoStatus) => {
     if (!caso || !novoStatus || novoStatus === caso.status) return;
 
-    const cargo = user?.cargo?.toLowerCase();
-    const isServidorOuEstagiario = cargo === "servidor" || cargo === "estagiario";
-
-    // Bloqueia transições que o cargo não tem permissão — com feedback visual
-    // Restrições de status removidas para permitir que Servidores e Estagiários protocolem
 
     setIsUpdating(true);
+
     try {
       const response = await fetch(`${API_BASE}/casos/${id}/status`, {
         method: "PATCH",
