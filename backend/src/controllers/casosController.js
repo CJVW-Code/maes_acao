@@ -1591,6 +1591,7 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
   // Prioridade: tabela casos_juridico (atualizada pelo defensor) > dados_formulario (triagem)
   const descricaoGuardaTexto = baseData.descricao_guarda || baseData.descricaoGuarda || "";
   const temPedidoGuarda =
+    baseData.opcao_guarda === "regularizar" ||
     baseData.opcaoGuarda === "regularizar" ||
     (descricaoGuardaTexto && descricaoGuardaTexto.trim().length > 0);
 
@@ -1793,7 +1794,7 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
     emissor_rg_executado:
       baseData.emissor_rg_executado || baseData.requerido_rg_orgao || "Não informado",
     requerido_rg_orgao:
-      baseData.requerido_rg_orgao || baseData.emissor_rg_exequente || "Não informado",
+      baseData.requerido_rg_orgao || baseData.emissor_rg_executado || "Não informado",
     executado_cpf: baseData.executado_cpf || baseData.cpf_requerido || "Não informado",
     cpf_requerido: baseData.cpf_requerido || baseData.executado_cpf || "Não informado",
     executado_endereco_residencial: baseData.executado_endereco_residencial || "Não informado",
@@ -2382,8 +2383,15 @@ export const processarCasoEmBackground = async (
       url_peticao_cumulado,
     };
 
+    const casoAntesDoCommit = await prisma.casos.findUnique({
+      where: { protocolo },
+      select: { status: true },
+    });
+
     const finalStatus =
-      statusOriginal === "aguardando_documentos" ? "aguardando_documentos" : "pronto_para_analise";
+      casoAntesDoCommit?.status === "aguardando_documentos"
+        ? "aguardando_documentos"
+        : "pronto_para_analise";
 
     // Finalizar processamento - Atualiza Status no Caso e Dados na IA
     await prisma.casos.update({
@@ -5367,10 +5375,18 @@ export const deletarCaso = async (req, res) => {
     // Bug Fix: Supabase update/delete não lançam exceções — retornam { error }.
     if (isSupabaseConfigured) {
       // Logs de auditoria: mantém o log histórico mas desvincula do caso (SetNull)
-      await supabase.from("logs_auditoria").update({ caso_id: null }).eq("caso_id", id);
-      
+      const { error: logsError } = await supabase
+        .from("logs_auditoria")
+        .update({ caso_id: null })
+        .eq("caso_id", id);
+      if (logsError) throw logsError;
+
       // Notificações: apaga as notificações ligadas a este link exato
-      await supabase.from("notificacoes").delete().eq("link", `/painel/casos/${id}`);
+      const { error: notificacoesError } = await supabase
+        .from("notificacoes")
+        .delete()
+        .eq("link", `/painel/casos/${id}`);
+      if (notificacoesError) throw notificacoesError;
     } else {
       await prisma.logs_auditoria.updateMany({
         where: { caso_id: BigInt(id) },
