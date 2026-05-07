@@ -45,6 +45,29 @@ import { safeFormData } from "../utils/helpers.js";
 import { validateTransition } from "../utils/stateMachine.js";
 import { sanitizeFilename } from "../middleware/upload.js";
 
+// --- CACHE DE URLs ASSINADAS ---
+// Reduz drasticamente as chamadas ao Supabase Storage (895 -> ~300)
+// Mantém as URLs em memória pelo tempo de expiração definido (padrão 1h)
+const signedUrlCache = new Map();
+
+/**
+ * Limpa o cache de URLs expiradas a cada 10 minutos para evitar vazamento de memória.
+ */
+setInterval(() => {
+  const now = Date.now();
+  let count = 0;
+  for (const [key, value] of signedUrlCache.entries()) {
+    if (value.expiresAt < now) {
+      signedUrlCache.delete(key);
+      count++;
+    }
+  }
+  if (count > 0) {
+    logger.debug(`[Cache] Limpeza concluída: ${count} URLs removidas.`);
+  }
+}, 10 * 60 * 1000);
+
+
 // Colunas físicas da tabela casos_ia que podem ser atualizadas diretamente
 const DIRECT_COLUMN_KEYS = new Set(["url_peticao", "url_peticao_penhora", "url_peticao_prisao"]);
 
@@ -890,25 +913,52 @@ const extractObjectPath = (storedValue) => {
 };
 
 const buildSignedUrl = async (bucket, storedValue) => {
+  if (!storedValue) return null;
   const objectPath = extractObjectPath(storedValue);
   if (!objectPath) return null;
+
+  // 1. Verifica Cache
+  const cacheKey = `${bucket}:${objectPath}`;
+  const cached = signedUrlCache.get(cacheKey);
+  const now = Date.now();
+
+  // Consideramos expiração com margem de segurança de 15 minutos (900000 ms)
+  // Isso garante que o usuário terá tempo hábil para baixar/visualizar arquivos na UI
+  if (cached && cached.expiresAt > now + 15 * 60 * 1000) {
+    return cached.url;
+  }
 
   if (isSupabaseConfigured) {
     const { data, error } = await supabase.storage
       .from(bucket)
       .createSignedUrl(objectPath, signedExpires);
     if (error) {
+      // [SECURITY] Ofusca o nome do arquivo para evitar vazamento de PII nos logs
+      const logPath = objectPath.split("/").map((part, i, arr) => 
+        i === arr.length - 1 && part.length > 25 ? part.substring(0, 25) + "_[OMITIDO]" : part
+      ).join("/");
+
       if (error.message && error.message.includes("Object not found")) {
-        logger.warn(`[Storage] Arquivo ausente (Link órfão no Banco): ${objectPath}`);
+        logger.warn(`[Storage] Arquivo ausente (Link órfão no Banco): ${logPath}`);
       } else {
-        logger.error(`[Storage] Erro ao gerar URL para ${objectPath}:`, {
-          error,
+        logger.error(`[Storage] Erro ao gerar URL para ${logPath}:`, {
+          error: error.message || error,
         });
       }
       return null;
     }
-    return data?.signedUrl || null;
+
+    const signedUrl = data?.signedUrl || null;
+    if (signedUrl) {
+      // 2. Salva no Cache
+      signedUrlCache.set(cacheKey, {
+        url: signedUrl,
+        expiresAt: now + signedExpires * 1000,
+      });
+    }
+    return signedUrl;
   } else {
+
     // Local storage fallback: aponta para a rota estática do backend
     // No Docker, o backend expõe a pasta uploads em /api/files
     const baseUrl = process.env.API_BASE_URL
