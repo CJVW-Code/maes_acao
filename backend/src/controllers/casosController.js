@@ -519,12 +519,18 @@ const carregarCasoDetalhado = async (id, reqUser) => {
   // A lógica de vínculo automático (auto-vinculação) foi movida exclusivamente
   // para obterDetalhesCaso, que inclui o check de unidade_id obrigatório.
 
-  if (!data.dados_formulario) {
-    data.dados_formulario = {};
+  // [FIX] Sincroniza dados_formulario com dados_extraidos da IA
+  const iaRecord = Array.isArray(data.ia) ? data.ia[0] : data.ia;
+  const extras = safeJsonParse(iaRecord?.dados_extraidos, {});
+
+  if (!data.dados_formulario || Object.keys(data.dados_formulario).length === 0) {
+    data.dados_formulario = extras;
   }
+  
   if (!data.dados_formulario.document_names) {
-    data.dados_formulario.document_names = {};
+    data.dados_formulario.document_names = extras.document_names || extras.documentNames || {};
   }
+  
   if (!data.dados_formulario.documentNames) {
     data.dados_formulario.documentNames = data.dados_formulario.document_names;
   }
@@ -4398,13 +4404,26 @@ export const regerarMinuta = async (req, res) => {
       String(dataRaw.defensor_id) === String(req.user.id) ||
       String(dataRaw.servidor_id) === String(req.user.id);
     const isShared = (dataRaw.assistencia_casos || []).length > 0;
+    
+    // [FIX] Lock Check: Se o caso está travado por OUTRA pessoa, bloqueia.
+    // Se o caso está DESTRAVADO, exige que o usuário trave primeiro (Nível 1 ou 2).
     const lockAtivo = !isDono && (dataRaw.defensor_id || dataRaw.servidor_id);
+    const semLock = !dataRaw.defensor_id && !dataRaw.servidor_id;
 
-    if (!isAdmin && !isDono && !isShared) {
-      if (!isGestor || lockAtivo) {
+    if (!isAdmin && !isShared) {
+      if (lockAtivo) {
         return res.status(403).json({
-          error:
-            "Acesso negado. Você não tem permissão para regerar a minuta deste caso ou ele está bloqueado.",
+          error: "Este caso está sendo atendido por outro profissional. Solicite o destravamento.",
+        });
+      }
+      if (semLock && !isGestor) {
+        return res.status(403).json({
+          error: "Você precisa 'Travar Atendimento' antes de regerar a minuta deste caso.",
+        });
+      }
+      if (!isDono && !isGestor) {
+        return res.status(403).json({
+          error: "Acesso negado. Você não tem permissão para regerar a minuta deste caso.",
         });
       }
     }
@@ -4515,7 +4534,17 @@ export const regerarMinuta = async (req, res) => {
       const urlsDocumentosGerados = {};
 
       for (const doc of docsToProcess) {
-        const pathMultiplo = `${caso.protocolo}/${doc.filename}`;
+        // [FIX] Injeção Inteligente de Protocolo + Timestamp (evita duplicidade)
+        const timestamp = Date.now();
+        const extension = doc.filename.split(".").pop();
+        const baseFilename = doc.filename.replace(`.${extension}`, "");
+        
+        // Só adiciona o protocolo se ele já não estiver no nome base
+        const uniqueFilename = baseFilename.includes(caso.protocolo)
+          ? `${baseFilename}_${timestamp}.${extension}`
+          : `${baseFilename}_${caso.protocolo}_${timestamp}.${extension}`;
+          
+        const pathMultiplo = `${caso.protocolo}/${uniqueFilename}`;
 
         if (isSupabaseConfigured) {
           const { error: uploadError } = await supabase.storage
@@ -4574,7 +4603,9 @@ export const regerarMinuta = async (req, res) => {
     } else {
       // Lógica ÚNICA: Apenas 1 doc gerado
       const docxBuffer = await generateDocx(payload, acaoKey);
-      docxPath = `${caso.protocolo}/peticao_inicial_${caso.protocolo}.docx`;
+      
+      // [FIX] Nomeclatura limpa sem duplicidade para petição inicial
+      docxPath = `${caso.protocolo}/peticao_inicial_${caso.protocolo}_${Date.now()}.docx`;
 
       if (isSupabaseConfigured) {
         const { error: uploadError } = await supabase.storage
@@ -4681,15 +4712,20 @@ export const substituirMinuta = async (req, res) => {
 
     // 4. Upload para o Supabase Storage (Bucket peticoes)
     const safeName = file.originalname.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const storagePath = `${protocolo}/substituicao_${Date.now()}_${safeName}`;
+    
+    // Injeção inteligente no upload manual também
+    const nameWithProtocol = safeName.includes(protocolo) 
+      ? `substituicao_${Date.now()}_${safeName}`
+      : `substituicao_${protocolo}_${Date.now()}_${safeName}`;
+
+    const storagePath = `${protocolo}/${nameWithProtocol}`;
 
     if (isSupabaseConfigured) {
-      const fileStream = fsSync.createReadStream(file.path);
+      const buffer = await fs.readFile(file.path);
       const { error: uploadError } = await supabase.storage
         .from("peticoes")
-        .upload(storagePath, fileStream, {
+        .upload(storagePath, buffer, {
           contentType: file.mimetype,
-          duplex: "half",
         });
 
       if (uploadError) throw new Error(`Erro no upload: ${uploadError.message}`);
@@ -4957,6 +4993,19 @@ export const finalizarCasoSolar = async (req, res) => {
       protocolado_at: new Date(),
       finished_at: new Date(),
     };
+
+    // [FIX] Garante que quem protocolou não perca a produtividade (Trava Permanente pós-protocolo)
+    const isPowerUser = ["admin", "gestor"].includes(req.user.cargo.toLowerCase());
+    if (!isPowerUser) {
+      const isDefensorOrCoord = req.user.cargo.includes("defensor") || req.user.cargo === "coordenador";
+      if (isDefensorOrCoord) {
+        updateData.defensor_id = req.user.id;
+        updateData.defensor_at = new Date();
+      } else {
+        updateData.servidor_id = req.user.id;
+        updateData.servidor_at = new Date();
+      }
+    }
 
     if (isSupabaseConfigured) {
       const { error } = await supabase.from("casos").update(updateData).eq("id", id);
@@ -5639,29 +5688,128 @@ export const renomearDocumento = async (req, res) => {
   const { fileUrl, newName } = req.body;
 
   try {
-    const { data: caso, error } = await supabase
-      .from("casos")
-      .select("dados_formulario")
-      .eq("id", id)
-      .single();
-
-    if (error || !caso) throw new Error("Caso não encontrado");
-
-    const dados = caso.dados_formulario || {};
-    const docNames = dados.document_names || {};
-
-    // Usa o nome do arquivo (extraído da URL) como chave para salvar o novo nome
     const fileName = fileUrl.split("/").pop().split("?")[0];
-    docNames[decodeURIComponent(fileName)] = newName;
+    const decodedName = decodeURIComponent(fileName);
+
+    // 1. Atualiza na tabela `documentos` (Novo padrão que o Frontend usa: nome_original)
+    const docs = await prisma.documentos.findMany({
+      where: { caso_id: BigInt(id) }
+    });
+    
+    // Procura o documento pelo final do path (nome do arquivo)
+    const docTarget = docs.find(d => d.storage_path.endsWith(decodedName));
+    if (docTarget) {
+      await prisma.documentos.update({
+        where: { id: docTarget.id },
+        data: { nome_original: newName }
+      });
+    }
+
+    // 2. Atualiza no `dados_extraidos` (Padrão legado/backup)
+    const iaRecord = await prisma.casos_ia.findUnique({
+      where: { caso_id: BigInt(id) },
+    });
+
+    const dados = safeJsonParse(iaRecord?.dados_extraidos, {});
+    const docNames = dados.document_names || dados.documentNames || {};
+
+    docNames[decodedName] = newName;
 
     dados.document_names = docNames;
-    dados.documentNames = docNames; // Compatibilidade
+    dados.documentNames = docNames;
 
-    await supabase.from("casos").update({ dados_formulario: dados }).eq("id", id);
+    if (isSupabaseConfigured) {
+      await supabase.from("casos_ia").update({ dados_extraidos: dados }).eq("caso_id", id);
+    }
+
+    await prisma.casos_ia.upsert({
+      where: { caso_id: BigInt(id) },
+      update: { dados_extraidos: dados },
+      create: { caso_id: BigInt(id), dados_extraidos: dados }
+    });
 
     res.status(200).json({ message: "Documento renomeado com sucesso." });
   } catch (e) {
-    res.status(500).json({ error: "Erro ao renomear documento." });
+    logger.error(`[RenomearDoc] Erro crítico no caso ${id}: ${e.message}`, { stack: e.stack });
+    res.status(500).json({ error: "Erro interno ao renomear documento." });
+  }
+};
+
+/**
+ * Task 04: Excluir Documento Anexado
+ * Remove logicamente e fisicamente um anexo enviado pelo assistido/servidor.
+ */
+export const excluirDocumentoAnexado = async (req, res) => {
+  const { id, documentoId } = req.params;
+
+  try {
+    // 1. Autorização e Lock (Garante que só o dono ou admin exclua)
+    const caso = await carregarCasoDetalhado(id, req.user);
+
+    // 2. Localiza o documento no banco
+    const doc = await prisma.documentos.findFirst({
+      where: {
+        id: documentoId, // UUID n\u00e3o \u00e9 BigInt!
+        caso_id: BigInt(id),
+      },
+    });
+
+    if (!doc) {
+      return res.status(404).json({ error: "Documento não encontrado neste caso." });
+    }
+
+    // 3. Remoção Física (Storage)
+    if (isSupabaseConfigured) {
+      const { error: storageError } = await supabase.storage
+        .from("documentos")
+        .remove([doc.storage_path]);
+
+      if (storageError) {
+        logger.warn(`[Exclusão] Erro ao remover do storage: ${storageError.message}`);
+      }
+    }
+
+    // 4. Remoção Lógica e Limpeza de Metadados
+    await prisma.documentos.delete({
+      where: { id: documentoId }, // UUID n\u00e3o \u00e9 BigInt!
+    });
+
+    // 5. Limpa do document_names se existir no registro de IA
+    const iaRecord = await prisma.casos_ia.findUnique({
+      where: { caso_id: BigInt(id) },
+    });
+
+    if (iaRecord) {
+      const dados = safeJsonParse(iaRecord.dados_extraidos, {});
+      if (dados.document_names) {
+        const fileName = doc.storage_path.split("/").pop();
+        delete dados.document_names[fileName];
+        delete dados.documentNames?.[fileName];
+
+        await prisma.casos_ia.update({
+          where: { caso_id: BigInt(id) },
+          data: { dados_extraidos: dados },
+        });
+        
+        if (isSupabaseConfigured) {
+          await supabase.from("casos_ia").update({ dados_extraidos: dados }).eq("caso_id", id);
+        }
+      }
+    }
+
+    // 6. Log de Auditoria LGPD-Safe
+    await registrarLog(req.user.id, "excluir_documento", "casos", id, {
+      documento_id: documentoId,
+      tipo_documento: doc.tipo,
+    });
+
+    res.status(200).json({ message: "Documento excluído com sucesso." });
+  } catch (error) {
+    logger.error(`[ExcluirDoc] Erro no caso ${id} / doc ${documentoId}: ${error.message}`, { stack: error.stack });
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.message });
+    }
+    res.status(500).json({ error: "Erro interno ao excluir documento." });
   }
 };
 

@@ -11,6 +11,7 @@ import {
   Download,
   Loader2,
   HelpCircle,
+  Trash2,
 } from "lucide-react";
 import { authFetch } from "../../../../utils/apiBase";
 
@@ -23,6 +24,8 @@ export const PainelDocumentos = ({
   isRenaming,
   handleUploadDocumentos,
   isUploadingDocs,
+  handleDeleteDocumento,
+  isDeletingDoc,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [filasEnvio, setFilasEnvio] = useState([]);
@@ -270,16 +273,33 @@ export const PainelDocumentos = ({
                   </button>
                 </a>
                 {podeEscrever && (
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setEditingFile({ url, name: displayName });
-                    }}
-                    className="btn btn-ghost btn-sm btn-square opacity-0 group-hover:opacity-100 transition-opacity text-muted hover:text-primary"
-                    title="Renomear arquivo"
-                  >
-                    <Pencil size={14} />
-                  </button>
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setEditingFile({ url, name: displayName });
+                      }}
+                      className="btn btn-ghost btn-sm btn-square opacity-0 group-hover:opacity-100 transition-opacity text-muted hover:text-primary"
+                      title="Renomear arquivo"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleDeleteDocumento(doc.id);
+                      }}
+                      disabled={isDeletingDoc === doc.id}
+                      className="btn btn-ghost btn-sm btn-square opacity-0 group-hover:opacity-100 transition-opacity text-muted hover:text-error"
+                      title="Excluir arquivo"
+                    >
+                      {isDeletingDoc === doc.id ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={14} />
+                      )}
+                    </button>
+                  </>
                 )}
               </div>
             );

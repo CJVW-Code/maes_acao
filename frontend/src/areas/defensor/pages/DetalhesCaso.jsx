@@ -190,6 +190,7 @@ export const DetalhesCaso = () => {
   const [minutaPreview, setMinutaPreview] = useState("penhora");
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
   const [isUploadingMinuta, setIsUploadingMinuta] = useState(false);
+  const [isDeletingDoc, setIsDeletingDoc] = useState(null); // id do documento sendo deletado
   const [buscaColega, setBuscaColega] = useState("");
   const [autosType, setAutosType] = useState(null); // 'apartados' ou 'proprios_autos'
   const [autosSubtype, setAutosSubtype] = useState(null); // 'provisorio' ou 'definitivo'
@@ -650,6 +651,31 @@ export const DetalhesCaso = () => {
       toast.error(error.message);
     } finally {
       setIsUploadingMinuta(false);
+    }
+  };
+
+  const handleDeleteDocumento = async (documentoId) => {
+    if (!(await confirm("Deseja realmente excluir permanentemente este documento?", "Excluir Documento")))
+      return;
+
+    setIsDeletingDoc(documentoId);
+    try {
+      const response = await fetch(`${API_BASE}/casos/${id}/documento/${documentoId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || "Falha ao excluir documento.");
+      }
+
+      toast.success("Documento excluído com sucesso!");
+      mutate();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsDeletingDoc(null);
     }
   };
 
@@ -1408,6 +1434,8 @@ export const DetalhesCaso = () => {
               isRenaming={isRenaming}
               handleUploadDocumentos={handleUploadDocumentos}
               isUploadingDocs={isUploadingDocs}
+              handleDeleteDocumento={handleDeleteDocumento}
+              isDeletingDoc={isDeletingDoc}
             />
             <div className="card space-y-4">
               <div className="flex items-center gap-3">
