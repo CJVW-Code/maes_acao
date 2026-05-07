@@ -173,7 +173,8 @@ export const generateDosFatos = async (caseData = {}, acaoKey) => {
       addToPii(normalized.requerido?.nome, "[NOME_REU]");
 
       const legacySystemPrompt = configBackend?.promptIA?.systemPrompt || SYSTEM_PROMPT_ATOMIC;
-      const legacyUserPrompt = `Redija a seção DOS FATOS para uma ação de ${acaoKey}. Dados do caso: ${normalized.relato}`;
+      const relatoSeguroLegacy = maskStringPII(normalized.relato || "");
+      const legacyUserPrompt = `Redija a seção DOS FATOS para uma ação de ${acaoKey}. Dados do caso: ${relatoSeguroLegacy}`;
       
       const legacyResult = await generateLegalText(legacySystemPrompt, legacyUserPrompt, 0.1, piiMap);
       return sanitizeLegalAbbreviations(legacyResult);
@@ -217,6 +218,7 @@ export const generateDosFatos = async (caseData = {}, acaoKey) => {
 
       // Para evitar repetição e contaminação do relato original,
       // injetamos apenas os dados essenciais para O TEMA ATUAL, não o relato inteiro.
+      const relatoSeguro = maskStringPII(normalized.relato || "");
       const userPrompt = `INSTRUÇÕES ESTRITAS DE REDAÇÃO:
 - TEMA DO PARÁGRAFO: ${atom.id}
 - AÇÃO: ${prompt}
@@ -227,7 +229,7 @@ REGRAS DE FORMATAÇÃO:
 3. Seja direto e objetivo, limite-se estritamente ao tema solicitado.
 
 DADOS BRUTOS DISPONÍVEIS:
-"""${normalized.relato}"""`;
+"""${relatoSeguro}"""`;
 
 
 
