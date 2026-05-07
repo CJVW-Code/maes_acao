@@ -41,17 +41,23 @@ export function validateTransition(from, to, role) {
     };
   }
 
-  // Se o caso já estiver 'protocolado', só permitimos voltar para 'aguardando_documentos' (regra original)
-  if (from === "protocolado") {
-    if (to === "aguardando_documentos") {
-      return { ok: true, adminBypass: false };
+  // Validação via mapa de transições permitidas
+  const permitidas = TRANSICOES_PERMITIDAS[from];
+
+  if (!permitidas || !permitidas.includes(to)) {
+    // Mantemos uma mensagem amigável para quando vem do protocolado
+    if (from === "protocolado") {
+      return {
+        ok: false,
+        reason: "Um caso protocolado só pode retornar para o status 'Aguardando Documentos'.",
+      };
     }
+
     return {
       ok: false,
-      reason: "Um caso protocolado só pode retornar para o status 'Aguardando Documentos'.",
+      reason: `Transição inválida de '${from}' para '${to}'.`,
     };
   }
 
-  // Para todos os outros status (antes do protocolo), permitimos livre trânsito (sem restrição de ordem)
   return { ok: true, adminBypass: false };
 }
