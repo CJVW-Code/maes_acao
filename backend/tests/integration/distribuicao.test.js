@@ -72,7 +72,12 @@ function makeProfile(cargo = "defensor", overrides = {}) {
 
 // ─── Testes POST /api/casos/:id/distribuir ────────────────────────────────────
 describe("POST /api/casos/:id/distribuir", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockPrismaDefensores.findUnique.mockReset();
+    mockPrismaCasos.findUnique.mockReset();
+    mockPrismaCasos.updateMany.mockReset();
+  });
 
   it("retorna 401 sem JWT", async () => {
     const res = await request(app).post("/api/casos/1/distribuir").send({ usuario_id: "u2" });

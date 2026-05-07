@@ -1,8 +1,6 @@
-import { supabase } from "../config/supabase.js";
+import { supabase, isSupabaseConfigured } from "../config/supabase.js";
 import { prisma } from "../config/prisma.js";
 import logger from "../utils/logger.js";
-
-const isSupabaseConfigured = !!process.env.SUPABASE_URL;
 
 /**
  * Middleware para garantir que o usuário só acesse casos da sua própria unidade.

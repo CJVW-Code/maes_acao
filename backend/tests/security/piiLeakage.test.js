@@ -6,7 +6,10 @@ const mockPrismaFindFirst = jest.fn().mockResolvedValue({ id: 1 });
 
 jest.unstable_mockModule("../../src/config/prisma.js", () => ({
   prisma: {
-    casos: { findFirst: mockPrismaFindFirst },
+    casos: { 
+      findFirst: mockPrismaFindFirst,
+      findUnique: mockPrismaFindFirst 
+    },
     logs_auditoria: { create: mockPrismaCreate },
   },
 }));
