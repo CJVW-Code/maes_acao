@@ -3280,7 +3280,11 @@ export const listarCasos = async (req, res) => {
 
     // Filtro para ocultar em_protocolo de servidor/estagiario
     if (userCargo === "servidor" || userCargo === "estagiario") {
-      whereClause.status = { not: "em_protocolo" };
+      if (!whereClause.status) {
+        whereClause.status = { not: "em_protocolo" };
+      } else if (whereClause.status.in) {
+        whereClause.status.in = whereClause.status.in.filter((s) => s !== "em_protocolo");
+      }
     }
 
     // Filtro "Meus Atendimentos"
@@ -3794,12 +3798,32 @@ export const distribuirCaso = async (req, res) => {
   }
 
   // 0. Verificação de Cargo do Distribuidor (RBAC Explícito)
-  const allowedDistributors = ["admin", "gestor", "coordenador"];
-  if (!allowedDistributors.includes(req.user.cargo.toLowerCase())) {
+  const userCargo = req.user.cargo.toLowerCase();
+  const isAtendenteCargo = ["servidor", "estagiario"].includes(userCargo);
+  const allowedDistributors = ["admin", "gestor", "coordenador", ...isAtendenteCargo ? [userCargo] : ["servidor", "estagiario"]];
+  
+  if (!allowedDistributors.includes(userCargo)) {
     return res.status(403).json({
       error: "Acesso Negado",
       message: "Seu cargo não possui permissão para distribuir casos.",
     });
+  }
+
+  // 0.1 Guarda de Ownership para Servidores/Estagiários (Task 2)
+  if (isAtendenteCargo) {
+    const casoBasic = req.casoBasic; // injetado pelo requireSameUnit (Task 1)
+    if (!casoBasic || String(casoBasic.servidor_id) !== String(req.user.id)) {
+      return res.status(403).json({
+        error: "Acesso Negado",
+        message: "Você só pode encaminhar casos que esteja atendendo.",
+      });
+    }
+    if (casoBasic.status !== "em_atendimento") {
+      return res.status(409).json({
+        error: "Status inválido",
+        message: "O caso precisa estar 'em_atendimento' para ser encaminhado.",
+      });
+    }
   }
 
   try {
@@ -3842,23 +3866,7 @@ export const distribuirCaso = async (req, res) => {
     ];
     const ALVOS_PROTOCOLO = ["defensor", "coordenador", "admin", "gestor"];
 
-    if (["pronto_para_analise", "em_atendimento"].includes(casoAtual.status)) {
-      if (!ALVOS_ATENDIMENTO.includes(targetCargo)) {
-        return res.status(403).json({
-          error: "Acesso Negado",
-          message: `O cargo '${targetCargo}' não pode assumir atendimentos nesta fase.`,
-        });
-      }
-    } else if (["liberado_para_protocolo", "em_protocolo"].includes(casoAtual.status)) {
-      if (!ALVOS_PROTOCOLO.includes(targetCargo)) {
-        return res.status(403).json({
-          error: "Acesso Negado",
-          message: `O cargo '${targetCargo}' não pode realizar protocolos.`,
-        });
-      }
-    }
-
-    // Admins e Gestores podem distribuir para qualquer unidade. Coordenadores apenas para a própria.
+    // Admins e Gestores podem distribuir para qualquer unidade. Coordenadores e Servidores apenas para a própria.
     const isPowerUser = ["admin", "gestor"].includes(req.user.cargo.toLowerCase());
     if (!isPowerUser && String(usuarioAlvo.unidade_id) !== String(casoAtual.unidade_id)) {
       return res.status(403).json({
@@ -3872,19 +3880,53 @@ export const distribuirCaso = async (req, res) => {
     let novoStatus = null;
     let statusPermitidos = [];
 
-    if (["pronto_para_analise", "em_atendimento"].includes(casoAtual.status)) {
+    const targetIsProtocol = ALVOS_PROTOCOLO.includes(targetCargo);
+
+    if (
+      !isAtendenteCargo &&
+      casoAtual.status === "em_atendimento" &&
+      targetIsProtocol
+    ) {
+      // Defensor/Coordenador encaminhando diretamente para protocolo (novo fluxo via modal)
+      campoAlvo = "defensor_id";
+      novoStatus = "em_protocolo";
+      statusPermitidos = ["em_atendimento"];
+    } else if (["pronto_para_analise", "em_atendimento"].includes(casoAtual.status) && !isAtendenteCargo) {
+      // Admin/Gestor/Coordenador distribuindo para atendimento (alvo não é defensor)
       campoAlvo = "servidor_id";
       novoStatus = "em_atendimento";
       statusPermitidos = ["pronto_para_analise", "em_atendimento"];
-    } else if (["liberado_para_protocolo", "em_protocolo"].includes(casoAtual.status)) {
+    } else if (
+      ["liberado_para_protocolo", "em_protocolo"].includes(casoAtual.status) ||
+      (isAtendenteCargo && casoAtual.status === "em_atendimento")
+    ) {
       campoAlvo = "defensor_id";
       novoStatus = "em_protocolo";
-      statusPermitidos = ["liberado_para_protocolo", "em_protocolo"];
+      statusPermitidos = isAtendenteCargo
+        ? ["em_atendimento"] // servidor parte diretamente de em_atendimento
+        : ["liberado_para_protocolo", "em_protocolo"];
     } else {
       return res.status(409).json({
         error: "Operação inválida",
         message: `Não é possível distribuir um caso com status '${casoAtual.status}'.`,
       });
+    }
+
+    // 2.1 Validação de Cargo Alvo com base no novo status (RBAC Rigoroso)
+    if (novoStatus === "em_atendimento") {
+      if (!ALVOS_ATENDIMENTO.includes(targetCargo)) {
+        return res.status(403).json({
+          error: "Acesso Negado",
+          message: `O cargo '${targetCargo}' não pode assumir atendimentos nesta fase.`,
+        });
+      }
+    } else if (novoStatus === "em_protocolo") {
+      if (!ALVOS_PROTOCOLO.includes(targetCargo)) {
+        return res.status(403).json({
+          error: "Acesso Negado",
+          message: `O cargo '${targetCargo}' não pode realizar protocolos.`,
+        });
+      }
     }
 
     // 3. Executa a mutação atômica
@@ -3929,7 +3971,6 @@ export const distribuirCaso = async (req, res) => {
       });
     }
 
-    // 4. Log de Auditoria via Prisma (LGPD: Sem nomes ou CPFs)
     await prisma.logs_auditoria.create({
       data: {
         usuario_id: req.user.id,
@@ -3943,6 +3984,24 @@ export const distribuirCaso = async (req, res) => {
         },
       },
     });
+
+    // 5. Notificação de Encaminhamento (Task 7)
+    if (novoStatus === "em_protocolo" && isAtendenteCargo) {
+      try {
+        await prisma.notificacoes.create({
+          data: {
+            usuario_id: usuario_id,
+            titulo: "Novo Caso para Protocolo",
+            mensagem: `${req.user.nome} encaminhou um caso para você protocolar.`,
+            tipo: "protocolo",
+            link: `/painel/casos/${id}`,
+          },
+        });
+        logger.info(`Notificação de encaminhamento enviada para defensor ${usuario_id} (Caso: ${id})`);
+      } catch (notifErr) {
+        logger.error(`Falha ao gerar notificação de encaminhamento: ${notifErr.message}`);
+      }
+    }
 
     return res.status(200).json({
       message: "Caso distribuído com sucesso.",

@@ -281,6 +281,17 @@ export const DetalhesCaso = () => {
     }
   };
 
+  const handlePreStatusChange = async (novoStatus) => {
+    // Ao "liberar para protocolo", abre o modal de seleção de defensor ANTES de mudar o status.
+    // O status só muda após o defensor ser escolhido e confirmado no modal.
+    if (novoStatus === "liberado_para_protocolo") {
+      setIsDistribuirOpen(true);
+      return;
+    }
+
+    handleStatusChange(novoStatus);
+  };
+
   const handleStatusChange = async (novoStatus) => {
     if (!caso || !novoStatus || novoStatus === caso.status) return;
 
@@ -314,10 +325,10 @@ export const DetalhesCaso = () => {
 
       await response.json();
 
-      // Se liberou para protocolo, força revalidação completa para limpar o lock visual
-      if (novoStatus === "liberado_para_protocolo") {
-        toast.success("Caso liberado para protocolo! O servidor foi desvinculado automaticamente.");
-        mutate(undefined, { revalidate: true });
+      // Redireciona para o dashboard após liberar o caso para outra etapa
+      if (novoStatus === "pronto_para_analise") {
+        toast.success("Caso devolvido para a fila de análise!");
+        navigate("/painel");
       } else {
         toast.success("Status atualizado com sucesso!");
         mutate();
@@ -1981,7 +1992,9 @@ export const DetalhesCaso = () => {
 
               <select
                 className="input disabled:opacity-70 disabled:cursor-not-allowed border-2 border-primary/20 focus:border-primary focus:ring-4 focus:ring-primary/10 font-medium text-primary-900"
-                onChange={(e) => handleStatusChange(e.target.value)}
+                onChange={(e) => {
+                  handlePreStatusChange(e.target.value);
+                }}
                 value={statusKey}
                 // Bloqueia se estiver atualizando OU se já estiver protocolado (finalizado)
                 disabled={isUpdating || statusKey === "protocolado"}
@@ -2445,6 +2458,7 @@ export const DetalhesCaso = () => {
         isOpen={isDistribuirOpen}
         onClose={() => setIsDistribuirOpen(false)}
         onRefresh={() => mutate()}
+        mode="encaminhamento"
       />
     </div>
   );

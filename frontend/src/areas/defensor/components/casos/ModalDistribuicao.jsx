@@ -1,18 +1,48 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { authFetch } from "../../../../utils/apiBase";
 import { useToast } from "../../../../contexts/ToastContext";
-import { UserPlus, X, Search, Check } from "lucide-react";
+import { UserPlus, X, Search, Check, Send } from "lucide-react";
+import { useAuth } from "../../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
-export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh }) => {
+/**
+ * ModalDistribuicao
+ *
+ * Props:
+ *   caso       - objeto do caso atual
+ *   isOpen     - boolean
+ *   onClose    - callback ao fechar
+ *   onRefresh  - callback para revalidar dados
+ *   mode       - (opcional) 'encaminhamento' | 'distribuicao'
+ *                Se não passado, deriva do cargo do usuário + status do caso.
+ *                Passar explicitamente evita race condition com SWR revalidating.
+ */
+export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh, mode }) => {
   const [busca, setBusca] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const { user } = useAuth();
   const { addToast } = useToast();
-
   const [defensores, setDefensores] = useState([]);
- 
+  const navigate = useNavigate();
+
+  // Se `mode` for passado explicitamente, usa ele. Caso contrário deriva do estado atual.
+  // O `modeRef` fixa o valor no momento da abertura, evitando re-avaliações causadas
+  // por revalidações do SWR que alteram caso.status depois do clique.
+  const modeRef = useRef(null);
+
   React.useEffect(() => {
     if (isOpen) {
-      authFetch("/defensores")
+      // Fixa a intenção no momento da abertura — não muda se caso.status revalidar
+      const isServidor = ["servidor", "estagiario"].includes(user?.cargo?.toLowerCase());
+      const resolvedMode = mode ?? (isServidor ? "encaminhamento" : "distribuicao");
+      modeRef.current = resolvedMode;
+
+      const endpoint =
+        resolvedMode === "encaminhamento"
+          ? `/defensores/encaminhamento?unidade_id=${caso?.unidade_id}`
+          : "/defensores/encaminhamento?unidade_id=" + caso?.unidade_id;
+
+      authFetch(endpoint)
         .then(async (r) => {
           if (!r.ok) return [];
           const data = await r.json().catch(() => []);
@@ -20,15 +50,22 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh }) => {
         })
         .then((data) => setDefensores(data))
         .catch(() => setDefensores([]));
+    } else {
+      // Limpa ao fechar
+      setDefensores([]);
+      setBusca("");
+      modeRef.current = null;
     }
-  }, [isOpen]);
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isOpen) return null;
+
+  const isEncaminhamento = modeRef.current === "encaminhamento";
 
   const defensoresFiltrados = defensores.filter(
     (d) =>
       d.nome.toLowerCase().includes(busca.toLowerCase()) ||
-      d.email.toLowerCase().includes(busca.toLowerCase()),
+      (d.email && d.email.toLowerCase().includes(busca.toLowerCase())),
   );
 
   const handleDistribuir = async (usuarioId) => {
@@ -40,9 +77,16 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh }) => {
       });
 
       if (response.ok) {
-        addToast("Caso distribuído com sucesso!", "success");
+        addToast(
+          isEncaminhamento ? "Caso encaminhado com sucesso!" : "Caso distribuído com sucesso!",
+          "success",
+        );
         onRefresh?.();
         onClose();
+        // Encaminhamento: volta ao Dashboard pois o usuário liberou o caso
+        if (isEncaminhamento) {
+          navigate("/painel");
+        }
       } else {
         const err = await response.json();
         addToast(err.error || err.message || "Erro ao distribuir.", "error");
@@ -61,10 +105,20 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh }) => {
         <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-primary/5">
           <div>
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <UserPlus className="text-primary" size={20} /> Distribuir Atendimento
+              {isEncaminhamento ? (
+                <>
+                  <Send className="text-primary" size={20} /> Encaminhar para Protocolo
+                </>
+              ) : (
+                <>
+                  <UserPlus className="text-primary" size={20} /> Distribuir Atendimento
+                </>
+              )}
             </h2>
             <p className="text-xs text-gray-500 mt-1">
-              Caso: {caso.nome_assistido} (#{caso.id})
+              {isEncaminhamento
+                ? "Selecione o defensor que receberá este protocolo:"
+                : `Caso: ${caso?.nome_assistido} (#${caso?.id})`}
             </p>
           </div>
           <button
@@ -81,7 +135,7 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh }) => {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
-              placeholder="Buscar defensor ou servidor..."
+              placeholder="Buscar defensor..."
               className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
@@ -91,7 +145,11 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh }) => {
 
           <div className="max-h-[350px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
             {defensoresFiltrados.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">Nenhum profissional encontrado.</div>
+              <div className="text-center py-12 text-gray-400">
+                {defensores.length === 0
+                  ? "Carregando defensores..."
+                  : "Nenhum profissional encontrado."}
+              </div>
             ) : (
               defensoresFiltrados.map((d) => (
                 <button
@@ -109,7 +167,8 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh }) => {
                         {d.nome}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {(typeof d.cargo === "string" ? d.cargo : d.cargo?.nome) || "Profissional"} • {d.unidade_nome || d.unidade?.nome || "Sem Unidade"}
+                        {(typeof d.cargo === "string" ? d.cargo : d.cargo?.nome) || "Defensor"}{" "}
+                        • {d.unidade_nome || d.unidade?.nome || "Sem Unidade"}
                       </p>
                     </div>
                   </div>

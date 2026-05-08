@@ -8,8 +8,10 @@ import {
   deletarDefensor,
   resetarSenhaDefensor,
   listarColegas,
+  listarDefensoresParaEncaminhamento,
 } from "../controllers/defensoresController.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { requireWriteAccess } from "../middleware/requireWriteAccess.js";
 
 const router = express.Router();
 
@@ -22,6 +24,12 @@ router.get("/", authMiddleware, listarDefensores);
 router.put("/:id", authMiddleware, atualizarDefensor);
 router.delete("/:id", authMiddleware, deletarDefensor);
 router.get("/colegas", authMiddleware, listarColegas);
+router.get(
+  "/encaminhamento",
+  authMiddleware,
+  requireWriteAccess,
+  listarDefensoresParaEncaminhamento
+);
 router.post("/:id/reset-password", authMiddleware, resetarSenhaDefensor);
 
 export default router;

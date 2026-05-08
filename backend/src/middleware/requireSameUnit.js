@@ -38,6 +38,7 @@ export const requireSameUnit = async (req, res, next) => {
           id, 
           unidade_id, 
           status,
+          servidor_id,
           unidades ( regional ),
           assistencia_casos (
             destinatario_id,
@@ -52,7 +53,11 @@ export const requireSameUnit = async (req, res, next) => {
     } else {
       caso = await prisma.casos.findUnique({
         where: { id: BigInt(id) },
-        include: {
+        select: {
+          id: true,
+          unidade_id: true,
+          status: true,
+          servidor_id: true,
           unidade: { select: { regional: true } },
           assistencia_casos: { select: { destinatario_id: true, status: true } }
         }

@@ -58,15 +58,27 @@ const statusStyles = {
   default: "bg-slate-100 text-slate-700 border-slate-200",
 };
 
+const statusDisplayNames = {
+  aguardando_documentos: "Aguardando Documentos",
+  documentacao_completa: "Docs. Completos",
+  processando_ia: "Processando (IA)",
+  pronto_para_analise: "Prontos",
+  em_atendimento: "Em Atendimento",
+  liberado_para_protocolo: "Lib. Protocolo",
+  em_protocolo: "Em Protocolo",
+  protocolado: "Protocolado",
+  erro_processamento: "Erro",
+};
+
 const normalizeStatus = (status) => (status || "recebido").toLowerCase().trim();
 
 const summaryFilterLabels = {
   aguardando_documentos: "casos aguardando documentos",
   documentacao_completa: "casos com documentação completa",
-  pronto_para_analise: "casos prontos para análise",
-  em_atendimento: "casos em atendimento",
-  liberado_para_protocolo: "casos liberados para protocolo",
-  protocolado: "casos protocolados",
+  pronto_para_analise: "prontos",
+  em_atendimento: "em atendimento",
+  liberado_para_protocolo: "liberados para protocolo",
+  protocolado: "protocolados",
   meus: "meus atendimentos",
 };
 
@@ -352,9 +364,9 @@ export const Dashboard = () => {
             },
             {
               key: "pronto_para_analise",
-              label: "Prontos (IA)",
+              label: "Prontos",
               value: contagens.pronto_para_analise || 0,
-              helper: "Aguardando revisão.",
+              helper: "Aguardando sua revisão.",
               icon: Inbox,
               accent: "text-primary",
             },
@@ -528,7 +540,7 @@ export const Dashboard = () => {
                           <span
                             className={`px-3 py-1 rounded-full text-[10px] 2xl:text-xs font-bold border ${badgeStyle} uppercase tracking-wider`}
                           >
-                            {statusKey.replace(/_/g, " ")}
+                            {statusDisplayNames[statusKey] || statusKey.replace(/_/g, " ")}
                           </span>
                         </td>
 

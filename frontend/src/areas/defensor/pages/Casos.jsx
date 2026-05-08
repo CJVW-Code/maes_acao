@@ -38,6 +38,18 @@ const statusStyles = {
   default: "bg-muted/10 text-muted border-muted/20",
 };
 
+const statusDisplayNames = {
+  aguardando_documentos: "Aguardando Documentos",
+  documentacao_completa: "Docs. Completos",
+  processando_ia: "Processando (IA)",
+  pronto_para_analise: "Prontos",
+  em_atendimento: "Em Atendimento",
+  liberado_para_protocolo: "Liberado p/ Protocolo",
+  em_protocolo: "Em Protocolo",
+  protocolado: "Protocolado",
+  erro_processamento: "Erro",
+};
+
 const normalizeStatus = (value) => (value || "recebido").toLowerCase();
 
 export const Casos = () => {
@@ -152,7 +164,7 @@ export const Casos = () => {
               <option value="aguardando_documentos">Aguardando Documentos</option>
               <option value="documentacao_completa">Docs. Completos</option>
               <option value="processando_ia">Processando (IA)</option>
-              <option value="pronto_para_analise">Pronto p/ Análise</option>
+              <option value="pronto_para_analise">Prontos</option>
               <option value="em_atendimento">Em Atendimento</option>
               <option value="liberado_para_protocolo">Liberado p/ Protocolo</option>
               <option value="em_protocolo">Em Protocolo</option>
@@ -257,7 +269,7 @@ export const Casos = () => {
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-bold border ${badgeStyle}`}
                           >
-                            {statusKey.replace(/_/g, " ")}
+                            {statusDisplayNames[statusKey] || statusKey.replace(/_/g, " ")}
                           </span>
                         </td>
                         <td className="p-4 text-right">
@@ -326,7 +338,7 @@ export const Casos = () => {
                           </span>
                         )}
                         <span className={`badge text-xs capitalize ${badgeStyle}`}>
-                          {statusKey.replaceAll("_", " ")}
+                          {statusDisplayNames[statusKey] || statusKey.replaceAll("_", " ")}
                         </span>
                       </div>
                     </div>
@@ -363,6 +375,7 @@ export const Casos = () => {
           isOpen={!!selectedCaso}
           onClose={() => setSelectedCaso(null)}
           onRefresh={() => mutate()}
+          mode="distribuicao"
         />
       )}
     </div>
