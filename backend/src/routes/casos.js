@@ -29,6 +29,7 @@ import {
   baixarDocumentoIndividual,
   baixarTodosDocumentosZip,
   gerarTicketDownload,
+  excluirDocumentoAnexado,
 } from "../controllers/casosController.js";
 
 import { searchLimiter, creationLimiter } from "../middleware/rateLimiter.js";
@@ -95,6 +96,7 @@ router.post("/:id/regerar-minuta", regerarMinuta);
 router.post("/:id/upload-minuta", upload.single("minuta"), substituirMinuta);
 router.post("/:id/reprocessar", reprocessarCaso);
 router.patch("/:id/documento/renomear", renomearDocumento);
+router.delete("/:id/documento/:documentoId", excluirDocumentoAnexado);
 router.patch("/:id/arquivar", alternarArquivamento);
 router.patch("/:id/juridico", salvarDadosJuridicos);
 router.post("/:id/solicitar-assistencia", solicitarAssistencia);

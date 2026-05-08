@@ -245,7 +245,7 @@ const _buildPrismaWhere = ({ range, unidadeId, arquivado = false, dateField = "c
 
 const fetchCasosMetadata = async ({ range, unidadeId }) => {
   const columns =
-    "status,tipo_acao,unidade_id,arquivado,motivo_arquivamento,created_at,updated_at,protocolado_at,processed_at,processing_started_at,servidor_id,defensor_id";
+    "id,status,tipo_acao,unidade_id,arquivado,motivo_arquivamento,created_at,updated_at,protocolado_at,processed_at,processing_started_at,servidor_id,defensor_id";
 
   if (isSupabaseConfigured) {
     const rows = [];
@@ -293,6 +293,7 @@ const fetchCasosMetadata = async ({ range, unidadeId }) => {
   return prisma.casos.findMany({
     where: prismaWhere,
     select: {
+      id: true,
       status: true,
       tipo_acao: true,
       unidade_id: true,
@@ -409,9 +410,26 @@ const montarRelatorio = async (
       {
         nome: u.nome,
         cargo: u.cargo?.nome?.toLowerCase() || "servidor",
+        unidade_id: u.unidade_id,
       },
     ]),
   );
+
+  // Conjunto de unidades no escopo do filtro atual (já filtrado por unidade E regional)
+  const unidadesNoEscopo = new Set(unidades.map((u) => u.id));
+
+  // Conjunto de usuários cujas unidades estão no escopo — usado para filtrar
+  // produtividade de servidores e defensores independentemente do cargo do solicitante.
+  // "todas" sem filtro regional inclui todos os defensores ativos.
+  const isSemRestricaoUnidade = requestedUnidade === "todas" && requestedRegional === "todas";
+  const usuariosNoEscopoIds =
+    isSemRestricaoUnidade
+      ? new Set(defensoresDB.map((u) => u.id)) // sem restrição de unidade
+      : new Set(
+          defensoresDB
+            .filter((u) => u.unidade_id && unidadesNoEscopo.has(u.unidade_id))
+            .map((u) => u.id),
+        );
 
   const ativos = rows.filter(
     (row) =>
@@ -449,16 +467,6 @@ const montarRelatorio = async (
     increment(porStatusMap, row.status);
     increment(porTipoMap, row.tipo_acao);
     increment(triagemDiaMap, toDateOnly(row.created_at));
-
-    // Contabiliza quem está trabalhando no caso (Servidor/Estagiário)
-    if (
-      row.servidor_id &&
-      ["em_atendimento", "liberado_para_protocolo", "em_protocolo", "protocolado"].includes(
-        row.status,
-      )
-    ) {
-      increment(produtividadeServidoresMap, row.servidor_id);
-    }
   });
 
   let rankingUnidadesAgregado =
@@ -479,15 +487,156 @@ const montarRelatorio = async (
     rankingUnidadesAgregado = rankingUnidadesAgregado.filter(r => unidadeNomeById.has(r.unidade_id));
   }
 
+  // ---------------------------------------------------------------------------
+  // PRODUTIVIDADE SERVIDORES
+  // O campo servidor_id é zerado ao liberar para protocolo, então não podemos
+  // confiar no estado atual do caso. Usamos os logs_auditoria já existentes:
+  // o auditMiddleware grava um log com usuario_id e detalhes = { status: '...' }
+  // para toda chamada PATCH bem-sucedida — inclusive de casos históricos.
+  // ---------------------------------------------------------------------------
+  try {
+    const rangeParamInicio = range?.gte ?? new Date('2000-01-01');
+    const rangeParamFim    = range?.lte ?? new Date('2099-01-01');
+
+    // Captura produtividade de servidores via dois caminhos mutuamente exclusivos:
+    //
+    // Fluxo clássico: servidor faz PATCH /:id/status → { status: 'liberado_para_protocolo' }
+    //   → auditMiddleware grava entidade='casos', detalhes->>'status' = 'liberado_para_protocolo'
+    //
+    // Novo fluxo (servidor libera já selecionando o defensor):
+    //   → distribuirCaso grava acao='distribuicao_caso' sem entidade,
+    //     com detalhes->>'status_anterior'='em_atendimento' e status_novo='em_protocolo'
+    //
+    // Nota: entidade='casos' fica DENTRO do ramo clássico porque os logs de
+    // distribuicao_caso são inseridos diretamente sem definir o campo entidade.
+    const logsServidores = await prisma.$queryRaw`
+      SELECT usuario_id, COUNT(DISTINCT COALESCE(caso_id::text, registro_id)) AS qtd
+      FROM logs_auditoria
+      WHERE usuario_id IS NOT NULL
+        AND criado_em >= ${rangeParamInicio}
+        AND criado_em <= ${rangeParamFim}
+        AND (
+          -- Fluxo clássico: PATCH status → liberado_para_protocolo
+          (entidade = 'casos' AND detalhes->>'status' = 'liberado_para_protocolo')
+          OR
+          -- Novo fluxo: distribuirCaso pula liberado_para_protocolo e vai direto p/ em_protocolo
+          (acao = 'distribuicao_caso'
+            AND detalhes->>'status_anterior' = 'em_atendimento'
+            AND detalhes->>'status_novo'     = 'em_protocolo')
+        )
+      GROUP BY usuario_id
+    `;
+
+    for (const row of logsServidores) {
+      if (!row.usuario_id) continue;
+      // Filtra pelo escopo de unidade/regional
+      if (!usuariosNoEscopoIds.has(row.usuario_id)) continue;
+      // Garante que apenas servidores/estagiários entram no ranking de produtividade de servidores.
+      // Admins/gestores/coordenadores que usem distribuirCaso são contabilizados em acoes_gestao.
+      const uInfo = usuarioInfoById.get(row.usuario_id);
+      if (!["servidor", "estagiario"].includes(uInfo?.cargo)) continue;
+      produtividadeServidoresMap.set(
+        row.usuario_id,
+        (produtividadeServidoresMap.get(row.usuario_id) || 0) + Number(row.qtd),
+      );
+    }
+  } catch (err) {
+    logger.error(`[BI] Erro ao agregar produtividade de servidores: ${err.message}`);
+    // Fallback: usa servidor_id atual do caso (pode estar nulo após unlock)
+    ativos.forEach((row) => {
+      if (
+        row.servidor_id &&
+        ["em_atendimento", "liberado_para_protocolo", "em_protocolo"].includes(row.status)
+      ) {
+        increment(produtividadeServidoresMap, row.servidor_id);
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // PRODUTIVIDADE DEFENSORES
+  // defensor_id NÃO é zerado quando status → protocolado (só zera em
+  // liberado_para_protocolo / pronto_para_analise), então capturamos direto.
+  // Para casos onde defensor_id é null (admin limpou o lock antes do protocolo
+  // ou distribuiu manualmente), buscamos nos logs de distribuicao_caso.
+  // ---------------------------------------------------------------------------
+  const casosSemDefensor = [];
+
   protocolosNoPeriodo.forEach((row) => {
     if (!rankingUnidadesAgregado) increment(rankingMap, row.unidade_id);
     increment(protocoloDiaMap, toDateOnly(row.protocolado_at));
 
-    // Contabiliza quem efetivamente protocolou (Defensor)
     if (row.defensor_id) {
+      // Caminho feliz: defensor ainda está vinculado ao caso
       increment(produtividadeDefensoresMap, row.defensor_id);
+    } else if (row.id) {
+      // Guarda para buscar nos logs de distribuição
+      casosSemDefensor.push(BigInt(row.id));
     }
   });
+
+  // Suplemento via logs_auditoria para resgatar quem atuou no caso
+  if (casosSemDefensor.length > 0) {
+    try {
+      const logsAuditoria = await prisma.logs_auditoria.findMany({
+        where: {
+          AND: [
+            {
+              OR: [
+                { caso_id: { in: casosSemDefensor } },
+                { registro_id: { in: casosSemDefensor.map(id => String(id)) }, entidade: "casos" }
+              ]
+            },
+            {
+              OR: [
+                { acao: "distribuicao_caso" },
+                { acao: { contains: "/finalizar" } },
+                { acao: { contains: "/lock" } }
+              ]
+            }
+          ]
+        },
+        select: { caso_id: true, registro_id: true, detalhes: true, criado_em: true, usuario_id: true, acao: true },
+        orderBy: { criado_em: "desc" },
+      });
+
+      // Pega o último registro de atuação/distribuição por caso (quem efetivamente protocolou/travou)
+      const ultimoDefensorPorCaso = new Map();
+      for (const log of logsAuditoria) {
+        const cid = log.caso_id ? String(log.caso_id) : log.registro_id;
+        if (!cid) continue;
+        
+        if (ultimoDefensorPorCaso.has(cid)) continue;
+        
+        // Se a ação foi finalizar ou travar o caso, verifica se foi um Defensor
+        if (log.acao.includes("/finalizar") || log.acao.includes("/lock")) {
+          const uInfo = usuarioInfoById.get(log.usuario_id);
+          const isDefensor = uInfo?.cargo?.includes("defensor") || uInfo?.cargo === "coordenador";
+          
+          if (isDefensor) {
+            ultimoDefensorPorCaso.set(cid, log.usuario_id);
+            continue;
+          } else {
+            // Se foi um servidor, ignora essa linha do log e continua procurando um defensor mais antigo
+            continue;
+          }
+        }
+
+        // Se foi distribuição explícita via Painel de Equipe
+        const detalhes = log.detalhes;
+        if (detalhes?.campo_atualizado === "defensor_id" || detalhes?.alvo_id) {
+          ultimoDefensorPorCaso.set(cid, detalhes.alvo_id);
+        }
+      }
+
+      ultimoDefensorPorCaso.forEach((alvoid) => {
+
+        if (alvoid) increment(produtividadeDefensoresMap, alvoid);
+      });
+    } catch (err) {
+      logger.error(`[BI] Erro ao buscar logs de distribuicao para defensores: ${err.message}`);
+    }
+  }
 
   // Ações de Gestão (Coordenadores) via logs_auditoria - Agregação direta no DB
   const acoesGestaoMap = new Map();
@@ -553,8 +702,10 @@ const montarRelatorio = async (
   }));
 
   const baseRankingUnidades = rankingUnidadesAgregado
-    ? rankingUnidadesAgregado.map((item) => ({ unidade_id: item.unidade_id, qtd: item._count.id }))
-    : mapToSortedArray(rankingMap, "unidade_id");
+    ? rankingUnidadesAgregado
+        .map((item) => ({ unidade_id: item.unidade_id, qtd: item._count.id }))
+        .sort((a, b) => b.qtd - a.qtd) // maior número de protocolados primeiro
+    : mapToSortedArray(rankingMap, "unidade_id"); // mapToSortedArray já ordena desc
 
   const rankingUnidades = applyTopN(baseRankingUnidades, topN).map((item) => ({
     ...item,

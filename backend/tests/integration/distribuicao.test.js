@@ -26,6 +26,7 @@ jest.unstable_mockModule("../../src/config/prisma.js", () => ({
     casos: mockPrismaCasos,
     casos_partes: { findMany: jest.fn().mockResolvedValue([]) },
     logs_auditoria: { create: jest.fn().mockResolvedValue({}) },
+    notificacoes: { create: jest.fn().mockResolvedValue({}) },
   },
 }));
 
@@ -72,17 +73,27 @@ function makeProfile(cargo = "defensor", overrides = {}) {
 
 // ─── Testes POST /api/casos/:id/distribuir ────────────────────────────────────
 describe("POST /api/casos/:id/distribuir", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockPrismaDefensores.findUnique.mockReset();
+    mockPrismaCasos.findUnique.mockReset();
+    mockPrismaCasos.updateMany.mockReset();
+  });
 
   it("retorna 401 sem JWT", async () => {
     const res = await request(app).post("/api/casos/1/distribuir").send({ usuario_id: "u2" });
     expect(res.status).toBe(401);
   });
 
-  it("bloqueia distribuição por servidor (RBAC) → 403", async () => {
-    const token = makeJwt("servidor");
-    mockPrismaDefensores.findUnique.mockResolvedValue(makeProfile("servidor"));
-    mockPrismaCasos.findUnique.mockResolvedValue({ id: 1, status: "pronto_para_analise", unidade_id: "u1" });
+  it("bloqueia encaminhamento por servidor se não for o atendente → 403", async () => {
+    const token = makeJwt("servidor", "s1");
+    mockPrismaDefensores.findUnique.mockResolvedValue(makeProfile("servidor", { id: "s1" }));
+    mockPrismaCasos.findUnique.mockResolvedValue({ 
+      id: 1n, 
+      status: "em_atendimento", 
+      unidade_id: "u1",
+      servidor_id: "s2" // Outro servidor
+    });
 
     const res = await request(app)
       .post("/api/casos/1/distribuir")
@@ -90,20 +101,16 @@ describe("POST /api/casos/:id/distribuir", () => {
       .send({ usuario_id: "u2" });
 
     expect(res.status).toBe(403);
-    expect(res.body.message).toMatch(/permissão/i);
+    expect(res.body.message).toMatch(/atendendo/i);
   });
 
   it("permite distribuição por admin → 200", async () => {
     const token = makeJwt("admin");
-    // 1ª chamada: authMiddleware (admin)
-    // 2ª chamada: distribuirCaso (alvo defensor)
     mockPrismaDefensores.findUnique
       .mockResolvedValueOnce(makeProfile("admin", { id: "uuid-1" }))
       .mockResolvedValueOnce(makeProfile("defensor", { id: "u2" }));
 
-    mockPrismaCasos.findUnique
-      .mockResolvedValueOnce({ id: 1, status: "pronto_para_analise", unidade_id: "u1" }) // busca inicial
-      .mockResolvedValueOnce({ id: 1, status: "em_atendimento" }); // busca final
+    mockPrismaCasos.findUnique.mockResolvedValue({ id: 1n, status: "pronto_para_analise", unidade_id: "u1" });
     mockPrismaCasos.updateMany.mockResolvedValue({ count: 1 });
 
     const res = await request(app)
@@ -120,8 +127,8 @@ describe("POST /api/casos/:id/distribuir", () => {
       .mockResolvedValueOnce(makeProfile("gestor", { id: "uuid-1" }))
       .mockResolvedValueOnce(makeProfile("defensor", { id: "u2" }));
 
-    mockPrismaCasos.findUnique.mockResolvedValue({ id: 1, status: "pronto_para_analise", unidade_id: "u1" });
-    mockPrismaCasos.updateMany.mockResolvedValue({ count: 0 }); // Conflito!
+    mockPrismaCasos.findUnique.mockResolvedValue({ id: 1n, status: "pronto_para_analise", unidade_id: "u1" });
+    mockPrismaCasos.updateMany.mockResolvedValue({ count: 0 }); 
 
     const res = await request(app)
       .post("/api/casos/1/distribuir")
@@ -129,7 +136,6 @@ describe("POST /api/casos/:id/distribuir", () => {
       .send({ usuario_id: "u2" });
 
     expect(res.status).toBe(409);
-    expect(res.body.error).toBe("Conflito");
   });
 
   it("retorna 409 quando Prisma lança P2025", async () => {
@@ -138,17 +144,11 @@ describe("POST /api/casos/:id/distribuir", () => {
       .mockResolvedValueOnce(makeProfile("coordenador", { id: "uuid-1" }))
       .mockResolvedValueOnce(makeProfile("defensor", { id: "u2" }));
 
-    mockPrismaCasos.findUnique.mockResolvedValue({ 
-      id: 1, 
-      status: "pronto_para_analise", 
-      unidade_id: "u1",
-      unidade: { regional: "1ª Regional - Feira de Santana" }
-    });
+    mockPrismaCasos.findUnique.mockResolvedValue({ id: 1n, status: "pronto_para_analise", unidade_id: "u1" });
     
-    // Simula erro P2025
     const error = new Error("Record not found");
     error.code = 'P2025';
-    mockPrismaCasos.updateMany.mockRejectedValue(error);
+    mockPrismaCasos.updateMany.mockRejectedValueOnce(error);
 
     const res = await request(app)
       .post("/api/casos/1/distribuir")

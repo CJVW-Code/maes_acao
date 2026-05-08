@@ -568,3 +568,104 @@ export const resetarSenhaDefensor = async (req, res) => {
     res.status(500).json({ error: "Erro ao alterar senha." });
   }
 };
+
+export const listarDefensoresParaEncaminhamento = async (req, res) => {
+  const { unidade_id } = req.query;
+
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: "Usuário não autenticado." });
+    }
+
+    const userCargo = req.user?.cargo?.toLowerCase();
+    // Coordenador tem escopo regional, não global — não entra em isAdmin
+    const isAdmin = ["admin", "gestor"].includes(userCargo);
+    const isCoordenador = userCargo === "coordenador";
+
+    // Não-admins/coordenadores devem sempre fornecer unidade_id
+    if (!unidade_id && !isAdmin && !isCoordenador) {
+      return res.status(400).json({ error: "unidade_id é obrigatório." });
+    }
+
+    // Não-admins/coordenadores só podem consultar defensores da sua própria unidade
+    if (!isAdmin && !isCoordenador && String(req.user.unidade_id) !== String(unidade_id)) {
+      return res.status(403).json({
+        error: "Acesso negado. Você só pode consultar defensores da sua unidade.",
+      });
+    }
+
+    const CARGOS_ELEGIVEIS = ["defensor", "coordenador", "admin", "gestor"];
+    const whereClause = {
+      ativo: true,
+      cargo: { nome: { in: CARGOS_ELEGIVEIS } },
+    };
+
+    if (unidade_id) {
+      // Aplica filtro de unidade explícito (todos os cargos)
+      whereClause.unidade_id = unidade_id;
+
+      // Coordenador: valida se a unidade solicitada pertence à sua regional
+      if (isCoordenador) {
+        const currentUser = await prisma.defensores.findUnique({
+          where: { id: req.user.id },
+          include: { unidade: true },
+        });
+        const userRegional = currentUser?.regional || currentUser?.unidade?.regional;
+
+        if (!userRegional) {
+          return res.status(403).json({ error: "Sua conta de Coordenador não possui uma regional vinculada." });
+        }
+
+        const targetUnidade = await prisma.unidades.findUnique({
+          where: { id: unidade_id },
+          select: { regional: true },
+        });
+
+        if (targetUnidade?.regional !== userRegional) {
+          return res.status(403).json({
+            error: "Acesso negado. Você só pode consultar defensores de unidades da sua regional.",
+          });
+        }
+      }
+    } else if (isCoordenador) {
+      // Coordenador sem unidade_id explícita → restringe à sua regional
+      const currentUser = await prisma.defensores.findUnique({
+        where: { id: req.user.id },
+        include: { unidade: true },
+      });
+      const userRegional = currentUser?.regional || currentUser?.unidade?.regional;
+
+      if (!userRegional) {
+        return res.status(403).json({ error: "Sua conta de Coordenador não possui uma regional vinculada." });
+      }
+
+      whereClause.OR = [
+        { unidade: { regional: userRegional } },
+        { regional: userRegional },
+      ];
+    }
+
+    const defensores = await prisma.defensores.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        nome: true,
+        cargo: { select: { nome: true } },
+        unidade: { select: { nome: true } },
+      },
+      orderBy: { nome: "asc" },
+    });
+
+    res.json(
+      defensores.map((d) => ({
+        id: d.id,
+        nome: d.nome,
+        cargo: d.cargo.nome,
+        unidade_nome: d.unidade?.nome || "Sem unidade",
+      }))
+    );
+  } catch (err) {
+    logger.error(`Erro ao listar defensores para encaminhamento: ${err.message}`);
+    res.status(500).json({ error: "Erro ao buscar defensores." });
+  }
+};

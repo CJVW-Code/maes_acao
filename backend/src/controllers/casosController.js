@@ -501,17 +501,37 @@ const carregarCasoDetalhado = async (id, reqUser) => {
 
   data = mapCasoRelations(data);
 
-  const isPowerUser = ["admin", "gestor"].includes(reqUser.cargo.toLowerCase());
+  const userCargo = (reqUser.cargo || "").toLowerCase();
+  const isPowerUser = ["admin", "gestor"].includes(userCargo);
   const isOwner =
     String(data.defensor_id) === String(reqUser.id) ||
     String(data.servidor_id) === String(reqUser.id);
   const isShared = (data.assistencia_casos || []).length > 0;
 
-  if (!isPowerUser && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
-    const holderName = data.defensor?.nome || data.servidor?.nome || "outro usuário";
+  let isLocked = false;
+  let lockHolder = null;
+
+  if (!isPowerUser && !isOwner && !isShared) {
+    if (userCargo === "servidor" || userCargo === "estagiario") {
+      if (data.servidor_id) {
+        isLocked = true;
+        lockHolder = data.servidor?.nome || "outro servidor";
+      }
+    } else if (userCargo.includes("defensor")) {
+      if (data.defensor_id) {
+        isLocked = true;
+        lockHolder = data.defensor?.nome || "outro defensor";
+      }
+    } else if (data.defensor_id || data.servidor_id) {
+      isLocked = true;
+      lockHolder = data.defensor?.nome || data.servidor?.nome || "outro usuário";
+    }
+  }
+
+  if (isLocked) {
     throw new HttpError(423, "Caso bloqueado", {
-      message: `Este caso já está vinculado ao defensor(a) ${holderName}. Apenas o administrador pode liberar este caso.`,
-      holder: holderName,
+      message: `Este caso já está vinculado ao profissional ${lockHolder}. Apenas o administrador pode liberar este caso.`,
+      holder: lockHolder,
     });
   }
 
@@ -519,12 +539,18 @@ const carregarCasoDetalhado = async (id, reqUser) => {
   // A lógica de vínculo automático (auto-vinculação) foi movida exclusivamente
   // para obterDetalhesCaso, que inclui o check de unidade_id obrigatório.
 
-  if (!data.dados_formulario) {
-    data.dados_formulario = {};
+  // [FIX] Sincroniza dados_formulario com dados_extraidos da IA
+  const iaRecord = Array.isArray(data.ia) ? data.ia[0] : data.ia;
+  const extras = safeJsonParse(iaRecord?.dados_extraidos, {});
+
+  if (!data.dados_formulario || Object.keys(data.dados_formulario).length === 0) {
+    data.dados_formulario = extras;
   }
+  
   if (!data.dados_formulario.document_names) {
-    data.dados_formulario.document_names = {};
+    data.dados_formulario.document_names = extras.document_names || extras.documentNames || {};
   }
+  
   if (!data.dados_formulario.documentNames) {
     data.dados_formulario.documentNames = data.dados_formulario.document_names;
   }
@@ -3274,7 +3300,11 @@ export const listarCasos = async (req, res) => {
 
     // Filtro para ocultar em_protocolo de servidor/estagiario
     if (userCargo === "servidor" || userCargo === "estagiario") {
-      whereClause.status = { not: "em_protocolo" };
+      if (!whereClause.status) {
+        whereClause.status = { not: "em_protocolo" };
+      } else if (whereClause.status.in) {
+        whereClause.status.in = whereClause.status.in.filter((s) => s !== "em_protocolo");
+      }
     }
 
     // Filtro "Meus Atendimentos"
@@ -3600,35 +3630,55 @@ export const obterDetalhesCaso = async (req, res) => {
       });
     }
 
-    if (!isObserver && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
-      const holderName = data.defensor?.nome || data.servidor?.nome || "outro usuário";
-      const holderId = data.defensor_id || data.servidor_id;
+    let isLocked = false;
+    let lockHolder = null;
+
+    if (!isObserver && !isOwner && !isShared) {
+      if (isServidorOrEstagiario) {
+        // Servidor só é bloqueado se já tiver outro servidor atendendo.
+        // O defensor_id pré-vinculado (por herança de irmãos) não deve bloquear a triagem.
+        if (data.servidor_id) {
+          isLocked = true;
+          lockHolder = data.servidor?.nome || "outro servidor";
+        }
+      } else if (userCargo.includes("defensor")) {
+        // Defensor só é bloqueado se já tiver outro defensor
+        if (data.defensor_id) {
+          isLocked = true;
+          lockHolder = data.defensor?.nome || "outro defensor";
+        }
+      } else if (data.defensor_id || data.servidor_id) {
+        // Fallback genérico
+        isLocked = true;
+        lockHolder = data.defensor?.nome || data.servidor?.nome || "outro profissional";
+      }
+    }
+
+    if (isLocked) {
       logger.warn(
-        `[Lock Contention]: Usuário ${req.user.id} tentou acessar caso ${id} bloqueado por ID ${holderId}`,
+        `[Lock Contention]: Usuário ${req.user.id} tentou acessar caso ${id} bloqueado por ID ${lockHolder}`,
       );
       return res.status(423).json({
         error: "Caso bloqueado",
-        message: `Este caso já está vinculado ao profissional ${holderName}. Apenas o administrador pode liberar este caso.`,
-        holder: holderName,
+        message: `Este caso já está vinculado ao profissional ${lockHolder}. Apenas o administrador pode liberar este caso.`,
+        holder: lockHolder,
       });
     }
 
     // Vínculo Automático (Apenas para o dono primário, colaboradores NÃO vinculam irmãos)
     // SEGURANÇA: Só pode assumir a autoria de um caso se ele pertencer à sua própria unidade.
-    if (!isObserver && !data.defensor_id && !data.servidor_id && !isShared) {
-      const isDefensor = req.user.cargo.toLowerCase().includes("defensor");
-      const isServidor =
-        req.user.cargo.toLowerCase() === "servidor" ||
-        req.user.cargo.toLowerCase() === "estagiario";
+    if (!isObserver && !isShared) {
+      const isDefensor = userCargo.includes("defensor");
+      const isServidor = isServidorOrEstagiario;
 
       // Vínculo Automático (Lock Automático ao abrir detalhes)
       let podeAssumir = false;
-      if (isDefensor) {
+      if (isDefensor && !data.defensor_id) {
         // Defensor pode assumir em qualquer fase de análise ou protocolo
         if (["pronto_para_analise", "em_atendimento", "liberado_para_protocolo", "em_protocolo"].includes(data.status)) {
           podeAssumir = true;
         }
-      } else if (isServidor) {
+      } else if (isServidor && !data.servidor_id) {
         // Servidor/Estagiário assume se estiver pronto para análise ou já em atendimento
         if (["pronto_para_analise", "em_atendimento"].includes(data.status)) {
           podeAssumir = true;
@@ -3788,12 +3838,32 @@ export const distribuirCaso = async (req, res) => {
   }
 
   // 0. Verificação de Cargo do Distribuidor (RBAC Explícito)
-  const allowedDistributors = ["admin", "gestor", "coordenador"];
-  if (!allowedDistributors.includes(req.user.cargo.toLowerCase())) {
+  const userCargo = req.user.cargo.toLowerCase();
+  const isAtendenteCargo = ["servidor", "estagiario"].includes(userCargo);
+  const allowedDistributors = ["admin", "gestor", "coordenador", ...isAtendenteCargo ? [userCargo] : ["servidor", "estagiario"]];
+  
+  if (!allowedDistributors.includes(userCargo)) {
     return res.status(403).json({
       error: "Acesso Negado",
       message: "Seu cargo não possui permissão para distribuir casos.",
     });
+  }
+
+  // 0.1 Guarda de Ownership para Servidores/Estagiários (Task 2)
+  if (isAtendenteCargo) {
+    const casoBasic = req.casoBasic; // injetado pelo requireSameUnit (Task 1)
+    if (!casoBasic || String(casoBasic.servidor_id) !== String(req.user.id)) {
+      return res.status(403).json({
+        error: "Acesso Negado",
+        message: "Você só pode encaminhar casos que esteja atendendo.",
+      });
+    }
+    if (casoBasic.status !== "em_atendimento") {
+      return res.status(409).json({
+        error: "Status inválido",
+        message: "O caso precisa estar 'em_atendimento' para ser encaminhado.",
+      });
+    }
   }
 
   try {
@@ -3836,23 +3906,7 @@ export const distribuirCaso = async (req, res) => {
     ];
     const ALVOS_PROTOCOLO = ["defensor", "coordenador", "admin", "gestor"];
 
-    if (["pronto_para_analise", "em_atendimento"].includes(casoAtual.status)) {
-      if (!ALVOS_ATENDIMENTO.includes(targetCargo)) {
-        return res.status(403).json({
-          error: "Acesso Negado",
-          message: `O cargo '${targetCargo}' não pode assumir atendimentos nesta fase.`,
-        });
-      }
-    } else if (["liberado_para_protocolo", "em_protocolo"].includes(casoAtual.status)) {
-      if (!ALVOS_PROTOCOLO.includes(targetCargo)) {
-        return res.status(403).json({
-          error: "Acesso Negado",
-          message: `O cargo '${targetCargo}' não pode realizar protocolos.`,
-        });
-      }
-    }
-
-    // Admins e Gestores podem distribuir para qualquer unidade. Coordenadores apenas para a própria.
+    // Admins e Gestores podem distribuir para qualquer unidade. Coordenadores e Servidores apenas para a própria.
     const isPowerUser = ["admin", "gestor"].includes(req.user.cargo.toLowerCase());
     if (!isPowerUser && String(usuarioAlvo.unidade_id) !== String(casoAtual.unidade_id)) {
       return res.status(403).json({
@@ -3866,19 +3920,53 @@ export const distribuirCaso = async (req, res) => {
     let novoStatus = null;
     let statusPermitidos = [];
 
-    if (["pronto_para_analise", "em_atendimento"].includes(casoAtual.status)) {
+    const targetIsProtocol = ALVOS_PROTOCOLO.includes(targetCargo);
+
+    if (
+      !isAtendenteCargo &&
+      casoAtual.status === "em_atendimento" &&
+      targetIsProtocol
+    ) {
+      // Defensor/Coordenador encaminhando diretamente para protocolo (novo fluxo via modal)
+      campoAlvo = "defensor_id";
+      novoStatus = "em_protocolo";
+      statusPermitidos = ["em_atendimento"];
+    } else if (["pronto_para_analise", "em_atendimento"].includes(casoAtual.status) && !isAtendenteCargo) {
+      // Admin/Gestor/Coordenador distribuindo para atendimento (alvo não é defensor)
       campoAlvo = "servidor_id";
       novoStatus = "em_atendimento";
       statusPermitidos = ["pronto_para_analise", "em_atendimento"];
-    } else if (["liberado_para_protocolo", "em_protocolo"].includes(casoAtual.status)) {
+    } else if (
+      ["liberado_para_protocolo", "em_protocolo"].includes(casoAtual.status) ||
+      (isAtendenteCargo && casoAtual.status === "em_atendimento")
+    ) {
       campoAlvo = "defensor_id";
       novoStatus = "em_protocolo";
-      statusPermitidos = ["liberado_para_protocolo", "em_protocolo"];
+      statusPermitidos = isAtendenteCargo
+        ? ["em_atendimento"] // servidor parte diretamente de em_atendimento
+        : ["liberado_para_protocolo", "em_protocolo"];
     } else {
       return res.status(409).json({
         error: "Operação inválida",
         message: `Não é possível distribuir um caso com status '${casoAtual.status}'.`,
       });
+    }
+
+    // 2.1 Validação de Cargo Alvo com base no novo status (RBAC Rigoroso)
+    if (novoStatus === "em_atendimento") {
+      if (!ALVOS_ATENDIMENTO.includes(targetCargo)) {
+        return res.status(403).json({
+          error: "Acesso Negado",
+          message: `O cargo '${targetCargo}' não pode assumir atendimentos nesta fase.`,
+        });
+      }
+    } else if (novoStatus === "em_protocolo") {
+      if (!ALVOS_PROTOCOLO.includes(targetCargo)) {
+        return res.status(403).json({
+          error: "Acesso Negado",
+          message: `O cargo '${targetCargo}' não pode realizar protocolos.`,
+        });
+      }
     }
 
     // 3. Executa a mutação atômica
@@ -3923,7 +4011,6 @@ export const distribuirCaso = async (req, res) => {
       });
     }
 
-    // 4. Log de Auditoria via Prisma (LGPD: Sem nomes ou CPFs)
     await prisma.logs_auditoria.create({
       data: {
         usuario_id: req.user.id,
@@ -3937,6 +4024,24 @@ export const distribuirCaso = async (req, res) => {
         },
       },
     });
+
+    // 5. Notificação de Encaminhamento (Task 7)
+    if (novoStatus === "em_protocolo" && isAtendenteCargo) {
+      try {
+        await prisma.notificacoes.create({
+          data: {
+            usuario_id: usuario_id,
+            titulo: "Novo Caso para Protocolo",
+            mensagem: `${req.user.nome} encaminhou um caso para você protocolar.`,
+            tipo: "protocolo",
+            link: `/painel/casos/${id}`,
+          },
+        });
+        logger.info(`Notificação de encaminhamento enviada para defensor ${usuario_id} (Caso: ${id})`);
+      } catch (notifErr) {
+        logger.error(`Falha ao gerar notificação de encaminhamento: ${notifErr.message}`);
+      }
+    }
 
     return res.status(200).json({
       message: "Caso distribuído com sucesso.",
@@ -4398,13 +4503,26 @@ export const regerarMinuta = async (req, res) => {
       String(dataRaw.defensor_id) === String(req.user.id) ||
       String(dataRaw.servidor_id) === String(req.user.id);
     const isShared = (dataRaw.assistencia_casos || []).length > 0;
+    
+    // [FIX] Lock Check: Se o caso está travado por OUTRA pessoa, bloqueia.
+    // Se o caso está DESTRAVADO, exige que o usuário trave primeiro (Nível 1 ou 2).
     const lockAtivo = !isDono && (dataRaw.defensor_id || dataRaw.servidor_id);
+    const semLock = !dataRaw.defensor_id && !dataRaw.servidor_id;
 
-    if (!isAdmin && !isDono && !isShared) {
-      if (!isGestor || lockAtivo) {
+    if (!isAdmin && !isShared) {
+      if (lockAtivo) {
         return res.status(403).json({
-          error:
-            "Acesso negado. Você não tem permissão para regerar a minuta deste caso ou ele está bloqueado.",
+          error: "Este caso está sendo atendido por outro profissional. Solicite o destravamento.",
+        });
+      }
+      if (semLock && !isGestor) {
+        return res.status(403).json({
+          error: "Você precisa 'Travar Atendimento' antes de regerar a minuta deste caso.",
+        });
+      }
+      if (!isDono && !isGestor) {
+        return res.status(403).json({
+          error: "Acesso negado. Você não tem permissão para regerar a minuta deste caso.",
         });
       }
     }
@@ -4515,7 +4633,17 @@ export const regerarMinuta = async (req, res) => {
       const urlsDocumentosGerados = {};
 
       for (const doc of docsToProcess) {
-        const pathMultiplo = `${caso.protocolo}/${doc.filename}`;
+        // [FIX] Injeção Inteligente de Protocolo + Timestamp (evita duplicidade)
+        const timestamp = Date.now();
+        const extension = doc.filename.split(".").pop();
+        const baseFilename = doc.filename.replace(`.${extension}`, "");
+        
+        // Só adiciona o protocolo se ele já não estiver no nome base
+        const uniqueFilename = baseFilename.includes(caso.protocolo)
+          ? `${baseFilename}_${timestamp}.${extension}`
+          : `${baseFilename}_${caso.protocolo}_${timestamp}.${extension}`;
+          
+        const pathMultiplo = `${caso.protocolo}/${uniqueFilename}`;
 
         if (isSupabaseConfigured) {
           const { error: uploadError } = await supabase.storage
@@ -4574,7 +4702,9 @@ export const regerarMinuta = async (req, res) => {
     } else {
       // Lógica ÚNICA: Apenas 1 doc gerado
       const docxBuffer = await generateDocx(payload, acaoKey);
-      docxPath = `${caso.protocolo}/peticao_inicial_${caso.protocolo}.docx`;
+      
+      // [FIX] Nomeclatura limpa sem duplicidade para petição inicial
+      docxPath = `${caso.protocolo}/peticao_inicial_${caso.protocolo}_${Date.now()}.docx`;
 
       if (isSupabaseConfigured) {
         const { error: uploadError } = await supabase.storage
@@ -4681,15 +4811,20 @@ export const substituirMinuta = async (req, res) => {
 
     // 4. Upload para o Supabase Storage (Bucket peticoes)
     const safeName = file.originalname.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const storagePath = `${protocolo}/substituicao_${Date.now()}_${safeName}`;
+    
+    // Injeção inteligente no upload manual também
+    const nameWithProtocol = safeName.includes(protocolo) 
+      ? `substituicao_${Date.now()}_${safeName}`
+      : `substituicao_${protocolo}_${Date.now()}_${safeName}`;
+
+    const storagePath = `${protocolo}/${nameWithProtocol}`;
 
     if (isSupabaseConfigured) {
-      const fileStream = fsSync.createReadStream(file.path);
+      const buffer = await fs.readFile(file.path);
       const { error: uploadError } = await supabase.storage
         .from("peticoes")
-        .upload(storagePath, fileStream, {
+        .upload(storagePath, buffer, {
           contentType: file.mimetype,
-          duplex: "half",
         });
 
       if (uploadError) throw new Error(`Erro no upload: ${uploadError.message}`);
@@ -4957,6 +5092,20 @@ export const finalizarCasoSolar = async (req, res) => {
       protocolado_at: new Date(),
       finished_at: new Date(),
     };
+
+    // [FIX] Garante que quem protocolou não perca a produtividade (Trava Permanente pós-protocolo)
+    const cargo = String(req.user.cargo || "").toLowerCase();
+    const isPowerUser = ["admin", "gestor"].includes(cargo);
+    if (!isPowerUser) {
+      const isDefensorOrCoord = cargo.includes("defensor") || cargo === "coordenador";
+      if (isDefensorOrCoord) {
+        updateData.defensor_id = req.user.id;
+        updateData.defensor_at = new Date();
+      } else {
+        updateData.servidor_id = req.user.id;
+        updateData.servidor_at = new Date();
+      }
+    }
 
     if (isSupabaseConfigured) {
       const { error } = await supabase.from("casos").update(updateData).eq("id", id);
@@ -5639,29 +5788,138 @@ export const renomearDocumento = async (req, res) => {
   const { fileUrl, newName } = req.body;
 
   try {
-    const { data: caso, error } = await supabase
-      .from("casos")
-      .select("dados_formulario")
-      .eq("id", id)
-      .single();
-
-    if (error || !caso) throw new Error("Caso não encontrado");
-
-    const dados = caso.dados_formulario || {};
-    const docNames = dados.document_names || {};
-
-    // Usa o nome do arquivo (extraído da URL) como chave para salvar o novo nome
     const fileName = fileUrl.split("/").pop().split("?")[0];
-    docNames[decodeURIComponent(fileName)] = newName;
+    const decodedName = decodeURIComponent(fileName);
+
+    // 1. Atualiza na tabela `documentos` (Novo padrão que o Frontend usa: nome_original)
+    const docs = await prisma.documentos.findMany({
+      where: { caso_id: BigInt(id) }
+    });
+    
+    // Procura o documento pelo final do path (nome do arquivo)
+    const docTarget = docs.find(d => d.storage_path.endsWith(decodedName));
+    if (docTarget) {
+      await prisma.documentos.update({
+        where: { id: docTarget.id },
+        data: { nome_original: newName }
+      });
+    }
+
+    // 2. Atualiza no `dados_extraidos` (Padrão legado/backup)
+    const iaRecord = await prisma.casos_ia.findUnique({
+      where: { caso_id: BigInt(id) },
+    });
+
+    const dados = safeJsonParse(iaRecord?.dados_extraidos, {});
+    const docNames = dados.document_names || dados.documentNames || {};
+
+    docNames[decodedName] = newName;
 
     dados.document_names = docNames;
-    dados.documentNames = docNames; // Compatibilidade
+    dados.documentNames = docNames;
 
-    await supabase.from("casos").update({ dados_formulario: dados }).eq("id", id);
+    if (isSupabaseConfigured) {
+      await supabase.from("casos_ia").update({ dados_extraidos: dados }).eq("caso_id", id);
+    }
+
+    await prisma.casos_ia.upsert({
+      where: { caso_id: BigInt(id) },
+      update: { dados_extraidos: dados },
+      create: { caso_id: BigInt(id), dados_extraidos: dados }
+    });
 
     res.status(200).json({ message: "Documento renomeado com sucesso." });
   } catch (e) {
-    res.status(500).json({ error: "Erro ao renomear documento." });
+    logger.error(`[RenomearDoc] Erro crítico no caso ${id}: ${e.message}`, { stack: e.stack });
+    res.status(500).json({ error: "Erro interno ao renomear documento." });
+  }
+};
+
+/**
+ * Task 04: Excluir Documento Anexado
+ * Remove logicamente e fisicamente um anexo enviado pelo assistido/servidor.
+ */
+export const excluirDocumentoAnexado = async (req, res) => {
+  const { id, documentoId } = req.params;
+
+  if (!documentoId || documentoId === "undefined" || documentoId === "null") {
+    return res.status(400).json({ error: "ID do documento inválido ou não fornecido." });
+  }
+
+  try {
+    // 1. Autorização e Lock (Garante que só o dono ou admin exclua)
+    const caso = await carregarCasoDetalhado(id, req.user);
+    const cargo = String(req.user.cargo || "").toLowerCase();
+    const isPowerUser = ["admin", "gestor"].includes(cargo);
+    const isOwner = String(caso.defensor_id) === String(req.user.id) || String(caso.servidor_id) === String(req.user.id);
+    if (!isPowerUser && !isOwner) {
+      return res.status(403).json({ error: "Apenas o responsável ou administradores podem excluir anexos." });
+    }
+
+    // 2. Localiza o documento no banco
+    const doc = await prisma.documentos.findFirst({
+      where: {
+        id: documentoId, // UUID n\u00e3o \u00e9 BigInt!
+        caso_id: BigInt(id),
+      },
+    });
+
+    if (!doc) {
+      return res.status(404).json({ error: "Documento não encontrado neste caso." });
+    }
+
+    // 3. Remoção Física (Storage)
+    if (isSupabaseConfigured) {
+      const { error: storageError } = await supabase.storage
+        .from("documentos")
+        .remove([doc.storage_path]);
+
+      if (storageError) {
+        logger.warn(`[Exclusão] Erro ao remover do storage: ${storageError.message}`);
+      }
+    }
+
+    // 4. Remoção Lógica e Limpeza de Metadados
+    await prisma.documentos.delete({
+      where: { id: documentoId }, // UUID n\u00e3o \u00e9 BigInt!
+    });
+
+    // 5. Limpa do document_names se existir no registro de IA
+    const iaRecord = await prisma.casos_ia.findUnique({
+      where: { caso_id: BigInt(id) },
+    });
+
+    if (iaRecord) {
+      const dados = safeJsonParse(iaRecord.dados_extraidos, {});
+      if (dados.document_names) {
+        const fileName = doc.storage_path.split("/").pop();
+        delete dados.document_names[fileName];
+        delete dados.documentNames?.[fileName];
+
+        await prisma.casos_ia.update({
+          where: { caso_id: BigInt(id) },
+          data: { dados_extraidos: dados },
+        });
+        
+        if (isSupabaseConfigured) {
+          await supabase.from("casos_ia").update({ dados_extraidos: dados }).eq("caso_id", id);
+        }
+      }
+    }
+
+    // 6. Log de Auditoria LGPD-Safe
+    await registrarLog(req.user.id, "excluir_documento", "casos", id, {
+      documento_id: documentoId,
+      tipo_documento: doc.tipo,
+    });
+
+    res.status(200).json({ message: "Documento excluído com sucesso." });
+  } catch (error) {
+    logger.error(`[ExcluirDoc] Erro no caso ${id} / doc ${documentoId}: ${error.message}`, { stack: error.stack });
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.message });
+    }
+    res.status(500).json({ error: "Erro interno ao excluir documento." });
   }
 };
 

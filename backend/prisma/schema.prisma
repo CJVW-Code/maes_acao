@@ -272,6 +272,8 @@ model logs_auditoria {
   @@index([caso_id], map: "idx_logs_auditoria_caso")
   @@index([usuario_id], map: "idx_logs_auditoria_user")
   @@index([acao], map: "idx_logs_auditoria_acao")
+  @@index([entidade, criado_em], map: "idx_logs_auditoria_entidade_data")
+  @@index([caso_id, acao], map: "idx_logs_auditoria_caso_acao")
 }
 
 model logs_pipeline {

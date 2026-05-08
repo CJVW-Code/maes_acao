@@ -1,8 +1,6 @@
-import { supabase } from "../config/supabase.js";
+import { supabase, isSupabaseConfigured } from "../config/supabase.js";
 import { prisma } from "../config/prisma.js";
 import logger from "../utils/logger.js";
-
-const isSupabaseConfigured = !!process.env.SUPABASE_URL;
 
 /**
  * Middleware para garantir que o usuário só acesse casos da sua própria unidade.
@@ -40,6 +38,7 @@ export const requireSameUnit = async (req, res, next) => {
           id, 
           unidade_id, 
           status,
+          servidor_id,
           unidades ( regional ),
           assistencia_casos (
             destinatario_id,
@@ -54,7 +53,11 @@ export const requireSameUnit = async (req, res, next) => {
     } else {
       caso = await prisma.casos.findUnique({
         where: { id: BigInt(id) },
-        include: {
+        select: {
+          id: true,
+          unidade_id: true,
+          status: true,
+          servidor_id: true,
           unidade: { select: { regional: true } },
           assistencia_casos: { select: { destinatario_id: true, status: true } }
         }

@@ -60,13 +60,26 @@ export async function registrarLog(
   detalhes = {},
 ) {
   try {
-    // Caso o registroId seja um protocolo (string), tentamos encontrar o caso_id (BigInt)
+    // Resolve caso_id: tenta ID num\u00e9rico primeiro (padr\u00e3o do auditMiddleware),
+    // depois protocolo como fallback (usado por chamadas expl\u00edcitas de registrarLog)
     let caso_id = null;
     if (entidade === 'casos' && registroId) {
-      const caso = await prisma.casos.findFirst({
-        where: { protocolo: String(registroId) },
-        select: { id: true }
-      });
+      let caso = null;
+      const isNumericId = /^\d+$/.test(String(registroId));
+      if (isNumericId) {
+        // ID numérico direto (req.params.id do auditMiddleware)
+        caso = await prisma.casos.findUnique({
+          where: { id: BigInt(registroId) },
+          select: { id: true }
+        });
+      }
+      if (!caso) {
+        // Fallback: protocolo (string alfanumérica ou numérica)
+        caso = await prisma.casos.findFirst({
+          where: { protocolo: String(registroId) },
+          select: { id: true }
+        });
+      }
       if (caso) caso_id = caso.id;
     }
 

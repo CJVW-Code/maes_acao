@@ -10,6 +10,7 @@ const mockSupabase = {
 // Mock deve vir antes do import do módulo que o consome
 jest.unstable_mockModule("../../src/config/supabase.js", () => ({
   supabase: mockSupabase,
+  isSupabaseConfigured: true,
 }));
 
 // Agora sim importamos o middleware
