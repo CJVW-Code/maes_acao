@@ -66,7 +66,7 @@ export const ATOMS_CONFIG_FATOS = {
     titulo: "Guarda e Convivência",
     promptBase: "Descreva a situação atual da guarda fática com a genitora e a necessidade de regularização jurídica do regime de convivência.",
     camposObrigatorios: ["opcao_guarda"],
-    condicional: (dados) => dados.opcao_guarda !== "nao",
+    condicional: (dados) => dados.opcao_guarda === "sim",
   },
 };
 
