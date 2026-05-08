@@ -37,10 +37,12 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh, mode }) =>
       const resolvedMode = mode ?? (isServidor ? "encaminhamento" : "distribuicao");
       modeRef.current = resolvedMode;
 
+      // encaminhamento → filtra pela unidade do caso (servidor encaminha para defensor da mesma unidade)
+      // distribuicao   → sem filtro de unidade (admin/gestor pode distribuir para qualquer unidade)
       const endpoint =
         resolvedMode === "encaminhamento"
           ? `/defensores/encaminhamento?unidade_id=${caso?.unidade_id}`
-          : "/defensores/encaminhamento?unidade_id=" + caso?.unidade_id;
+          : `/defensores/encaminhamento`;
 
       authFetch(endpoint)
         .then(async (r) => {

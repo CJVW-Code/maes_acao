@@ -571,24 +571,35 @@ export const resetarSenhaDefensor = async (req, res) => {
 
 export const listarDefensoresParaEncaminhamento = async (req, res) => {
   const { unidade_id } = req.query;
-  if (!unidade_id) {
-    return res.status(400).json({ error: "unidade_id é obrigatório." });
-  }
   const userCargo = req.user.cargo.toLowerCase();
   const isAdmin = ["admin", "gestor", "coordenador"].includes(userCargo);
+
+  // Não-admins devem sempre fornecer unidade_id
+  if (!unidade_id && !isAdmin) {
+    return res.status(400).json({ error: "unidade_id é obrigatório." });
+  }
+
+  // Não-admins só podem consultar defensores da sua própria unidade
   if (!isAdmin && String(req.user.unidade_id) !== String(unidade_id)) {
     return res.status(403).json({
       error: "Acesso negado. Você só pode consultar defensores da sua unidade.",
     });
   }
+
   try {
     const CARGOS_ELEGIVEIS = ["defensor", "coordenador", "admin", "gestor"];
+    const whereClause = {
+      ativo: true,
+      cargo: { nome: { in: CARGOS_ELEGIVEIS } },
+    };
+
+    // Aplica filtro de unidade se fornecido
+    if (unidade_id) {
+      whereClause.unidade_id = unidade_id;
+    }
+
     const defensores = await prisma.defensores.findMany({
-      where: {
-        ativo: true,
-        unidade_id,
-        cargo: { nome: { in: CARGOS_ELEGIVEIS } },
-      },
+      where: whereClause,
       select: {
         id: true,
         nome: true,

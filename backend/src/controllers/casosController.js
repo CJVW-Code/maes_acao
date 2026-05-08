@@ -501,17 +501,37 @@ const carregarCasoDetalhado = async (id, reqUser) => {
 
   data = mapCasoRelations(data);
 
-  const isPowerUser = ["admin", "gestor"].includes(reqUser.cargo.toLowerCase());
+  const userCargo = (reqUser.cargo || "").toLowerCase();
+  const isPowerUser = ["admin", "gestor"].includes(userCargo);
   const isOwner =
     String(data.defensor_id) === String(reqUser.id) ||
     String(data.servidor_id) === String(reqUser.id);
   const isShared = (data.assistencia_casos || []).length > 0;
 
-  if (!isPowerUser && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
-    const holderName = data.defensor?.nome || data.servidor?.nome || "outro usuário";
+  let isLocked = false;
+  let lockHolder = null;
+
+  if (!isPowerUser && !isOwner && !isShared) {
+    if (userCargo === "servidor" || userCargo === "estagiario") {
+      if (data.servidor_id) {
+        isLocked = true;
+        lockHolder = data.servidor?.nome || "outro servidor";
+      }
+    } else if (userCargo.includes("defensor")) {
+      if (data.defensor_id) {
+        isLocked = true;
+        lockHolder = data.defensor?.nome || "outro defensor";
+      }
+    } else if (data.defensor_id || data.servidor_id) {
+      isLocked = true;
+      lockHolder = data.defensor?.nome || data.servidor?.nome || "outro usuário";
+    }
+  }
+
+  if (isLocked) {
     throw new HttpError(423, "Caso bloqueado", {
-      message: `Este caso já está vinculado ao defensor(a) ${holderName}. Apenas o administrador pode liberar este caso.`,
-      holder: holderName,
+      message: `Este caso já está vinculado ao profissional ${lockHolder}. Apenas o administrador pode liberar este caso.`,
+      holder: lockHolder,
     });
   }
 
@@ -3610,35 +3630,55 @@ export const obterDetalhesCaso = async (req, res) => {
       });
     }
 
-    if (!isObserver && !isOwner && !isShared && (data.defensor_id || data.servidor_id)) {
-      const holderName = data.defensor?.nome || data.servidor?.nome || "outro usuário";
-      const holderId = data.defensor_id || data.servidor_id;
+    let isLocked = false;
+    let lockHolder = null;
+
+    if (!isObserver && !isOwner && !isShared) {
+      if (isServidorOrEstagiario) {
+        // Servidor só é bloqueado se já tiver outro servidor atendendo.
+        // O defensor_id pré-vinculado (por herança de irmãos) não deve bloquear a triagem.
+        if (data.servidor_id) {
+          isLocked = true;
+          lockHolder = data.servidor?.nome || "outro servidor";
+        }
+      } else if (userCargo.includes("defensor")) {
+        // Defensor só é bloqueado se já tiver outro defensor
+        if (data.defensor_id) {
+          isLocked = true;
+          lockHolder = data.defensor?.nome || "outro defensor";
+        }
+      } else if (data.defensor_id || data.servidor_id) {
+        // Fallback genérico
+        isLocked = true;
+        lockHolder = data.defensor?.nome || data.servidor?.nome || "outro profissional";
+      }
+    }
+
+    if (isLocked) {
       logger.warn(
-        `[Lock Contention]: Usuário ${req.user.id} tentou acessar caso ${id} bloqueado por ID ${holderId}`,
+        `[Lock Contention]: Usuário ${req.user.id} tentou acessar caso ${id} bloqueado por ID ${lockHolder}`,
       );
       return res.status(423).json({
         error: "Caso bloqueado",
-        message: `Este caso já está vinculado ao profissional ${holderName}. Apenas o administrador pode liberar este caso.`,
-        holder: holderName,
+        message: `Este caso já está vinculado ao profissional ${lockHolder}. Apenas o administrador pode liberar este caso.`,
+        holder: lockHolder,
       });
     }
 
     // Vínculo Automático (Apenas para o dono primário, colaboradores NÃO vinculam irmãos)
     // SEGURANÇA: Só pode assumir a autoria de um caso se ele pertencer à sua própria unidade.
-    if (!isObserver && !data.defensor_id && !data.servidor_id && !isShared) {
-      const isDefensor = req.user.cargo.toLowerCase().includes("defensor");
-      const isServidor =
-        req.user.cargo.toLowerCase() === "servidor" ||
-        req.user.cargo.toLowerCase() === "estagiario";
+    if (!isObserver && !isShared) {
+      const isDefensor = userCargo.includes("defensor");
+      const isServidor = isServidorOrEstagiario;
 
       // Vínculo Automático (Lock Automático ao abrir detalhes)
       let podeAssumir = false;
-      if (isDefensor) {
+      if (isDefensor && !data.defensor_id) {
         // Defensor pode assumir em qualquer fase de análise ou protocolo
         if (["pronto_para_analise", "em_atendimento", "liberado_para_protocolo", "em_protocolo"].includes(data.status)) {
           podeAssumir = true;
         }
-      } else if (isServidor) {
+      } else if (isServidor && !data.servidor_id) {
         // Servidor/Estagiário assume se estiver pronto para análise ou já em atendimento
         if (["pronto_para_analise", "em_atendimento"].includes(data.status)) {
           podeAssumir = true;
