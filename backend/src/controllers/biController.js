@@ -498,24 +498,43 @@ const montarRelatorio = async (
     const rangeParamInicio = range?.gte ?? new Date('2000-01-01');
     const rangeParamFim    = range?.lte ?? new Date('2099-01-01');
 
-    // Busca logs onde o servidor transitou o caso para 'liberado_para_protocolo'.
-    // O auditMiddleware salva detalhes = req.body (que inclui { status: '...' }).
-    // entidade = 'casos' é definido pelo baseUrl do roteador montado em /api/casos.
+    // Captura produtividade de servidores via dois caminhos mutuamente exclusivos:
+    //
+    // Fluxo clássico: servidor faz PATCH /:id/status → { status: 'liberado_para_protocolo' }
+    //   → auditMiddleware grava entidade='casos', detalhes->>'status' = 'liberado_para_protocolo'
+    //
+    // Novo fluxo (servidor libera já selecionando o defensor):
+    //   → distribuirCaso grava acao='distribuicao_caso' sem entidade,
+    //     com detalhes->>'status_anterior'='em_atendimento' e status_novo='em_protocolo'
+    //
+    // Nota: entidade='casos' fica DENTRO do ramo clássico porque os logs de
+    // distribuicao_caso são inseridos diretamente sem definir o campo entidade.
     const logsServidores = await prisma.$queryRaw`
       SELECT usuario_id, COUNT(DISTINCT COALESCE(caso_id::text, registro_id)) AS qtd
       FROM logs_auditoria
       WHERE usuario_id IS NOT NULL
-        AND entidade = 'casos'
         AND criado_em >= ${rangeParamInicio}
         AND criado_em <= ${rangeParamFim}
-        AND detalhes->>'status' = 'liberado_para_protocolo'
+        AND (
+          -- Fluxo clássico: PATCH status → liberado_para_protocolo
+          (entidade = 'casos' AND detalhes->>'status' = 'liberado_para_protocolo')
+          OR
+          -- Novo fluxo: distribuirCaso pula liberado_para_protocolo e vai direto p/ em_protocolo
+          (acao = 'distribuicao_caso'
+            AND detalhes->>'status_anterior' = 'em_atendimento'
+            AND detalhes->>'status_novo'     = 'em_protocolo')
+        )
       GROUP BY usuario_id
     `;
 
     for (const row of logsServidores) {
       if (!row.usuario_id) continue;
-      // Filtra pelo escopo de unidade/regional — vale para qualquer cargo
+      // Filtra pelo escopo de unidade/regional
       if (!usuariosNoEscopoIds.has(row.usuario_id)) continue;
+      // Garante que apenas servidores/estagiários entram no ranking de produtividade de servidores.
+      // Admins/gestores/coordenadores que usem distribuirCaso são contabilizados em acoes_gestao.
+      const uInfo = usuarioInfoById.get(row.usuario_id);
+      if (!["servidor", "estagiario"].includes(uInfo?.cargo)) continue;
       produtividadeServidoresMap.set(
         row.usuario_id,
         (produtividadeServidoresMap.get(row.usuario_id) || 0) + Number(row.qtd),
@@ -523,7 +542,7 @@ const montarRelatorio = async (
     }
   } catch (err) {
     logger.error(`[BI] Erro ao agregar produtividade de servidores: ${err.message}`);
-    // Fallback: volta ao comportamento antigo para não quebrar o relatório
+    // Fallback: usa servidor_id atual do caso (pode estar nulo após unlock)
     ativos.forEach((row) => {
       if (
         row.servidor_id &&
