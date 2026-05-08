@@ -197,7 +197,7 @@ export const generateMultiplosDocx = async (data, acaoKey, periodoInadimplencia,
       // (Execução Prisão, Cumprimento Prisão e a nova Nos Autos Prisão).
       // Filtramos Penhora e Cumulado para não poluir a fila.
       // SE forceAll for true, ignoramos essa filtragem e geramos TUDO.
-      if (meses > 0 && meses <= 3 && !forceAll) {
+      if (meses > 0 && meses <= 3 && !forceAll && !tipo.startsWith("nos_autos")) {
         if (tipo.includes("penhora") || tipo.includes("cumulado")) {
           logger.info(`[DOCX Multi] Pulando minuta "${tipo}" pois inadimplência é < 3 meses.`);
           continue;
@@ -207,7 +207,7 @@ export const generateMultiplosDocx = async (data, acaoKey, periodoInadimplencia,
       // Se meses >= 3: Gera todas as minutas configuradas (incluindo Penhora e Cumulado).
       // A lógica de filtragem acima garante que se < 3, só as de prisão passam.
       // Se meses for 0 ou inválido, mantemos filtro de segurança (exceto se forceAll).
-      if (meses === 0 && !forceAll) {
+      if (meses === 0 && !forceAll && !tipo.startsWith("nos_autos")) {
         if (tipo.includes("penhora") || tipo.includes("cumulado")) {
           logger.info(`[DOCX Multi] Pulando minuta "${tipo}" pois meses não detectados.`);
           continue;

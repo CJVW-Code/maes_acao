@@ -1749,15 +1749,17 @@ export const DetalhesCaso = () => {
                     <div className="card space-y-4">
                       <div className="flex items-center justify-between border-b border-border pb-2">
                         <h3 className="heading-3">📂 Arquivos Gerados</h3>
-                        <button
-                          onClick={() => handleRegenerateMinuta(false, true)}
-                          disabled={isRegeneratingMinuta}
-                          className="text-[10px] font-bold text-highlight hover:text-highlight/80 flex items-center gap-1 uppercase tracking-tighter"
-                          title="Ignorar meses e gerar todas as 9 minutas"
-                        >
-                          <Wand2 size={14} className={isRegeneratingMinuta ? "animate-spin" : ""} />
-                          Gerar Todas
-                        </button>
+                        {user?.cargo === "admin" && (
+                          <button
+                            onClick={() => handleRegenerateMinuta(false, true)}
+                            disabled={isRegeneratingMinuta}
+                            className="text-[10px] font-bold text-highlight hover:text-highlight/80 flex items-center gap-1 uppercase tracking-tighter"
+                            title="Ignorar meses e gerar todas as 9 minutas"
+                          >
+                            <Wand2 size={14} className={isRegeneratingMinuta ? "animate-spin" : ""} />
+                            Gerar Todas
+                          </button>
+                        )}
                       </div>
 
                       <p className="text-sm text-muted">
