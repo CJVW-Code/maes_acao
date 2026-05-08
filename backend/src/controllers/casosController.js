@@ -217,7 +217,7 @@ const mapCasoRelations = (caso) => {
       dadosFormulario.numero_processo_originario ||
       "";
     enriched.percentual_salario_minimo =
-      juridico.percentual_salario || dadosFormulario.percentual_salario_minimo || "";
+      juridico.percentual_salario || dadosFormulario.percentual_salario_minimo || null;
     enriched.dia_pagamento_fixado =
       juridico.vencimento_dia ||
       dadosFormulario.dia_pagamento_fixado ||
@@ -1569,9 +1569,11 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
     baseData.valor_mensal_pensao || baseData.valor_pensao || "0",
   );
 
-  // Se o percentual estiver vazio no baseData, tentamos calcular agora para garantir preenchimento
-  let pctSeguro = baseData.percentual_salario_minimo || "";
-  if (!pctSeguro && valorMensalParaFixacao > 0) {
+  // Se o percentual estiver vazio ou for 0, tentamos calcular agora para garantir preenchimento
+  let pctSeguro = baseData.percentual_salario_minimo;
+  const pctNumerico = parseFloat(String(pctSeguro || "0").replace(",", "."));
+
+  if ((!pctSeguro || pctNumerico <= 0) && valorMensalParaFixacao > 0) {
     pctSeguro = calcularPercentualSalarioMinimo(valorMensalParaFixacao);
   }
 
@@ -1882,7 +1884,7 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
     executado_endereco_profissional: baseData.executado_endereco_profissional || "Não informado",
     executado_telefone: baseData.executado_telefone || "Não informado",
     executado_email: baseData.executado_email || "Não informado",
-    empregador_nome: baseData.empregador_nome || "Não informado",
+    empregador_nome: baseData.empregador_nome || null,
     dados_adicionais_requerido:
       baseData.dados_adicionais_requerido || "Nenhuma informação adicional",
 
@@ -1903,8 +1905,8 @@ const buildDocxTemplatePayload = (normalizedData, dosFatosTexto, baseData = {}, 
     percentual_definitivo_salario_min:
       baseData.percentual_definitivo_salario_min || pctSeguro || "______",
     empregador_endereco_profissional:
-      baseData.empregador_endereco || baseData.empregador_requerido_endereco || "______",
-    empregador_email: baseData.empregador_email || "",
+      baseData.empregador_endereco || baseData.empregador_requerido_endereco || null,
+    empregador_email: baseData.empregador_email || null,
     dia_pagamento: baseData.dia_pagamento || "______",
     periodo_meses_ano:
       baseData.periodo_meses_ano ||
@@ -3036,6 +3038,18 @@ export const criarNovoCaso = async (req, res) => {
       }
     }
 
+    // Cálculo do valor da causa por extenso para o banco de dados
+    const penhoraVal = parseCurrencyToNumber(dados_formulario.debito_penhora_valor);
+    const prisaoVal = parseCurrencyToNumber(dados_formulario.debito_prisao_valor);
+    let valorCausaVal = penhoraVal + prisaoVal;
+
+    if (tipoAcaoPrisma === "fixacao_alimentos" || tipoAcaoPrisma === "alimentos_gravidicos") {
+      valorCausaVal = _calcularValorCausa(
+        dados_formulario.valor_mensal_pensao || dados_formulario.valor_pensao,
+      );
+    }
+    const valorCausaExtenso = valorCausaVal > 0 ? numeroParaExtenso(valorCausaVal) : "";
+
     // Tenta salvar via Prisma de preferência (Normalizado v1.0)
     await prisma.casos.create({
       data: {
@@ -3105,6 +3119,10 @@ export const criarNovoCaso = async (req, res) => {
             telefone_requerido:
               dados_formulario.executado_telefone || dados_formulario.telefone_requerido,
             email_requerido: dados_formulario.executado_email || dados_formulario.email_requerido,
+            nacionalidade_requerido:
+              dados_formulario.executado_nacionalidade || dados_formulario.requerido_nacionalidade,
+            estado_civil_requerido:
+              dados_formulario.executado_estado_civil || dados_formulario.requerido_estado_civil,
             exequentes: filhosParsed,
           },
         },
@@ -3135,14 +3153,18 @@ export const criarNovoCaso = async (req, res) => {
               dados_formulario.valor_pensao ||
               dados_formulario.valor_total_debito_execucao ||
               dados_formulario.valor_mensal_pensao,
+            debito_extenso: dados_formulario.valor_debito_extenso || valorCausaExtenso,
             debito_penhora_valor: dados_formulario.debito_penhora_valor || null,
             debito_prisao_valor: dados_formulario.debito_prisao_valor || null,
             conta_banco: dados_formulario.banco_deposito,
             conta_agencia: dados_formulario.agencia_deposito,
             conta_operacao: dados_formulario.operacao_deposito || dados_formulario.conta_operacao,
             conta_numero: dados_formulario.conta_deposito,
+            dados_bancarios_deposito: dados_formulario.dados_bancarios_deposito,
             empregador_nome: dados_formulario.empregador_requerido_nome,
             empregador_endereco: dados_formulario.empregador_requerido_endereco,
+            empregador_email: dados_formulario.empregador_email,
+            cidade_assinatura: dados_formulario.cidade_assinatura,
           },
         },
         ia: {
@@ -4198,6 +4220,18 @@ export const salvarDadosJuridicos = async (req, res) => {
     opcao_guarda,
     bens_partilha,
     situacao_financeira_genitora,
+    empregador_nome,
+    empregador_endereco,
+    empregador_email,
+    numero_processo_titulo,
+    periodo_inadimplencia,
+    debito_extenso,
+    dados_bancarios_deposito,
+    empregador_cnpj,
+    cidade_originaria,
+    tipo_decisao,
+    vara_originaria,
+    cidade_assinatura,
   } = req.body;
 
   try {
@@ -4221,6 +4255,21 @@ export const salvarDadosJuridicos = async (req, res) => {
     if (bens_partilha !== undefined) updateData.bens_partilha = bens_partilha;
     if (situacao_financeira_genitora !== undefined)
       updateData.situacao_financeira_genitora = situacao_financeira_genitora;
+    if (empregador_nome !== undefined) updateData.empregador_nome = empregador_nome;
+    if (empregador_endereco !== undefined) updateData.empregador_endereco = empregador_endereco;
+    if (empregador_email !== undefined) updateData.empregador_email = empregador_email;
+    if (numero_processo_titulo !== undefined)
+      updateData.numero_processo_titulo = numero_processo_titulo;
+    if (periodo_inadimplencia !== undefined)
+      updateData.periodo_inadimplencia = periodo_inadimplencia;
+    if (debito_extenso !== undefined) updateData.debito_extenso = debito_extenso;
+    if (dados_bancarios_deposito !== undefined)
+      updateData.dados_bancarios_deposito = dados_bancarios_deposito;
+    if (empregador_cnpj !== undefined) updateData.empregador_cnpj = empregador_cnpj;
+    if (cidade_originaria !== undefined) updateData.cidade_originaria = cidade_originaria;
+    if (tipo_decisao !== undefined) updateData.tipo_decisao = tipo_decisao;
+    if (vara_originaria !== undefined) updateData.vara_originaria = vara_originaria;
+    if (cidade_assinatura !== undefined) updateData.cidade_assinatura = cidade_assinatura;
 
     await prisma.casos_juridico.upsert({
       where: { caso_id: BigInt(id) },
@@ -5750,6 +5799,12 @@ export const reprocessarCaso = async (req, res) => {
         : {}),
       ...(juridicoDB.opcao_guarda
         ? { opcao_guarda: juridicoDB.opcao_guarda, opcaoGuarda: juridicoDB.opcao_guarda }
+        : {}),
+      ...(juridicoDB.percentual_salario
+        ? {
+            percentual_salario: juridicoDB.percentual_salario,
+            percentual_salario_minimo: juridicoDB.percentual_salario,
+          }
         : {}),
       ...(juridicoDB.empregador_nome ? { empregador_nome: juridicoDB.empregador_nome } : {}),
       ...(juridicoDB.empregador_email ? { empregador_email: juridicoDB.empregador_email } : {}),

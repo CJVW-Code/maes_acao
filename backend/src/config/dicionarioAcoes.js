@@ -19,7 +19,6 @@ PAPÉIS PROCESSUAIS:
 — REPRESENTANTE LEGAL/GENITORA: a mãe. (PROIBIDO: requerente, autora, assistida).
 — REQUERIDO/GENITOR: o pai demandado.`;
 
-
 /**
  * Configuração dos Atoms (segmentos) da petição "Dos Fatos".
  * Cada atom é um parágrafo lógico independente.
@@ -29,42 +28,48 @@ export const ATOMS_CONFIG_FATOS = {
     id: "VINCULO",
     ordem: 1,
     titulo: "Vínculo e Histórico",
-    promptBase: "Descreva o vínculo de parentesco entre os alimentandos [NOMES_FILHOS] e o requerido, mencionando o período de convivência entre os genitores conforme o relato.",
+    promptBase:
+      "Descreva o vínculo de parentesco entre os alimentandos [NOMES_FILHOS] e o requerido, mencionando o período de convivência entre os genitores conforme o relato.",
     camposObrigatorios: ["nome_assistido"], // Nome do assistido (filho 1)
   },
   OMISSAO: {
     id: "OMISSAO",
     ordem: 2,
     titulo: "Omissão e Necessidade de Ação",
-    promptBase: "Descreva que o genitor deixou de contribuir voluntariamente para o sustento dos filhos desde a separação, obrigando a genitora a buscar o Judiciário.",
+    promptBase:
+      "Descreva que o genitor deixou de contribuir voluntariamente para o sustento dos filhos desde a separação, obrigando a genitora a buscar o Judiciário.",
     camposObrigatorios: [],
   },
   HIPOSSUFICIENCIA: {
     id: "HIPOSSUFICIENCIA",
     ordem: 3,
     titulo: "Dificuldade da Genitora",
-    promptBase: "Demonstre que a genitora, apesar de seus esforços, não consegue prover sozinha as necessidades integrais dos alimentandos. Dados: [SITUACAO_FINANCEIRA_MAE].",
+    promptBase:
+      "Demonstre que a genitora, apesar de seus esforços, não consegue prover sozinha as necessidades integrais dos alimentandos. Dados: [SITUACAO_FINANCEIRA_MAE].",
     camposObrigatorios: ["situacao_financeira_genitora"],
   },
   NECESSIDADES: {
     id: "NECESSIDADES",
     ordem: 4,
     titulo: "Necessidades dos Alimentandos",
-    promptBase: "Liste as necessidades básicas dos alimentandos (alimentação, saúde, educação) e vincule ao valor pretendido de R$ [VALOR_PENSAO].",
+    promptBase:
+      "Liste as necessidades básicas dos alimentandos (alimentação, saúde, educação) e vincule ao valor pretendido de R$ [VALOR_PENSAO].",
     camposObrigatorios: ["valor_pensao"],
   },
   CAPACIDADE: {
     id: "CAPACIDADE",
     ordem: 5,
     titulo: "Capacidade do Requerido",
-    promptBase: "Evidencie a capacidade financeira do requerido com base em sua ocupação ([OCUPACAO]) e condições de vida relatadas.",
+    promptBase:
+      "Evidencie a capacidade financeira do requerido com base em sua ocupação ([OCUPACAO]) e condições de vida relatadas.",
     camposObrigatorios: ["ocupacao_requerido"],
   },
   GUARDA: {
     id: "GUARDA",
     ordem: 6,
     titulo: "Guarda e Convivência",
-    promptBase: "Descreva a situação atual da guarda fática com a genitora e a necessidade de regularização jurídica do regime de convivência.",
+    promptBase:
+      "Descreva a situação atual da guarda fática com a genitora e a necessidade de regularização jurídica do regime de convivência.",
     camposObrigatorios: ["opcao_guarda"],
     condicional: (dados) =>
       String(dados.opcao_guarda ?? dados.opcaoGuarda ?? "")
@@ -152,4 +157,3 @@ export const getConfigAcaoBackend = (acaoKey) => {
 
   return config;
 };
-
