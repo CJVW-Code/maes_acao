@@ -394,6 +394,9 @@ const mapCasoRelations = (caso) => {
     enriched.url_peticao_cumprimento_cumulado = extras.url_peticao_cumprimento_cumulado || null;
     enriched.url_peticao_cumprimento_penhora = extras.url_peticao_cumprimento_penhora || null;
     enriched.url_peticao_cumprimento_prisao = extras.url_peticao_cumprimento_prisao || null;
+    enriched.url_peticao_nos_autos_cumulado = extras.url_peticao_nos_autos_cumulado || null;
+    enriched.url_peticao_nos_autos_penhora = extras.url_peticao_nos_autos_penhora || null;
+    enriched.url_peticao_nos_autos_prisao = extras.url_peticao_nos_autos_prisao || null;
     enriched.url_termo_declaracao = ia.url_termo_declaracao || extras?.url_termo_declaracao || null;
 
     // Alias para attachSignedUrls
@@ -622,6 +625,9 @@ const DOC_URL_KEY_BY_TIPO = {
   cumprimento_cumulado: "url_peticao_cumprimento_cumulado",
   cumprimento_penhora: "url_peticao_cumprimento_penhora",
   cumprimento_prisao: "url_peticao_cumprimento_prisao",
+  nos_autos_cumulado: "url_peticao_nos_autos_cumulado",
+  nos_autos_penhora: "url_peticao_nos_autos_penhora",
+  nos_autos_prisao: "url_peticao_nos_autos_prisao",
   // Aliases para chaves simplificadas
   cumulado: "url_peticao_execucao_cumulado",
   penhora: "url_peticao_execucao_penhora",
@@ -651,6 +657,9 @@ const URL_KEYS_DOCUMENTOS_GERADOS = [
   "url_peticao_cumprimento_cumulado",
   "url_peticao_cumprimento_penhora",
   "url_peticao_cumprimento_prisao",
+  "url_peticao_nos_autos_cumulado",
+  "url_peticao_nos_autos_penhora",
+  "url_peticao_nos_autos_prisao",
 ];
 
 const buildDadosFormularioFallback = (caso = {}) => {
@@ -2059,6 +2068,7 @@ export const processarCasoEmBackground = async (
   urls_documentos,
   url_audio,
   url_peticao,
+  forceAll = false,
 ) => {
   try {
     const casoAtual = await prisma.casos.findUnique({
@@ -2348,7 +2358,7 @@ export const processarCasoEmBackground = async (
           caseDataForPetition.periodo_debito ||
           "";
         logger.info(`[DOCX Multi] Período para cálculo: "${periodoParaCalculo}"`);
-        const docs = await generateMultiplosDocx(docxData, acaoKey, periodoParaCalculo);
+        const docs = await generateMultiplosDocx(docxData, acaoKey, periodoParaCalculo, forceAll);
         for (const doc of docs) {
           const docxPath = `${protocolo}/${doc.filename}`;
           if (isSupabaseConfigured) {
@@ -4672,7 +4682,8 @@ export const regerarMinuta = async (req, res) => {
     if (configAcao.gerarMultiplos) {
       const periodoParaCalculo =
         dadosComPercentual.periodo_debito_execucao || dadosComPercentual.periodo_debito || "";
-      const docs = await generateMultiplosDocx(payload, acaoKey, periodoParaCalculo);
+      const forceAll = req.body.force_all === true;
+      const docs = await generateMultiplosDocx(payload, acaoKey, periodoParaCalculo, forceAll);
 
       // [TASK] Filtro: Se houver uma minuta cumulada E for solicitado pelo botão financeiro (solo_cumulado),
       // reprocessamos APENAS ela no "Regerar". Isso preserva minutas individuais editadas.
@@ -5834,6 +5845,7 @@ export const reprocessarCaso = async (req, res) => {
           docsExtraidos,
           null, // url áudio deprecated/não usado no mutirão
           null, // url_petição base null, vai regenerar e sobrescrever
+          true, // forceAll: Reprocessamento manual gera tudo
         );
       } catch (err) {
         logger.error(`Erro ao reprocessar caso ${id}: ${err.message}`);

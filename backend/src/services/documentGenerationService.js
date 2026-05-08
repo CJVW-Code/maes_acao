@@ -68,9 +68,7 @@ const extractMonthsFromPeriod = (periodo = "") => {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
-  logger.info(
-    `[Storage] Analisando periodo para calculo de meses: "${normalized}"`,
-  );
+  logger.info(`[Storage] Analisando periodo para calculo de meses: "${normalized}"`);
 
   // Detecta "acima de X meses", "X meses", "mais de X meses"
   const monthsExplicit = normalized.match(/(\d+)\s*mes(?:es)?\b/);
@@ -114,9 +112,7 @@ const extractMonthsFromPeriod = (periodo = "") => {
 
   const candidates = [];
 
-  const mmYyyyMatches = [
-    ...normalized.matchAll(/\b(0?[1-9]|1[0-2])\s*\/\s*(\d{4})\b/g),
-  ];
+  const mmYyyyMatches = [...normalized.matchAll(/\b(0?[1-9]|1[0-2])\s*\/\s*(\d{4})\b/g)];
   mmYyyyMatches.forEach((match) => {
     candidates.push({
       year: Number.parseInt(match[2], 10),
@@ -126,9 +122,7 @@ const extractMonthsFromPeriod = (periodo = "") => {
   });
 
   const ddMmYyyyMatches = [
-    ...normalized.matchAll(
-      /\b(0?[1-9]|[12]\d|3[01])\s*\/\s*(0?[1-9]|1[0-2])\s*\/\s*(\d{4})\b/g,
-    ),
+    ...normalized.matchAll(/\b(0?[1-9]|[12]\d|3[01])\s*\/\s*(0?[1-9]|1[0-2])\s*\/\s*(\d{4})\b/g),
   ];
   ddMmYyyyMatches.forEach((match) => {
     candidates.push({
@@ -142,7 +136,6 @@ const extractMonthsFromPeriod = (periodo = "") => {
     ...normalized.matchAll(
       /\b(jan(?:eiro)?|fev(?:ereiro)?|mar(?:co)?|abr(?:il)?|mai(?:o)?|jun(?:ho)?|jul(?:ho)?|ago(?:sto)?|set(?:embro)?|out(?:ubro)?|nov(?:embro)?|dez(?:embro)?)\b(?:\s+de)?[\s/-]+(\d{4})\b/g,
     ),
-
   ];
   monthNameMatches.forEach((match) => {
     const month = monthNames[match[1]] ?? monthNames[match[1].slice(0, 3)];
@@ -164,16 +157,10 @@ const extractMonthsFromPeriod = (periodo = "") => {
     return total;
   }
 
-  if (
-    candidates.length === 1 &&
-    /\bate\b.*\b(hoje|atual|momento)\b/.test(normalized)
-  ) {
+  if (candidates.length === 1 && /\bate\b.*\b(hoje|atual|momento)\b/.test(normalized)) {
     const now = new Date();
     const start = candidates[0];
-    const diff =
-      (now.getFullYear() - start.year) * 12 +
-      (now.getMonth() - start.month) +
-      1;
+    const diff = (now.getFullYear() - start.year) * 12 + (now.getMonth() - start.month) + 1;
     const total = Math.max(0, diff);
     logger.info(`[Storage] Meses calculados ate hoje: ${total}`);
     return total;
@@ -188,35 +175,41 @@ const extractMonthsFromPeriod = (periodo = "") => {
   return 0;
 };
 
-export const generateMultiplosDocx = async (
-  data,
-  acaoKey,
-  periodoInadimplencia,
-) => {
+export const generateMultiplosDocx = async (data, acaoKey, periodoInadimplencia, forceAll = false) => {
   const config = getConfigAcaoBackend(acaoKey);
   const documentos = [];
   const protocoloArquivo =
     data?.protocolo || data?.triagemNumero || data?.numeroProtocolo || "sem_protocolo";
 
-  const docsConfig = Array.isArray(config.documentosGerados)
-    ? config.documentosGerados
-    : [];
+  const docsConfig = Array.isArray(config.documentosGerados) ? config.documentosGerados : [];
 
   if (docsConfig.length > 0) {
     const meses = extractMonthsFromPeriod(periodoInadimplencia);
     logger.info(
-      `[DOCX Multi] Meses de inadimplência detectados: ${meses}. Gerando conjunto de minutas para a execução.`,
+      `[DOCX Multi] Meses de inadimplência detectados: ${meses}. ForceAll: ${forceAll}.`,
     );
 
     for (const docConfig of docsConfig) {
       const tipo = docConfig.tipo?.toLowerCase() || "";
 
       // [REGRA DE NEGÓCIO - MUTIRÃO]
-      // Se meses <= 3: O rito de prisão é o principal. Geramos Execução Prisão e Cumprimento Prisão.
-      // Filtramos Penhora e Cumulado para não poluir a fila do defensor nestes casos de dívida curta.
-      if (meses > 0 && meses <= 3) {
+      // Se meses < 3: O rito de prisão é o principal. Geramos todas as minutas de Prisão
+      // (Execução Prisão, Cumprimento Prisão e a nova Nos Autos Prisão).
+      // Filtramos Penhora e Cumulado para não poluir a fila.
+      // SE forceAll for true, ignoramos essa filtragem e geramos TUDO.
+      if (meses > 0 && meses <= 3 && !forceAll) {
         if (tipo.includes("penhora") || tipo.includes("cumulado")) {
-          logger.info(`[DOCX Multi] Pulando minuta "${tipo}" pois inadimplência é de apenas ${meses} meses (<= 3).`);
+          logger.info(`[DOCX Multi] Pulando minuta "${tipo}" pois inadimplência é < 3 meses.`);
+          continue;
+        }
+      }
+
+      // Se meses >= 3: Gera todas as minutas configuradas (incluindo Penhora e Cumulado).
+      // A lógica de filtragem acima garante que se < 3, só as de prisão passam.
+      // Se meses for 0 ou inválido, mantemos filtro de segurança (exceto se forceAll).
+      if (meses === 0 && !forceAll) {
+        if (tipo.includes("penhora") || tipo.includes("cumulado")) {
+          logger.info(`[DOCX Multi] Pulando minuta "${tipo}" pois meses não detectados.`);
           continue;
         }
       }
@@ -226,9 +219,11 @@ export const generateMultiplosDocx = async (
       if (tipo.includes("cumulado")) {
         const hasPenhora = data.valor_debito_penhora && data.valor_debito_penhora !== "R$ 0,00";
         const hasPrisao = data.valor_debito_prisao && data.valor_debito_prisao !== "R$ 0,00";
-        
+
         if (!hasPenhora || !hasPrisao) {
-          logger.warn(`[DOCX Multi] Pulando minuta cumulada "${docConfig.tipo}" pois dados financeiros estão incompletos.`);
+          logger.warn(
+            `[DOCX Multi] Pulando minuta cumulada "${docConfig.tipo}" pois dados financeiros estão incompletos.`,
+          );
           continue;
         }
       }
@@ -266,11 +261,7 @@ export const generateMultiplosDocx = async (
         `[DOCX Multi] Inadimplência < 3 meses (${meses}). Gerando mesmo assim — defensor decidirá.`,
       );
     }
-    const prisaoBuffer = await generateDocx(
-      data,
-      acaoKey,
-      config.templateDocxPrisao,
-    );
+    const prisaoBuffer = await generateDocx(data, acaoKey, config.templateDocxPrisao);
     documentos.push({
       tipo: "prisao",
       buffer: prisaoBuffer,
