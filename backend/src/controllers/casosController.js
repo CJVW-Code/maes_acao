@@ -315,7 +315,7 @@ const mapCasoRelations = (caso) => {
     enriched.conta_deposito = numero;
 
     // Novos campos de Fixação
-    enriched.opcao_guarda = juridico?.opcao_guarda || dadosFormulario?.opcao_guarda || "";
+    enriched.opcao_guarda = juridico?.opcao_guarda || dadosFormulario?.opcao_guarda || dadosFormulario?.opcaoGuarda || "";
     enriched.guarda =
       juridico.descricao_guarda || dadosFormulario.guarda || dadosFormulario.descricao_guarda || "";
     enriched.descricao_guarda = enriched.guarda;
