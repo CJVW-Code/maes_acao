@@ -1,8 +1,9 @@
 import React, { useState, useRef } from "react";
 import { authFetch } from "../../../../utils/apiBase";
 import { useToast } from "../../../../contexts/ToastContext";
-import { UserPlus, X, Search, Check, Send } from "lucide-react";
+import { UserPlus, X, Search, Check, Send, Inbox } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useConfirm } from "../../../../contexts/ConfirmContext";
 import { useNavigate } from "react-router-dom";
 
 /**
@@ -22,6 +23,7 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh, mode }) =>
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
   const { addToast } = useToast();
+  const { confirm } = useConfirm();
   const [defensores, setDefensores] = useState([]);
   const navigate = useNavigate();
 
@@ -100,6 +102,36 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh, mode }) =>
     }
   };
 
+  const handleLiberarParaFila = async () => {
+    if (!(await confirm("Deseja liberar este caso para a fila global sem vincular um defensor específico?", "Liberar para Fila?"))) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      // Usamos atualizarStatusCaso para liberar para protocolo limpando os locks
+      const response = await authFetch(`/casos/${caso.id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "liberado_para_protocolo" }),
+      });
+
+      if (response.ok) {
+        addToast("Caso liberado para a fila global!", "success");
+        onRefresh?.();
+        onClose();
+        if (isEncaminhamento) {
+          navigate("/painel");
+        }
+      } else {
+        const err = await response.json();
+        addToast(err.error || err.message || "Erro ao liberar.", "error");
+      }
+    } catch {
+      addToast("Erro de conexão.", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-lg rounded-4xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
@@ -144,6 +176,17 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh, mode }) =>
               autoFocus
             />
           </div>
+
+          {isEncaminhamento && (
+            <button
+              onClick={handleLiberarParaFila}
+              disabled={submitting}
+              className="w-full mb-6 flex items-center justify-center gap-2 p-4 rounded-2xl bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 transition-all font-bold group"
+            >
+              <Inbox className="group-hover:scale-110 transition-transform" size={20} />
+              Liberar para Fila Global (Sem vincular)
+            </button>
+          )}
 
           <div className="max-h-[350px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
             {defensoresFiltrados.length === 0 ? (
