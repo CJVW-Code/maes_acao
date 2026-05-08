@@ -175,7 +175,12 @@ const extractMonthsFromPeriod = (periodo = "") => {
   return 0;
 };
 
-export const generateMultiplosDocx = async (data, acaoKey, periodoInadimplencia, forceAll = false) => {
+export const generateMultiplosDocx = async (
+  data,
+  acaoKey,
+  periodoInadimplencia,
+  forceAll = false,
+) => {
   const config = getConfigAcaoBackend(acaoKey);
   const documentos = [];
   const protocoloArquivo =
@@ -185,9 +190,7 @@ export const generateMultiplosDocx = async (data, acaoKey, periodoInadimplencia,
 
   if (docsConfig.length > 0) {
     const meses = extractMonthsFromPeriod(periodoInadimplencia);
-    logger.info(
-      `[DOCX Multi] Meses de inadimplência detectados: ${meses}. ForceAll: ${forceAll}.`,
-    );
+    logger.info(`[DOCX Multi] Meses de inadimplência detectados: ${meses}. ForceAll: ${forceAll}.`);
 
     for (const docConfig of docsConfig) {
       const tipo = docConfig.tipo?.toLowerCase() || "";
@@ -197,9 +200,11 @@ export const generateMultiplosDocx = async (data, acaoKey, periodoInadimplencia,
       // (Execução Prisão, Cumprimento Prisão e a nova Nos Autos Prisão).
       // Filtramos Penhora e Cumulado para não poluir a fila.
       // SE forceAll for true, ignoramos essa filtragem e geramos TUDO.
-      if (meses > 0 && meses <= 3 && !forceAll && !tipo.startsWith("nos_autos")) {
+      if (meses > 0 && meses < 3 && !forceAll && !tipo.startsWith("nos_autos")) {
         if (tipo.includes("penhora") || tipo.includes("cumulado")) {
-          logger.info(`[DOCX Multi] Pulando minuta "${tipo}" pois inadimplência é < 3 meses.`);
+          logger.info(
+            `[DOCX Multi] Pulando minuta "${tipo}" pois inadimplência é < 3 meses(${meses}).`,
+          );
           continue;
         }
       }

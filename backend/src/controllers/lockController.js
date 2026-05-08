@@ -158,6 +158,8 @@ export const unlockCaso = async (req, res) => {
         usuario_id: req.user.id,
         caso_id: BigInt(id),
         acao: isAdminOrGestor ? "lock_removido_admin" : "lock_removido_coordenador",
+        entidade: "casos",
+        registro_id: String(id),
         detalhes: { cargo: userCargo, acao: "unlock_manual" }
       }
     });

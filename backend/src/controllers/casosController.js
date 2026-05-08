@@ -4055,6 +4055,8 @@ export const distribuirCaso = async (req, res) => {
         usuario_id: req.user.id,
         caso_id: BigInt(id),
         acao: "distribuicao_caso",
+        entidade: "casos",
+        registro_id: String(id),
         detalhes: {
           alvo_id: usuario_id,
           campo_atualizado: campoAlvo,
