@@ -314,41 +314,48 @@ const mapCasoRelations = (caso) => {
     enriched.conta_operacao = operacao;
     enriched.conta_deposito = numero;
 
-    // Novos campos de Fixação
-    enriched.opcao_guarda = juridico?.opcao_guarda || dadosFormulario?.opcao_guarda || dadosFormulario?.opcaoGuarda || "";
-    enriched.guarda =
-      juridico.descricao_guarda || dadosFormulario.guarda || dadosFormulario.descricao_guarda || "";
-    enriched.descricao_guarda = enriched.guarda;
-    enriched.bens_partilha = juridico.bens_partilha || dadosFormulario.bens_partilha || "";
-    enriched.situacao_financeira =
-      juridico.situacao_financeira_genitora ||
-      dadosFormulario.situacao_financeira ||
-      dadosFormulario.situacao_financeira_genitora ||
-      "";
-    enriched.situacao_financeira_genitora = enriched.situacao_financeira;
-
-    // Empregador: Pega do Jurídico, se não, cai pro formulário.
-    enriched.empregador_nome =
-      juridico.empregador_nome ||
-      dadosFormulario.empregador_nome ||
-      dadosFormulario.empregador_requerido_nome ||
-      "";
-    enriched.empregador_requerido_nome = enriched.empregador_nome;
-    enriched.empregador_endereco =
-      juridico.empregador_endereco ||
-      dadosFormulario.empregador_endereco ||
-      dadosFormulario.empregador_requerido_endereco ||
-      "";
-    enriched.empregador_requerido_endereco = enriched.empregador_endereco;
-    enriched.empregador_email =
-      juridico.empregador_email ||
-      dadosFormulario.empregador_email ||
-      dadosFormulario.empregador_requerido_email ||
-      "";
-    enriched.empregador_requerido_email = enriched.empregador_email;
-
     enriched.juridico = juridico;
   }
+
+  // Novos campos de Fixação (Movidos para fora do if(juridico) para garantir fallback da triagem)
+  enriched.opcao_guarda =
+    juridico?.opcao_guarda || dadosFormulario?.opcao_guarda || dadosFormulario?.opcaoGuarda || "";
+  enriched.guarda =
+    juridico?.descricao_guarda ||
+    dadosFormulario?.guarda ||
+    dadosFormulario?.descricao_guarda ||
+    dadosFormulario?.descricaoGuarda ||
+    "";
+  enriched.descricao_guarda = enriched.guarda;
+  enriched.bens_partilha =
+    juridico?.bens_partilha || dadosFormulario?.bens_partilha || dadosFormulario?.bensPartilha || "";
+  enriched.situacao_financeira =
+    juridico?.situacao_financeira_genitora ||
+    dadosFormulario?.situacao_financeira ||
+    dadosFormulario?.situacao_financeira_genitora ||
+    dadosFormulario?.situacaoFinanceiraGenitora ||
+    "";
+  enriched.situacao_financeira_genitora = enriched.situacao_financeira;
+
+  // Empregador: Pega do Jurídico, se não, cai pro formulário.
+  enriched.empregador_nome =
+    juridico?.empregador_nome ||
+    dadosFormulario?.empregador_nome ||
+    dadosFormulario?.empregador_requerido_nome ||
+    "";
+  enriched.empregador_requerido_nome = enriched.empregador_nome;
+  enriched.empregador_endereco =
+    juridico?.empregador_endereco ||
+    dadosFormulario?.empregador_endereco ||
+    dadosFormulario?.empregador_requerido_endereco ||
+    "";
+  enriched.empregador_requerido_endereco = enriched.empregador_endereco;
+  enriched.empregador_email =
+    juridico?.empregador_email ||
+    dadosFormulario?.empregador_email ||
+    dadosFormulario?.empregador_requerido_email ||
+    "";
+  enriched.empregador_requerido_email = enriched.empregador_email;
 
   // [FIX] Cidade Assinatura Fallback (Task ID 01)
   enriched.CIDADEASSINATURA =
