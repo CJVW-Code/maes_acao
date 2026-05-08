@@ -648,6 +648,9 @@ const ALLOWED_MINUTA_KEYS = new Set([
   "url_peticao_cumprimento_cumulado",
   "url_peticao_cumprimento_penhora",
   "url_peticao_cumprimento_prisao",
+  "url_peticao_nos_autos_cumulado",
+  "url_peticao_nos_autos_penhora",
+  "url_peticao_nos_autos_prisao",
 ]);
 
 const URL_KEYS_DOCUMENTOS_GERADOS = [
