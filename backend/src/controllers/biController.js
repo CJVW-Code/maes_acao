@@ -421,8 +421,9 @@ const montarRelatorio = async (
   // Conjunto de usuários cujas unidades estão no escopo — usado para filtrar
   // produtividade de servidores e defensores independentemente do cargo do solicitante.
   // "todas" sem filtro regional inclui todos os defensores ativos.
+  const isSemRestricaoUnidade = requestedUnidade === "todas" && requestedRegional === "todas";
   const usuariosNoEscopoIds =
-    unidadesNoEscopo.size === 0
+    isSemRestricaoUnidade
       ? new Set(defensoresDB.map((u) => u.id)) // sem restrição de unidade
       : new Set(
           defensoresDB
@@ -501,7 +502,7 @@ const montarRelatorio = async (
     // O auditMiddleware salva detalhes = req.body (que inclui { status: '...' }).
     // entidade = 'casos' é definido pelo baseUrl do roteador montado em /api/casos.
     const logsServidores = await prisma.$queryRaw`
-      SELECT usuario_id, COUNT(*) AS qtd
+      SELECT usuario_id, COUNT(DISTINCT COALESCE(caso_id::text, registro_id)) AS qtd
       FROM logs_auditoria
       WHERE usuario_id IS NOT NULL
         AND entidade = 'casos'

@@ -64,22 +64,23 @@ export async function registrarLog(
     // depois protocolo como fallback (usado por chamadas expl\u00edcitas de registrarLog)
     let caso_id = null;
     if (entidade === 'casos' && registroId) {
+      let caso = null;
       const isNumericId = /^\d+$/.test(String(registroId));
       if (isNumericId) {
-        // ID num\u00e9rico direto (req.params.id do auditMiddleware)
-        const caso = await prisma.casos.findUnique({
+        // ID numérico direto (req.params.id do auditMiddleware)
+        caso = await prisma.casos.findUnique({
           where: { id: BigInt(registroId) },
           select: { id: true }
         });
-        if (caso) caso_id = caso.id;
-      } else {
-        // Fallback: protocolo (string alfanum\u00e9rica)
-        const caso = await prisma.casos.findFirst({
+      }
+      if (!caso) {
+        // Fallback: protocolo (string alfanumérica ou numérica)
+        caso = await prisma.casos.findFirst({
           where: { protocolo: String(registroId) },
           select: { id: true }
         });
-        if (caso) caso_id = caso.id;
       }
+      if (caso) caso_id = caso.id;
     }
 
     // Máscara PII nos detalhes antes de salvar

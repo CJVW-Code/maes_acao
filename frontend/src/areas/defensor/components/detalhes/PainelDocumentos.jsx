@@ -287,11 +287,15 @@ export const PainelDocumentos = ({
                     <button
                       onClick={(e) => {
                         e.preventDefault();
+                        if (!doc.id) {
+                          alert("Erro: ID do documento ausente. Tente atualizar a página.");
+                          return;
+                        }
                         handleDeleteDocumento(doc.id);
                       }}
-                      disabled={isDeletingDoc === doc.id}
-                      className="btn btn-ghost btn-sm btn-square opacity-0 group-hover:opacity-100 transition-opacity text-muted hover:text-error"
-                      title="Excluir arquivo"
+                      disabled={isDeletingDoc === doc.id || !doc.id}
+                      className={`btn btn-ghost btn-sm btn-square opacity-0 group-hover:opacity-100 transition-opacity text-muted hover:text-error ${!doc.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      title={!doc.id ? "ID do documento ausente" : "Excluir arquivo"}
                     >
                       {isDeletingDoc === doc.id ? (
                         <Loader2 size={14} className="animate-spin" />

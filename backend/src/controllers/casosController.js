@@ -5054,9 +5054,10 @@ export const finalizarCasoSolar = async (req, res) => {
     };
 
     // [FIX] Garante que quem protocolou não perca a produtividade (Trava Permanente pós-protocolo)
-    const isPowerUser = ["admin", "gestor"].includes(req.user.cargo.toLowerCase());
+    const cargo = String(req.user.cargo || "").toLowerCase();
+    const isPowerUser = ["admin", "gestor"].includes(cargo);
     if (!isPowerUser) {
-      const isDefensorOrCoord = req.user.cargo.includes("defensor") || req.user.cargo === "coordenador";
+      const isDefensorOrCoord = cargo.includes("defensor") || cargo === "coordenador";
       if (isDefensorOrCoord) {
         updateData.defensor_id = req.user.id;
         updateData.defensor_at = new Date();
@@ -5801,9 +5802,19 @@ export const renomearDocumento = async (req, res) => {
 export const excluirDocumentoAnexado = async (req, res) => {
   const { id, documentoId } = req.params;
 
+  if (!documentoId || documentoId === "undefined" || documentoId === "null") {
+    return res.status(400).json({ error: "ID do documento inválido ou não fornecido." });
+  }
+
   try {
     // 1. Autorização e Lock (Garante que só o dono ou admin exclua)
     const caso = await carregarCasoDetalhado(id, req.user);
+    const cargo = String(req.user.cargo || "").toLowerCase();
+    const isPowerUser = ["admin", "gestor"].includes(cargo);
+    const isOwner = String(caso.defensor_id) === String(req.user.id) || String(caso.servidor_id) === String(req.user.id);
+    if (!isPowerUser && !isOwner) {
+      return res.status(403).json({ error: "Apenas o responsável ou administradores podem excluir anexos." });
+    }
 
     // 2. Localiza o documento no banco
     const doc = await prisma.documentos.findFirst({
