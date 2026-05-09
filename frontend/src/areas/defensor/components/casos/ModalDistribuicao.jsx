@@ -103,7 +103,12 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh, mode }) =>
   };
 
   const handleLiberarParaFila = async () => {
-    if (!(await confirm("Deseja liberar este caso para a fila global sem vincular um defensor específico?", "Liberar para Fila?"))) {
+    if (
+      !(await confirm(
+        "Deseja liberar este caso para a fila global sem vincular um defensor específico?",
+        "Liberar para Fila?",
+      ))
+    ) {
       return;
     }
     setSubmitting(true);
@@ -122,7 +127,7 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh, mode }) =>
           navigate("/painel");
         }
       } else {
-        const err = await response.json();
+        const err = await response.json().catch(() => ({}));
         addToast(err.error || err.message || "Erro ao liberar.", "error");
       }
     } catch {
@@ -212,8 +217,8 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh, mode }) =>
                         {d.nome}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {(typeof d.cargo === "string" ? d.cargo : d.cargo?.nome) || "Defensor"}{" "}
-                        • {d.unidade_nome || d.unidade?.nome || "Sem Unidade"}
+                        {(typeof d.cargo === "string" ? d.cargo : d.cargo?.nome) || "Defensor"} •{" "}
+                        {d.unidade_nome || d.unidade?.nome || "Sem Unidade"}
                       </p>
                     </div>
                   </div>

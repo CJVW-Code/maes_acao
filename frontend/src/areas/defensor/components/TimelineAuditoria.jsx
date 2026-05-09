@@ -9,6 +9,8 @@ const traduzirAcao = (acao) => {
   if (acao.includes("agendar")) return "agendou uma reunião";
   if (acao.includes("finalizar")) return "finalizou o atendimento";
   if (acao.includes("resetar-chave")) return "resetou a chave de acesso";
+  if (acao === "distribuicao_caso") return "encaminhou o caso";
+  if (acao.includes("lock_removido")) return "liberou o bloqueio do caso";
   return "realizou uma alteração";
 };
 
@@ -82,7 +84,7 @@ export const TimelineAuditoria = ({ registroId, entidade = "casos" }) => {
                     </span>
                     <p className="text-sm font-medium text-main mt-1">
                       <span className="text-primary font-bold">
-                        {log.defensores?.nome || "Sistema"}
+                        {log.defensores?.nome || log.usuario?.nome || "Sistema"}
                       </span>{" "}
                       {traduzirAcao(log.acao)}
                     </p>

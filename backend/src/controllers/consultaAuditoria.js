@@ -10,7 +10,7 @@ export const obterHistoricoCaso = async (req, res) => {
       .select(
         `
         *,
-        defensores ( nome )
+        defensores:usuario_id ( nome )
       `,
       )
       .eq("registro_id", String(id))

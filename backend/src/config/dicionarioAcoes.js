@@ -125,6 +125,21 @@ export const DICIONARIO_ACOES_BACKEND = {
         template: "cumprimento_prisao.docx",
         filename: "cumprimento_prisao",
       },
+      {
+        tipo: "nos_autos_cumulado",
+        template: "nos_autos_cumulado.docx",
+        filename: "nos_autos_cumulado",
+      },
+      {
+        tipo: "nos_autos_penhora",
+        template: "nos_autos_penhora.docx",
+        filename: "nos_autos_penhora",
+      },
+      {
+        tipo: "nos_autos_prisao",
+        template: "nos_autos_prisao.docx",
+        filename: "nos_autos_prisao",
+      },
     ],
   },
 

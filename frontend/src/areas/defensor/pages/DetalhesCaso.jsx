@@ -446,11 +446,15 @@ export const DetalhesCaso = () => {
   }, [id, token, mutate, toast]);
 
   const handleRegenerateMinuta = useCallback(
-    async (soloCumulado = false) => {
+    async (soloCumulado = false, forceAll = false) => {
+      const confirmMsg = forceAll
+        ? "Esta ação irá gerar todas as 9 minutas disponíveis (Prisão, Penhora e Cumulado), ignorando a trava de 3 meses. Deseja continuar?"
+        : "Isso irá gerar um novo arquivo Word com os dados atuais. O arquivo anterior será substituído. Continuar?";
+
       if (
         !(await confirm(
-          "Isso irá gerar um novo arquivo Word com os dados atuais. O arquivo anterior será substituído. Continuar?",
-          "Regerar Minuta",
+          confirmMsg,
+          forceAll ? "Gerar Todas as Minutas?" : "Regerar Minuta",
         ))
       )
         return;
@@ -463,7 +467,7 @@ export const DetalhesCaso = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ solo_cumulado: soloCumulado }),
+          body: JSON.stringify({ solo_cumulado: soloCumulado, force_all: forceAll }),
         });
 
         if (!response.ok) throw new Error("Falha ao regerar minuta.");
@@ -1043,6 +1047,50 @@ export const DetalhesCaso = () => {
         loading: isRegeneratingMinuta,
       });
     }
+
+    // NOS PRÓPRIOS AUTOS
+    if (caso.url_peticao_nos_autos_cumulado) {
+      docs.push({
+        key: "url_peticao_nos_autos_cumulado",
+        label: "Nos Autos - Rito Cumulado",
+        url: caso.url_peticao_nos_autos_cumulado,
+        grupo: "proprios_autos",
+        previewClass: "border-success bg-success/10",
+        defaultClass: "border-border bg-surface hover:border-success",
+        textClass: "text-success",
+        downloadHoverClass: "hover:text-success",
+        handler: () => handleRegenerateMinuta(true),
+        loading: isRegeneratingMinuta,
+      });
+    }
+    if (caso.url_peticao_nos_autos_penhora) {
+      docs.push({
+        key: "url_peticao_nos_autos_penhora",
+        label: "Nos Autos - Rito da Penhora",
+        url: caso.url_peticao_nos_autos_penhora,
+        grupo: "proprios_autos",
+        previewClass: "border-primary bg-primary/10",
+        defaultClass: "border-border bg-surface hover:border-primary",
+        textClass: "text-primary",
+        downloadHoverClass: "hover:text-primary",
+        handler: () => handleRegenerateMinuta(false),
+        loading: isRegeneratingMinuta,
+      });
+    }
+    if (caso.url_peticao_nos_autos_prisao) {
+      docs.push({
+        key: "url_peticao_nos_autos_prisao",
+        label: "Nos Autos - Rito da Prisao",
+        url: caso.url_peticao_nos_autos_prisao,
+        grupo: "proprios_autos",
+        previewClass: "border-error bg-error/10",
+        defaultClass: "border-border bg-surface hover:border-error",
+        textClass: "text-error",
+        downloadHoverClass: "hover:text-error",
+        handler: () => handleRegenerateMinuta(false),
+        loading: isRegeneratingMinuta,
+      });
+    }
     if (caso.url_termo_declaracao || isFixacao) {
       docs.push({
         key: "url_termo_declaracao",
@@ -1085,8 +1133,12 @@ export const DetalhesCaso = () => {
   const documentosNoFluxo = useMemo(() => {
     if (!podeExibirDocumentos) return [];
 
-    // Se for "Nos próprios autos", atualmente não temos modelos específicos (mostramos a mensagem no render)
-    if (autosType === "proprios_autos") return [];
+    // Se for "Nos próprios autos", filtra os documentos desse grupo
+    if (autosType === "proprios_autos") {
+      return todosDocumentosGerados.filter(
+        (d) => d.grupo === "proprios_autos" || d.grupo === "auxiliar",
+      );
+    }
 
     return todosDocumentosGerados.filter((doc) => {
       if (doc.grupo === "auxiliar") return true;
@@ -1697,6 +1749,17 @@ export const DetalhesCaso = () => {
                     <div className="card space-y-4">
                       <div className="flex items-center justify-between border-b border-border pb-2">
                         <h3 className="heading-3">📂 Arquivos Gerados</h3>
+                        {user?.cargo === "admin" && (
+                          <button
+                            onClick={() => handleRegenerateMinuta(false, true)}
+                            disabled={isRegeneratingMinuta}
+                            className="text-[10px] font-bold text-highlight hover:text-highlight/80 flex items-center gap-1 uppercase tracking-tighter"
+                            title="Ignorar meses e gerar todas as 9 minutas"
+                          >
+                            <Wand2 size={14} className={isRegeneratingMinuta ? "animate-spin" : ""} />
+                            Gerar Todas
+                          </button>
+                        )}
                       </div>
 
                       <p className="text-sm text-muted">
@@ -1865,18 +1928,7 @@ export const DetalhesCaso = () => {
               </>
             )}
 
-            {autosType === "proprios_autos" && (
-              <div className="card border-2 border-dashed border-primary/30 text-center p-8 bg-primary/5">
-                <AlertTriangle className="mx-auto text-primary mb-3" size={32} />
-                <h3 className="text-lg font-bold text-primary">Modelos em Desenvolvimento</h3>
-                <p className="text-muted text-sm mt-2">
-                  Atualmente, os modelos para peticionamento <b>Nos Próprios Autos</b> ainda estão
-                  sendo integrados ao sistema.
-                  <br />
-                  Por favor, utilize as minutas de <b>Autos Apartados</b> como base se necessário.
-                </p>
-              </div>
-            )}
+
           </div>
         )}
 
