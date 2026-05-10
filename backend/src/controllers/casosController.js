@@ -3340,14 +3340,8 @@ export const listarCasos = async (req, res) => {
       }
     }
 
-    // Filtro para ocultar em_protocolo de servidor/estagiario
-    if (userCargo === "servidor" || userCargo === "estagiario") {
-      if (!whereClause.status) {
-        whereClause.status = { not: "em_protocolo" };
-      } else if (whereClause.status.in) {
-        whereClause.status.in = whereClause.status.in.filter((s) => s !== "em_protocolo");
-      }
-    }
+    // Removida restrição de visibilidade do status 'em_protocolo'
+    // Todos os cargos agora podem visualizar casos em fase de protocolo
 
     // Filtro "Meus Atendimentos"
     if (meusAtendimentos === "true" && req.user) {
@@ -3450,10 +3444,8 @@ export const resumoCasos = async (req, res) => {
       }
     }
 
-    // Filtro para ocultar em_protocolo de servidor/estagiario
-    if (req.user && (cargoNormalizado === "servidor" || cargoNormalizado === "estagiario")) {
-      whereClause.status = { not: "em_protocolo" };
-    }
+    // Removida restrição de visibilidade do status 'em_protocolo'
+    // Todos os cargos agora podem visualizar casos em fase de protocolo
 
     const contagens = {
       total: 0,
@@ -3665,12 +3657,9 @@ export const obterDetalhesCaso = async (req, res) => {
     );
 
     const isServidorOrEstagiario = userCargo === "servidor" || userCargo === "estagiario";
-    if (data.status === "em_protocolo" && isServidorOrEstagiario) {
-      return res.status(403).json({
-        error:
-          "Acesso Negado. Este caso está na etapa de protocolo e apenas defensores e coordenadores podem acessá-lo.",
-      });
-    }
+    // Removida restrição de acesso ao status 'em_protocolo' para servidores/estagiários
+    // Alinhando com a visibilidade já permitida na listagem (listarCasos)
+
 
     let isLocked = false;
     let lockHolder = null;
@@ -4076,7 +4065,7 @@ export const distribuirCaso = async (req, res) => {
           data: {
             usuario_id: usuario_id,
             titulo: "Novo Caso para Protocolo",
-            mensagem: `${req.user.nome} encaminhou um caso para você protocolar.`,
+            mensagem: `O(A) ${req.user.cargo.charAt(0).toUpperCase() + req.user.cargo.slice(1)} ${req.user.nome} encaminhou um caso para você protocolar.`,
             tipo: "protocolo",
             link: `/painel/casos/${id}`,
           },

@@ -13,6 +13,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  Legend,
 } from "recharts";
 import {
   BarChart3,
@@ -133,7 +134,7 @@ const Relatorios = () => {
 
   const isPowerUser = user?.cargo === "admin" || user?.cargo === "gestor";
   const canSeeUnitsList = isPowerUser || user?.cargo === "coordenador";
-  const canUnlock = ["admin", "gestor", "coordenador"].includes(user?.cargo?.toLowerCase());
+  const canUnlock = ["admin"].includes(user?.cargo?.toLowerCase());
 
   useEffect(() => {
     if (!canSeeUnitsList) return;
@@ -195,29 +196,29 @@ const Relatorios = () => {
     return <Navigate to="/painel" replace />;
   }
 
-  if (bloqueio?.bloqueado) {
-    const handleLiberarAgora = async () => {
-      try {
-        const response = await authFetch("/bi/overrides", {
-          method: "POST",
-          body: JSON.stringify({
-            horas: 1,
-            motivo: "Liberação rápida via tela de bloqueio do BI",
-          }),
-        });
-        if (response.ok) {
-          toast.success("Acesso liberado! Recarregando...");
-          setTimeout(() => window.location.reload(), 1500);
-        } else {
-          const err = await response.json();
-          toast.error(err.error || "Erro ao liberar BI.");
-        }
-      } catch (err) {
-        console.error("Erro ao liberar BI:", err);
-        toast.error("Erro de conexão ao tentar liberar o BI.");
+  const handleLiberarAgora = async () => {
+    try {
+      const response = await authFetch("/bi/overrides", {
+        method: "POST",
+        body: JSON.stringify({
+          horas: 1,
+          motivo: "Liberação rápida via tela de Relatórios",
+        }),
+      });
+      if (response.ok) {
+        toast.success("Acesso liberado! Recarregando...");
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        const err = await response.json();
+        toast.error(err.error || "Erro ao liberar BI.");
       }
-    };
+    } catch (err) {
+      console.error("Erro ao liberar BI:", err);
+      toast.error("Erro de conexão ao tentar liberar o BI.");
+    }
+  };
 
+  if (bloqueio?.bloqueado) {
     return (
       <div className="flex flex-col items-center justify-center py-24 px-6 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 mb-6 shadow-inner">
@@ -266,6 +267,16 @@ const Relatorios = () => {
             <p className="mt-2 max-w-3xl text-bg">Relatorios operacionais do evento.</p>
           </div>
           <div className="flex flex-wrap gap-2" data-bi-export-hidden="true">
+            {canUnlock && (
+              <button
+                type="button"
+                onClick={handleLiberarAgora}
+                className="btn bg-amber-500 text-white hover:bg-amber-600 border-none shadow-md shadow-amber-500/20"
+              >
+                <Clock size={18} />
+                Liberar 1h
+              </button>
+            )}
             <button
               type="button"
               onClick={exportarXlsx}
@@ -476,6 +487,13 @@ const Relatorios = () => {
                       ))}
                     </Pie>
                     <Tooltip content={<CustomTooltip />} />
+                    <Legend
+                      verticalAlign="bottom"
+                      height={36}
+                      formatter={(value) => (
+                        <span className="text-[10px] font-bold uppercase text-muted">{value}</span>
+                      )}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -534,6 +552,14 @@ const Relatorios = () => {
                     name="Protocolados"
                     stroke="var(--color-success)"
                     strokeWidth={3}
+                  />
+                  <Legend
+                    verticalAlign="top"
+                    align="right"
+                    height={36}
+                    formatter={(value) => (
+                      <span className="text-[10px] font-bold uppercase text-muted">{value}</span>
+                    )}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -675,7 +701,7 @@ const Relatorios = () => {
                       <div>
                         <p className="text-sm font-bold text-main">{p.nome}</p>
                         <p className="text-[10px] text-muted uppercase font-bold tracking-wider">
-                          Coordenador / Gestor
+                          {p.cargo || "Coordenador / Gestor"}
                         </p>
                       </div>
                     </div>

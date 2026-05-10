@@ -1252,8 +1252,17 @@ export const DetalhesCaso = () => {
           </Link>
           <h1 className="heading-1 mt-3">{caso.nome_assistido}</h1>
           <div className="flex flex-wrap items-center gap-3 mt-2">
-            <p className="text-muted text-sm">
+            <p className="text-muted text-sm flex items-center gap-2">
               Protocolo {caso.protocolo} • {formatTipoAcaoLabel(caso.tipo_acao)}
+              {caso.servidor?.nome && (
+                <>
+                  <span className="text-gray-300">•</span>
+                  <span className="inline-flex items-center gap-1.5 text-primary/70 font-semibold bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10">
+                    <User size={12} />
+                    Analisado por: {caso.servidor.nome}
+                  </span>
+                </>
+              )}
             </p>
             {caso.unidade?.nome && (
               <span className="bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border border-primary/20 shadow-sm animate-fade-in">

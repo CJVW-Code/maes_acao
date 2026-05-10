@@ -34,7 +34,9 @@ const verificarBloqueioHorario = async (user) => {
   const timezone = configs.bi_timezone || "America/Bahia";
 
   // Debug: Info básica
-  console.log(`[BI-Auth] Verificando acesso para ${user.nome} (${user.cargo}) às ${agoraDate.toISOString()} (TZ: ${timezone})`);
+  console.log(
+    `[BI-Auth] Verificando acesso para ${user.nome} (${user.cargo}) às ${agoraDate.toISOString()} (TZ: ${timezone})`,
+  );
 
   // 2. Verificar Overrides (Liberações temporárias pelo botão "Liberar BI")
   const overrides = safeParseArray(configs.bi_overrides);
@@ -49,52 +51,7 @@ const verificarBloqueioHorario = async (user) => {
     return { bloqueado: false };
   }
 
-  // 3. Verificar Janelas de Horário (Liberações programadas)
-  const biHorarios = safeParseArray(configs.bi_horarios);
-  const formatadorHora = new Intl.DateTimeFormat("en-GB", {
-    timeZone: timezone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  const formatadorDia = new Intl.DateTimeFormat("pt-BR", {
-    timeZone: timezone,
-    weekday: "long",
-  });
-
-  const horaAtualStr = formatadorHora.format(agoraDate);
-  const diaAtual = formatadorDia.format(agoraDate).toLowerCase();
-  
-  // Normaliza o dia atual para comparação
-  const diaAtualNorm = diaAtual.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-  const janelaMatch = biHorarios.find((janela) => {
-    const diaJanelaNorm = (janela.dia || "todos").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const diaMatch = diaJanelaNorm === "todos" || diaAtualNorm.includes(diaJanelaNorm);
-    
-    if (!diaMatch) return false;
-
-    // Suporte para janelas que cruzam a meia-noite (ex: 22:00 até 02:00)
-    const { inicio, fim } = janela;
-    
-    if (inicio <= fim) {
-      // Janela padrão no mesmo dia (ex: 08:00 às 18:00)
-      return horaAtualStr >= inicio && horaAtualStr <= fim;
-    } else {
-      // Janela que cruza meia-noite (ex: 22:00 às 02:00)
-      // É match se for DEPOIS do início (23:00) OU ANTES do fim (01:00)
-      return horaAtualStr >= inicio || horaAtualStr <= fim;
-    }
-  });
-
-  if (janelaMatch) {
-    console.log(`[BI-Auth] ✅ Liberado por Janela: ${janelaMatch.dia || 'todos'} (${janelaMatch.inicio}-${janelaMatch.fim})`);
-    return { bloqueado: false };
-  }
-
-  console.log(`[BI-Auth] ❌ Acesso negado. Hora detectada: ${horaAtualStr}, Dia: ${diaAtualNorm}`);
-
-  // 4. Se não há liberação ativa, verificar se há um Bloqueio Manual explícito
+  // 3. Se não há liberação ativa, verificar se há um Bloqueio Manual explícito
   if (configs.bi_bloqueado === "true") {
     return {
       bloqueado: true,
@@ -102,14 +59,13 @@ const verificarBloqueioHorario = async (user) => {
     };
   }
 
-  // 5. Fallback: Se não tem janela, não tem override e não é admin, bloqueia por padrão
-  const msgPadrao = biHorarios.length > 0 
-    ? `Acesso bloqueado. Horário atual (${horaAtualStr}) está fora das janelas permitidas.` 
-    : "O acesso ao BI está restrito. Nenhuma janela de funcionamento configurada.";
-    
+  // 4. Fallback: Bloqueado por padrão para todos os cargos exceto Admin
+  console.log(`[BI-Auth] ❌ Acesso negado por política padrão.`);
+
   return {
     bloqueado: true,
-    mensagem: msgPadrao,
+    mensagem:
+      "O acesso ao BI está restrito por padrão. Solicite a liberação temporária a um administrador.",
   };
 };
 
@@ -732,6 +688,7 @@ const montarRelatorio = async (
     (item) => ({
       ...item,
       nome: usuarioInfoById.get(item.usuario_id)?.nome || "Gestor não identificado",
+      cargo: usuarioInfoById.get(item.usuario_id)?.cargo || "Coordenador / Gestor",
     }),
   );
 

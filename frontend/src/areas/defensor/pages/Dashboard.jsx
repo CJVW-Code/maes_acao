@@ -454,7 +454,7 @@ export const Dashboard = () => {
                   <tr className="text-muted uppercase text-[10px] 2xl:text-xs tracking-wider border-b border-soft">
                     <th className="px-6 py-4 text-left font-bold">Assistida / Representante</th>
                     <th className="px-6 py-4 text-left font-bold">Data</th>
-                    <th className="px-6 py-4 text-left font-bold">Responsável</th>
+                    <th className="px-6 py-4 text-left font-bold">Analista / Defensor</th>
                     <th className="px-6 py-4 text-left font-bold">Status</th>
                     <th className="px-6 py-4 text-right font-bold">Ações</th>
                   </tr>
@@ -506,31 +506,31 @@ export const Dashboard = () => {
                         {/* RESPONSÁVEL */}
                         <td className="px-6 py-5 whitespace-nowrap">
                           {caso.defensor || caso.servidor ? (
-                            <div className="flex items-center gap-2">
-                              <div
-                                className={`p-1.5 rounded-full ${
-                                  caso.defensor_id === user?.id || caso.servidor_id === user?.id
-                                    ? "badge-meu"
-                                    : "badge-bloqueado"
-                                }`}
-                              >
-                                {caso.defensor_id === user?.id || caso.servidor_id === user?.id ? (
-                                  <User size={14} />
-                                ) : (
-                                  <Lock size={14} />
-                                )}
-                              </div>
-                              <span className="text-xs 2xl:text-base font-bold text-main">
-                                {caso.defensor_id === user?.id || caso.servidor_id === user?.id
-                                  ? "Meu"
-                                  : (caso.defensor?.nome || caso.servidor?.nome || "").split(
-                                      " ",
-                                    )[0]}
-                              </span>
+                            <div className="flex flex-col gap-1.5">
+                              {caso.servidor && (
+                                <div className="flex items-center gap-2">
+                                  <div className={`p-1 rounded-full ${caso.servidor_id === user?.id ? "bg-primary/10 text-primary" : "bg-gray-100 text-gray-400"}`}>
+                                    <User size={12} />
+                                  </div>
+                                  <span className={`text-[10px] 2xl:text-xs font-bold ${caso.servidor_id === user?.id ? "text-primary" : "text-muted"}`}>
+                                    {caso.servidor_id === user?.id ? "Minha Análise" : caso.servidor.nome.split(" ")[0]}
+                                  </span>
+                                </div>
+                              )}
+                              {caso.defensor && (
+                                <div className="flex items-center gap-2">
+                                  <div className={`p-1 rounded-full ${caso.defensor_id === user?.id ? "bg-indigo-500 text-white shadow-sm" : "bg-amber-100 text-amber-600"}`}>
+                                    <Lock size={12} />
+                                  </div>
+                                  <span className={`text-[10px] 2xl:text-xs font-black ${caso.defensor_id === user?.id ? "text-indigo-600" : "text-amber-700"}`}>
+                                    {caso.defensor_id === user?.id ? "Meu Protocolo" : caso.defensor.nome.split(" ")[0]}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           ) : (
-                            <span className="text-[11px] 2xl:text-sm text-muted italic font-medium">
-                              Disponível
+                            <span className="text-[11px] 2xl:text-sm text-muted italic font-medium bg-gray-50 px-2 py-1 rounded-md border border-dashed border-gray-200">
+                              Aguardando
                             </span>
                           )}
                         </td>
