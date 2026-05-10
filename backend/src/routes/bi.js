@@ -6,7 +6,7 @@ const router = express.Router();
 
 const canAccessBi = (user) => ["admin", "gestor", "coordenador"].includes(user?.cargo?.toLowerCase());
 const canExportBiLote = (user) => ["admin", "gestor"].includes(user?.cargo?.toLowerCase());
-const canManageOverrides = (user) => ["admin", "gestor"].includes(user?.cargo?.toLowerCase());
+const canManageOverrides = (user) => ["admin"].includes(user?.cargo?.toLowerCase());
 
 const requireBiAccess = (req, res, next) => {
   if (!canAccessBi(req.user)) {

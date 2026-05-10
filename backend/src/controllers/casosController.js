@@ -3657,12 +3657,9 @@ export const obterDetalhesCaso = async (req, res) => {
     );
 
     const isServidorOrEstagiario = userCargo === "servidor" || userCargo === "estagiario";
-    if (data.status === "em_protocolo" && isServidorOrEstagiario) {
-      return res.status(403).json({
-        error:
-          "Acesso Negado. Este caso está na etapa de protocolo e apenas defensores e coordenadores podem acessá-lo.",
-      });
-    }
+    // Removida restrição de acesso ao status 'em_protocolo' para servidores/estagiários
+    // Alinhando com a visibilidade já permitida na listagem (listarCasos)
+
 
     let isLocked = false;
     let lockHolder = null;

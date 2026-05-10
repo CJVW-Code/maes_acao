@@ -25,6 +25,7 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh, mode }) =>
   const { addToast } = useToast();
   const { confirm } = useConfirm();
   const [defensores, setDefensores] = useState([]);
+  const [loadingDefensores, setLoadingDefensores] = useState(false);
   const navigate = useNavigate();
 
   // Se `mode` for passado explicitamente, usa ele. Caso contrário deriva do estado atual.
@@ -46,6 +47,7 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh, mode }) =>
           ? `/defensores/encaminhamento?unidade_id=${caso?.unidade_id}`
           : `/defensores/encaminhamento`;
 
+      setLoadingDefensores(true);
       authFetch(endpoint)
         .then(async (r) => {
           if (!r.ok) return [];
@@ -53,10 +55,12 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh, mode }) =>
           return Array.isArray(data) ? data : [];
         })
         .then((data) => setDefensores(data))
-        .catch(() => setDefensores([]));
+        .catch(() => setDefensores([]))
+        .finally(() => setLoadingDefensores(false));
     } else {
       // Limpa ao fechar
       setDefensores([]);
+      setLoadingDefensores(false);
       setBusca("");
       modeRef.current = null;
     }
@@ -212,7 +216,7 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh, mode }) =>
           <div className="max-h-[350px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
             {defensoresFiltrados.length === 0 ? (
               <div className="text-center py-12 text-gray-400 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
-                {defensores.length === 0 ? (
+                {loadingDefensores ? (
                   <div className="flex flex-col items-center gap-3">
                     <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                     <p>Buscando defensores disponíveis...</p>
