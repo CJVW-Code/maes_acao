@@ -72,7 +72,11 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh, mode }) =>
       (d.email && d.email.toLowerCase().includes(busca.toLowerCase())),
   );
 
-  const handleDistribuir = async (usuarioId) => {
+  const handleDistribuir = async (usuarioId, usuarioNome) => {
+    addToast(
+      `Iniciando encaminhamento do caso de ${caso.nome_assistido} para o(a) defensor(a) ${usuarioNome}. O caso será vinculado exclusivamente a ele(a) para prosseguimento.`,
+      "info"
+    );
     setSubmitting(true);
     try {
       const response = await authFetch(`/casos/${caso.id}/distribuir`, {
@@ -92,10 +96,11 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh, mode }) =>
           navigate("/painel");
         }
       } else {
-        const err = await response.json();
+        const err = await response.json().catch(() => ({}));
         addToast(err.error || err.message || "Erro ao distribuir.", "error");
       }
-    } catch {
+    } catch (error) {
+      console.error("Erro na distribuição:", error);
       addToast("Erro de conexão.", "error");
     } finally {
       setSubmitting(false);
@@ -154,10 +159,13 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh, mode }) =>
                 </>
               )}
             </h2>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+              <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono font-bold">
+                #{caso?.id}
+              </span>
               {isEncaminhamento
-                ? "Selecione o defensor que receberá este protocolo:"
-                : `Caso: ${caso?.nome_assistido} (#${caso?.id})`}
+                ? "Selecione o defensor que assumirá a custódia deste protocolo:"
+                : `Caso: ${caso?.nome_assistido}`}
             </p>
           </div>
           <button
@@ -186,45 +194,76 @@ export const ModalDistribuicao = ({ caso, isOpen, onClose, onRefresh, mode }) =>
             <button
               onClick={handleLiberarParaFila}
               disabled={submitting}
-              className="w-full mb-6 flex items-center justify-center gap-2 p-4 rounded-2xl bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 transition-all font-bold group"
+              className="w-full mb-6 flex flex-col items-center justify-center gap-1 p-4 rounded-3xl bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 hover:border-amber-200 transition-all group relative overflow-hidden"
             >
-              <Inbox className="group-hover:scale-110 transition-transform" size={20} />
-              Liberar para Fila Global (Sem vincular)
+              <div className="flex items-center gap-2 font-bold">
+                <Inbox className="group-hover:scale-110 transition-transform" size={18} />
+                Liberar para Fila Global
+              </div>
+              <span className="text-[10px] text-amber-600/70 font-medium italic">
+                O caso ficará disponível para qualquer defensor de protocolo da unidade
+              </span>
+              <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                <Inbox size={48} />
+              </div>
             </button>
           )}
 
           <div className="max-h-[350px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
             {defensoresFiltrados.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
-                {defensores.length === 0
-                  ? "Carregando defensores..."
-                  : "Nenhum profissional encontrado."}
+              <div className="text-center py-12 text-gray-400 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
+                {defensores.length === 0 ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    <p>Buscando defensores disponíveis...</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <Search className="text-gray-300" size={32} />
+                    <p>Nenhum defensor encontrado.</p>
+                  </div>
+                )}
               </div>
             ) : (
               defensoresFiltrados.map((d) => (
                 <button
                   key={d.id}
-                  onClick={() => handleDistribuir(d.id)}
+                  onClick={() => handleDistribuir(d.id, d.nome)}
                   disabled={submitting}
-                  className="w-full flex items-center justify-between p-4 rounded-2xl hover:bg-primary/5 border border-transparent hover:border-primary/20 transition-all group"
+                  className="w-full flex items-center justify-between p-4 rounded-2xl hover:bg-white hover:shadow-lg hover:shadow-primary/5 border border-transparent hover:border-primary/20 transition-all group relative overflow-hidden"
                 >
-                  <div className="flex items-center gap-4 text-left">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                  <div className="flex items-center gap-4 text-left relative z-10">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-primary font-bold text-lg border border-primary/10 group-hover:scale-105 transition-transform">
                       {d.nome.charAt(0)}
                     </div>
                     <div>
-                      <p className="font-bold text-gray-800 group-hover:text-primary transition-colors">
-                        {d.nome}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {(typeof d.cargo === "string" ? d.cargo : d.cargo?.nome) || "Defensor"} •{" "}
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-gray-800 group-hover:text-primary transition-colors">
+                          {d.nome}
+                        </p>
+                        <span className="px-2 py-0.5 rounded-full bg-gray-100 text-[10px] font-bold text-gray-500 uppercase tracking-wider border border-gray-200 group-hover:bg-primary/10 group-hover:text-primary group-hover:border-primary/20 transition-colors">
+                          {(typeof d.cargo === "string" ? d.cargo : d.cargo?.nome) || "Defensor"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                         {d.unidade_nome || d.unidade?.nome || "Sem Unidade"}
                       </p>
                     </div>
                   </div>
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Check className="text-primary" size={20} />
+                  <div className="flex items-center gap-3 relative z-10">
+                    <div className="opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all">
+                      <span className="text-[10px] font-bold text-primary uppercase bg-primary/5 px-3 py-1.5 rounded-lg border border-primary/10">
+                        Selecionar
+                      </span>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all">
+                      <Check className="text-primary" size={18} />
+                    </div>
                   </div>
+                  
+                  {/* Hover background highlight */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
               ))
             )}
