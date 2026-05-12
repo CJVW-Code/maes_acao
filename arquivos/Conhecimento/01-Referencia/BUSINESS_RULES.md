@@ -1,690 +1,584 @@
-# Regras de Negócio — Mães em Ação · DPE-BA
+# Regras de Negocio - Maes em Acao / DPE-BA
 
-> **Versão:** 4.1 · **Atualizado em:** 2026-05-06 (Apex Ultimate Sync + Access Key Deprecation)  
-> **Fonte:** Análise da codebase (controllers, services, middleware, config)  
-> **Propósito:** Referência canônica para treinamento de IAs e orientação de defensores
+> **Versao:** 6.0
+> **Atualizado em:** 2026-05-12
+> **Fonte:** controllers, middlewares, schema Prisma e configuracoes atuais
 
----
-
-## 1. Tipos de Ação (`tipo_acao`)
-
-O campo `tipo_acao` da tabela `casos` determina qual template DOCX e qual prompt de IA serão utilizados. As chaves internas (`acaoKey`) são mapeadas no **dicionário de ações** (`dicionarioAcoes.js`).
-
-### 1.1 Mapeamento completo
-
-| 1 | `fixacao_alimentos` | `fixacao_alimentos1.docx` | ✅ Ativo (Família) | Vara de Família |
-| 2 | `execucao_alimentos` | `executacao_alimentos_penhora.docx` | ✅ Ativo (Família - Multi) | Vara de Família |
-| 3 | `termo_declaracao` | `termo_declaracao.docx` | ✅ Ativo (Apoio) | — |
-| 4 | `default` | `fixacao_alimentos1.docx` | ❌ Fallback | — |
-
-> **Nota:** As chaves `exec_penhora`, `exec_prisao`, `exec_cumulado` etc., são consideradas legadas ou sub-tipos internos. O frontend utiliza prioritariamente as chaves acima.
-
-> **Regra de fallback:** Se `acaoKey` está vazio ou não existe no dicionário, a config `default` é usada com log de aviso.
-
-### 1.2 Descrição jurídica de cada tipo
-
-| Tipo | Descrição | Quando é aplicável |
-|:-----|:----------|:-------------------|
-| **Fixação de Alimentos** | Ação para obrigar o genitor a pagar pensão alimentícia aos filhos. | Quando a criança/adolescente não recebe contribuição financeira regular do genitor ausente. |
-| **Execução de Alimentos — Prisão** | Cumprimento de sentença que já fixou alimentos, sob pena de prisão civil. | Quando já existe uma decisão judicial fixando alimentos que não está sendo cumprida (inadimplente nos últimos 3 meses). |
-| **Execução de Alimentos — Penhora** | Cumprimento de sentença com penhora de bens ou desconto em folha. | Quando já existe decisão judicial fixando alimentos e o devedor possui bens ou emprego formal para penhora. |
-| **Execução Cumulada** | Execução com ambos os ritos (prisão e penhora). | Quando se busca tanto a prisão quanto a penhora de bens. |
-| **Cumprimento de Sentença — Penhora** | Cumprimento de sentença definitiva com penhora. | Quando há sentença transitada em julgado. |
-| **Cumprimento de Sentença — Prisão** | Cumprimento de sentença definitiva com prisão. | Quando há sentença transitada em julgado e inadimplência. |
-| **Cumprimento Cumulado** | Cumprimento com ambos os ritos. | Quando se busca tanto a prisão quanto a penhora em sentença definitiva. |
-| **Alimentos Gravídicos** | Alimentos durante a gestação. | Quando a genitora necessita de alimentos durante a gravidez. |
-| **Termo de Declaração** | Documento que formaliza o relato do assistido perante a Defensoria. | Gerado sob demanda pelo defensor para formalizar o depoimento do assistido. Não é uma ação judicial. |
-
-### 1.3 Determinação da `acaoKey`
-
-A chave da ação é extraída no backend pela seguinte lógica de prioridade:
-
-```
-acaoKey = dados_formulario.acaoEspecifica
-       || dados_formulario.tipoAcao.split(" - ")[1]?.trim()
-       || dados_formulario.tipoAcao.trim()
-       || ""
-```
-
-O campo `tipoAcao` pode vir do frontend no formato `"Família - fixacao_alimentos"`, onde a parte após o `" - "` é a chave do dicionário.
-
-### 1.4 Mapeamento de Varas (`varasMapping.js`)
-
-O `tipo_acao` (versão descritiva, ex: "Fixação de Pensão Alimentícia") é mapeado para a vara competente:
-
-| Rótulo descritivo | Vara |
-|:-------------------|:-----|
-| Fixação de Pensão Alimentícia | Vara de Família |
-| Divórcio Litigioso / Consensual | Vara de Família |
-| Reconhecimento e Dissolução de União Estável | Vara de Família |
-| Dissolução Litigiosa de União Estável | Vara de Família |
-| Guarda de Filhos | Vara de Família |
-| Execução de Alimentos Rito Penhora/Prisão | Vara de Família |
-| Revisão de Alimentos (Majoração/Redução) | Vara de Família |
-
-> **Escopo:** Ações de Sucessões (Alvará, Post Mortem) foram removidas do escopo do mutirão Mães em Ação.
-
-> Se o tipo não for encontrado no mapeamento, retorna `"[VARA NÃO ESPECIFICADA]"`.
+Este arquivo descreve regras implementadas no codigo atual. Conteudos historicos removidos: status legados como `encaminhado_solar`, rotas `agendar/reagendar`, autenticacao publica por chave de acesso e auto-release automatico de lock.
 
 ---
 
-## 2. Estrutura do `dados_formulario` (JSONB)
+## 1. Entidades Centrais
 
-O campo `dados_formulario` na tabela `casos` armazena todos os dados coletados no formulário multi-step do cidadão. É um objeto JSONB com chaves variáveis conforme o tipo de ação.
+### Caso
 
-### 2.1 Campos universais (presentes em todos os tipos)
+Tabela/modelo `casos`.
 
-| Chave | Tipo | Obrigatório | Descrição |
-|:------|:-----|:------------|:----------|
-| `nome` | `string` | ✅ | Nome completo do assistido |
-| `cpf` | `string` | ✅ | CPF do assistido (validado algoritmicamente) |
-| `telefone` | `string` | ✅ | Telefone de contato |
-| `whatsapp_contato` | `string` | ❌ | WhatsApp do assistido |
-| `tipoAcao` | `string` | ✅ | Tipo de ação selecionado (ex: `"Família - fixacao_alimentos"`) |
-| `acaoEspecifica` | `string` | ❌ | Chave limpa do dicionário (ex: `"fixacao_alimentos"`) |
-| `relato` | `string` | ❌ | Relato textual do assistido |
-| `documentos_informados` | `string (JSON)` | ❌ | Array serializado de nomes de documentos |
-| `document_names` | `object` | ❌ | Mapa `{ nomeArquivo: rotuloAmigavel }` (gerado/atualizado pelo backend) |
+Campos operacionais mais relevantes:
 
-### 2.2 Campos do assistido (requerente/autor)
+- `protocolo` unico
+- `unidade_id`
+- `tipo_acao`
+- `status`
+- `servidor_id`, `servidor_at`
+- `defensor_id`, `defensor_at`
+- `numero_solar`
+- `numero_processo`
+- `url_capa_processual`
+- `protocolado_at`
+- `finished_at`
+- `arquivado`
+- `motivo_arquivamento`
+- `observacao_arquivamento`
+- `feedback`
+- `compartilhado`
+- `status_job`, `retry_count`, `erro_processamento`, `processing_started_at`, `processed_at`
 
-| Chave | Tipo | Obrigatório | Descrição |
-|:------|:-----|:------------|:----------|
-| `assistido_eh_incapaz` | `"sim" \| "nao"` | ❌ | Se o assistido é incapaz (criança/adolescente representado) |
-| `assistido_data_nascimento` | `string (YYYY-MM-DD)` | ❌ | Data de nascimento do assistido |
-| `assistido_nacionalidade` | `string` | ❌ | Nacionalidade |
-| `assistido_estado_civil` | `string` | ❌ | Estado civil |
-| `assistido_ocupacao` | `string` | ❌ | Profissão/ocupação |
-| `assistido_rg_numero` | `string` | ❌ | Número do RG |
-| `assistido_rg_orgao` | `string` | ❌ | Órgão emissor do RG |
-| `endereco_assistido` | `string` | ❌ | Endereço completo |
-| `email_assistido` | `string` | ❌ | E-mail de contato |
-| `dados_adicionais_requerente` | `string` | ❌ | Informações complementares sobre o requerente |
-| `situacao_financeira_genitora` | `string` | ❌ | Descrição da situação financeira da genitora |
+### Relacoes 1:1 do Caso
 
-### 2.3 Campos do representante legal
+- `casos_partes`: qualificacao das partes e exequentes.
+- `casos_juridico`: campos juridicos normalizados.
+- `casos_ia`: dados extraidos, textos e URLs de minutas.
 
-Preenchidos quando `assistido_eh_incapaz === "sim"` (a mãe/pai representando o(s) filho(s)).
+### Relacoes 1:N / N:N
 
-| Chave | Tipo | Obrigatório (quando incapaz) | Descrição |
-|:------|:-----|:-----------------------------|:----------|
-| `representante_nome` | `string` | ✅ | Nome do representante legal |
-| `representante_nacionalidade` | `string` | ❌ | Nacionalidade |
-| `representante_estado_civil` | `string` | ❌ | Estado civil |
-| `representante_ocupacao` | `string` | ❌ | Profissão |
-| `representante_cpf` | `string` | ✅ | CPF do representante (obrigatório) |
-| `representante_rg_numero` | `string` | ❌ | RG número |
-| `representante_rg_orgao` | `string` | ❌ | RG órgão emissor |
-| `representante_endereco_residencial` | `string` | ❌ | Endereço residencial |
-| `representante_endereco_profissional` | `string` | ❌ | Endereço profissional |
-| `representante_email` | `string` | ❌ | E-mail |
-| `representante_telefone` | `string` | ❌ | Telefone |
-
-### 2.4 Campos da parte contrária (requerido/executado)
-
-| Chave | Tipo | Obrigatório | Descrição |
-|:------|:-----|:------------|:----------|
-| `nome_requerido` | `string` | ❌ | Nome do requerido |
-| `cpf_requerido` | `string` | ❌ | CPF do requerido (validado, mas gera apenas **aviso** — não bloqueia) |
-| `endereco_requerido` | `string` | ❌ | Endereço residencial |
-| `dados_adicionais_requerido` | `string` | ❌ | Informações adicionais |
-| `requerido_nacionalidade` | `string` | ❌ | Nacionalidade |
-| `requerido_estado_civil` | `string` | ❌ | Estado civil |
-| `requerido_ocupacao` | `string` | ❌ | Profissão |
-| `requerido_endereco_profissional` | `string` | ❌ | Endereço profissional |
-| `requerido_email` | `string` | ❌ | E-mail |
-| `requerido_telefone` | `string` | ❌ | Telefone |
-| `requerido_tem_emprego_formal` | `string` | ❌ | Se possui emprego formal |
-| `empregador_requerido_nome` | `string` | ❌ | Nome do empregador |
-| `empregador_requerido_endereco` | `string` | ❌ | Endereço do empregador |
-| `empregador_email` | `string` | ❌ | E-mail do empregador |
-
-### 2.5 Campos específicos por tipo de ação
-
-#### Fixação/Revisão de Alimentos
-
-| Chave | Tipo | Descrição |
-|:------|:-----|:----------|
-| `valor_mensal_pensao` | `string \| number` | Valor mensal pretendido |
-| `dia_pagamento_requerido` | `string` | Dia do mês para pagamento |
-| `dados_bancarios_deposito` | `string` | Dados bancários para depósito |
-| `filhos_info` | `string` | Informações sobre filhos |
-| `descricao_guarda` | `string` | Descrição da situação de guarda |
-| `outros_filhos_detalhes` | `string (JSON)` | Array serializado com `{ nome, cpf, dataNascimento, rgNumero, rgOrgao, nacionalidade }` |
-
-#### Execução de Alimentos
-
-| Chave | Tipo | Descrição |
-|:------|:-----|:----------|
-| `numero_processo_originario` | `string` | Número do processo que fixou os alimentos |
-| `vara_originaria` | `string` | Vara do processo original |
-| `percentual_ou_valor_fixado` | `string` | Percentual ou valor fixado na decisão |
-| `dia_pagamento_fixado` | `string` | Dia de pagamento conforme decisão |
-| `periodo_debito_execucao` | `string` | Período de inadimplência |
-| `valor_total_debito_execucao` | `string \| number` | Valor total do débito |
-| `valor_total_extenso` | `string` | Valor por extenso |
-| `valor_debito_extenso` | `string` | Valor do débito por extenso |
-| `processo_titulo_numero` | `string` | Número do título executivo |
-| `percentual_definitivo_salario_min` | `string` | Percentual do salário mínimo |
-| `percentual_definitivo_extras` | `string` | Percentual para despesas extras |
-
-#### Divórcio
-
-| Chave | Tipo | Descrição |
-|:------|:-----|:----------|
-| `data_inicio_relacao` | `string (YYYY-MM-DD)` | Data de início do relacionamento |
-| `data_separacao` | `string (YYYY-MM-DD)` | Data da separação de fato |
-| `bens_partilha` | `string` | Descrição dos bens a partilhar |
-| `regime_bens` | `string` | Regime de bens do casamento |
-| `retorno_nome_solteira` | `string` | Se deseja retornar ao nome de solteira |
-| `alimentos_para_ex_conjuge` | `string` | Se solicita alimentos para ex-cônjuge |
-
-#### Guarda
-
-| Chave | Tipo | Descrição |
-|:------|:-----|:----------|
-| `descricao_guarda` | `string` | Situação atual da guarda |
-| `filhos_info` | `string` | Informações sobre os filhos |
-
-#### Campos calculados pelo backend (inseridos no processamento)
-
-| Chave | Origem | Descrição |
-|:------|:-------|:----------|
-| `percentual_salario_minimo` | `calcularPercentualSalarioMinimo()` | `(valor_mensal_pensao / SALARIO_MINIMO_ATUAL) * 100` |
-| `salario_minimo_formatado` | env `SALARIO_MINIMO_ATUAL` (padrão: R$ 1.621,00) | Valor do salário mínimo vigente formatado |
-| `valor_causa` | `calcularValorCausa()` | `valor_mensal_pensao × 12` (anualizado) |
-
-### 2.6 Estrutura de `outros_filhos_detalhes`
-
-Quando há mais de um filho na ação, este campo contém um array JSON serializado:
-
-```json
-[
-  {
-    "nome": "Maria Silva Santos",
-    "cpf": "12345678901",
-    "dataNascimento": "2015-03-20",
-    "rgNumero": "1234567",
-    "rgOrgao": "SSP/BA",
-    "nacionalidade": "brasileiro(a)"
-  }
-]
-```
-
-O primeiro filho é sempre extraído dos campos raiz (`nome`, `cpf`, `assistido_data_nascimento`). Os demais vêm deste array.
+- `documentos`: anexos originais.
+- `logs_auditoria`: acoes humanas.
+- `logs_pipeline`: etapas tecnicas.
+- `assistencia_casos`: colaboracao entre defensores.
+- `notificacoes`: avisos para usuarios internos.
 
 ---
 
-## 3. Regras de Validação
+## 2. Status do Caso
 
-### 3.1 Normalização e Busca de CPF
+Valores atuais do enum `status_caso`:
 
-Para garantir que a busca seja resiliente a diferentes formatos de entrada, o sistema aplica as seguintes regras:
+| Status | Significado operacional |
+|:--|:--|
+| `aguardando_documentos` | Caso criado, ainda depende de anexos/documentos |
+| `documentacao_completa` | Documentos/dados recebidos; apto a processamento |
+| `processando_ia` | Worker em execucao |
+| `pronto_para_analise` | Caso processado e disponivel para analise |
+| `em_atendimento` | Caso assumido/distribuido para atendimento juridico |
+| `liberado_para_protocolo` | Atendimento finalizado e pronto para protocolo |
+| `em_protocolo` | Caso atribuido para protocolo |
+| `protocolado` | Caso finalizado/protocolado |
+| `erro_processamento` | Falha no pipeline |
 
-| Regra | Descrição |
-|:------|:----------|
-| **Normalização** | CPFs informados na busca são limpos (removendo `.` e `-`) antes da consulta. |
-| **Busca Resiliente** | O backend consulta simultaneamente o CPF "sujo" (como digitado) e o CPF "limpo" na tabela `casos_partes`. |
-| **Escopo de Busca** | A busca verifica os campos `cpf_assistido` e `representante_cpf` para garantir que o caso seja encontrado independente de quem iniciou o processo. |
-| **Filtro de Unidade** | **Segurança:** A busca por CPF no painel administrativo filtra resultados pela unidade do profissional logado ou casos explicitamente compartilhados com ele (salvo bypass global para Admins e Gestores). |
-| **Validação** | CPF do assistido e do representante são **obrigatórios e validados** algoritmicamente (Bloqueante). |
+### Transicoes Permitidas
 
-### 3.2 Unicidade de CPF e Arquitetura Multi-Casos
+Fonte: `backend/src/utils/stateMachine.js`.
 
-| Regra | Comportamento |
-|:------|:-------------|
-| **Não há unicidade de CPF na tabela `casos`** | Um mesmo CPF pode ter múltiplos casos vinculados. |
-| **Múltiplos Assistidos por Representante** | Uma representante (mãe) pode criar múltiplos casos distintos para filhos diferentes com requeridos diferentes, reusando seus próprios dados, mas gerando protocolos independentes. |
-| O campo `protocolo` é UNIQUE | Cada caso/filho possui um protocolo único e tracking separado. |
-| O campo `email` na tabela `defensores` é UNIQUE | Não é possível cadastrar dois defensores com o mesmo e-mail. |
-| O campo `numero_solar` possui constraint UNIQUE | Retorna `409` se tentar vincular um número Solar já usado. |
+| De | Para |
+|:--|:--|
+| `aguardando_documentos` | `documentacao_completa`, `erro_processamento` |
+| `documentacao_completa` | `processando_ia`, `pronto_para_analise`, `aguardando_documentos` |
+| `processando_ia` | `pronto_para_analise`, `erro_processamento` |
+| `pronto_para_analise` | `em_atendimento`, `aguardando_documentos`, `processando_ia` |
+| `em_atendimento` | `liberado_para_protocolo`, `aguardando_documentos`, `pronto_para_analise` |
+| `liberado_para_protocolo` | `em_protocolo`, `em_atendimento` |
+| `em_protocolo` | `liberado_para_protocolo` |
+| `protocolado` | `aguardando_documentos` |
+| `erro_processamento` | `processando_ia`, `aguardando_documentos` |
 
+Regras:
 
-
-### 3.3 Validação de arquivos
-
-| Regra | Valor |
-|:------|:------|
-| Tamanho máximo por arquivo | 50 MB |
-| Formatos processados por OCR | `.jpg`, `.jpeg`, `.png`, `.pdf` |
-| Quantidade máxima de documentos por upload | 20 |
-| Quantidade máxima de áudios | 1 |
-
-### 3.4 Validação de senha (defensores)
-
-| Regra | Valor |
-|:------|:------|
-| Tamanho mínimo da senha | 6 caracteres |
-| Algoritmo de hash | bcrypt (10 salt rounds) |
-
-### 3.5 Validação de arquivamento
-
-| Regra | Comportamento |
-|:------|:-------------|
-| Motivo é obrigatório ao arquivar | Mínimo 5 caracteres; retorna `400` se ausente |
-| Ao restaurar (desarquivar) | Motivo é limpo (`null`) |
-
-### 3.6 Validação do Formulário de Triagem
-
-| Campo | Regra | Comportamento |
-|:------|:------|:--------------|
-| `relato` | Obrigatório (não vazio) | Bloqueia envio se vazio — **não** há mínimo de caracteres |
-| `opcao_guarda` | Obrigatório para Ações de Família | Deve selecionar uma opção de guarda/convivência se houver filhos |
-| `valor_debito` | Obrigatório quando `exigeDadosProcessoOriginal = true` | Bloqueia envio para execuções sem o valor do débito |
-| `calculo_arquivo` | Obrigatório quando `exigeDadosProcessoOriginal = true` e "Enviar depois" = false | Bloqueia envio de execuções sem o demonstrativo de cálculo anexado |
-
-### 3.6 Campos que o assistido preenche vs. apenas o defensor
-
-| Quem preenche | Campos |
-|:--------------|:-------|
-| **Assistido** (via formulário público) | `nome`, `cpf`, `telefone`, `whatsapp_contato`, `tipoAcao`, `relato`, `documentos_informados`, todos os campos de `dados_formulario`, documentos e áudio |
-| **Assistido** (pós-submissão) | Upload de documentos complementares, solicitação de reagendamento |
-| **Defensor** (via painel protegido) | `status`, `descricao_pendencia`, `numero_solar`, `numero_processo`, `agendamento_data`, `agendamento_link`, `feedback`, `arquivado`, `motivo_arquivamento` |
-| **Sistema** (automático) | `protocolo`, `chave_acesso_hash`, `resumo_ia`, `peticao_inicial_rascunho`, `peticao_completa_texto`, `url_documento_gerado`, `status` (durante processamento), `processed_at`, `processing_started_at` |
+- `admin` tem bypass de transicao.
+- Mudanca manual para `protocolado` e bloqueada. O status `protocolado` so deve ser definido por `POST /api/casos/:id/finalizar`.
+- Ao mudar para `liberado_para_protocolo` ou `pronto_para_analise`, os locks `servidor_id`, `servidor_at`, `defensor_id`, `defensor_at` sao limpos.
+- O alias legado `aguardando_docs` e normalizado para `aguardando_documentos` em `atualizarStatusCaso`.
 
 ---
 
-## 4. Fluxo de Geração de Documentos
+## 3. Tipos de Acao e Templates
 
-### 4.1 Pipeline de processamento em background
+### Enum do Banco
 
-```
-criarNovoCaso() → QStash.publishJSON() → jobController.processJob()
-                                              ↓
-                                    processarCasoEmBackground()
-                                              ↓
-                               ┌──────────────┼──────────────┐
-                               ↓              ↓              ↓
-                            [OCR]         [Resumo IA]    [Dos Fatos IA]
-                               ↓              ↓              ↓
-                          textoCompleto    resumo_ia     dosFatosTexto
-                                              ↓
-                                    buildDocxTemplatePayload()
-                                              ↓
-                                    ┌─────────┼──────────┐
-                                    ↓                    ↓
-                              generateDocx()    gerarTextoCompletoPeticao()
-                                    ↓                    ↓
-                            url_documento_gerado   peticao_completa_texto
+`tipo_acao` no Prisma:
+
+- `exec_penhora`
+- `exec_prisao`
+- `exec_cumulado`
+- `def_penhora`
+- `def_prisao`
+- `def_cumulado`
+- `fixacao_alimentos`
+- `alimentos_gravidicos`
+
+### Chaves Ativas no Formulario
+
+Fonte: `frontend/src/config/formularios/acoes/familia.js`.
+
+| Chave | Status no frontend | Observacao |
+|:--|:--|:--|
+| `fixacao_alimentos` | ativo | Exibe valores de pensao e emprego do requerido |
+| `execucao_alimentos` | ativo | Exige dados do processo originario e filhos/exequentes |
+| `guarda` | scaffold | Existe no config, nao aparece como ativo |
+| `revisao_alimentos_majoracao` | scaffold | Scaffold |
+| `revisao_alimentos_reducao` | scaffold | Scaffold |
+| `uniao_estavel_reconhecimento` | scaffold | Scaffold |
+| `reconhecimento_paternidade` | scaffold | Scaffold |
+| `tutela` | scaffold | Scaffold |
+
+### Dicionario Backend
+
+Fonte: `backend/src/config/dicionarioAcoes.js`.
+
+| Chave backend | Comportamento |
+|:--|:--|
+| `fixacao_alimentos` | Usa `fixacao_alimentos1.docx` e pipeline atomico de "Dos Fatos" |
+| `execucao_alimentos` | Ignora OCR/Dos Fatos, gera multiplos DOCX |
+| `termo_declaracao` | Usa `termo_declaracao.docx` |
+| `default` | Fallback para `fixacao_alimentos1.docx` |
+
+### Templates de Execucao
+
+Para `execucao_alimentos`, o backend pode gerar:
+
+- `executacao_alimentos_cumulado.docx`
+- `executacao_alimentos_penhora.docx`
+- `executacao_alimentos_prisao.docx`
+- `cumprimento_cumulado.docx`
+- `cumprimento_penhora.docx`
+- `cumprimento_prisao.docx`
+- `nos_autos_cumulado.docx`
+- `nos_autos_penhora.docx`
+- `nos_autos_prisao.docx`
+
+---
+
+## 4. Criacao de Caso
+
+Endpoint: `POST /api/casos/novo`.
+
+Regras:
+
+- Aceita `multipart/form-data`.
+- Campos de arquivos:
+  - `audio`: maximo 1.
+  - `documentos`: maximo 20.
+- Limite por arquivo no backend: 50 MB.
+- Se `enviar_documentos_depois` for true, status inicial e `aguardando_documentos`.
+- Caso contrario, status inicial e `documentacao_completa`.
+- O backend cria registros normalizados para caso, partes, juridico e IA.
+- O protocolo e unico.
+- O mesmo CPF pode ter varios casos.
+- Quando possivel, o sistema reaproveita/identifica vinculos por CPF de representante para multi-casos.
+- Se QStash estiver configurado (`QSTASH_TOKEN` + `API_BASE_URL` valida), publica job.
+- Se QStash falhar ou nao estiver configurado, processa localmente por `setImmediate()`.
+
+---
+
+## 5. Uploads e Documentos
+
+### Upload Inicial
+
+- Pode ocorrer junto da criacao do caso.
+- Arquivos sao salvos no Supabase Storage quando configurado.
+- Sem Supabase, arquivos ficam em `uploads/`.
+
+### Scanner/Balcao
+
+Endpoint: `POST /api/scanner/upload`.
+
+Regras:
+
+- Exige `x-api-key`.
+- Exige `protocolo`.
+- Aceita ate 20 documentos.
+- Cria registros na tabela `documentos`.
+- Se o caso estava `aguardando_documentos`, atualiza para `documentacao_completa`.
+- Nao dispara job de IA/minuta. O scanner apenas anexa documentos.
+
+### Upload Complementar Publico
+
+Endpoint: `POST /api/casos/:id/upload-complementar`.
+
+Regras atuais:
+
+- Nao usa mais chave de acesso como autenticacao.
+- Localiza caso por ID, protocolo ou CPF quando necessario.
+- Salva novos documentos e atualiza `dados_extraidos.document_names` quando nomes sao enviados.
+- Se o status for elegivel (`aguardando_documentos`, `documentos_entregues`, `erro_processamento`, `processando_ia`), muda para `documentacao_completa` e dispara processamento local.
+- Se o caso ja esta em etapa avancada, preserva o status.
+
+### Renomear e Excluir Documento
+
+- `PATCH /api/casos/:id/documento/renomear` altera `documentos.nome_original` e metadados em `casos_ia.dados_extraidos`.
+- `DELETE /api/casos/:id/documento/:documentoId` remove o documento do banco e do Storage quando Supabase esta configurado.
+
+---
+
+## 6. Processamento, IA e DOCX
+
+### Pipeline Principal
+
+1. Caso entra em `documentacao_completa`.
+2. Job QStash ou fallback local chama `processarCasoEmBackground`.
+3. Status muda para `processando_ia`.
+4. Dados do formulario e tabelas normalizadas sao consolidados.
+5. Texto juridico e/ou payload DOCX sao gerados.
+6. Arquivos DOCX sao salvos em `peticoes`.
+7. `casos_ia` recebe textos, JSON de dados e URLs.
+8. Status final esperado: `pronto_para_analise`.
+9. Em erro: `erro_processamento`.
+
+### OCR
+
+- O codigo possui Gemini Vision e Tesseract.
+- No fluxo principal atual, OCR esta desativado por performance/privacidade (`deveIgnorarIA = true`).
+- Documentos informados/rotulados e campos do formulario sao a fonte principal.
+
+### Geracao de Texto
+
+- Groq e o provedor primario para texto juridico.
+- OpenAI GPT-4o-mini e fallback.
+- Se ambos falharem, `buildFallbackDosFatos()` gera texto templateado.
+- Dados sensiveis podem ser mascarados com placeholders antes do envio para IA.
+
+### Regeracao Manual
+
+| Acao | Endpoint | Regra |
+|:--|:--|:--|
+| Regenerar "Dos Fatos" | `POST /api/casos/:id/gerar-fatos` | Admin ou responsavel pelo caso |
+| Gerar termo de declaracao | `POST /api/casos/:id/gerar-termo` | Respeita lock, dono, gestor e assistencia |
+| Regerar minuta DOCX | `POST /api/casos/:id/regerar-minuta` | Admin, dono, assistente aceito ou gestor sem conflito de lock |
+| Substituir minuta | `POST /api/casos/:id/upload-minuta` | Cargo com escrita; valida chaves permitidas |
+| Reprocessar caso | `POST /api/casos/:id/reprocessar` | Cargo com escrita; dispara `setImmediate()` |
+
+---
+
+## 7. Permissoes e RBAC
+
+### Cargos
+
+| Cargo | Acesso geral |
+|:--|:--|
+| `admin` | Global, configuracao, BI, equipe, exclusao, bypass de status |
+| `gestor` | Global para casos, configuracao, BI; sem bypass admin em todas as operacoes destrutivas |
+| `coordenador` | Regional/unidade, BI, equipe conforme regional, pode destravar com restricoes |
+| `defensor` | Operacional, atendimento/protocolo conforme atribuicao |
+| `servidor` | Operacional de atendimento; pode encaminhar caso que atende |
+| `estagiario` | Operacional de atendimento; pode encaminhar caso que atende |
+
+### Escrita
+
+`requireWriteAccess` permite escrita para:
+
+```text
+admin, gestor, coordenador, defensor, servidor, estagiario
 ```
 
-### 4.2 Quando uma petição pode ser gerada
+### Isolamento de Caso
 
-| Condição | Geração automática | Geração manual |
-|:---------|:-------------------|:---------------|
-| **Criação do caso** | ✅ Gerada automaticamente via processamento background | — |
-| **Regerar minuta** | — | ✅ Admin pode regerar via `POST /:id/regerar-minuta` |
-| **Substituir minuta** | — | ✅ Servidor pode fazer upload manual via `POST /:id/upload-minuta` |
-| **Regenerar Dos Fatos** | — | ✅ Admin pode regerar via `POST /:id/gerar-fatos` |
-| **Reprocessar caso** | ✅ Re-executa todo o pipeline | — |
+`requireSameUnit` permite acesso quando:
 
-*Nota Especial - Execução de Alimentos (v2.0):* 
-O sistema agora suporta a geração e visualização simultânea de múltiplos documentos para o mesmo protocolo:
-1. **Ritos Combinados:** Se a ação registrar débito superior a 3 meses, o pipeline gera automaticamente uma peça de **Prisão** e outra de **Penhora**.
-2. **Termo de Declaração:** Pode ser gerado e armazenado de forma independente das peças processuais.
-3. **Download Dinâmico:** O frontend exibe abas para cada documento disponível no Storage.
-
-### 4.3 O que a IA recebe como input
-
-#### Para o Resumo Executivo (`analyzeCase`)
-
-- **Input:** `textoCompleto` = relato do assistido + textos extraídos via OCR de todos os documentos
-- **Temperatura:** 0.3
-- **Output:** Resumo com: Problema Central, Partes Envolvidas, Pedido Principal, Urgência, Área do Direito
-- **Destino:** Campo `resumo_ia` do caso
-
-#### Para a seção "Dos Fatos" (`generateDosFatos`)
-
-- **Input:** Dados normalizados do caso (nomes, CPFs, relato, situação financeira, filhos, documentos)
-- **Sanitização PII:** Antes do envio, dados sensíveis são substituídos por placeholders (`[NOME_AUTOR_1]`, `[CPF_REU]`)
-- **Temperatura:** 0.3
-- **Output:** Texto jurídico no estilo da Defensoria Pública da Bahia
-- **Destino:** Campo `peticao_inicial_rascunho` (prefixado com `"DOS FATOS\n\n"`)
-
-#### Prompts de IA — Regras estilísticas obrigatórias
-
-| Regra | Detalhes |
-|:------|:---------|
-| **Nunca usar "menor"** | Deve usar "criança", "adolescente" ou "filho(a)" |
-| **Não citar documentos no texto** | CPF, RG e datas de nascimento não devem aparecer no texto narrativo |
-| **Conectivos obrigatórios** | "Ocorre que" e "Insta salientar" foram **REMOVIDOS** dos prompts Apex por serem clichês; priorize "demonstra", "evidencia". |
-| **Estrutura Apex** | Texto atomizado e reconstruído via Clusters (Vínculo -> Omissão -> Hipossuficiência -> Necessidade -> Capacidade -> Guarda). |
-| **Anáfora/Sujeito** | O motor de pós-processamento rastreia o último sujeito (Genitora/Requerido) para aplicar pesos de clusters dinamicamente. |
-| **Formato** | Parágrafos coesos, sem tópicos/listas |
-| **Estilo** | Extremamente formal, culto e padronizado (juridiquês clássico) |
-
-### 4.4 Diferença entre os campos de petição
-
-| Campo | Conteúdo | Quando é preenchido |
-|:------|:---------|:--------------------|
-| `peticao_inicial_rascunho` | Texto da seção "Dos Fatos" gerado pela IA (prefixado com `"DOS FATOS\n\n"`) | Processamento background |
-| `peticao_completa_texto` | Texto completo da petição (cabeçalho + qualificação + dos fatos + pedidos + assinatura) em texto puro | Processamento background |
-| `url_documento_gerado` | Caminho no Storage do `.docx` da petição inicial renderizada via Docxtemplater | Processamento background |
-| `url_termo_declaracao` | Caminho no Storage do `.docx` do Termo de Declaração | Gerado sob demanda (admin) |
-
-### 4.5 Geração do Termo de Declaração
-
-- **Quem pode gerar:** Apenas `admin`
-- **Endpoint:** `POST /:id/gerar-termo`
-- **Dados utilizados:** `dados_formulario` do caso + dados do caso (`nome_assistido`, `cpf_assistido`, `relato_texto`, `protocolo`, `tipo_acao`)
-- **Template:** `termo_declaracao.docx`
-- **Comportamento:** Remove o arquivo anterior do Storage antes de gerar um novo (geração limpa)
-- **Destino:** `url_termo_declaracao` no caso
-
-### 4.6 Fallbacks de geração
-
-| Componente | Fallback |
-|:-----------|:---------|
-| OCR (Gemini Vision) | Tesseract.js (apenas para imagens, não PDFs) |
-| Geração de texto (Groq) | OpenAI GPT-4o-mini |
-| Dos Fatos (IA) | `buildFallbackDosFatos()` — texto templateado sem IA |
-| QStash (fila) | `setImmediate()` — processamento local |
+- usuario e `admin` ou `gestor`;
+- caso pertence a mesma unidade;
+- usuario e `coordenador` e caso esta na mesma regional;
+- usuario e colaborador aceito em `assistencia_casos`.
 
 ---
 
-## 5. Regras de Permissão
+## 8. Distribuicao e Encaminhamento
 
-### 5.1 Cargos do sistema
+Endpoint: `POST /api/casos/:id/distribuir`.
 
-O campo `cargo` na tabela `defensores` define o nível de acesso. O cargo é incluído no token JWT no login.
+Regras:
 
-| Cargo | Leitura | Escrita | Protocolo/Finalizar | Admin/Global | Unlock | Gerenciar Equipe |
-|:------|:--------|:--------|:--------------------|:-------------|:-------|:-----------------|
-| `admin` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `gestor` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `coordenador` | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
-| `defensor` | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| `servidor` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| `estagiario` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+- O body exige `usuario_id`.
+- O usuario alvo deve existir e estar ativo.
+- Alvos de atendimento: `servidor`, `estagiario`, `defensor`, `coordenador`, `admin`, `gestor`.
+- Alvos de protocolo: `defensor`, `coordenador`, `admin`, `gestor`.
+- `admin` e `gestor` podem distribuir para qualquer unidade.
+- Demais distribuidores so podem distribuir para profissional da mesma unidade do caso.
+- `servidor` e `estagiario` so podem encaminhar caso que estejam atendendo (`servidor_id` igual ao usuario logado) e somente se o status for `em_atendimento`.
+- Distribuicao usa update atomico por status permitido; conflito retorna `409`.
+- Encaminhamento de atendente para protocolo cria notificacao para o destinatario.
 
-> O cargo padrão ao cadastrar um novo membro é `"estagiario"`. Apenas o admin pode criar cadastros e deve selecionar entre as opções disponíveis no formulário.
+Fluxos implementados:
 
-
-
-### 5.2 Middleware de controle
-
-| Middleware | Função | Aplicação |
-|:-----------|:-------|:----------|
-| `authMiddleware` | Verifica JWT e injeta `req.user` | Todas as rotas protegidas |
-| `requireWriteAccess` | Bloqueia operações de escrita para cargos não autorizados | Todas as rotas de escrita |
-| `auditMiddleware` | Registra operações de escrita na tabela `logs_auditoria` | Todas as rotas protegidas |
-| `requireSameUnit` | Bloqueia acesso a casos de outras unidades (IDOR) | Rotas de detalhe/edição |
-
-> **Middleware:** `requireWriteAccess` usa whitelist positiva. Qualquer cargo fora da lista recebe HTTP 403.
-> **Isolamento de Unidade:** Usuários (exceto Admins e Gestores) são restritos a casos de sua própria `unidade_id`. Admins e Gestores possuem bypass global para visualização e edição. **Novidade:** A busca por CPF filtra resultados pela unidade do profissional ou casos compartilhados.
-> **Hierarquia de Distribuição:** 
-> 1. **Quem pode distribuir:** Apenas usuários com cargo `admin`, `gestor` ou `coordenador`. Outros cargos recebem HTTP 403.
-> 2. **Alvos da Distribuição:** Atendimentos (L1) são abertos a todos os cargos operacionais. Casos em fase de Protocolo (L2) só podem ser distribuídos para Defensor, Coordenador, Gestor ou Admin.
-> 3. **Concorrência:** A distribuição utiliza `updateMany` para garantir atomicidade. Se o status do caso mudar durante a operação, o sistema retorna `409 Conflict`.
-> **RBAC Case-Insensitive:** O sistema normaliza a verificação de cargos para letras minúsculas (`.toLowerCase()`), prevenindo falhas de permissão por divergência de casing no banco de dados e garantindo integridade no controle de acesso.
-
-### 5.3 Operações exclusivas de Admin
-
-As seguintes operações verificam **explicitamente** cargo privilegiado no controller:
-
-| Operação | Endpoint | Cargos Autorizados |
-|:---------|:---------|:-------------------|
-| Regenerar Dos Fatos | `POST /:id/gerar-fatos` | `admin` |
-| Gerar Termo de Declaração | `POST /:id/gerar-termo` | `admin` |
-| Regerar Minuta DOCX | `POST /:id/regerar-minuta` | `admin` |
-| Reverter Finalização | `POST /:id/reverter-finalizacao` | `admin` |
-| Deletar Caso | `DELETE /:id` | `admin` |
-| Liberar Caso (Unlock) | `PATCH /lock/unlock` | `admin`, `gestor`, `coordenador` |
-| Registrar novo membro | `POST /api/defensores/register` | `admin` |
-| Listar equipe global | `GET /api/defensores` | `admin`, `gestor` |
-| Listar equipe local | `GET /api/defensores` | `coordenador` (filtra por unidade) |
-| Resetar senha de membro | `POST /api/defensores/:id/reset-password` | `admin` |
-
-### 5.4 Acesso público (sem autenticação)
-
-O assistido (cidadão) pode realizar as seguintes ações **sem login**:
-
-| Ação | Endpoint | Autenticação |
-|:-----|:---------|:-------------|
-| Submeter novo caso | `POST /api/casos/novo` | Nenhuma |
-| Buscar casos por CPF | `GET /api/casos/buscar-cpf` | Nenhuma |
-| Upload de documentos complementares | `POST /api/casos/:id/upload-complementar` | CPF + chave de acesso (no body) |
-| Solicitar reagendamento | `POST /api/casos/:id/reagendar` | CPF + chave de acesso (no body) |
-| Consultar status | `GET /api/status` | CPF + chave de acesso (na query) |
-
-> **Segurança do assistido:** A chave de acesso é hasheada com SHA-256 + salt aleatório antes de ser armazenada no banco. A verificação é feita recomputando o hash.
-
-### 5.5 Mapeamento de status públicos
-
-O assistido não vê os status internos do sistema. O `statusController` converte:
-
-| Status Interno | Status Público (para o cidadão) |
-|:---------------|:-------------------------------|
-| `recebido` | `enviado` |
-| `processando` | `em triagem` |
-| `processado` | `em triagem` |
-| `em_analise` | `em triagem` |
-| `aguardando_docs` | `documentos pendente` |
-| `reuniao_agendada` | `reuniao agendada` |
-| `reuniao_online_agendada` | `reuniao online` |
-| `reuniao_presencial_agendada` | `reuniao presencial` |
-| `aguardando_protocolo` | `Aguardando protocolo` |
-| `reagendamento_solicitado` | `em analise` |
-| `encaminhado_solar` | `encaminhamento solar` |
-| `erro` | `enviado` |
+- `pronto_para_analise` ou `em_atendimento` -> `em_atendimento` quando distribuido para atendimento.
+- `em_atendimento` -> `em_protocolo` quando encaminhado para cargo apto a protocolo.
+- `liberado_para_protocolo` ou `em_protocolo` -> `em_protocolo` quando distribuido para protocolo.
 
 ---
 
-## 6. Regras de Agendamento
+## 9. Locking
 
-### 6.1 Quem pode agendar
+Endpoints:
 
-| Ação | Quem realiza |
-|:-----|:-------------|
-| **Agendar reunião** | Defensor (qualquer cargo com escrita) via `PATCH /:id/agendar` |
-| **Solicitar reagendamento** | Assistido (cidadão) via `POST /:id/reagendar` |
+- `PATCH /api/casos/:id/lock`
+- `PATCH /api/casos/:id/unlock`
 
-### 6.2 Tipos de agendamento
+Regras:
 
-Os tipos são inferidos pelo status do caso ao qual o agendamento está vinculado:
-
-| Status | Tipo implícito |
-|:-------|:---------------|
-| `reuniao_agendada` | Genérico |
-| `reuniao_online_agendada` | Online (link de videoconferência) |
-| `reuniao_presencial_agendada` | Presencial (endereço físico) |
-
-> O tipo é definido pelo defensor ao mudar o status via `PATCH /:id/status`.
-
-### 6.3 Status do agendamento (`agendamento_status`)
-
-| Valor | Quando é definido |
-|:------|:------------------|
-| `agendado` | Quando `agendamento_data` **E** `agendamento_link` estão preenchidos |
-| `pendente` | Quando os campos estão vazios |
-
-### 6.4 Fluxo de reagendamento
-
-```
-1. Assistido chama POST /:id/reagendar com { motivo, data_sugerida, cpf, chave }
-2. Backend valida CPF (match exato) e chave de acesso (hash)
-3. Se houver agendamento anterior:
-   → Salva no historico_agendamentos com status "reagendado"
-   → Tipo inferido: "presencial" se status contém "presencial", senão "online"
-4. Atualiza o caso:
-   → status = "reagendamento_solicitado"
-   → motivo_reagendamento = motivo
-   → data_sugerida_reagendamento = data_sugerida
-   → agendamento_data = null (libera a agenda)
-   → agendamento_link = null
-5. Cria notificação para o defensor (tipo: "reagendamento")
-```
-
-### 6.5 O que fica registrado em `historico_agendamentos`
-
-| Campo | Origem |
-|:------|:-------|
-| `caso_id` | ID do caso |
-| `data_agendamento` | Data/hora do agendamento anterior |
-| `link_ou_local` | Link da chamada ou endereço do agendamento anterior |
-| `tipo` | `"online"` ou `"presencial"` (inferido do status) |
-| `status` | Sempre `"reagendado"` |
-| `created_at` | Timestamp automático |
+- L1 usa `servidor_id` e `servidor_at`.
+- L2 usa `defensor_id` e `defensor_at`.
+- Status `liberado_para_protocolo` e `em_protocolo` usam L2.
+- Outros status operacionais usam L1.
+- `servidor` e `estagiario` nao podem assumir L2 por lock.
+- Ao travar:
+  - caso `pronto_para_analise` pode virar `em_atendimento`;
+  - caso `liberado_para_protocolo` pode virar `em_protocolo`.
+- Se outro usuario ja detem o lock, retorna `423 Locked`.
+- Lock e permanente/manual no controller atual.
+- Nao existe liberacao automatica depois de 30 minutos.
+- A dashboard pode contar casos ociosos por timestamps antigos, mas isso nao destrava.
+- `unlock` permitido para `admin`, `gestor` e `coordenador`.
+- Coordenador nao destrava casos `protocolado` ou `processando_ia`.
 
 ---
 
-## 7. Regras de Arquivamento e Finalização
+## 10. Finalizacao, Reversao, Arquivamento e Exclusao
 
-### 7.1 Finalização (Encaminhamento ao Solar)
+### Finalizacao/Protocolo
 
-| Aspecto | Detalhe |
-|:--------|:-------|
-| **Endpoint** | `POST /:id/finalizar` |
-| **Quem pode** | Qualquer cargo com acesso de escrita (protected + requireWriteAccess) |
-| **Dados recebidos** | `numero_solar`, `numero_processo`, arquivo `capa` (capa processual) |
-| **Efeitos no banco** | `status = "encaminhado_solar"`, `numero_solar`, `numero_processo`, `url_capa_processual`, `finished_at = now()` |
-| **Upload da capa** | Salva em `documentos/capas/{id}_{timestamp}_{nomeOriginal}` |
+Endpoint: `POST /api/casos/:id/finalizar`.
 
-### 7.2 Reversão da Finalização
+Efeitos:
 
-| Aspecto | Detalhe |
-|:--------|:-------|
-| **Endpoint** | `POST /:id/reverter-finalizacao` |
-| **Quem pode** | Apenas `admin` |
-| **Efeitos no banco** | `status = "processado"`, `numero_solar = null`, `numero_processo = null`, `url_capa_processual = null`, `finished_at = null` |
-| **Efeitos no Storage** | Exclui o arquivo da capa processual do bucket `documentos` |
+- `status = "protocolado"`
+- grava `numero_solar`
+- grava `numero_processo`
+- grava `url_capa_processual` quando arquivo `capa` e enviado
+- grava `protocolado_at`
+- grava `finished_at`
+- se usuario nao e `admin`/`gestor`, fixa produtividade no respectivo `defensor_id` ou `servidor_id`
 
-### 7.3 Arquivamento (Soft Delete)
+### Reverter Finalizacao
 
-| Aspecto | Detalhe |
-|:--------|:-------|
-| **Endpoint** | `PATCH /:id/arquivar` |
-| **Quem pode** | Qualquer cargo com acesso de escrita |
-| **Campo no banco** | `arquivado` (boolean) — ortogonal ao `status` |
-| **Motivo obrigatório** | Mínimo 5 caracteres ao arquivar; limpo ao restaurar |
-| **Efeito na listagem** | `listarCasos` filtra por `arquivado = false` por padrão |
-| **Reversível** | ✅ Basta chamar com `{ arquivado: false }` |
+Endpoint: `POST /api/casos/:id/reverter-finalizacao`.
 
-### 7.4 Exclusão permanente
+Regras:
 
-| Aspecto | Detalhe |
-|:--------|:-------|
-| **Endpoint** | `DELETE /:id` |
-| **Quem pode** | Apenas `admin` |
-| **Efeitos** | Exclui o registro da tabela `casos` **e** todos os arquivos vinculados nos 3 buckets (áudio, documentos, petições) |
-| **Irreversível** | ✅ Não há recuperação após exclusão |
+- Apenas `admin`.
+- Remove capa processual do Storage/local quando houver.
+- Atualiza:
+  - `status = "pronto_para_analise"`
+  - `numero_solar = null`
+  - `numero_processo = null`
+  - `url_capa_processual = null`
+  - `finished_at = null`
 
-### 7.5 Reprocessamento
+### Arquivamento
 
-| Aspecto | Detalhe |
-|:--------|:-------|
-| **Endpoint** | `POST /:id/reprocessar` |
-| **Quem pode** | Qualquer cargo com acesso de escrita |
-| **Quando usar** | Quando o caso está em `status = "erro"` |
-| **Comportamento** | Re-executa `processarCasoEmBackground()` com os dados originais do banco, via `setImmediate` (sem passar pelo QStash) |
+Endpoint: `PATCH /api/casos/:id/arquivar`.
 
----
+Regras:
 
-## 8. Notificações
+- Campo `arquivado` e ortogonal ao `status`.
+- Listagens comuns filtram nao arquivados por padrao.
+- Ao arquivar, motivo/observacao devem ser informados conforme validacao do controller.
+- Ao desarquivar, campos de arquivamento sao limpos.
 
-### 8.1 Tipos de notificação
+### Exclusao Permanente
 
-| Tipo | Quando é gerada | Mensagem |
-|:-----|:-----------------|:---------|
-| `upload` | Assistido envia documentos complementares | `"Novos documentos entregues por {nome}."` |
-| `reagendamento` | Assistido solicita reagendamento | `"Solicitação de reagendamento para o caso {nome}."` |
+Endpoint: `DELETE /api/casos/:id`.
 
-### 8.2 Regras
+Regras:
 
-- Notificações são armazenadas na tabela `notificacoes` com `lida = false`
-- A listagem retorna as 20 mais recentes, ordenadas por `created_at DESC`
-- Qualquer usuário autenticado com acesso de escrita pode marcar como lida
+- Apenas `admin`.
+- Remove arquivos relacionados dos buckets quando Supabase esta configurado.
+- Limpa referencias em auditoria antes da exclusao.
+- Exclui caso; relacoes com cascade removem registros dependentes.
 
 ---
 
-## 9. Geração do Protocolo e Chave de Acesso
+## 11. Downloads Seguros
 
-### 9.1 Formato do Protocolo
+Fluxo:
 
-```
-{AAAA}{MM}{DD}{ID_CATEGORIA}{SEQUENCIAL_6_DIGITOS}
-```
+1. Usuario autenticado chama `POST /api/casos/:id/gerar-ticket-download`.
+2. Backend valida acesso ao caso.
+3. Gera JWT de 30 segundos com `purpose = "download"`, `casoId`, `bucket` e `path`.
+4. Cliente usa o ticket em:
+   - `GET /api/casos/:id/download-zip`
+   - `GET /api/casos/:id/documento/download`
 
-| Componente | Exemplo | Origem |
-|:-----------|:--------|:-------|
-| Data | `20260326` | `new Date()` |
-| ID Categoria | `0` | Mapa: `familia=0, consumidor=1, saude=2, criminal=3, outro=4` |
-| Sequencial | `345678` | Últimos 6 dígitos de `Date.now()` |
+Regras:
 
-> **Observação:** O ID da categoria é determinado pelo parâmetro `casoTipo` recebido pela função, que recebe o `tipoAcao`. A maioria das ações mapeará para `"outro"` (4), já que o mapa usa chaves genéricas (`familia`, `consumidor`, etc.) e não as chaves específicas do dicionário. `[INFERIDO]`
-
-### 9.2 Formato da Chave de Acesso [DESATIVADO/DEPRECATED]
-
-> **Aviso:** O sistema não utiliza mais Chaves de Acesso para autenticação de assistidos (referência: `casosController.js:5026`). O campo `chave_acesso_hash` permanece no banco apenas para compatibilidade legada.
-
-```
-DPB-{5_DIGITOS}-0{5_DIGITOS}
-Exemplo: DPB-01234-012345
-```
-
-- Gerada com `crypto.randomBytes(3)`
-- Hasheada com SHA-256 + salt aleatório de 16 bytes antes do armazenamento
-- O hash é armazenado no formato `{salt}:{hash}` no campo `chave_acesso_hash`
+- Ticket sem `casoId` e rejeitado.
+- Ticket de outro caso e rejeitado.
+- Divergencia de path ou bucket e rejeitada.
+- Downloads usam Supabase Storage quando configurado ou fallback local.
 
 ---
 
-## 11. Session Locking e Concorrência
+## 12. Assistencia/Colaboracao
 
-Para evitar que dois usuários editem o mesmo caso simultaneamente, o sistema utiliza um mecanismo de **Session Locking** no banco de dados.
+### Solicitar Assistencia
 
-### 11.1 Níveis de Bloqueio
-- **Nível 1 (Servidor):** Ativado quando um servidor acessa o caso para análise jurídica. Bloqueia outros servidores.
-- **Nível 2 (Defensor):** Ativado quando um defensor inicia a etapa de protocolo no Solar/Sigad. Bloqueia outros defensores.
+Endpoint: `POST /api/casos/:id/solicitar-assistencia`.
 
-### 11.2 Comportamento da API
-- **Bloqueio Automático:** Ao abrir o detalhe do caso, o backend tenta realizar o lock (`UPDATE WHERE owner_id IS NULL`).
-- **Bloqueio Manual:** Endpoints `PATCH /lock` e `PATCH /unlock` permitem controle explícito.
-- **Conflito (HTTP 423):** Se o caso já estiver bloqueado por outro usuário (id diferente), a API retorna `423 Locked` com o nome do atual responsável.
+Regras:
 
-### 11.3 Liberação
-- O lock é liberado automaticamente após 30 minutos de inatividade ou manualmente pelo botão **Liberar Caso**.
-- **Administradores** possuem bypass e podem forçar o destravamento de qualquer sessão.
+- Cria linha em `assistencia_casos`.
+- Cria notificacao para destinatario com tipo `assistencia`.
+- O caso fica marcado como compartilhado somente quando assistencia e aceita.
 
----
+### Responder Assistencia
 
-## 12. Inteligência de Dados (Módulo BI)
+Endpoint: `POST /api/casos/assistencia/:assistencia_id/responder`.
 
-O módulo de BI é restrito exclusivamente a administradores e foca em métricas de produtividade e throughput sem comprometer dados sensíveis.
+Regras:
 
-### 12.1 Princípios de LGPD no BI
-- **Zero PII (Personally Identifiable Information):** As queries de BI nunca acessam as tabelas `casos_partes` ou campos de qualificação.
-- **Agregação Obrigatória:** Dados são exibidos apenas em formatos agregados (contagens, médias, percentuais).
-- **Exportação Segura:** O arquivo XLSX gerado para download segue as mesmas restrições de vedação de dados pessoais.
-
-### 12.2 Métricas Monitoradas
-- **Métricas de Produtividade:** Ranking de profissionais por casos protocolados e atendimentos realizados.
-- **Ações de Gestão:** Histórico de auditoria de distribuições e movimentações manuais de status.
-- **Exportação Padrão:** O arquivo XLSX gerado agora inclui automaticamente as abas de Produtividade e Gestão para usuários com cargo `admin` ou `gestor`.
+- Atualiza `status` da assistencia para `aceito` ou `recusado`.
+- Se aceito, marca `casos.compartilhado = true`.
+- Cria notificacao de resposta para remetente.
+- Colaborador aceito ganha acesso via `requireSameUnit`.
 
 ---
 
-## 13. Integração SOLAR (Exportação)
+## 13. Notificacoes
 
-A exportação para o sistema SOLAR exige uma normalização estrita de endereços e filiação.
+Tipos atualmente gerados no codigo:
 
-### 13.1 Normalização de Endereço
-O sistema converte a string única de endereço (`endereco_assistido`) em componentes estruturados:
-- `logradouro`, `numero`, `bairro`, `cidade`, `estado`, `cep`.
-- Caso a estrutura falhe, o sistema envia o endereço completo no campo `logradouro` como fallback para evitar perda de dados.
+- `upload`
+- `assistencia`
+- `assistencia_resposta`
+- `protocolo`
 
-### 13.2 Filiação e Dependentes
-- O campo `exequentes` (JSONB) armazena todos os filhos da ação.
-- Na exportação, cada exequente é mapeado com nome, CPF e data de nascimento.
+Regras:
+
+- `GET /api/casos/notificacoes` retorna notificacoes recentes do usuario logado.
+- `PATCH /api/casos/notificacoes/:id/lida` marca como lida.
+- Upload complementar pode notificar `servidor_id` ou `defensor_id`.
+- Encaminhamento de atendente para protocolo notifica destinatario.
 
 ---
 
-## 14. Controle Administrativo de Unidades
+## 14. Usuarios, Equipe e Hierarquia
 
-### 14.1 Estado Inativo (Soft-Lock)
-Unidades podem ser desativadas via painel administrativo.
-- **Bloqueio de Triagem:** Novos casos não podem ser criados para unidades inativas.
-- **Restrição de Acesso:** Usuários vinculados a unidades inativas recebem um aviso de "Unidade Inativa" e acesso limitado.
+### Login
 
-### 14.2 Avisos do Sistema (Announcements)
-- Administradores podem cadastrar avisos globais ou específicos para unidades.
-- Avisos são exibidos como banners de alta visibilidade no dashboard.
+Endpoint: `POST /api/defensores/login`.
+
+Regras:
+
+- Exige `email` e `senha`.
+- Usuario deve estar ativo.
+- Senha e comparada por bcrypt.
+- JWT inclui `id`, `nome`, `email`, `cargo`, `unidade_id` e dados auxiliares.
+
+### Cadastro e Edicao
+
+Regras implementadas no controller:
+
+- Managers permitidos: `admin`, `gestor`, `coordenador`.
+- Apenas admin pode criar/editar admin.
+- Gestor/coordenador nao podem criar ou editar usuario de cargo igual/superior.
+- Coordenador deve ter regional vinculada e so opera dentro da sua regional.
+- Email e unico.
+- Senha minima: 6 caracteres.
+
+### Listagens
+
+- `admin` e `gestor` tem visao ampla.
+- `coordenador` ve sua regional.
+- outros cargos tem acesso restrito conforme endpoints especificos.
+
+---
+
+## 15. Unidades
+
+Regras:
+
+- `GET /api/unidades` e publico para popular selects.
+- Criar, editar e deletar unidade exige `admin`.
+- Unidade tem `nome`, `comarca`, `sistema`, `ativo`, `regional`.
+- Exclusao e bloqueada se houver casos ou defensores vinculados.
+- Unidade inativa pode ser usada como soft-lock operacional em regras de criacao/acesso quando o controller correspondente aplica a checagem.
+
+---
+
+## 16. BI e Configuracoes
+
+### BI
+
+Rotas em `/api/bi`.
+
+Permissoes:
+
+- Acesso BI: `admin`, `gestor`, `coordenador`.
+- Exportacao em lote: `admin`, `gestor`.
+- Gerenciar overrides: `admin`.
+
+Regras:
+
+- Relatorios sao agregados.
+- Exportacao XLSX usa `exceljs`.
+- O controller aplica validacoes de periodo, unidade e bloqueios de horario/overrides.
+
+### Configuracoes
+
+Rotas em `/api/config`.
+
+Permissoes:
+
+- Apenas `admin` e `gestor`.
+
+Regras:
+
+- `GET /` lista configuracoes.
+- `PUT /` aceita atualizacao individual ou lote via objeto `configs`.
+- Dados sao persistidos em `configuracoes_sistema`.
+
+---
+
+## 17. Consulta Publica de Status
+
+Rotas:
+
+- `GET /api/status?cpf=...`
+- `GET /api/status/cpf/:cpf`
+
+Regras atuais:
+
+- Exigem CPF na query/param.
+- Normalizam CPF removendo nao digitos.
+- Buscam por `cpf_assistido`; a rota `/cpf/:cpf` tambem tenta protocolo.
+- Retornam `id`, `protocolo`, `status`, `nome_assistido` e `nome_representante`.
+- Retornam status interno, sem mapa publico de status.
+- Nao exigem chave de acesso.
+
+---
+
+## 18. Chave de Acesso
+
+O campo `chave_acesso_hash` ainda existe em `casos`, mas a funcionalidade esta desativada no controller atual.
+
+Regras:
+
+- `POST /api/casos/:id/resetar-chave` retorna HTTP 410.
+- Upload complementar e consulta de status nao validam chave de acesso no codigo atual.
+- Documentos antigos que mencionam autenticacao publica por chave devem ser considerados obsoletos.
+
+---
+
+## 19. Validacoes Tecnicas
+
+| Item | Regra |
+|:--|:--|
+| Upload backend | 50 MB por arquivo |
+| Upload criacao | `audio` max 1; `documentos` max 20 |
+| Upload scanner | `documentos` max 20 |
+| Rate limit global | 5000 / 15 min |
+| Rate limit busca | 500 / 15 min |
+| Rate limit criacao | 300 / 1 hora |
+| JWT principal | `expiresIn: "1d"` |
+| Ticket download | `expiresIn: "30s"` |
+| Signed URLs | padrao 3600s |
+| Senha | minimo 6 caracteres; bcrypt |
+| Cargos | comparados em lowercase |
+
+---
+
+## 20. Principios LGPD Operacionais
+
+- Evitar CPF, nome de partes e dados sensiveis em logs.
+- Usar IDs tecnicos, protocolo, status e timestamps em auditoria.
+- Downloads exigem validacao por caso e ticket curto.
+- `requireSameUnit` bloqueia acesso cruzado por unidade/regional, salvo permissoes explicitas.
+- URLs de Supabase Storage sao assinadas e temporarias.
