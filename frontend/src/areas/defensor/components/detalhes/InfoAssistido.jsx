@@ -1,254 +1,627 @@
-import React, { useState } from "react";
-import { Eye } from "lucide-react";
+import React, { useEffect, useReducer, useState } from "react";
+import { ChevronDown, Eye, Loader2, Pencil, Save, X } from "lucide-react";
 import { formatTipoAcaoLabel } from "../../../../utils/caseUtils";
+import {
+  formatCpf,
+  formatCurrencyMask,
+  formatDateMask,
+  formatMonthYearMask,
+  formatPhone,
+  formatRgNumber,
+} from "../../../../utils/formatters";
+import { ACOES_FAMILIA } from "../../../../config/formularios/acoes/familia";
+import { useToast } from "../../../../contexts/ToastContext";
+import { formReducer, initialState } from "../../../servidor/state/formState";
+import { StepDadosPessoais } from "../../../servidor/components/StepDadosPessoais";
+import { StepRequerido } from "../../../servidor/components/StepRequerido";
+import { StepDetalhesCaso } from "../../../servidor/components/StepDetalhesCaso";
+
+const pickFirst = (...values) =>
+  values.find((value) => value !== undefined && value !== null && String(value).trim() !== "");
 
 const formatValue = (value) => {
-  if (value === null || value === undefined || value === "") {
-    return "Não informado";
-  }
-  if (typeof value === "boolean") {
-    return value ? "Sim" : "Não";
-  }
-  if (Array.isArray(value)) {
-    if (value.length === 0) return "Não informado";
-    return value.join(", ");
-  }
-  if (typeof value === "object") {
-    const entries = Object.entries(value);
-    if (entries.length === 0) return "Não informado";
-    return entries
-      .map(([k, v]) => `${k.replace(/_/g, " ")}: ${formatValue(v)}`)
-      .join(" | ");
-  }
+  if (value === null || value === undefined || value === "") return "Nao informado";
+  if (typeof value === "boolean") return value ? "Sim" : "Nao";
+  if (Array.isArray(value)) return value.length ? value.join(", ") : "Nao informado";
+  if (typeof value === "object") return Object.entries(value).map(([k, v]) => `${k}: ${formatValue(v)}`).join(" | ");
   return String(value);
 };
 
-const formatDateDisplay = (dateString) => {
-  if (!dateString) return "Não informado";
-  if (dateString.includes("/")) return dateString;
-  const [year, month, day] = dateString.split("-");
-  if (!year || !month || !day) return dateString;
-  return `${day}/${month}/${year}`;
-};
+const ReviewField = ({ label, value, wide = false }) => (
+  <div className={wide ? "md:col-span-2" : ""}>
+    <p className="text-xs text-muted uppercase tracking-wide">{label}</p>
+    <p className="font-semibold break-words whitespace-pre-wrap">{formatValue(value)}</p>
+  </div>
+);
 
-const formatVara = (val) => {
-  let v = String(val || "").trim().toUpperCase();
-  if (!v || v === "______" || v === "NÃO INFORMADO") return v;
-  // Se começar com número e não tiver o símbolo ordinal (ª ou º), adiciona ª
-  if (/^\d+/.test(v) && !/^\d+[ªº]/.test(v)) {
-    v = v.replace(/^(\d+)/, "$1ª");
-  }
-  return v;
-};
+const ReviewSection = ({ title, children }) => (
+  <section className="space-y-4 border-t border-soft pt-5">
+    <h3 className="heading-3 text-primary">{title}</h3>
+    <div className="grid gap-4 md:grid-cols-2">{children}</div>
+  </section>
+);
 
-// Busca o primeiro valor não vazio dentre os argumentos
-const pickFirst = (...values) => values.find((v) => v !== undefined && v !== null && String(v).trim() !== "");
+const EditAccordionSection = ({ id, title, description, activeSection, onToggle, children }) => {
+  const isOpen = activeSection === id;
 
-export const InfoAssistido = ({ caso }) => {
-  const [showReview, setShowReview] = useState(false);
+  return (
+    <section className="border border-soft rounded-lg bg-surface overflow-hidden">
+      <button
+        type="button"
+        onClick={() => onToggle(isOpen ? null : id)}
+        className="w-full flex items-center justify-between gap-4 p-4 text-left hover:bg-app/40 transition-colors"
+        aria-expanded={isOpen}
+      >
+        <div>
+          <h3 className="font-bold text-main">{title}</h3>
+          {description && <p className="text-sm text-muted mt-1">{description}</p>}
+        </div>
+        <ChevronDown
+          size={20}
+          className={`text-muted transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`}
+        />
+      </button>
 
-  const renderDataField = (label, value) => (
-    <div>
-      <p className="text-xs text-muted uppercase tracking-wide">{label}</p>
-      <p className="font-semibold break-words">{formatValue(value)}</p>
-    </div>
+      {isOpen && <div className="border-t border-soft p-4 bg-app/20">{children}</div>}
+    </section>
   );
+};
+
+const MINUTA_REGENERACAO_WARNING =
+  "Depois de alterar estes dados, regenere a minuta. Qualquer modificacao feita manualmente na minuta atual sera perdida ao regerar.";
+
+const parseJsonArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (!value || typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const resolveAcaoEspecifica = (caso = {}, dados = {}) => {
+  const raw = dados.acaoEspecifica || caso.tipo_acao || "";
+  if (String(raw).includes("exec") || String(raw).includes("def_")) return "execucao_alimentos";
+  if (raw === "alimentos_gravidicos") return "fixacao_alimentos";
+  return raw || "fixacao_alimentos";
+};
+
+const buildFormStateFromCase = (caso = {}) => {
+  const dados = caso.dados_formulario || {};
+  const acaoEspecifica = resolveAcaoEspecifica(caso, dados);
+  const isRepresentacao =
+    pickFirst(dados.assistidoEhIncapaz, dados.assistido_eh_incapaz, caso.assistido_eh_incapaz) === "sim" ||
+    ACOES_FAMILIA[acaoEspecifica]?.forcaRepresentacao;
+
+  return {
+    ...initialState,
+    ...dados,
+    tipoAcao: "familia",
+    acaoEspecifica,
+    assistidoEhIncapaz: isRepresentacao ? "sim" : "nao",
+    NOME: pickFirst(dados.NOME, dados.nome, caso.nome_assistido),
+    cpf: pickFirst(dados.cpf, dados.cpf_assistido, caso.cpf_assistido),
+    nascimento: pickFirst(dados.nascimento, dados.data_nascimento_assistido, caso.assistido_data_nascimento),
+    REPRESENTANTE_NOME: pickFirst(dados.REPRESENTANTE_NOME, dados.representante_nome, caso.nome_representante),
+    representante_cpf: pickFirst(dados.representante_cpf, caso.representante_cpf),
+    representante_data_nascimento: pickFirst(
+      dados.representante_data_nascimento,
+      caso.representante_data_nascimento,
+    ),
+    representante_nacionalidade: pickFirst(dados.representante_nacionalidade, caso.representante_nacionalidade, "Brasileira"),
+    representante_estado_civil: pickFirst(dados.representante_estado_civil, caso.representante_estado_civil, "solteiro(a)"),
+    representante_ocupacao: pickFirst(dados.representante_ocupacao, caso.representante_ocupacao),
+    representante_rg: pickFirst(dados.representante_rg, caso.representante_rg_numero),
+    emissor_rg_exequente: pickFirst(dados.emissor_rg_exequente, caso.representante_rg_orgao),
+    requerente_endereco_residencial: pickFirst(
+      dados.requerente_endereco_residencial,
+      dados.endereco_assistido,
+      caso.endereco_assistido,
+    ),
+    requerente_email: pickFirst(dados.requerente_email, dados.email_assistido, caso.email_assistido),
+    requerente_telefone: pickFirst(dados.requerente_telefone, dados.telefone, caso.telefone_assistido),
+    nome_mae_representante: pickFirst(dados.nome_mae_representante, caso.nome_mae_representante),
+    nome_pai_representante: pickFirst(dados.nome_pai_representante, caso.nome_pai_representante),
+    outrosFilhos: dados.outrosFilhos || parseJsonArray(dados.outros_filhos_detalhes),
+    REQUERIDO_NOME: pickFirst(dados.REQUERIDO_NOME, dados.nome_requerido, caso.nome_requerido),
+    executado_cpf: pickFirst(dados.executado_cpf, dados.cpf_requerido, caso.cpf_requerido),
+    rg_executado: pickFirst(dados.rg_executado, dados.requerido_rg_numero, caso.rg_executado),
+    emissor_rg_executado: pickFirst(dados.emissor_rg_executado, dados.requerido_rg_orgao, caso.emissor_rg_executado),
+    executado_endereco_residencial: pickFirst(
+      dados.executado_endereco_residencial,
+      dados.endereco_requerido,
+      caso.endereco_requerido,
+    ),
+    executado_telefone: pickFirst(dados.executado_telefone, dados.telefone_requerido, caso.telefone_requerido),
+    executado_email: pickFirst(dados.executado_email, dados.email_requerido, caso.email_requerido),
+    executado_ocupacao: pickFirst(dados.executado_ocupacao, caso.executado_ocupacao),
+    executado_nacionalidade: pickFirst(dados.executado_nacionalidade, caso.executado_nacionalidade),
+    executado_estado_civil: pickFirst(dados.executado_estado_civil, caso.executado_estado_civil),
+    nome_mae_executado: pickFirst(dados.nome_mae_executado, caso.nome_mae_executado),
+    nome_pai_executado: pickFirst(dados.nome_pai_executado, caso.nome_pai_executado),
+    empregador_nome: pickFirst(dados.empregador_nome, dados.empregador_requerido_nome, caso.empregador_nome),
+    empregador_endereco: pickFirst(dados.empregador_endereco, dados.empregador_requerido_endereco, caso.empregador_endereco),
+    empregador_email: pickFirst(dados.empregador_email, caso.empregador_email),
+    valor_pensao: pickFirst(dados.valor_pensao, dados.valor_mensal_pensao, caso.valor_pensao),
+    valor_debito: pickFirst(dados.valor_debito, caso.valor_debito),
+    VARA: pickFirst(dados.VARA, caso.VARA),
+    CIDADEASSINATURA: pickFirst(dados.CIDADEASSINATURA, dados.cidade_assinatura, caso.cidade_assinatura),
+    processoOrigemNumero: pickFirst(dados.processoOrigemNumero, caso.processoOrigemNumero),
+    cidadeOriginaria: pickFirst(dados.cidadeOriginaria, caso.cidadeOriginaria),
+    varaOriginaria: pickFirst(dados.varaOriginaria, caso.varaOriginaria),
+    tipo_decisao: pickFirst(dados.tipo_decisao, caso.tipo_decisao),
+    dia_pagamento: pickFirst(dados.dia_pagamento, caso.dia_pagamento),
+    percentual_salario_minimo: pickFirst(dados.percentual_salario_minimo, caso.percentual_salario_minimo),
+    periodo_meses_ano: pickFirst(dados.periodo_meses_ano, caso.periodo_meses_ano),
+    opcaoGuarda: pickFirst(dados.opcaoGuarda, dados.opcao_guarda, caso.opcao_guarda),
+    descricaoGuarda: pickFirst(dados.descricaoGuarda, dados.descricao_guarda, caso.descricao_guarda),
+  };
+};
+
+const buildSavePayload = (formState) => {
+  const isRepresentacao = formState.assistidoEhIncapaz === "sim";
+  const nomeAssistido = isRepresentacao ? formState.NOME : formState.REPRESENTANTE_NOME;
+  const cpfAssistido = isRepresentacao ? formState.cpf : formState.representante_cpf;
+  const nascimentoAssistido = isRepresentacao ? formState.nascimento : formState.representante_data_nascimento;
+
+  const dadosExtraidos = {
+    ...formState,
+    assistido_eh_incapaz: formState.assistidoEhIncapaz,
+    nome_assistido: nomeAssistido,
+    cpf_assistido: cpfAssistido,
+    data_nascimento_assistido: nascimentoAssistido,
+    dados_bancarios_exequente: [
+      formState.banco_deposito,
+      formState.agencia_deposito,
+      formState.conta_operacao,
+      formState.conta_deposito,
+      formState.chave_pix_deposito,
+      formState.outros_dados_deposito,
+    ]
+      .filter(Boolean)
+      .join(" / "),
+    nome_requerido: formState.REQUERIDO_NOME,
+    cpf_requerido: formState.executado_cpf,
+    cidade_assinatura: formState.CIDADEASSINATURA,
+    cidade_originaria: formState.cidadeOriginaria,
+    vara_originaria: formState.varaOriginaria,
+    numero_processo_originario: formState.processoOrigemNumero,
+    descricao_guarda: formState.descricaoGuarda,
+    opcao_guarda: formState.opcaoGuarda,
+    requerido_rg_numero: formState.rg_executado,
+    requerido_rg_orgao: formState.emissor_rg_executado,
+  };
+
+  return {
+    partes: {
+      nome_assistido: nomeAssistido,
+      cpf_assistido: cpfAssistido,
+      data_nascimento_assistido: nascimentoAssistido,
+      telefone_assistido: formState.requerente_telefone,
+      email_assistido: formState.requerente_email,
+      endereco_assistido: formState.requerente_endereco_residencial,
+      rg_assistido: isRepresentacao ? "" : formState.representante_rg,
+      emissor_rg_assistido: isRepresentacao ? "" : formState.emissor_rg_exequente,
+      assistido_eh_incapaz: formState.assistidoEhIncapaz,
+      nome_representante: isRepresentacao ? formState.REPRESENTANTE_NOME : null,
+      cpf_representante: isRepresentacao ? formState.representante_cpf : null,
+      data_nascimento_representante: isRepresentacao ? formState.representante_data_nascimento : null,
+      nacionalidade_representante: formState.representante_nacionalidade,
+      estado_civil_representante: formState.representante_estado_civil,
+      profissao_representante: formState.representante_ocupacao,
+      rg_representante: formState.representante_rg,
+      emissor_rg_representante: formState.emissor_rg_exequente,
+      nome_mae_representante: formState.nome_mae_representante,
+      nome_pai_representante: formState.nome_pai_representante,
+      nome_requerido: formState.REQUERIDO_NOME,
+      cpf_requerido: formState.executado_cpf,
+      rg_requerido: formState.rg_executado,
+      emissor_rg_requerido: formState.emissor_rg_executado,
+      profissao_requerido: formState.executado_ocupacao,
+      nacionalidade_requerido: formState.executado_nacionalidade,
+      estado_civil_requerido: formState.executado_estado_civil,
+      nome_mae_requerido: formState.nome_mae_executado,
+      nome_pai_requerido: formState.nome_pai_executado,
+      endereco_requerido: formState.executado_endereco_residencial,
+      telefone_requerido: formState.executado_telefone,
+      email_requerido: formState.executado_email,
+      exequentes: formState.outrosFilhos || [],
+    },
+    juridico: {
+      numero_processo_titulo: formState.processoOrigemNumero,
+      percentual_salario: formState.percentual_salario_minimo,
+      vencimento_dia: formState.dia_pagamento,
+      periodo_inadimplencia: formState.periodo_meses_ano,
+      debito_valor: formState.valor_debito || formState.valor_pensao,
+      dados_bancarios_deposito: dadosExtraidos.dados_bancarios_exequente,
+      conta_banco: formState.banco_deposito,
+      conta_agencia: formState.agencia_deposito,
+      conta_operacao: formState.conta_operacao,
+      conta_numero: formState.conta_deposito,
+      empregador_nome: formState.empregador_nome,
+      empregador_endereco: formState.empregador_endereco,
+      empregador_email: formState.empregador_email,
+      descricao_guarda: formState.descricaoGuarda,
+      opcao_guarda: formState.opcaoGuarda,
+      cidade_originaria: formState.cidadeOriginaria,
+      tipo_decisao: formState.tipo_decisao,
+      vara_originaria: formState.varaOriginaria,
+      cidade_assinatura: formState.CIDADEASSINATURA,
+    },
+    dados_extraidos: dadosExtraidos,
+  };
+};
+
+export const InfoAssistido = ({ caso, onSave, isSaving = false }) => {
+  const { toast } = useToast();
+  const [showReview, setShowReview] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [activeEditSection, setActiveEditSection] = useState(null);
+  const [formState, dispatch] = useReducer(formReducer, buildFormStateFromCase(caso));
+  const [formErrors, setFormErrors] = useState({});
+
+  useEffect(() => {
+    if (!isEditing) {
+      dispatch({ type: "LOAD_RASCUNHO", payload: buildFormStateFromCase(caso) });
+      setFormErrors({});
+    }
+  }, [caso, isEditing]);
+
+  const configAcao = ACOES_FAMILIA[formState.acaoEspecifica] || ACOES_FAMILIA.fixacao_alimentos;
+  const isRepresentacao = formState.assistidoEhIncapaz === "sim" || configAcao?.forcaRepresentacao;
+
+  const updateField = (field, value) => dispatch({ type: "UPDATE_FIELD", field, value });
+  const clearError = (field) =>
+    setFormErrors((current) => {
+      const updated = { ...current };
+      delete updated[field];
+      delete updated.requeridoContato;
+      return updated;
+    });
+
+  const handleFieldChange = (event) => {
+    updateField(event.target.name, event.target.value);
+    clearError(event.target.name);
+  };
+  const handleCpfChangeAndValidate = (field) => (event) => {
+    updateField(field, formatCpf(event.target.value));
+    clearError(field);
+  };
+  const handlePhoneChange = (field) => (event) => {
+    updateField(field, formatPhone(event.target.value));
+    clearError(field);
+  };
+  const handleRgChange = (field) => (event) => {
+    updateField(field, formatRgNumber(event.target.value));
+    clearError(field);
+  };
+  const handleDateChange = (field) => (event) => {
+    updateField(field, formatDateMask(event.target.value));
+    clearError(field);
+  };
+  const handleCurrencyChange = (field) => (event) => {
+    updateField(field, formatCurrencyMask(event.target.value));
+    clearError(field);
+  };
+  const handleMonthYearChange = (field) => (event) => {
+    updateField(field, formatMonthYearMask(event.target.value));
+    clearError(field);
+  };
+  const handleDayInputChange = (field) => (event) => {
+    const parsed = parseInt(event.target.value, 10);
+    updateField(field, Number.isNaN(parsed) ? "" : String(Math.min(Math.max(parsed, 1), 31)));
+    clearError(field);
+  };
+  const handleRestrictedAlphanumeric = handleFieldChange;
+  const validar = () => ({});
+  const toggleRequeridoDetalhe = (key) => {
+    const selecionados = formState.requeridoOutrosSelecionados || [];
+    updateField(
+      "requeridoOutrosSelecionados",
+      selecionados.includes(key) ? selecionados.filter((item) => item !== key) : [...selecionados, key],
+    );
+  };
+
+  const handleCancelEdit = () => {
+    dispatch({ type: "LOAD_RASCUNHO", payload: buildFormStateFromCase(caso) });
+    setIsEditing(false);
+    setActiveEditSection(null);
+  };
+
+  const handleStartEdit = () => {
+    toast.warning(MINUTA_REGENERACAO_WARNING);
+    setIsEditing(true);
+    setActiveEditSection(null);
+  };
+
+  const handleSubmitEdit = async (event) => {
+    event.preventDefault();
+    await onSave?.(buildSavePayload(formState));
+    setShowReview(true);
+    setIsEditing(false);
+    setActiveEditSection(null);
+  };
 
   const dados = caso.dados_formulario || {};
-  const isRepresentacao = caso.assistido_eh_incapaz === "sim" || dados.assistido_eh_incapaz === "sim";
-  const isExecucao =
-    (caso.tipo_acao || "").toLowerCase().includes("execu") ||
-    (dados.acaoEspecifica || "").toLowerCase().includes("execucao") ||
-    !!caso.processoOrigemNumero || !!dados.processoOrigemNumero;
-
-  let outrosFilhos = [];
-  try {
-    if (dados.outros_filhos_detalhes) {
-      outrosFilhos =
-        typeof dados.outros_filhos_detalhes === "string"
-          ? JSON.parse(dados.outros_filhos_detalhes)
-          : dados.outros_filhos_detalhes;
-    }
-  } catch (e) {
-    console.error("Erro ao processar dados de outros filhos:", e);
-  }
-
-  // Campos do assistido principal usando as novas tags
-  const nomePrincipal = isRepresentacao 
+  const nomePrincipal = isRepresentacao
     ? pickFirst(dados.NOME, caso.nome_assistido)
     : pickFirst(dados.REPRESENTANTE_NOME, caso.nome_representante, caso.nome_assistido);
-    
-  const cpfPrincipal = isRepresentacao 
+  const cpfPrincipal = isRepresentacao
     ? pickFirst(dados.cpf, dados.cpf_assistido, caso.cpf_assistido)
     : pickFirst(dados.representante_cpf, caso.cpf_assistido, dados.cpf);
-  const telefonePrincipal = pickFirst(dados.requerente_telefone, dados.telefone, caso.telefone_assistido);
+
+  if (isEditing) {
+    return (
+      <form onSubmit={handleSubmitEdit} className="card space-y-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="heading-2">Editar dados preenchidos</h2>
+            <p className="text-sm text-muted">
+              Este editor usa os mesmos componentes e regras do formulario de triagem.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" onClick={handleCancelEdit} className="btn btn-ghost border border-soft" disabled={isSaving}>
+              <X size={18} />
+              Cancelar
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={isSaving}>
+              {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              {isSaving ? "Salvando..." : "Salvar dados"}
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <EditAccordionSection
+            id="dados_pessoais"
+            title="Dados pessoais"
+            description="Assistido, representante legal e filhos vinculados."
+            activeSection={activeEditSection}
+            onToggle={setActiveEditSection}
+          >
+            <StepDadosPessoais
+              assistidoEhIncapaz={formState.assistidoEhIncapaz}
+              assistidoNome={formState.NOME}
+              assistidoCpf={formState.cpf}
+              assistidoNascimento={formState.nascimento}
+              representanteNome={formState.REPRESENTANTE_NOME}
+              representanteCpf={formState.representante_cpf}
+              representanteNascimento={formState.representante_data_nascimento}
+              representanteNacionalidade={formState.representante_nacionalidade}
+              representanteEstadoCivil={formState.representante_estado_civil}
+              representanteOcupacao={formState.representante_ocupacao}
+              representanteEnderecoProfissional={formState.representante_endereco_profissional}
+              representanteRg={formState.representante_rg}
+              representanteEmissorRg={formState.emissor_rg_exequente}
+              requerenteEnderecoResidencial={formState.requerente_endereco_residencial}
+              requerenteEmail={formState.requerente_email}
+              requerenteTelefone={formState.requerente_telefone}
+              nomeMaeRepresentante={formState.nome_mae_representante}
+              nomePaiRepresentante={formState.nome_pai_representante}
+              outrosFilhos={formState.outrosFilhos || []}
+              dispatch={dispatch}
+              handleFieldChange={handleFieldChange}
+              handleCpfChangeAndValidate={handleCpfChangeAndValidate}
+              handleRgChange={handleRgChange}
+              handleDateChange={handleDateChange}
+              handlePhoneChange={handlePhoneChange}
+              validar={validar}
+              formErrors={formErrors}
+              setFormErrors={setFormErrors}
+              forcaRepresentacao={configAcao?.forcaRepresentacao}
+              isRepresentacao={isRepresentacao}
+              labelAutor={configAcao?.labelAutor || "Autor(a)"}
+              handleRestrictedAlphanumeric={handleRestrictedAlphanumeric}
+              configAcao={configAcao}
+            />
+          </EditAccordionSection>
+
+          {!configAcao?.ocultarDadosRequerido && (
+            <EditAccordionSection
+              id="parte_contraria"
+              title="Parte contraria"
+              description="Dados do requerido e informacoes adicionais conhecidas."
+              activeSection={activeEditSection}
+              onToggle={setActiveEditSection}
+            >
+              <StepRequerido
+                requeridoNome={formState.REQUERIDO_NOME}
+                requeridoCpf={formState.executado_cpf}
+                requeridoNomeMae={formState.nome_mae_executado}
+                requeridoNomePai={formState.nome_pai_executado}
+                requeridoEnderecoResidencial={formState.executado_endereco_residencial}
+                requeridoTelefone={formState.executado_telefone}
+                requeridoEmail={formState.executado_email}
+                requeridoOcupacao={formState.executado_ocupacao}
+                requeridoNacionalidade={formState.executado_nacionalidade}
+                requeridoEstadoCivil={formState.executado_estado_civil}
+                requeridoEnderecoProfissional={formState.executado_endereco_profissional}
+                requeridoOutrosSelecionados={formState.requeridoOutrosSelecionados}
+                requeridoRg={formState.rg_executado}
+                requeridoEmissorRg={formState.emissor_rg_executado}
+                formState={formState}
+                handleFieldChange={handleFieldChange}
+                handleCpfChangeAndValidate={handleCpfChangeAndValidate}
+                handlePhoneChange={handlePhoneChange}
+                handleRgChange={handleRgChange}
+                handleDateChange={handleDateChange}
+                toggleRequeridoDetalhe={toggleRequeridoDetalhe}
+                formErrors={formErrors}
+              />
+            </EditAccordionSection>
+          )}
+
+          <EditAccordionSection
+            id="detalhes_caso"
+            title="Detalhes do caso"
+            description="Valores, processo originario, emprego, guarda e campos especificos da acao."
+            activeSection={activeEditSection}
+            onToggle={setActiveEditSection}
+          >
+            <StepDetalhesCaso
+              formState={formState}
+              handleFieldChange={handleFieldChange}
+              handleCurrencyChange={handleCurrencyChange}
+              handleDayInputChange={handleDayInputChange}
+              handleMonthYearChange={handleMonthYearChange}
+              handleRestrictedAlphanumeric={handleRestrictedAlphanumeric}
+              validar={validar}
+              configAcao={configAcao}
+              formErrors={formErrors}
+            />
+          </EditAccordionSection>
+        </div>
+      </form>
+    );
+  }
 
   return (
     <div className="card space-y-4">
-      <div className="flex justify-between items-start">
+      <div className="flex justify-between items-start gap-3">
         <h2 className="heading-2">Dados do assistido</h2>
-        <div className="px-2 py-1 rounded bg-surface border border-soft text-[10px] font-bold uppercase tracking-wider text-muted">
-          {isRepresentacao ? "Caso de Representação" : "Ação Direta"}
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={handleStartEdit} className="btn btn-ghost btn-sm border border-soft">
+            <Pencil size={16} />
+            Editar
+          </button>
+          <div className="px-2 py-1 rounded bg-surface border border-soft text-[10px] font-bold uppercase tracking-wider text-muted">
+            {isRepresentacao ? "Caso de Representacao" : "Acao Direta"}
+          </div>
         </div>
       </div>
+
       <div className="grid gap-4 md:grid-cols-2">
-        {renderDataField("Nome completo", nomePrincipal)}
-        {renderDataField("CPF", cpfPrincipal)}
-        {isRepresentacao && renderDataField("Genitora/Representante", dados.REPRESENTANTE_NOME)}
-        {renderDataField("Telefone principal", telefonePrincipal)}
-        {renderDataField("Tipo de ação", formatTipoAcaoLabel(caso.tipo_acao))}
-        {renderDataField("Protocolo", caso.protocolo)}
-        {caso.unidade?.nome && renderDataField("Unidade Defensoria", caso.unidade.nome)}
+        <div>
+          <p className="text-xs text-muted uppercase tracking-wide">Nome completo</p>
+          <p className="font-semibold break-words">{formatValue(nomePrincipal)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted uppercase tracking-wide">CPF</p>
+          <p className="font-semibold break-words">{formatValue(cpfPrincipal)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted uppercase tracking-wide">Tipo de acao</p>
+          <p className="font-semibold break-words">{formatTipoAcaoLabel(caso.tipo_acao)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted uppercase tracking-wide">Unidade selecionada</p>
+          <p className="font-semibold break-words">{formatValue(formState.CIDADEASSINATURA)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted uppercase tracking-wide">Nome da genitora</p>
+          <p className="font-semibold break-words">{formatValue(formState.nome_mae_representante)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted uppercase tracking-wide">Protocolo</p>
+          <p className="font-semibold break-words">{caso.protocolo}</p>
+        </div>
       </div>
 
-      <div className="pt-4">
-        <button
-          onClick={() => setShowReview(!showReview)}
-          className="btn btn-secondary w-full justify-start"
-        >
-          <Eye size={18} />
-          {showReview ? "Ocultar dados preenchidos" : "Revisar dados preenchidos"}
-        </button>
+      <button onClick={() => setShowReview(!showReview)} className="btn btn-secondary w-full justify-start">
+        <Eye size={18} />
+        {showReview ? "Ocultar dados preenchidos" : "Revisar dados preenchidos"}
+      </button>
 
-        {showReview && (
-          <div className="mt-4 space-y-6 border-t border-soft pt-6 animate-fade-in">
-            {/* === DADOS DO ASSISTIDO (criança) OU DO AUTOR ADULTO === */}
-            <div className="space-y-4">
-              <h3 className="heading-3 text-primary">
-                {isRepresentacao
-                  ? "Dados do Assistido (Criança/Adolescente)"
-                  : "Dados do Autor da Ação"}
-              </h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                {renderDataField("Nome completo", isRepresentacao ? pickFirst(dados.NOME, dados.nome, caso.nome_assistido) : pickFirst(dados.REPRESENTANTE_NOME, caso.nome_representante, caso.nome_assistido))}
-                {renderDataField("CPF", isRepresentacao ? pickFirst(dados.cpf, dados.cpf_assistido, caso.cpf_assistido) : pickFirst(dados.representante_cpf, caso.cpf_assistido, dados.cpf))}
-                {renderDataField("Data de nascimento", formatDateDisplay(isRepresentacao ? pickFirst(dados.nascimento, dados.assistido_data_nascimento, caso.assistido_data_nascimento) : pickFirst(dados.representante_data_nascimento, caso.representante_data_nascimento, caso.assistido_data_nascimento)))}
-                {renderDataField("Nacionalidade", isRepresentacao ? "Brasileira" : pickFirst(dados.representante_nacionalidade, caso.representante_nacionalidade, "Brasileira"))}
-                {!isRepresentacao && renderDataField("Estado civil", pickFirst(dados.representante_estado_civil, caso.representante_estado_civil))}
-                {!isRepresentacao && renderDataField("Profissão", pickFirst(dados.representante_ocupacao, caso.representante_ocupacao))}
-                {renderDataField("Endereço residencial", pickFirst(dados.requerente_endereco_residencial, dados.endereco_assistido, caso.endereco_assistido))}
-                {!isRepresentacao && renderDataField("Endereço profissional", pickFirst(dados.representante_endereco_profissional, dados.executado_endereco_profissional))}
-                {renderDataField("E-mail", pickFirst(dados.requerente_email, dados.email_assistido, caso.email_assistido))}
-                {renderDataField("Telefone", pickFirst(dados.requerente_telefone, dados.telefone_assistido, caso.telefone_assistido))}
-                {renderDataField("RG", isRepresentacao ? "Não coletado" : `${pickFirst(dados.representante_rg, dados.assistido_rg_numero, caso.assistido_rg_numero) || ""} ${pickFirst(dados.emissor_rg_exequente, dados.assistido_rg_orgao, caso.assistido_rg_orgao) || ""}`.trim())}
-              </div>
-            </div>
+      {showReview && (
+        <div className="space-y-6 animate-fade-in">
+          <ReviewSection title={isRepresentacao ? "Assistido" : "Autor da acao"}>
+            <ReviewField label="Nome completo" value={formState.NOME} />
+            <ReviewField label="CPF" value={formState.cpf} />
+            <ReviewField label="Data de nascimento" value={formState.nascimento} />
+            <ReviewField label="Tipo de acao" value={formatTipoAcaoLabel(caso.tipo_acao)} />
+          </ReviewSection>
 
-            {/* === FILHOS EXTRAS (quando há mais de 1) === */}
-            {outrosFilhos.length > 0 &&
-              outrosFilhos.map((filho, index) => (
-                <div key={index} className="space-y-4 pt-4 border-t border-soft">
-                  <h3 className="heading-3 text-primary">
-                    Dados do Assistido {index + 2} (Criança/Adolescente)
-                  </h3>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {renderDataField("Nome completo", filho.nome)}
-                    {renderDataField("CPF", filho.cpf)}
-                    {renderDataField("Data de nascimento", formatDateDisplay(filho.dataNascimento))}
-                    {renderDataField("Nacionalidade", filho.nacionalidade || "Brasileira")}
-                    {renderDataField("RG", `${filho.rgNumero || ""} ${filho.rgOrgao || ""}`.trim())}
-                  </div>
+          {isRepresentacao && (formState.outrosFilhos || []).length > 0 && (
+            <ReviewSection title="Outros filhos">
+              {(formState.outrosFilhos || []).map((filho, index) => (
+                <div key={`${filho.nome || "filho"}-${index}`} className="md:col-span-2 grid gap-3 md:grid-cols-3 border border-soft rounded-lg p-3">
+                  <ReviewField label={`Filho ${index + 2}`} value={filho.nome} />
+                  <ReviewField label="CPF" value={filho.cpf} />
+                  <ReviewField label="Data de nascimento" value={filho.dataNascimento} />
                 </div>
               ))}
+            </ReviewSection>
+          )}
 
-            {/* === REPRESENTANTE LEGAL (só em casos de representação) === */}
-            {isRepresentacao && (
-              <div className="space-y-4 pt-4 border-t border-soft">
-                <h3 className="heading-3 text-primary">Dados do Representante Legal (Genitora)</h3>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {renderDataField("Nome completo", dados.REPRESENTANTE_NOME)}
-                  {renderDataField("CPF", dados.representante_cpf)}
-                  {renderDataField("Data de nascimento", formatDateDisplay(dados.representante_data_nascimento))}
-                  {renderDataField("Nacionalidade", dados.representante_nacionalidade)}
-                  {renderDataField("Estado civil", dados.representante_estado_civil)}
-                  {renderDataField("Profissão", dados.representante_ocupacao)}
-                  {renderDataField("Endereço residencial", dados.requerente_endereco_residencial)}
-                  {renderDataField("Endereço profissional", dados.representante_endereco_profissional)}
-                  {renderDataField("E-mail", dados.requerente_email)}
-                  {renderDataField("Telefone", dados.requerente_telefone)}
-                  {renderDataField("RG", `${dados.representante_rg || ""} ${dados.emissor_rg_exequente || ""}`.trim())}
-                  {renderDataField("Nome da mãe (avó materna)", dados.nome_mae_representante)}
-                  {renderDataField("Nome do pai (avô materno)", dados.nome_pai_representante)}
-                </div>
-              </div>
+          <ReviewSection title={isRepresentacao ? "Representante legal" : "Dados de contato"}>
+            <ReviewField label="Nome completo" value={formState.REPRESENTANTE_NOME} />
+            <ReviewField label="CPF" value={formState.representante_cpf} />
+            <ReviewField label="Data de nascimento" value={formState.representante_data_nascimento} />
+            <ReviewField label="Nacionalidade" value={formState.representante_nacionalidade} />
+            <ReviewField label="Estado civil" value={formState.representante_estado_civil} />
+            <ReviewField label="Profissao" value={formState.representante_ocupacao} />
+            <ReviewField label="RG" value={formState.representante_rg} />
+            <ReviewField label="Orgao emissor" value={formState.emissor_rg_exequente} />
+            <ReviewField label="Endereco residencial" value={formState.requerente_endereco_residencial} wide />
+            <ReviewField label="Telefone" value={formState.requerente_telefone} />
+            <ReviewField label="E-mail" value={formState.requerente_email} />
+            <ReviewField label="Nome da mae" value={formState.nome_mae_representante} />
+            <ReviewField label="Nome do pai" value={formState.nome_pai_representante} />
+          </ReviewSection>
+
+          {!configAcao?.ocultarDadosRequerido && (
+            <ReviewSection title="Parte contraria">
+              <ReviewField label="Nome completo" value={formState.REQUERIDO_NOME} />
+              <ReviewField label="CPF" value={formState.executado_cpf} />
+              <ReviewField label="RG" value={formState.rg_executado} />
+              <ReviewField label="Orgao emissor" value={formState.emissor_rg_executado} />
+              <ReviewField label="Profissao" value={formState.executado_ocupacao} />
+              <ReviewField label="Nacionalidade" value={formState.executado_nacionalidade} />
+              <ReviewField label="Estado civil" value={formState.executado_estado_civil} />
+              <ReviewField label="Telefone" value={formState.executado_telefone} />
+              <ReviewField label="E-mail" value={formState.executado_email} />
+              <ReviewField label="Endereco residencial" value={formState.executado_endereco_residencial} wide />
+              <ReviewField label="Mae do requerido" value={formState.nome_mae_executado} />
+              <ReviewField label="Pai do requerido" value={formState.nome_pai_executado} />
+            </ReviewSection>
+          )}
+
+          <ReviewSection title="Dados do caso">
+            <ReviewField label="Vara da peticao atual" value={formState.VARA} />
+            <ReviewField label="Cidade para assinatura" value={formState.CIDADEASSINATURA} />
+            {!configAcao?.camposGerais?.ocultarDetalhesGerais && (
+              <>
+                <ReviewField label="Opcao de guarda" value={formState.opcaoGuarda} />
+                <ReviewField label="Descricao da guarda" value={formState.descricaoGuarda} wide />
+              </>
             )}
-
-            {/* === PARTE CONTRÁRIA (REQUERIDO) === */}
-            <div className="space-y-4 pt-4 border-t border-soft">
-              <h3 className="heading-3 text-primary">Dados da Parte Contrária (Requerido)</h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                {renderDataField("Nome completo", pickFirst(dados.REQUERIDO_NOME, dados.nome_requerido, caso.nome_requerido))}
-                {renderDataField("CPF", pickFirst(dados.executado_cpf, dados.cpf_requerido, caso.cpf_requerido))}
-                {renderDataField("Endereço conhecido", pickFirst(dados.executado_endereco_residencial, dados.endereco_requerido, caso.endereco_requerido))}
-                {renderDataField("Telefone", pickFirst(dados.executado_telefone, dados.telefone_requerido, caso.telefone_requerido))}
-                {renderDataField("E-mail", pickFirst(dados.executado_email, dados.email_requerido))}
-                {renderDataField("Profissão", pickFirst(dados.executado_ocupacao, dados.profissao_requerido))}
-                {renderDataField("Endereço de trabalho", pickFirst(dados.executado_endereco_profissional, dados.requerido_endereco_profissional))}
-                {renderDataField("RG", `${pickFirst(dados.rg_executado, dados.requerido_rg_numero, caso.rg_executado) || ""} ${pickFirst(dados.emissor_rg_executado, dados.requerido_rg_orgao, caso.emissor_rg_executado) || ""}`.trim())}
-                {renderDataField("Mãe do requerido", pickFirst(dados.nome_mae_executado, caso.nome_mae_executado))}
-                {renderDataField("Pai do requerido", pickFirst(dados.nome_pai_executado, caso.nome_pai_executado))}
-                {renderDataField("Dados adicionais", pickFirst(dados.dados_adicionais_requerido, caso.dados_adicionais_requerido))}
-              </div>
-            </div>
-            {/* === EMPREGO DO REQUERIDO === */}
-            {dados.requerido_tem_emprego_formal === "sim" && (
-              <div className="space-y-4 pt-4 border-t border-soft">
-                <h3 className="heading-3 text-primary">Dados de Emprego (Requerido)</h3>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {renderDataField("Tem emprego formal?", dados.requerido_tem_emprego_formal)}
-                  {renderDataField("Nome da Empresa", dados.empregador_nome)}
-                  {renderDataField("Endereço da Empresa", dados.empregador_endereco)}
-                  {renderDataField("E-mail da Empresa", dados.empregador_email)}
-                </div>
-              </div>
+            {configAcao?.secoes?.includes("SecaoValoresPensao") && (
+              <>
+                <ReviewField label="Valor da pensao" value={formState.valor_pensao} />
+                <ReviewField label="Dados bancarios" value={formState.dados_bancarios_exequente || formState.dados_bancarios_deposito} />
+                <ReviewField label="Banco" value={formState.banco_deposito} />
+                <ReviewField label="Agencia" value={formState.agencia_deposito} />
+                <ReviewField label="Operacao" value={formState.conta_operacao} />
+                <ReviewField label="Conta" value={formState.conta_deposito} />
+                <ReviewField label="PIX" value={formState.chave_pix_deposito} />
+              </>
             )}
-
-            {/* === EXECUÇÃO / TÍTULO JUDICIAL === */}
-            {isExecucao && (
-              <div className="space-y-4 pt-4 border-t border-soft">
-                <h3 className="heading-3 text-primary">Dados da Execução e Título Judicial</h3>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {renderDataField("Vara da Petição Atual", formatVara(pickFirst(dados.VARA, caso.VARA)))}
-                  {renderDataField("Percentual do salário mínimo (%)", pickFirst(dados.percentual_salario_minimo, caso.percentual_salario_minimo))}
-                  {renderDataField("Número do Processo Originário", pickFirst(dados.processoOrigemNumero, caso.processoOrigemNumero, caso.numero_processo_originario))}
-                  {renderDataField("Cidade onde tramitou", pickFirst(dados.cidadeOriginaria, caso.cidadeOriginaria, caso.cidade_originaria))}
-                  {renderDataField("Vara onde tramitou", formatVara(pickFirst(dados.varaOriginaria, caso.varaOriginaria, caso.vara_originaria)))}
-                  {renderDataField("Tipo de Decisão", pickFirst(dados.tipo_decisao, caso.tipo_decisao))}
-                  {renderDataField("Dia de Pagamento fixado", pickFirst(dados.dia_pagamento, caso.dia_pagamento, caso.dia_pagamento_fixado))}
-                  {renderDataField("Período do Débito", pickFirst(dados.periodo_meses_ano, caso.periodo_meses_ano, caso.periodo_debito_execucao))}
-                  {renderDataField("Valor Total do Débito", pickFirst(dados.valor_debito, dados.valor_total_debito_execucao, caso.valor_debito, caso.valor_total_debito_execucao))}
-                  {renderDataField("Multa (10%)", pickFirst(dados.valor_multa, caso.valor_multa))}
-                  {renderDataField("Juros", pickFirst(dados.valor_juros, caso.valor_juros))}
-                  {renderDataField("Honorários", pickFirst(dados.valor_honorarios, caso.valor_honorarios))}
-                </div>
-              </div>
+            {configAcao?.secoes?.includes("SecaoProcessoOriginal") && (
+              <>
+                <ReviewField label="Processo originario" value={formState.processoOrigemNumero} />
+                <ReviewField label="Cidade originaria" value={formState.cidadeOriginaria} />
+                <ReviewField label="Vara originaria" value={formState.varaOriginaria} />
+                <ReviewField label="Tipo de decisao" value={formState.tipo_decisao} />
+                <ReviewField label="Dia de pagamento" value={formState.dia_pagamento} />
+                <ReviewField label="Percentual salario minimo" value={formState.percentual_salario_minimo} />
+                <ReviewField label="Periodo do debito" value={formState.periodo_meses_ano} />
+                <ReviewField label="Valor do debito" value={formState.valor_debito} />
+              </>
             )}
-
-            {/* === OUTROS DETALHES / PENSÃO === */}
-            <div className="space-y-4 pt-4 border-t border-soft">
-              <h3 className="heading-3 text-primary">
-                {isExecucao ? "Outros Detalhes" : "Detalhes do Pedido e do Caso"}
-              </h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                {!isExecucao &&
-                  renderDataField(
-                    "Valor da Pensão Solicitado",
-                    pickFirst(dados.valor_pensao, dados.valor_pensao_atual, caso.valor_pensao),
-                  )}
-                {renderDataField("Dados Bancários para Depósito", pickFirst(dados.dados_bancarios_exequente, dados.dados_bancarios_deposito, caso.dados_bancarios_exequente))}
-                {renderDataField("Opção de Guarda", pickFirst(dados.opcao_guarda, dados.opcaoGuarda, caso.juridico?.opcao_guarda))}
-                <div>
-                  <p className="text-xs text-muted uppercase tracking-wide">Descrição da Guarda</p>
-                  <p className="font-semibold break-words whitespace-pre-wrap">
-                    {formatValue(pickFirst(dados.descricao_guarda, dados.descricaoGuarda, caso.juridico?.descricao_guarda))}
-                  </p>
-                </div>
-                {renderDataField("Cidade para assinatura", pickFirst(dados.CIDADEASSINATURA, dados.cidade_assinatura, caso.cidade_assinatura, caso.CIDADEASSINATURA))}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+            {configAcao?.secoes?.includes("SecaoEmpregoRequerido") && (
+              <>
+                <ReviewField label="Emprego formal do requerido" value={formState.requerido_tem_emprego_formal} />
+                <ReviewField label="Empregador" value={formState.empregador_nome} />
+                <ReviewField label="Endereco do empregador" value={formState.empregador_endereco} wide />
+                <ReviewField label="E-mail do empregador" value={formState.empregador_email} />
+              </>
+            )}
+          </ReviewSection>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,70 +1,138 @@
 import React, { useState } from "react";
 import { HelpCircle, X, ChevronDown, ChevronUp } from "lucide-react";
+
 const duvidasFrequentes = [
   {
-    pergunta: "Como sei se meus documentos foram enviados corretamente?",
+    pergunta: "Posso criar outro pedido se percebi erro depois do envio?",
     resposta:
-      "Após clicar em 'Enviar' no final da página, você verá uma nova tela de confirmação com o seu número de Protocolo e sua Chave de Acesso.",
+      "Evite criar protocolo duplicado. O ideal é complementar ou corrigir o atendimento existente conforme o fluxo interno, para não gerar duplicidade, retrabalho ou atraso na análise.",
   },
   {
-    pergunta:
-      "Preenchi algo errado ou esqueci um documento. Como faço para consertar?",
+    pergunta: 'O que acontece ao marcar "Enviar documentos depois"?',
     resposta:
-      "Se você já enviou o formulário e gerou o protocolo, não crie um novo pedido. Aguarde o contato da nossa equipe pelo WhatsApp ou telefone informado. Nós avisaremos o que faltou e você poderá enviar. Criar um novo pedido pode atrasar o atendimento.",
+      "O sistema permite concluir o cadastro sem anexar os documentos naquele momento, mas o caso só deve ser considerado apto para andamento após a juntada da documentação obrigatória.",
   },
   {
-    pergunta: "Como faço para acompanhar o andamento do meu caso?",
+    pergunta: "Quando escolher Fixação de Pensão Alimentícia?",
     resposta:
-      "Guarde bem a sua Chave de Acesso! Com ela e o seu CPF, você pode acessar a área 'Consultar Status do Caso' aqui mesmo nesta página para ver se o seu caso está 'Em análise', 'Aguardando Documentos' ou se uma 'Reunião foi Agendada'.",
+      "Use quando ainda não houver sentença, decisão judicial ou acordo homologado fixando alimentos. É a ação inicial para estabelecer o valor da pensão.",
   },
   {
-    pergunta: "A Defensoria cobra algum valor por este atendimento online?",
+    pergunta: "Quando escolher Execução de Alimentos?",
     resposta:
-      "Não! Todos os serviços da Defensoria Pública são 100% gratuitos. Se você receber mensagens, e-mails ou boletos pedindo qualquer tipo de pagamento em nome da Defensoria, é golpe. Ignore e denuncie.",
+      "Use quando já existir sentença, decisão ou acordo homologado fixando alimentos e houver parcelas em atraso a cobrar.",
   },
   {
-    pergunta: "O que é Fixação de Alimentos?",
-    resposta: `A fixação de alimentos é o processo judicial para estabelecer o valor da pensão alimentícia. Ao contrário do que o nome sugere, "alimentos" não se referem apenas à comida, mas a tudo o que é necessário para a manutenção digna de quem recebe: educação, saúde, lazer, vestuário e moradia. O juiz define esse valor equilibrando dois pratos da balança: a necessidade de quem pede e a possibilidade financeira de quem paga.`,
+    pergunta: "Qual a diferença prática entre Fixação e Execução?",
+    resposta:
+      "Na fixação, o sistema coleta dados para pedir a definição da pensão. Na execução, coleta dados do processo anterior, período da dívida, valor do débito e documentos que comprovam o título executivo.",
   },
   {
-    pergunta: "Quais são os documentos essenciais para solicitar atendimento?",
+    pergunta: 'O que informar no campo "Vara da Petição Atual"?',
+    resposta:
+      "Informe a vara para onde a nova petição será direcionada, conforme a organização da comarca selecionada. O campo deve receber apenas o número da vara, quando aplicável.",
+  },
+  {
+    pergunta: 'Na execução, o que é "Processo Original"?',
+    resposta:
+      "É o processo em que os alimentos foram fixados. Sempre que possível, preencha número do processo, cidade originária, vara e tipo da decisão.",
+  },
+  {
+    pergunta: 'O que é "Tipo da Decisão" na execução?',
+    resposta:
+      "Indica a origem do título que fixou os alimentos, como sentença, decisão interlocutória, acordo homologado ou outro documento judicial equivalente.",
+  },
+  {
+    pergunta: 'Como preencher "Início do Débito" e "Fim do Débito"?',
+    resposta:
+      "Informe o primeiro e o último mês/ano cobrados, no formato MM/AAAA. Esses campos delimitam o período da dívida que será executada.",
+  },
+  {
+    pergunta: 'O que informar em "Valor Total do Débito"?',
+    resposta:
+      "Informe o valor total apurado da dívida no período indicado. Na execução, esse campo deve receber o total acumulado, não apenas o valor mensal da pensão.",
+  },
+  {
+    pergunta: "Quando preencher os dados do empregador da outra parte?",
+    resposta:
+      "Preencha quando houver informação de vínculo formal. Nome, endereço e e-mail da empresa podem auxiliar em ofícios, desconto em folha ou localização patrimonial.",
+  },
+  {
+    pergunta: "O que orientar sobre guarda e direito de convivência?",
+    resposta:
+      "Na fixação, se também houver necessidade de regularizar guarda ou visitas, descreva com quem a criança mora, como ocorre a convivência atual e qual arranjo se pretende pedir.",
+  },
+  {
+    pergunta: "Quais documentos são essenciais na Fixação?",
+    resposta: (
+      <div className="space-y-3">
+        <p>Para reduzir pendências, confira se foram anexados:</p>
+        <ul className="list-disc pl-5 space-y-2">
+          <li>
+            <strong>Responsável:</strong> RG/CNH, comprovante de residência e
+            comprovante de renda.
+          </li>
+          <li>
+            <strong>Criança ou adolescente:</strong> certidão de nascimento.
+          </li>
+          <li>
+            <strong>Documentos opcionais úteis:</strong> CPF/RG da criança,
+            comprovantes de despesas, comprovantes escolares, recibos médicos e
+            provas sobre renda da outra parte.
+          </li>
+        </ul>
+      </div>
+    ),
+  },
+  {
+    pergunta: "Quais documentos são essenciais na Execução?",
     resposta: (
       <div className="space-y-3">
         <p>
-          Para que a Defensoria possa processar o seu pedido, você precisará
-          anexar fotos ou PDFs de:
+          Além dos documentos pessoais e da criança, a execução exige atenção ao
+          título que fixou os alimentos.
         </p>
         <ul className="list-disc pl-5 space-y-2">
           <li>
-            <strong>Documentos Pessoais:</strong> RG/CPF.
+            <strong>Obrigatório:</strong> cópia da sentença, decisão ou acordo
+            homologado que fixou a pensão.
           </li>
           <li>
-            <strong>Documentos da criança ou adolescente:</strong> RG/CPF .
+            <strong>Cálculos:</strong> anexe o cálculo do rito da prisão e/ou
+            do rito da penhora, quando disponível.
           </li>
           <li>
-            <strong>Certidões:</strong> Certidão de Nascimento dos filhos,
-            Certidão de casamento do Representante Legal do menor (pai, mãe ou
-            tutor) – se for o caso.
-          </li>
-          <li>
-            <strong>Comprovante de Renda:</strong> Pode ser o contracheque, a
-            Carteira de Trabalho (CTPS) indicando o salário, extrato bancário
-            dos ultimos 3 meses ou comprovante de recebimento de benefícios
-            sociais (como o Bolsa Família).
-          </li>
-          <li>
-            <strong>Comprovante de Residência:</strong> Conta de água, luz ou
-            telefone recente (últimos 3 meses).
+            <strong>Dados do débito:</strong> confira período cobrado,
+            percentual ou critério fixado e valor total da dívida.
           </li>
         </ul>
-        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
-          <strong>Atenção:</strong> O comprovante de residência deve estar
-          obrigatoriamente no seu nome (do assistido). Se você mora de aluguel
-          ou na casa de terceiros e não possui contas em seu nome, você deve
-          preencher e assinar uma Declaração de Residência.
-        </div>
       </div>
     ),
+  },
+  {
+    pergunta: "CPF/RG da criança é obrigatório?",
+    resposta:
+      "No formulário atual, CPF e RG dos filhos são opcionais para fixação e execução de alimentos. A certidão de nascimento permanece como documento obrigatório.",
+  },
+  {
+    pergunta: "Onde anexar cálculos da execução?",
+    resposta:
+      'Use os campos "Cálculo Rito da Prisão" e "Cálculo Rito da Penhora", conforme o cálculo disponível. Também é possível anexar documentos complementares em "Outros Documentos".',
+  },
+  {
+    pergunta: "Erro comum: escolher execução sem título judicial",
+    resposta:
+      "Se não existe decisão, sentença ou acordo homologado fixando alimentos, a ação correta tende a ser fixação, não execução.",
+  },
+  {
+    pergunta: "Erro comum: preencher execução sem período do débito",
+    resposta:
+      "A execução precisa indicar claramente quais meses estão sendo cobrados. Sem início e fim do débito, a minuta fica incompleta para análise.",
+  },
+  {
+    pergunta: "Erro comum: deixar a outra parte sem contato ou endereço",
+    resposta:
+      "O formulário exige pelo menos telefone ou endereço do requerido. Quanto mais dados forem informados, melhor para localização, citação e andamento do caso.",
   },
 ];
 
@@ -98,7 +166,7 @@ export function FaqDuvidas() {
                 key={index}
                 className="border border-border rounded-card overflow-hidden bg-surface transition-colors duration-300 shadow-soft"
               >
-                {/* O Botão / Slot da Pergunta */}
+                {/* O botão / slot da pergunta */}
                 <button
                   onClick={() => toggleFaq(index)}
                   className="w-full flex justify-between items-center p-3 text-left hover:bg-app/50 transition-colors"
