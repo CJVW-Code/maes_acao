@@ -119,7 +119,7 @@ Antes destas rotas, o router aplica `requireWriteAccess`.
 | `PATCH` | `/:id/documento/renomear` | Renomeia documento anexado |
 | `DELETE` | `/:id/documento/:documentoId` | Exclui documento anexado |
 | `PATCH` | `/:id/arquivar` | Arquiva/desarquiva caso |
-| `PATCH` | `/:id/juridico` | Salva dados juridicos normalizados |
+| `PATCH` | `/:id/juridico` | Salva edicao parcial de dados preenchidos: partes, juridico e dados extraidos |
 | `POST` | `/:id/solicitar-assistencia` | Solicita colaboracao de outro defensor |
 | `POST` | `/assistencia/:assistencia_id/responder` | Aceita ou recusa assistencia |
 | `GET` | `/:id/historico` | Lista historico/auditoria do caso |
@@ -134,6 +134,9 @@ Antes destas rotas, o router aplica `requireWriteAccess`.
 - Upload complementar publico nao exige chave de acesso no codigo atual; usa ID/protocolo/CPF para localizar caso.
 - `resetar-chave` esta desativado e retorna HTTP 410.
 - `finalizar` define `status = "protocolado"`.
+- `PATCH /:id/juridico` aceita payload parcial com chaves `partes`, `juridico` e `dados_extraidos`.
+- O salvamento de dados preenchidos usa whitelist de campos para `casos_partes` e `casos_juridico`; campos fora da lista sao ignorados.
+- Em `dados_extraidos`, arquivos brutos e URLs geradas (`audioBlob`, `documentFiles`, `calculo_prisao_arquivo`, `calculo_penhora_arquivo`, `url_*`) nao sao persistidos por essa rota.
 
 ---
 

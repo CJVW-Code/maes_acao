@@ -148,6 +148,7 @@ Todas abaixo de `/painel`:
   - `pages/BuscaCentral.jsx`
   - `pages/TriagemCaso.jsx`
   - `pages/ScannerBalcao.jsx`
+  - `pages/FaqDuvidas.jsx`
   - `pages/LayoutCidadao.jsx`
   - componentes de formulario multi-step
   - hooks `useFormHandlers`, `useFormValidation`, `useFormEffects`
@@ -155,6 +156,7 @@ Todas abaixo de `/painel`:
   - paginas do painel interno
   - contexto `AuthContext.jsx`
   - layout, sidebar, header e componentes de detalhe
+  - `components/detalhes/InfoAssistido.jsx` para revisao e edicao de dados preenchidos no detalhe do caso
 - `frontend/src/config/formularios/`
   - configuracao declarativa das acoes e secoes de formulario
 - `frontend/src/components/DocumentUpload.jsx`
@@ -364,6 +366,23 @@ Observacoes:
 2. Lock L1 atribui `servidor_id` e pode levar a `em_atendimento`.
 3. Encaminhamento/distribuicao pode atribuir defensor e levar a `em_protocolo`.
 4. Finalizacao por `POST /api/casos/:id/finalizar` grava `numero_solar`, `numero_processo`, capa processual e muda status para `protocolado`.
+
+### 9.6 Edicao de Dados Preenchidos no Painel
+
+1. Na aba de visao geral de `/painel/casos/:id`, `InfoAssistido` monta um estado editavel a partir dos dados normalizados do caso e de `dados_extraidos`.
+2. O usuario interno pode revisar os dados e abrir secoes editaveis de assistido/representante, requerido e detalhes do caso.
+3. Ao salvar, o frontend chama `PATCH /api/casos/:id/juridico` com payload separado em `partes`, `juridico` e `dados_extraidos`.
+4. O backend faz upsert parcial em `casos_partes`, `casos_juridico` e `casos_ia`, usando whitelist de campos e mesclando o JSON flexivel existente.
+5. O fluxo nao regenera DOCX automaticamente. A interface avisa que a minuta deve ser regerada para refletir os dados salvos.
+
+### 9.7 FAQ Publica
+
+`frontend/src/areas/servidor/pages/FaqDuvidas.jsx` concentra orientacoes operacionais para o usuario/servidor na area publica, incluindo:
+
+- diferenca entre fixacao e execucao de alimentos;
+- campos relevantes da execucao, como processo original, tipo de decisao, periodo e valor do debito;
+- documentos essenciais de fixacao e execucao;
+- erros comuns de preenchimento e duplicidade de protocolo.
 
 ---
 

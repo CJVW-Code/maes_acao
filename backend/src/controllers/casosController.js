@@ -4207,82 +4207,196 @@ export const atualizarStatusCaso = async (req, res) => {
 
 export const salvarDadosJuridicos = async (req, res) => {
   const { id } = req.params;
-  const {
-    memoria_calculo,
-    debito_valor,
-    percentual_salario,
-    vencimento_dia,
-    debito_penhora_valor,
-    debito_penhora_extenso,
-    debito_prisao_valor,
-    debito_prisao_extenso,
-    conta_banco,
-    conta_agencia,
-    conta_operacao,
-    conta_numero,
-    descricao_guarda,
-    opcao_guarda,
-    bens_partilha,
-    situacao_financeira_genitora,
-    empregador_nome,
-    empregador_endereco,
-    empregador_email,
-    numero_processo_titulo,
-    periodo_inadimplencia,
-    debito_extenso,
-    dados_bancarios_deposito,
-    empregador_cnpj,
-    cidade_originaria,
-    tipo_decisao,
-    vara_originaria,
-    cidade_assinatura,
-  } = req.body;
+  const body = req.body || {};
+
+  const allowedPartesFields = new Set([
+    "nome_assistido",
+    "cpf_assistido",
+    "rg_assistido",
+    "emissor_rg_assistido",
+    "estado_civil",
+    "profissao",
+    "nome_mae_assistido",
+    "nome_pai_assistido",
+    "nome_mae_representante",
+    "nome_pai_representante",
+    "endereco_assistido",
+    "telefone_assistido",
+    "email_assistido",
+    "nome_requerido",
+    "cpf_requerido",
+    "rg_requerido",
+    "emissor_rg_requerido",
+    "profissao_requerido",
+    "nome_mae_requerido",
+    "nome_pai_requerido",
+    "endereco_requerido",
+    "telefone_requerido",
+    "email_requerido",
+    "cpf_representante",
+    "emissor_rg_representante",
+    "estado_civil_representante",
+    "nacionalidade_representante",
+    "nome_representante",
+    "profissao_representante",
+    "rg_representante",
+    "nacionalidade",
+    "assistido_eh_incapaz",
+    "data_nascimento_assistido",
+    "data_nascimento_representante",
+    "data_nascimento_requerido",
+    "nacionalidade_requerido",
+    "estado_civil_requerido",
+    "exequentes",
+  ]);
+
+  const allowedJuridicoFields = new Set([
+    "memoria_calculo",
+    "debito_valor",
+    "percentual_salario",
+    "vencimento_dia",
+    "debito_penhora_valor",
+    "debito_penhora_extenso",
+    "debito_prisao_valor",
+    "debito_prisao_extenso",
+    "conta_banco",
+    "conta_agencia",
+    "conta_operacao",
+    "conta_numero",
+    "descricao_guarda",
+    "opcao_guarda",
+    "bens_partilha",
+    "situacao_financeira_genitora",
+    "empregador_nome",
+    "empregador_endereco",
+    "empregador_email",
+    "numero_processo_titulo",
+    "periodo_inadimplencia",
+    "debito_extenso",
+    "dados_bancarios_deposito",
+    "empregador_cnpj",
+    "cidade_originaria",
+    "tipo_decisao",
+    "vara_originaria",
+    "cidade_assinatura",
+  ]);
+
+  const blockedExtraFields = new Set([
+    "audioBlob",
+    "documentFiles",
+    "calculo_prisao_arquivo",
+    "calculo_penhora_arquivo",
+  ]);
+
+  const pickAllowed = (source, allowed) =>
+    Object.entries(source || {}).reduce((acc, [key, value]) => {
+      if (allowed.has(key) && value !== undefined) acc[key] = value;
+      return acc;
+    }, {});
+
+  const pickSafeExtra = (source) =>
+    Object.entries(source || {}).reduce((acc, [key, value]) => {
+      const isGeneratedFileUrl = key.startsWith("url_");
+      if (!blockedExtraFields.has(key) && !isGeneratedFileUrl && value !== undefined) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
+
+  const partesData = pickAllowed(body.partes, allowedPartesFields);
+  const updateData = pickAllowed({ ...body, ...body.juridico }, allowedJuridicoFields);
+
+  if (updateData.vencimento_dia !== undefined) {
+    updateData.vencimento_dia = parseInt(updateData.vencimento_dia) || null;
+  }
 
   try {
-    const updateData = {};
-    if (memoria_calculo !== undefined) updateData.memoria_calculo = memoria_calculo;
-    if (debito_valor !== undefined) updateData.debito_valor = debito_valor;
-    if (percentual_salario !== undefined) updateData.percentual_salario = percentual_salario;
-    if (vencimento_dia !== undefined) updateData.vencimento_dia = parseInt(vencimento_dia) || null;
-    if (debito_penhora_valor !== undefined) updateData.debito_penhora_valor = debito_penhora_valor;
-    if (debito_penhora_extenso !== undefined)
-      updateData.debito_penhora_extenso = debito_penhora_extenso;
-    if (debito_prisao_valor !== undefined) updateData.debito_prisao_valor = debito_prisao_valor;
-    if (debito_prisao_extenso !== undefined)
-      updateData.debito_prisao_extenso = debito_prisao_extenso;
-    if (conta_banco !== undefined) updateData.conta_banco = conta_banco;
-    if (conta_agencia !== undefined) updateData.conta_agencia = conta_agencia;
-    if (conta_operacao !== undefined) updateData.conta_operacao = conta_operacao;
-    if (conta_numero !== undefined) updateData.conta_numero = conta_numero;
-    if (descricao_guarda !== undefined) updateData.descricao_guarda = descricao_guarda;
-    if (opcao_guarda !== undefined) updateData.opcao_guarda = opcao_guarda;
-    if (bens_partilha !== undefined) updateData.bens_partilha = bens_partilha;
-    if (situacao_financeira_genitora !== undefined)
-      updateData.situacao_financeira_genitora = situacao_financeira_genitora;
-    if (empregador_nome !== undefined) updateData.empregador_nome = empregador_nome;
-    if (empregador_endereco !== undefined) updateData.empregador_endereco = empregador_endereco;
-    if (empregador_email !== undefined) updateData.empregador_email = empregador_email;
-    if (numero_processo_titulo !== undefined)
-      updateData.numero_processo_titulo = numero_processo_titulo;
-    if (periodo_inadimplencia !== undefined)
-      updateData.periodo_inadimplencia = periodo_inadimplencia;
-    if (debito_extenso !== undefined) updateData.debito_extenso = debito_extenso;
-    if (dados_bancarios_deposito !== undefined)
-      updateData.dados_bancarios_deposito = dados_bancarios_deposito;
-    if (empregador_cnpj !== undefined) updateData.empregador_cnpj = empregador_cnpj;
-    if (cidade_originaria !== undefined) updateData.cidade_originaria = cidade_originaria;
-    if (tipo_decisao !== undefined) updateData.tipo_decisao = tipo_decisao;
-    if (vara_originaria !== undefined) updateData.vara_originaria = vara_originaria;
-    if (cidade_assinatura !== undefined) updateData.cidade_assinatura = cidade_assinatura;
+    const casoId = BigInt(id);
+    const operacoes = [];
 
-    await prisma.casos_juridico.upsert({
-      where: { caso_id: BigInt(id) },
-      update: updateData,
-      create: {
-        caso_id: BigInt(id),
-        ...updateData,
-      },
-    });
+    let iaRecord = null;
+    if (isSupabaseConfigured) {
+      const { data: iaData, error: iaError } = await supabase
+        .from("casos_ia")
+        .select("dados_extraidos")
+        .eq("caso_id", id)
+        .maybeSingle();
+      if (iaError) throw iaError;
+      iaRecord = iaData;
+    } else {
+      iaRecord = await prisma.casos_ia.findUnique({ where: { caso_id: casoId } });
+    }
+
+    const currentExtra = safeJsonParse(iaRecord?.dados_extraidos, {});
+    const extraData = pickSafeExtra(body.dados_extraidos);
+    const mergedExtra = { ...currentExtra, ...extraData };
+
+    if (isSupabaseConfigured) {
+      if (Object.keys(partesData).length > 0) {
+        const { error } = await supabase
+          .from("casos_partes")
+          .upsert({ caso_id: id, ...partesData }, { onConflict: "caso_id" });
+        if (error) throw error;
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        const { error } = await supabase
+          .from("casos_juridico")
+          .upsert({ caso_id: id, ...updateData }, { onConflict: "caso_id" });
+        if (error) throw error;
+      }
+
+      if (Object.keys(extraData).length > 0) {
+        const { error } = await supabase
+          .from("casos_ia")
+          .upsert({ caso_id: id, dados_extraidos: mergedExtra }, { onConflict: "caso_id" });
+        if (error) throw error;
+      }
+    }
+
+    if (Object.keys(partesData).length > 0) {
+      operacoes.push(
+        prisma.casos_partes.upsert({
+          where: { caso_id: casoId },
+          update: partesData,
+          create: {
+            caso_id: casoId,
+            nome_assistido: partesData.nome_assistido || "Nao informado",
+            cpf_assistido: partesData.cpf_assistido || "",
+            ...partesData,
+          },
+        }),
+      );
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      operacoes.push(
+        prisma.casos_juridico.upsert({
+          where: { caso_id: casoId },
+          update: updateData,
+          create: {
+            caso_id: casoId,
+            ...updateData,
+          },
+        }),
+      );
+    }
+
+    if (Object.keys(extraData).length > 0) {
+      operacoes.push(
+        prisma.casos_ia.upsert({
+          where: { caso_id: casoId },
+          update: { dados_extraidos: mergedExtra },
+          create: { caso_id: casoId, dados_extraidos: mergedExtra },
+        }),
+      );
+    }
+
+    if (operacoes.length === 0) {
+      return res.status(400).json({ error: "Nenhum campo editavel foi informado." });
+    }
+
+    await prisma.$transaction(operacoes);
 
     res.status(200).json({ success: true });
   } catch (error) {

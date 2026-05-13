@@ -2396,7 +2396,6 @@ const caso = await prisma.casos.findUnique({
   include: { partes: true, juridico: true, ia: true }
 });
 ```
-
 ---
 
 ## ✅ Status Atual do Sistema (2026-04-13)
