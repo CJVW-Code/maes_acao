@@ -4294,8 +4294,11 @@ export const salvarDadosJuridicos = async (req, res) => {
       return acc;
     }, {});
 
+  const isPlainObject = (value) =>
+    value !== null && typeof value === "object" && !Array.isArray(value);
+
   const pickSafeExtra = (source) =>
-    Object.entries(source || {}).reduce((acc, [key, value]) => {
+    Object.entries(isPlainObject(source) ? source : {}).reduce((acc, [key, value]) => {
       const isGeneratedFileUrl = key.startsWith("url_");
       if (!blockedExtraFields.has(key) && !isGeneratedFileUrl && value !== undefined) {
         acc[key] = value;
@@ -4327,32 +4330,10 @@ export const salvarDadosJuridicos = async (req, res) => {
       iaRecord = await prisma.casos_ia.findUnique({ where: { caso_id: casoId } });
     }
 
-    const currentExtra = safeJsonParse(iaRecord?.dados_extraidos, {});
+    const parsedExtra = safeJsonParse(iaRecord?.dados_extraidos, {});
+    const currentExtra = isPlainObject(parsedExtra) ? parsedExtra : {};
     const extraData = pickSafeExtra(body.dados_extraidos);
     const mergedExtra = { ...currentExtra, ...extraData };
-
-    if (isSupabaseConfigured) {
-      if (Object.keys(partesData).length > 0) {
-        const { error } = await supabase
-          .from("casos_partes")
-          .upsert({ caso_id: id, ...partesData }, { onConflict: "caso_id" });
-        if (error) throw error;
-      }
-
-      if (Object.keys(updateData).length > 0) {
-        const { error } = await supabase
-          .from("casos_juridico")
-          .upsert({ caso_id: id, ...updateData }, { onConflict: "caso_id" });
-        if (error) throw error;
-      }
-
-      if (Object.keys(extraData).length > 0) {
-        const { error } = await supabase
-          .from("casos_ia")
-          .upsert({ caso_id: id, dados_extraidos: mergedExtra }, { onConflict: "caso_id" });
-        if (error) throw error;
-      }
-    }
 
     if (Object.keys(partesData).length > 0) {
       operacoes.push(
@@ -4397,6 +4378,29 @@ export const salvarDadosJuridicos = async (req, res) => {
     }
 
     await prisma.$transaction(operacoes);
+
+    if (isSupabaseConfigured) {
+      if (Object.keys(partesData).length > 0) {
+        const { error } = await supabase
+          .from("casos_partes")
+          .upsert({ caso_id: id, ...partesData }, { onConflict: "caso_id" });
+        if (error) throw error;
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        const { error } = await supabase
+          .from("casos_juridico")
+          .upsert({ caso_id: id, ...updateData }, { onConflict: "caso_id" });
+        if (error) throw error;
+      }
+
+      if (Object.keys(extraData).length > 0) {
+        const { error } = await supabase
+          .from("casos_ia")
+          .upsert({ caso_id: id, dados_extraidos: mergedExtra }, { onConflict: "caso_id" });
+        if (error) throw error;
+      }
+    }
 
     res.status(200).json({ success: true });
   } catch (error) {
