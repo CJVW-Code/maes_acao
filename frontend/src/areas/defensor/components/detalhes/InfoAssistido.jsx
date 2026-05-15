@@ -23,7 +23,10 @@ const formatValue = (value) => {
   if (value === null || value === undefined || value === "") return "Nao informado";
   if (typeof value === "boolean") return value ? "Sim" : "Nao";
   if (Array.isArray(value)) return value.length ? value.join(", ") : "Nao informado";
-  if (typeof value === "object") return Object.entries(value).map(([k, v]) => `${k}: ${formatValue(v)}`).join(" | ");
+  if (typeof value === "object")
+    return Object.entries(value)
+      .map(([k, v]) => `${k}: ${formatValue(v)}`)
+      .join(" | ");
   return String(value);
 };
 
@@ -81,6 +84,22 @@ const parseJsonArray = (value) => {
   }
 };
 
+const optionalText = (value) =>
+  value === undefined || value === null || String(value).trim() === "" ? undefined : value;
+
+const digitsOnly = (value) => {
+  const text = optionalText(value);
+  return text === undefined ? undefined : String(text).replace(/\D/g, "");
+};
+
+const normalizeFilhosCpf = (filhos = []) =>
+  Array.isArray(filhos)
+    ? filhos.map((filho) => ({
+        ...filho,
+        cpf: digitsOnly(filho?.cpf),
+      }))
+    : [];
+
 const resolveAcaoEspecifica = (caso = {}, dados = {}) => {
   const raw = dados.acaoEspecifica || caso.tipo_acao || "";
   if (String(raw).includes("exec") || String(raw).includes("def_")) return "execucao_alimentos";
@@ -92,8 +111,8 @@ const buildFormStateFromCase = (caso = {}) => {
   const dados = caso.dados_formulario || {};
   const acaoEspecifica = resolveAcaoEspecifica(caso, dados);
   const isRepresentacao =
-    pickFirst(dados.assistidoEhIncapaz, dados.assistido_eh_incapaz, caso.assistido_eh_incapaz) === "sim" ||
-    ACOES_FAMILIA[acaoEspecifica]?.forcaRepresentacao;
+    pickFirst(dados.assistidoEhIncapaz, dados.assistido_eh_incapaz, caso.assistido_eh_incapaz) ===
+      "sim" || ACOES_FAMILIA[acaoEspecifica]?.forcaRepresentacao;
 
   return {
     ...initialState,
@@ -103,15 +122,31 @@ const buildFormStateFromCase = (caso = {}) => {
     assistidoEhIncapaz: isRepresentacao ? "sim" : "nao",
     NOME: pickFirst(dados.NOME, dados.nome, caso.nome_assistido),
     cpf: pickFirst(dados.cpf, dados.cpf_assistido, caso.cpf_assistido),
-    nascimento: pickFirst(dados.nascimento, dados.data_nascimento_assistido, caso.assistido_data_nascimento),
-    REPRESENTANTE_NOME: pickFirst(dados.REPRESENTANTE_NOME, dados.representante_nome, caso.nome_representante),
+    nascimento: pickFirst(
+      dados.nascimento,
+      dados.data_nascimento_assistido,
+      caso.assistido_data_nascimento,
+    ),
+    REPRESENTANTE_NOME: pickFirst(
+      dados.REPRESENTANTE_NOME,
+      dados.representante_nome,
+      caso.nome_representante,
+    ),
     representante_cpf: pickFirst(dados.representante_cpf, caso.representante_cpf),
     representante_data_nascimento: pickFirst(
       dados.representante_data_nascimento,
       caso.representante_data_nascimento,
     ),
-    representante_nacionalidade: pickFirst(dados.representante_nacionalidade, caso.representante_nacionalidade, "Brasileira"),
-    representante_estado_civil: pickFirst(dados.representante_estado_civil, caso.representante_estado_civil, "solteiro(a)"),
+    representante_nacionalidade: pickFirst(
+      dados.representante_nacionalidade,
+      caso.representante_nacionalidade,
+      "Brasileira",
+    ),
+    representante_estado_civil: pickFirst(
+      dados.representante_estado_civil,
+      caso.representante_estado_civil,
+      "solteiro(a)",
+    ),
     representante_ocupacao: pickFirst(dados.representante_ocupacao, caso.representante_ocupacao),
     representante_rg: pickFirst(dados.representante_rg, caso.representante_rg_numero),
     emissor_rg_exequente: pickFirst(dados.emissor_rg_exequente, caso.representante_rg_orgao),
@@ -120,57 +155,100 @@ const buildFormStateFromCase = (caso = {}) => {
       dados.endereco_assistido,
       caso.endereco_assistido,
     ),
-    requerente_email: pickFirst(dados.requerente_email, dados.email_assistido, caso.email_assistido),
-    requerente_telefone: pickFirst(dados.requerente_telefone, dados.telefone, caso.telefone_assistido),
+    requerente_email: pickFirst(
+      dados.requerente_email,
+      dados.email_assistido,
+      caso.email_assistido,
+    ),
+    requerente_telefone: pickFirst(
+      dados.requerente_telefone,
+      dados.telefone,
+      caso.telefone_assistido,
+    ),
     nome_mae_representante: pickFirst(dados.nome_mae_representante, caso.nome_mae_representante),
     nome_pai_representante: pickFirst(dados.nome_pai_representante, caso.nome_pai_representante),
     outrosFilhos: dados.outrosFilhos || parseJsonArray(dados.outros_filhos_detalhes),
     REQUERIDO_NOME: pickFirst(dados.REQUERIDO_NOME, dados.nome_requerido, caso.nome_requerido),
     executado_cpf: pickFirst(dados.executado_cpf, dados.cpf_requerido, caso.cpf_requerido),
     rg_executado: pickFirst(dados.rg_executado, dados.requerido_rg_numero, caso.rg_executado),
-    emissor_rg_executado: pickFirst(dados.emissor_rg_executado, dados.requerido_rg_orgao, caso.emissor_rg_executado),
+    emissor_rg_executado: pickFirst(
+      dados.emissor_rg_executado,
+      dados.requerido_rg_orgao,
+      caso.emissor_rg_executado,
+    ),
     executado_endereco_residencial: pickFirst(
       dados.executado_endereco_residencial,
       dados.endereco_requerido,
       caso.endereco_requerido,
     ),
-    executado_telefone: pickFirst(dados.executado_telefone, dados.telefone_requerido, caso.telefone_requerido),
+    executado_telefone: pickFirst(
+      dados.executado_telefone,
+      dados.telefone_requerido,
+      caso.telefone_requerido,
+    ),
     executado_email: pickFirst(dados.executado_email, dados.email_requerido, caso.email_requerido),
     executado_ocupacao: pickFirst(dados.executado_ocupacao, caso.executado_ocupacao),
     executado_nacionalidade: pickFirst(dados.executado_nacionalidade, caso.executado_nacionalidade),
     executado_estado_civil: pickFirst(dados.executado_estado_civil, caso.executado_estado_civil),
     nome_mae_executado: pickFirst(dados.nome_mae_executado, caso.nome_mae_executado),
     nome_pai_executado: pickFirst(dados.nome_pai_executado, caso.nome_pai_executado),
-    empregador_nome: pickFirst(dados.empregador_nome, dados.empregador_requerido_nome, caso.empregador_nome),
-    empregador_endereco: pickFirst(dados.empregador_endereco, dados.empregador_requerido_endereco, caso.empregador_endereco),
+    empregador_nome: pickFirst(
+      dados.empregador_nome,
+      dados.empregador_requerido_nome,
+      caso.empregador_nome,
+    ),
+    empregador_endereco: pickFirst(
+      dados.empregador_endereco,
+      dados.empregador_requerido_endereco,
+      caso.empregador_endereco,
+    ),
     empregador_email: pickFirst(dados.empregador_email, caso.empregador_email),
     valor_pensao: pickFirst(dados.valor_pensao, dados.valor_mensal_pensao, caso.valor_pensao),
     valor_debito: pickFirst(dados.valor_debito, caso.valor_debito),
     VARA: pickFirst(dados.VARA, caso.VARA),
-    CIDADEASSINATURA: pickFirst(dados.CIDADEASSINATURA, dados.cidade_assinatura, caso.cidade_assinatura),
+    CIDADEASSINATURA: pickFirst(
+      dados.CIDADEASSINATURA,
+      dados.cidade_assinatura,
+      caso.cidade_assinatura,
+    ),
     processoOrigemNumero: pickFirst(dados.processoOrigemNumero, caso.processoOrigemNumero),
     cidadeOriginaria: pickFirst(dados.cidadeOriginaria, caso.cidadeOriginaria),
     varaOriginaria: pickFirst(dados.varaOriginaria, caso.varaOriginaria),
     tipo_decisao: pickFirst(dados.tipo_decisao, caso.tipo_decisao),
     dia_pagamento: pickFirst(dados.dia_pagamento, caso.dia_pagamento),
-    percentual_salario_minimo: pickFirst(dados.percentual_salario_minimo, caso.percentual_salario_minimo),
+    percentual_salario_minimo: pickFirst(
+      dados.percentual_salario_minimo,
+      caso.percentual_salario_minimo,
+    ),
     periodo_meses_ano: pickFirst(dados.periodo_meses_ano, caso.periodo_meses_ano),
     opcaoGuarda: pickFirst(dados.opcaoGuarda, dados.opcao_guarda, caso.opcao_guarda),
-    descricaoGuarda: pickFirst(dados.descricaoGuarda, dados.descricao_guarda, caso.descricao_guarda),
+    descricaoGuarda: pickFirst(
+      dados.descricaoGuarda,
+      dados.descricao_guarda,
+      caso.descricao_guarda,
+    ),
   };
 };
 
 const buildSavePayload = (formState) => {
-  const isRepresentacao = formState.assistidoEhIncapaz === "sim";
+  const configAcao = ACOES_FAMILIA[formState.acaoEspecifica] || ACOES_FAMILIA.fixacao_alimentos;
+  const isRepresentacao = formState.assistidoEhIncapaz === "sim" || configAcao?.forcaRepresentacao;
   const nomeAssistido = isRepresentacao ? formState.NOME : formState.REPRESENTANTE_NOME;
   const cpfAssistido = isRepresentacao ? formState.cpf : formState.representante_cpf;
-  const nascimentoAssistido = isRepresentacao ? formState.nascimento : formState.representante_data_nascimento;
+  const nascimentoAssistido = isRepresentacao
+    ? formState.nascimento
+    : formState.representante_data_nascimento;
+  const outrosFilhos = normalizeFilhosCpf(formState.outrosFilhos);
 
   const dadosExtraidos = {
     ...formState,
+    cpf: digitsOnly(formState.cpf),
+    representante_cpf: digitsOnly(formState.representante_cpf),
+    executado_cpf: digitsOnly(formState.executado_cpf),
+    outrosFilhos,
     assistido_eh_incapaz: formState.assistidoEhIncapaz,
     nome_assistido: nomeAssistido,
-    cpf_assistido: cpfAssistido,
+    cpf_assistido: digitsOnly(cpfAssistido),
     data_nascimento_assistido: nascimentoAssistido,
     dados_bancarios_exequente: [
       formState.banco_deposito,
@@ -183,7 +261,7 @@ const buildSavePayload = (formState) => {
       .filter(Boolean)
       .join(" / "),
     nome_requerido: formState.REQUERIDO_NOME,
-    cpf_requerido: formState.executado_cpf,
+    cpf_requerido: digitsOnly(formState.executado_cpf),
     cidade_assinatura: formState.CIDADEASSINATURA,
     cidade_originaria: formState.cidadeOriginaria,
     vara_originaria: formState.varaOriginaria,
@@ -196,8 +274,8 @@ const buildSavePayload = (formState) => {
 
   return {
     partes: {
-      nome_assistido: nomeAssistido,
-      cpf_assistido: cpfAssistido,
+      nome_assistido: optionalText(nomeAssistido),
+      cpf_assistido: digitsOnly(cpfAssistido),
       data_nascimento_assistido: nascimentoAssistido,
       telefone_assistido: formState.requerente_telefone,
       email_assistido: formState.requerente_email,
@@ -206,8 +284,10 @@ const buildSavePayload = (formState) => {
       emissor_rg_assistido: isRepresentacao ? "" : formState.emissor_rg_exequente,
       assistido_eh_incapaz: formState.assistidoEhIncapaz,
       nome_representante: isRepresentacao ? formState.REPRESENTANTE_NOME : null,
-      cpf_representante: isRepresentacao ? formState.representante_cpf : null,
-      data_nascimento_representante: isRepresentacao ? formState.representante_data_nascimento : null,
+      cpf_representante: isRepresentacao ? digitsOnly(formState.representante_cpf) : null,
+      data_nascimento_representante: isRepresentacao
+        ? formState.representante_data_nascimento
+        : null,
       nacionalidade_representante: formState.representante_nacionalidade,
       estado_civil_representante: formState.representante_estado_civil,
       profissao_representante: formState.representante_ocupacao,
@@ -216,7 +296,7 @@ const buildSavePayload = (formState) => {
       nome_mae_representante: formState.nome_mae_representante,
       nome_pai_representante: formState.nome_pai_representante,
       nome_requerido: formState.REQUERIDO_NOME,
-      cpf_requerido: formState.executado_cpf,
+      cpf_requerido: digitsOnly(formState.executado_cpf),
       rg_requerido: formState.rg_executado,
       emissor_rg_requerido: formState.emissor_rg_executado,
       profissao_requerido: formState.executado_ocupacao,
@@ -227,7 +307,7 @@ const buildSavePayload = (formState) => {
       endereco_requerido: formState.executado_endereco_residencial,
       telefone_requerido: formState.executado_telefone,
       email_requerido: formState.executado_email,
-      exequentes: formState.outrosFilhos || [],
+      exequentes: outrosFilhos,
     },
     juridico: {
       numero_processo_titulo: formState.processoOrigemNumero,
@@ -320,7 +400,9 @@ export const InfoAssistido = ({ caso, onSave, isSaving = false }) => {
     const selecionados = formState.requeridoOutrosSelecionados || [];
     updateField(
       "requeridoOutrosSelecionados",
-      selecionados.includes(key) ? selecionados.filter((item) => item !== key) : [...selecionados, key],
+      selecionados.includes(key)
+        ? selecionados.filter((item) => item !== key)
+        : [...selecionados, key],
     );
   };
 
@@ -363,7 +445,12 @@ export const InfoAssistido = ({ caso, onSave, isSaving = false }) => {
             </p>
           </div>
           <div className="flex gap-2">
-            <button type="button" onClick={handleCancelEdit} className="btn btn-ghost border border-soft" disabled={isSaving}>
+            <button
+              type="button"
+              onClick={handleCancelEdit}
+              className="btn btn-ghost border border-soft"
+              disabled={isSaving}
+            >
               <X size={18} />
               Cancelar
             </button>
@@ -481,9 +568,13 @@ export const InfoAssistido = ({ caso, onSave, isSaving = false }) => {
   return (
     <div className="card space-y-4">
       <div className="flex justify-between items-start gap-3">
-        <h2 className="heading-2">Dados do assistido</h2>
+        <h2 className="heading-2">Resumo dos dados</h2>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={handleStartEdit} className="btn btn-ghost btn-sm border border-soft">
+          <button
+            type="button"
+            onClick={handleStartEdit}
+            className="btn btn-ghost btn-sm border border-soft"
+          >
             <Pencil size={16} />
             Editar
           </button>
@@ -512,7 +603,9 @@ export const InfoAssistido = ({ caso, onSave, isSaving = false }) => {
         </div>
         <div>
           <p className="text-xs text-muted uppercase tracking-wide">Nome da genitora</p>
-          <p className="font-semibold break-words">{formatValue(formState.nome_mae_representante)}</p>
+          <p className="font-semibold break-words">
+            {formatValue(formState.nome_mae_representante)}
+          </p>
         </div>
         <div>
           <p className="text-xs text-muted uppercase tracking-wide">Protocolo</p>
@@ -520,9 +613,12 @@ export const InfoAssistido = ({ caso, onSave, isSaving = false }) => {
         </div>
       </div>
 
-      <button onClick={() => setShowReview(!showReview)} className="btn btn-secondary w-full justify-start">
+      <button
+        onClick={() => setShowReview(!showReview)}
+        className="btn btn-secondary w-full justify-start"
+      >
         <Eye size={18} />
-        {showReview ? "Ocultar dados preenchidos" : "Revisar dados preenchidos"}
+        {showReview ? "Ocultar dados preenchidos" : "Revisar todos os dados preenchidos"}
       </button>
 
       {showReview && (
@@ -537,7 +633,10 @@ export const InfoAssistido = ({ caso, onSave, isSaving = false }) => {
           {isRepresentacao && (formState.outrosFilhos || []).length > 0 && (
             <ReviewSection title="Outros filhos">
               {(formState.outrosFilhos || []).map((filho, index) => (
-                <div key={`${filho.nome || "filho"}-${index}`} className="md:col-span-2 grid gap-3 md:grid-cols-3 border border-soft rounded-lg p-3">
+                <div
+                  key={`${filho.nome || "filho"}-${index}`}
+                  className="md:col-span-2 grid gap-3 md:grid-cols-3 border border-soft rounded-lg p-3"
+                >
                   <ReviewField label={`Filho ${index + 2}`} value={filho.nome} />
                   <ReviewField label="CPF" value={filho.cpf} />
                   <ReviewField label="Data de nascimento" value={filho.dataNascimento} />
@@ -549,13 +648,20 @@ export const InfoAssistido = ({ caso, onSave, isSaving = false }) => {
           <ReviewSection title={isRepresentacao ? "Representante legal" : "Dados de contato"}>
             <ReviewField label="Nome completo" value={formState.REPRESENTANTE_NOME} />
             <ReviewField label="CPF" value={formState.representante_cpf} />
-            <ReviewField label="Data de nascimento" value={formState.representante_data_nascimento} />
+            <ReviewField
+              label="Data de nascimento"
+              value={formState.representante_data_nascimento}
+            />
             <ReviewField label="Nacionalidade" value={formState.representante_nacionalidade} />
             <ReviewField label="Estado civil" value={formState.representante_estado_civil} />
             <ReviewField label="Profissao" value={formState.representante_ocupacao} />
             <ReviewField label="RG" value={formState.representante_rg} />
             <ReviewField label="Orgao emissor" value={formState.emissor_rg_exequente} />
-            <ReviewField label="Endereco residencial" value={formState.requerente_endereco_residencial} wide />
+            <ReviewField
+              label="Endereco residencial"
+              value={formState.requerente_endereco_residencial}
+              wide
+            />
             <ReviewField label="Telefone" value={formState.requerente_telefone} />
             <ReviewField label="E-mail" value={formState.requerente_email} />
             <ReviewField label="Nome da mae" value={formState.nome_mae_representante} />
@@ -573,7 +679,11 @@ export const InfoAssistido = ({ caso, onSave, isSaving = false }) => {
               <ReviewField label="Estado civil" value={formState.executado_estado_civil} />
               <ReviewField label="Telefone" value={formState.executado_telefone} />
               <ReviewField label="E-mail" value={formState.executado_email} />
-              <ReviewField label="Endereco residencial" value={formState.executado_endereco_residencial} wide />
+              <ReviewField
+                label="Endereco residencial"
+                value={formState.executado_endereco_residencial}
+                wide
+              />
               <ReviewField label="Mae do requerido" value={formState.nome_mae_executado} />
               <ReviewField label="Pai do requerido" value={formState.nome_pai_executado} />
             </ReviewSection>
@@ -591,7 +701,10 @@ export const InfoAssistido = ({ caso, onSave, isSaving = false }) => {
             {configAcao?.secoes?.includes("SecaoValoresPensao") && (
               <>
                 <ReviewField label="Valor da pensao" value={formState.valor_pensao} />
-                <ReviewField label="Dados bancarios" value={formState.dados_bancarios_exequente || formState.dados_bancarios_deposito} />
+                <ReviewField
+                  label="Dados bancarios"
+                  value={formState.dados_bancarios_exequente || formState.dados_bancarios_deposito}
+                />
                 <ReviewField label="Banco" value={formState.banco_deposito} />
                 <ReviewField label="Agencia" value={formState.agencia_deposito} />
                 <ReviewField label="Operacao" value={formState.conta_operacao} />
@@ -606,16 +719,26 @@ export const InfoAssistido = ({ caso, onSave, isSaving = false }) => {
                 <ReviewField label="Vara originaria" value={formState.varaOriginaria} />
                 <ReviewField label="Tipo de decisao" value={formState.tipo_decisao} />
                 <ReviewField label="Dia de pagamento" value={formState.dia_pagamento} />
-                <ReviewField label="Percentual salario minimo" value={formState.percentual_salario_minimo} />
+                <ReviewField
+                  label="Percentual salario minimo"
+                  value={formState.percentual_salario_minimo}
+                />
                 <ReviewField label="Periodo do debito" value={formState.periodo_meses_ano} />
                 <ReviewField label="Valor do debito" value={formState.valor_debito} />
               </>
             )}
             {configAcao?.secoes?.includes("SecaoEmpregoRequerido") && (
               <>
-                <ReviewField label="Emprego formal do requerido" value={formState.requerido_tem_emprego_formal} />
+                <ReviewField
+                  label="Emprego formal do requerido"
+                  value={formState.requerido_tem_emprego_formal}
+                />
                 <ReviewField label="Empregador" value={formState.empregador_nome} />
-                <ReviewField label="Endereco do empregador" value={formState.empregador_endereco} wide />
+                <ReviewField
+                  label="Endereco do empregador"
+                  value={formState.empregador_endereco}
+                  wide
+                />
                 <ReviewField label="E-mail do empregador" value={formState.empregador_email} />
               </>
             )}

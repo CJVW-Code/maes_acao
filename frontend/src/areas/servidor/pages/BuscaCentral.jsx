@@ -12,6 +12,7 @@ export const HomeCidadao = () => {
   const [error, setError] = useState(null);
   const [caseFound, setCaseFound] = useState(null);
   const [noCase, setNoCase] = useState(false);
+  const [copiedProcessNumber, setCopiedProcessNumber] = useState(null);
 
   // Função para limpar CPF
   const cleanCpf = (cpf) => cpf.replace(/\D/g, "");
@@ -96,9 +97,24 @@ export const HomeCidadao = () => {
   const handleCopyProcessNumber = async (numeroProcesso) => {
     if (!numeroProcesso) return;
     try {
-      await navigator.clipboard.writeText(numeroProcesso);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(numeroProcesso);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = numeroProcesso;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+
+      setCopiedProcessNumber(numeroProcesso);
+      window.setTimeout(() => setCopiedProcessNumber(null), 2000);
     } catch {
-      // Falha silenciosa para nÃ£o interromper a tela.
+      setError("Nao foi possivel copiar o numero do processo.");
     }
   };
 
@@ -251,7 +267,9 @@ export const HomeCidadao = () => {
                                     onClick={() => handleCopyProcessNumber(caso.numero_processo)}
                                     className="text-primary hover:text-primary text-sm whitespace-nowrap"
                                   >
-                                    Copiar
+                                    {copiedProcessNumber === caso.numero_processo
+                                      ? "Copiado"
+                                      : "Copiar"}
                                   </button>
                                 )}
                               </div>

@@ -4307,6 +4307,45 @@ export const salvarDadosJuridicos = async (req, res) => {
     }, {});
 
   const partesData = pickAllowed(body.partes, allowedPartesFields);
+  const normalizeCpfFields = (target, fields) => {
+    fields.forEach((field) => {
+      if (target[field] !== undefined && target[field] !== null) {
+        target[field] = String(target[field]).replace(/\D/g, "");
+      }
+    });
+  };
+  const cpfExtraFields = new Set([
+    "cpf",
+    "cpf_assistido",
+    "cpf_representante",
+    "representante_cpf",
+    "cpf_requerido",
+    "executado_cpf",
+    "requerente_cpf",
+  ]);
+  const normalizeCpfEntries = (value) => {
+    if (Array.isArray(value)) return value.map(normalizeCpfEntries);
+    if (!isPlainObject(value)) return value;
+
+    return Object.entries(value).reduce((acc, [key, item]) => {
+      acc[key] =
+        cpfExtraFields.has(key) && item !== undefined && item !== null
+          ? String(item).replace(/\D/g, "")
+          : normalizeCpfEntries(item);
+      return acc;
+    }, {});
+  };
+
+  normalizeCpfFields(partesData, ["cpf_assistido", "cpf_representante", "cpf_requerido"]);
+  for (const requiredPartesField of ["nome_assistido", "cpf_assistido"]) {
+    if (
+      partesData[requiredPartesField] === null ||
+      partesData[requiredPartesField] === undefined ||
+      String(partesData[requiredPartesField]).trim() === ""
+    ) {
+      delete partesData[requiredPartesField];
+    }
+  }
   const updateData = pickAllowed({ ...body, ...body.juridico }, allowedJuridicoFields);
 
   if (updateData.vencimento_dia !== undefined) {
@@ -4332,7 +4371,7 @@ export const salvarDadosJuridicos = async (req, res) => {
 
     const parsedExtra = safeJsonParse(iaRecord?.dados_extraidos, {});
     const currentExtra = isPlainObject(parsedExtra) ? parsedExtra : {};
-    const extraData = pickSafeExtra(body.dados_extraidos);
+    const extraData = normalizeCpfEntries(pickSafeExtra(body.dados_extraidos));
     const mergedExtra = { ...currentExtra, ...extraData };
 
     if (Object.keys(partesData).length > 0) {
@@ -4381,9 +4420,21 @@ export const salvarDadosJuridicos = async (req, res) => {
 
     if (isSupabaseConfigured) {
       if (Object.keys(partesData).length > 0) {
+        const currentPartes = await prisma.casos_partes.findUnique({
+          where: { caso_id: casoId },
+          select: { nome_assistido: true, cpf_assistido: true },
+        });
         const { error } = await supabase
           .from("casos_partes")
-          .upsert({ caso_id: id, ...partesData }, { onConflict: "caso_id" });
+          .upsert(
+            {
+              caso_id: id,
+              ...partesData,
+              nome_assistido: currentPartes?.nome_assistido || "Nao informado",
+              cpf_assistido: currentPartes?.cpf_assistido || "",
+            },
+            { onConflict: "caso_id" },
+          );
         if (error) throw error;
       }
 

@@ -26,9 +26,7 @@ export const Header = () => {
             {avatarLetter}
           </div>
           <div>
-            <p className="text-xs uppercase text-muted tracking-[0.3em]">
-              Painel do Defensor
-            </p>
+            <p className="text-xs uppercase text-muted tracking-[0.3em]">Painel do Defensor</p>
             <p className="text-lg font-semibold mt-1">
               {user?.cargo === "defensor" ? "Dr(a). " : ""}
               {defensorName}
@@ -40,7 +38,7 @@ export const Header = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap mr-4">
           <Link
             to="/"
             target="_blank"
