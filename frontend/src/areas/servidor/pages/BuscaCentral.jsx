@@ -106,15 +106,18 @@ export const HomeCidadao = () => {
         textarea.style.position = "fixed";
         textarea.style.opacity = "0";
         document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
+        try {
+          textarea.select();
+          document.execCommand("copy");
+        } finally {
+          document.body.removeChild(textarea);
+        }
       }
 
       setCopiedProcessNumber(numeroProcesso);
       window.setTimeout(() => setCopiedProcessNumber(null), 2000);
     } catch {
-      setError("Nao foi possivel copiar o numero do processo.");
+      setError("Não foi possivel copiar o numero do processo.");
     }
   };
 
@@ -305,9 +308,9 @@ export const HomeCidadao = () => {
                 </div>
               )}
             </div>
-        </div>
-      </motion.div>
+          </div>
+        </motion.div>
+      </div>
     </div>
-  </div>
-);
+  );
 };
