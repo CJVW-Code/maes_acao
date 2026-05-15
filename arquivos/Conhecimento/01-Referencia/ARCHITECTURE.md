@@ -370,10 +370,15 @@ Observacoes:
 ### 9.6 Edicao de Dados Preenchidos no Painel
 
 1. Na aba de visao geral de `/painel/casos/:id`, `InfoAssistido` monta um estado editavel a partir dos dados normalizados do caso e de `dados_extraidos`.
-2. O usuario interno pode revisar os dados e abrir secoes editaveis de assistido/representante, requerido e detalhes do caso.
-3. Ao salvar, o frontend chama `PATCH /api/casos/:id/juridico` com payload separado em `partes`, `juridico` e `dados_extraidos`.
-4. O backend faz upsert parcial em `casos_partes`, `casos_juridico` e `casos_ia`, usando whitelist de campos e mesclando o JSON flexivel existente.
-5. O fluxo nao regenera DOCX automaticamente. A interface avisa que a minuta deve ser regerada para refletir os dados salvos.
+2. O resumo compacto exibe nome, CPF, tipo de acao, unidade selecionada, nome da genitora e protocolo para revisao rapida.
+3. O usuario interno pode revisar os dados e abrir secoes editaveis de assistido/representante, requerido e detalhes do caso.
+4. Ao salvar, o frontend chama `PATCH /api/casos/:id/juridico` com payload separado em `partes`, `juridico` e `dados_extraidos`.
+5. `InfoAssistido` remove pontuacao dos CPFs enviados em `partes` e `dados_extraidos`, incluindo CPF do assistido, representante, requerido e outros filhos.
+6. O backend faz upsert parcial em `casos_partes`, `casos_juridico` e `casos_ia`, usando whitelist de campos e mesclando o JSON flexivel existente.
+7. O backend valida `dados_extraidos` como objeto simples, bloqueia arquivos brutos/URLs geradas e normaliza CPFs antes da persistencia.
+8. A transacao Prisma e executada antes dos upserts espelho no Supabase, quando Supabase esta configurado.
+9. O fluxo nao regenera DOCX automaticamente. A interface avisa que a minuta deve ser regerada para refletir os dados salvos.
+10. Admins podem alterar apenas a `cidade_assinatura` por um controle dedicado em `DetalhesCaso`, usando a mesma rota juridica e exibindo aviso sobre regerar a minuta.
 
 ### 9.7 FAQ Publica
 

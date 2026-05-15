@@ -254,14 +254,17 @@ Endpoint: `PATCH /api/casos/:id/juridico`.
 Regras atuais:
 
 - A tela interna de detalhes do caso permite revisar e editar dados preenchidos a partir do componente `InfoAssistido`.
+- O resumo compacto de `InfoAssistido` mostra tambem a unidade selecionada e o nome da genitora para conferencia rapida.
 - Antes de salvar, o frontend exibe aviso de que a minuta deve ser regerada e que edicoes manuais na minuta atual podem ser perdidas na regeneracao.
 - O payload aceito pode conter `partes`, `juridico` e `dados_extraidos`.
 - `partes` atualiza campos permitidos de qualificacao em `casos_partes`.
 - `juridico` atualiza campos permitidos em `casos_juridico`; `vencimento_dia` e convertido para inteiro ou `null`.
-- `dados_extraidos` e mesclado ao JSON atual de `casos_ia.dados_extraidos`.
+- `InfoAssistido` envia CPFs sem pontuacao para assistido, representante, requerido e outros filhos; o backend repete a normalizacao para proteger clientes antigos ou alternativos.
+- `dados_extraidos` precisa ser objeto simples; quando valido, e mesclado ao JSON atual de `casos_ia.dados_extraidos`.
 - A rota bloqueia persistencia de arquivos brutos e URLs geradas em `dados_extraidos`, incluindo `audioBlob`, `documentFiles`, arquivos de calculo e chaves iniciadas por `url_`.
 - Se nenhum campo editavel for enviado, retorna HTTP 400.
-- Quando Supabase esta configurado, a rota tambem executa upserts diretos no Supabase antes da transacao Prisma local.
+- A persistencia local usa transacao Prisma; quando Supabase esta configurado, os upserts espelho no Supabase ocorrem depois dessa transacao.
+- Admins podem alterar `cidade_assinatura` em um controle dedicado de `DetalhesCaso`; essa alteracao tambem usa `PATCH /api/casos/:id/juridico` e vale para proximas minutas geradas.
 
 ---
 

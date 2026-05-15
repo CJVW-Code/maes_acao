@@ -2,16 +2,15 @@ import React, { useEffect, useReducer, useState } from "react";
 import { ChevronDown, Eye, Loader2, Pencil, Save, X } from "lucide-react";
 import { formatTipoAcaoLabel } from "../../../../utils/caseUtils";
 import {
-  formatCpf,
-  formatCurrencyMask,
-  formatDateMask,
-  formatMonthYearMask,
-  formatPhone,
-  formatRgNumber,
+  parseBrDateToIso,
+  stripNonDigits,
+  validateBrDate,
+  validateCpfAlgorithm,
 } from "../../../../utils/formatters";
 import { ACOES_FAMILIA } from "../../../../config/formularios/acoes/familia";
 import { useToast } from "../../../../contexts/ToastContext";
 import { formReducer, initialState } from "../../../servidor/state/formState";
+import { useFormHandlers } from "../../../servidor/hooks/useFormHandlers";
 import { StepDadosPessoais } from "../../../servidor/components/StepDadosPessoais";
 import { StepRequerido } from "../../../servidor/components/StepRequerido";
 import { StepDetalhesCaso } from "../../../servidor/components/StepDetalhesCaso";
@@ -334,6 +333,136 @@ const buildSavePayload = (formState) => {
   };
 };
 
+const validateEditForm = ({ formState, configAcao, isAlvara }) => {
+  const validationErrors = {};
+  const today = new Date().toISOString().split("T")[0];
+  const nomeRequeridoTrim = (formState.REQUERIDO_NOME || "").trim();
+  const enderecoRequeridoTrim = (formState.executado_endereco_residencial || "").trim();
+  const telefoneRequeridoDigits = stripNonDigits(formState.executado_telefone || "");
+
+  if (!isAlvara) {
+    if (!nomeRequeridoTrim) {
+      validationErrors.REQUERIDO_NOME = "Informe o nome completo da outra parte.";
+    }
+    if (!enderecoRequeridoTrim && !telefoneRequeridoDigits) {
+      validationErrors.requeridoContato = "Informe pelo menos um endereco ou telefone da outra parte.";
+    }
+  }
+
+  if (formState.assistidoEhIncapaz === "sim") {
+    if (!formState.NOME) validationErrors.NOME = "O nome da crianca e obrigatorio.";
+    if (!formState.REPRESENTANTE_NOME) {
+      validationErrors.REPRESENTANTE_NOME = "O nome da genitora/representante e obrigatorio.";
+    }
+  } else if (!formState.REPRESENTANTE_NOME) {
+    validationErrors.REPRESENTANTE_NOME = "O nome completo e obrigatorio.";
+  }
+
+  if (!formState.representante_cpf) {
+    validationErrors.representante_cpf = "O CPF e obrigatorio.";
+  }
+
+  const enderecoResidencial = (formState.requerente_endereco_residencial || "").trim();
+  if (!enderecoResidencial) {
+    validationErrors.requerente_endereco_residencial = "O endereco residencial e obrigatorio.";
+  } else if (!/\b\d{5}-?\d{3}\b/.test(enderecoResidencial)) {
+    validationErrors.requerente_endereco_residencial =
+      "CEP invalido ou ausente no endereco. Use o formato 00000-000.";
+  }
+
+  if (!formState.requerente_telefone) {
+    validationErrors.requerente_telefone = "O telefone de contato e obrigatorio.";
+  }
+
+  if (
+    configAcao?.secoes?.includes("SecaoValoresPensao") &&
+    formState.acaoEspecifica !== "execucao_alimentos" &&
+    !formState.valor_pensao
+  ) {
+    validationErrors.valor_pensao = "O valor da pensao e obrigatorio.";
+  }
+
+  if (!configAcao?.camposGerais?.ocultarDetalhesGerais) {
+    if (!formState.opcaoGuarda) {
+      validationErrors.opcaoGuarda =
+        "O preenchimento de Guarda da Crianca e Direito de Convivencia / Visitas e obrigatorio.";
+    } else if (formState.opcaoGuarda === "regularizar" && !formState.descricaoGuarda?.trim()) {
+      validationErrors.descricaoGuarda = "Descreva como deseja que funcione a guarda e visitas.";
+    }
+  }
+
+  if (configAcao?.exigeDadosProcessoOriginal) {
+    if (!formState.data_inicio_debito) {
+      validationErrors.data_inicio_debito = "O mes inicial do debito e obrigatorio.";
+    }
+    if (!formState.data_fim_debito) {
+      validationErrors.data_fim_debito = "O mes final do debito e obrigatorio.";
+    }
+    if (!formState.valor_debito) {
+      validationErrors.valor_debito = "O valor total do debito e obrigatorio.";
+    }
+    if (!formState.percentual_salario_minimo) {
+      validationErrors.percentual_salario_minimo = "O percentual do salario minimo e obrigatorio.";
+    }
+  }
+
+  const campoDataNasc =
+    formState.assistidoEhIncapaz === "sim" ? "nascimento" : "representante_data_nascimento";
+  const dataInputValue = formState[campoDataNasc];
+  const dataIso = parseBrDateToIso(dataInputValue);
+
+  if (!dataInputValue) {
+    validationErrors[campoDataNasc] = "A data de nascimento e obrigatoria.";
+  } else if (!validateBrDate(dataInputValue)) {
+    validationErrors[campoDataNasc] = "Informe uma data de calendario valida (Ex: 31/12/1990).";
+  } else if (!dataIso) {
+    validationErrors[campoDataNasc] = "Formato de data invalido (DD/MM/AAAA).";
+  } else if (dataIso > today) {
+    validationErrors[campoDataNasc] = "A data de nascimento nao pode estar no futuro.";
+  }
+
+  if (formState.representante_cpf && !validateCpfAlgorithm(formState.representante_cpf)) {
+    validationErrors.representante_cpf = "CPF da representante invalido.";
+  }
+
+  if (
+    formState.assistidoEhIncapaz === "sim" &&
+    formState.cpf &&
+    !validateCpfAlgorithm(formState.cpf)
+  ) {
+    validationErrors.cpf = "CPF da crianca invalido.";
+  }
+
+  if (formState.executado_cpf && !validateCpfAlgorithm(formState.executado_cpf)) {
+    validationErrors.executado_cpf = "O CPF da outra parte e invalido.";
+  }
+
+  if (formState.outrosFilhos?.length > 0) {
+    formState.outrosFilhos.forEach((filho, index) => {
+      if (filho.cpf && !validateCpfAlgorithm(filho.cpf)) {
+        validationErrors[`filho_cpf_${index}`] = `O CPF do Filho(a) ${index + 2} e invalido.`;
+      }
+
+      const filhoDataInput = filho.dataNascimento;
+      if (!filhoDataInput) {
+        validationErrors[`filho_nascimento_${index}`] =
+          `A data de nascimento do Filho(a) ${index + 2} e obrigatoria.`;
+      } else if (!validateBrDate(filhoDataInput)) {
+        validationErrors[`filho_nascimento_${index}`] =
+          `Data invalida no Filho(a) ${index + 2} (Ex: 31/12/1990).`;
+      } else {
+        const filhoIso = parseBrDateToIso(filhoDataInput);
+        if (filhoIso && filhoIso > today) {
+          validationErrors[`filho_nascimento_${index}`] =
+            `A data do Filho(a) ${index + 2} nao pode estar no futuro.`;
+        }
+      }
+    });
+  }
+
+  return validationErrors;
+};
+
 export const InfoAssistido = ({ caso, onSave, isSaving = false }) => {
   const { toast } = useToast();
   const [showReview, setShowReview] = useState(false);
@@ -351,60 +480,26 @@ export const InfoAssistido = ({ caso, onSave, isSaving = false }) => {
 
   const configAcao = ACOES_FAMILIA[formState.acaoEspecifica] || ACOES_FAMILIA.fixacao_alimentos;
   const isRepresentacao = formState.assistidoEhIncapaz === "sim" || configAcao?.forcaRepresentacao;
+  const isAlvara = configAcao?.isAlvara || false;
 
-  const updateField = (field, value) => dispatch({ type: "UPDATE_FIELD", field, value });
-  const clearError = (field) =>
-    setFormErrors((current) => {
-      const updated = { ...current };
-      delete updated[field];
-      delete updated.requeridoContato;
-      return updated;
-    });
+  const {
+    handleFieldChange,
+    handleCpfChangeAndValidate,
+    handlePhoneChange,
+    handleDateChange,
+    handleMonthYearChange,
+    handleRgChange,
+    toggleRequeridoDetalhe,
+    handleCurrencyChange,
+    handleDayInputChange,
+    handleRestrictedAlphanumeric,
+  } = useFormHandlers({ formState, dispatch, setFormErrors, toast });
 
-  const handleFieldChange = (event) => {
-    updateField(event.target.name, event.target.value);
-    clearError(event.target.name);
-  };
-  const handleCpfChangeAndValidate = (field) => (event) => {
-    updateField(field, formatCpf(event.target.value));
-    clearError(field);
-  };
-  const handlePhoneChange = (field) => (event) => {
-    updateField(field, formatPhone(event.target.value));
-    clearError(field);
-  };
-  const handleRgChange = (field) => (event) => {
-    updateField(field, formatRgNumber(event.target.value));
-    clearError(field);
-  };
-  const handleDateChange = (field) => (event) => {
-    updateField(field, formatDateMask(event.target.value));
-    clearError(field);
-  };
-  const handleCurrencyChange = (field) => (event) => {
-    updateField(field, formatCurrencyMask(event.target.value));
-    clearError(field);
-  };
-  const handleMonthYearChange = (field) => (event) => {
-    updateField(field, formatMonthYearMask(event.target.value));
-    clearError(field);
-  };
-  const handleDayInputChange = (field) => (event) => {
-    const parsed = parseInt(event.target.value, 10);
-    updateField(field, Number.isNaN(parsed) ? "" : String(Math.min(Math.max(parsed, 1), 31)));
-    clearError(field);
-  };
-  const handleRestrictedAlphanumeric = handleFieldChange;
-  const validar = () => ({});
-  const toggleRequeridoDetalhe = (key) => {
-    const selecionados = formState.requeridoOutrosSelecionados || [];
-    updateField(
-      "requeridoOutrosSelecionados",
-      selecionados.includes(key)
-        ? selecionados.filter((item) => item !== key)
-        : [...selecionados, key],
-    );
-  };
+  const validar = (msg) => ({
+    required: true,
+    onInvalid: (e) => e.target.setCustomValidity(msg || "Por favor, preencha este campo."),
+    onInput: (e) => e.target.setCustomValidity(""),
+  });
 
   const handleCancelEdit = () => {
     dispatch({ type: "LOAD_RASCUNHO", payload: buildFormStateFromCase(caso) });
@@ -420,6 +515,15 @@ export const InfoAssistido = ({ caso, onSave, isSaving = false }) => {
 
   const handleSubmitEdit = async (event) => {
     event.preventDefault();
+    const validationErrors = validateEditForm({ formState, configAcao, isAlvara });
+
+    if (Object.keys(validationErrors).length > 0) {
+      setFormErrors(validationErrors);
+      toast.error("Existem campos obrigatorios nao preenchidos ou invalidos.");
+      return;
+    }
+
+    setFormErrors({});
     await onSave?.(buildSavePayload(formState));
     setShowReview(true);
     setIsEditing(false);
@@ -436,7 +540,7 @@ export const InfoAssistido = ({ caso, onSave, isSaving = false }) => {
 
   if (isEditing) {
     return (
-      <form onSubmit={handleSubmitEdit} className="card space-y-6">
+      <form onSubmit={handleSubmitEdit} className="card space-y-6" noValidate>
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
             <h2 className="heading-2">Editar dados preenchidos</h2>
@@ -506,7 +610,7 @@ export const InfoAssistido = ({ caso, onSave, isSaving = false }) => {
             />
           </EditAccordionSection>
 
-          {!configAcao?.ocultarDadosRequerido && (
+          {!isAlvara && (
             <EditAccordionSection
               id="parte_contraria"
               title="Parte contraria"

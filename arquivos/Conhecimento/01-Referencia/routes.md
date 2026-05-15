@@ -136,7 +136,11 @@ Antes destas rotas, o router aplica `requireWriteAccess`.
 - `finalizar` define `status = "protocolado"`.
 - `PATCH /:id/juridico` aceita payload parcial com chaves `partes`, `juridico` e `dados_extraidos`.
 - O salvamento de dados preenchidos usa whitelist de campos para `casos_partes` e `casos_juridico`; campos fora da lista sao ignorados.
+- CPFs enviados por essa rota sao persistidos sem pontuacao em `partes` e em entradas conhecidas de `dados_extraidos`.
+- `dados_extraidos` deve ser objeto simples; valores invalidos nao viram merge de JSON flexivel.
 - Em `dados_extraidos`, arquivos brutos e URLs geradas (`audioBlob`, `documentFiles`, `calculo_prisao_arquivo`, `calculo_penhora_arquivo`, `url_*`) nao sao persistidos por essa rota.
+- A rota executa a transacao Prisma antes dos upserts espelho no Supabase, quando Supabase esta configurado.
+- O controle admin de cidade de assinatura em `DetalhesCaso` usa esta rota enviando `juridico.cidade_assinatura`.
 
 ---
 
