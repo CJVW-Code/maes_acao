@@ -94,7 +94,8 @@ const secoes = [
     passos: [
       {
         tipo: "passo",
-        texto: "Acessar o Portal do Cidadão, digita o CPF da assitida e clica em Nova Atendimento",
+        texto:
+          "Acessar o Portal do Cidadão, pesquisar o CPF da assistida e clicar em Iniciar Novo Atendimento quando não houver caso existente.",
       },
       {
         tipo: "atenção",
@@ -122,12 +123,12 @@ const secoes = [
       {
         tipo: "atenção",
         texto:
-          "Se marcar 'Enviar documentos depois' o caso só será processado após o envio dos documentos (Isso será na Etapa 2).",
+          "Se marcar 'Enviar documentos depois', o caso ficará em Aguardando Documentos. Após o scanner anexar os arquivos, o status muda para Documentação Completa e aguardará o acionamento do processamento.",
       },
       {
         tipo: "passo",
         texto:
-          "Envia o caso → sistema gera o Protocolo automaticamente. A minuta é gerada após o upload dos documentos e o processamento em background.",
+          "Enviar o caso → o sistema gera o Protocolo automaticamente. A partir daí, acompanhe o status do atendimento no Defsul.",
       },
     ],
     campos: [
@@ -146,16 +147,6 @@ const secoes = [
         nivel: "critico",
         motivo:
           "Obrigatório. Define o fluxo do caso. Se errar, só com intervenção do Admin para corrigir o que pode atrasar o fluxo",
-      },
-      {
-        campo: "Data da última parcela",
-        nivel: "atenção",
-        motivo: "Campo crítico para execuções de alimentos",
-      },
-      {
-        campo: "Valor da dívida (Execução)",
-        nivel: "atenção",
-        motivo: "Determina se cabe rito de prisão (≥ 3 meses)",
       },
       {
         campo: "CPF do Requerido e/ou Criança/Adolescente",
@@ -189,7 +180,7 @@ const secoes = [
       {
         tipo: "atenção",
         texto:
-          "Após finalizar, o caso será processado e disponibilzar a minuta. Não é necessário aguardar na tela.",
+          "Após finalizar, o caso sai de Aguardando Documentos e fica como Documentação Completa. O scanner apenas anexa os documentos; o processamento da IA/minuta acontece no fluxo de análise ou reprocessamento.",
       },
     ],
     campos: [],
@@ -237,18 +228,19 @@ const secoes = [
     titulo: "Servidor — Analista",
     subtitulo:
       "Revisa a minuta gerada, analisa os documentos, cadastra no SOLAR/SIGAD e libera para o Protocolo",
-    status_resultado: "→ liberado para protocolo",
+    status_resultado: "pronto para análise → em atendimento → liberado para protocolo",
     passos: [
       { tipo: "passo", texto: "Filtrar casos por status Pronto para Análise" },
-      { tipo: "passo", texto: "Abri o caso" },
+      { tipo: "passo", texto: "Abrir o caso. Ao assumir, o status muda para Em Atendimento." },
       {
         tipo: "critico",
         texto:
-          "Ao abrir, o caso e todos os casos relacionado (da mesma mãe) fica travado no seu nome. Nenhum outro servidor consegue editar ou abrir o caso. O caso será liberado assim que voce mudar o status para 'liberado para protocolo'.",
+          "Ao abrir, o caso e os casos relacionados da mesma mãe ficam travados no seu nome quando estiverem livres e na mesma unidade. Nenhum outro servidor consegue editar o caso travado. O lock é limpo quando o status volta para Pronto para Análise ou avança para Liberado para Protocolo.",
       },
       {
         tipo: "info",
-        texto: "Se necessário você pode compartilhar o caso com outra pessoa utilizando.",
+        texto:
+          "Se precisar que outra pessoa continue a análise, salve as anotações em Feedback e solicite a liberação do bloqueio a um perfil autorizado.",
       },
       {
         tipo: "info",
@@ -260,6 +252,16 @@ const secoes = [
         tipo: "info",
         texto:
           "Você pode baixar a minuta, editá-la e salvar, depois basta você anexar a versão atualizada no sistema e sinalizar em Feedback na aba Gestão.",
+      },
+      {
+        tipo: "atenção",
+        texto:
+          "Se editar dados do atendimento em Dados Preenchidos, salve e depois regenere a minuta para atualizar o DOCX. Ao regerar, a minuta atual é substituída e edições manuais feitas nela podem ser perdidas.",
+      },
+      {
+        tipo: "info",
+        texto:
+          "Na tela do caso, use Regerar Minuta com Novos Dados para atualizar o documento Word com os dados salvos; perfis admin também podem regerar o texto com IA quando for necessário refazer os fatos.",
       },
       { tipo: "passo", texto: "Na aba 'Visão Geral', clicar em Baixar Tudo (.zip)" },
       {
@@ -274,7 +276,12 @@ const secoes = [
       {
         tipo: "passo",
         texto:
-          "Após fazer a análise e cadastrar no Sistema de atendimento usado pela sua unidade adicione essa e outras informações se necessário no campo Feedback/Anotações e mude o status para 'Liberado para Protocolo'.",
+          "Após fazer a análise e cadastrar no sistema de atendimento usado pela sua unidade, registre o que foi feito em Feedback/Anotações e mude o status para Liberado para Protocolo.",
+      },
+      {
+        tipo: "atenção",
+        texto:
+          "Ao escolher Liberado para Protocolo, o sistema abre a distribuição/seleção do defensor antes de encaminhar. Depois da confirmação, o caso fica disponível para o defensor assumir o protocolo.",
       },
     ],
     campos: [],
@@ -286,10 +293,14 @@ const secoes = [
     icon: GraduationCap,
     titulo: "Defensor — Protocolo e Finalização",
     subtitulo: "Protocola o caso e finaliza o caso no Defsul",
-    status_resultado: "liberado para protocolo → protocolado",
+    status_resultado: "liberado para protocolo → em protocolo → protocolado",
     passos: [
       { tipo: "passo", texto: "Filtrar casos por status Liberado para Protocolo" },
-      { tipo: "passo", texto: "Assumir o caso (lock permanente — mesma regra do servidor)." },
+      {
+        tipo: "passo",
+        texto:
+          "Assumir o caso. Ao assumir, o sistema muda o status para Em Protocolo e aplica o lock de defensor.",
+      },
       {
         tipo: "passo",
         texto: "Na aba Gestão & Finalização, Verificar o campo 'Anotações / Feedback'.",
@@ -602,9 +613,24 @@ export const GuiaOperacional = () => {
               desc: "Minuta pronta para revisão do servidor jurídico.",
             },
             {
+              label: "em atendimento",
+              colorKey: "laranja",
+              desc: "Servidor assumiu o caso e está fazendo a revisão jurídica.",
+            },
+            {
               label: "liberado para protocolo",
               colorKey: "success",
               desc: "Aprovado e pronto para o sistema oficial.",
+            },
+            {
+              label: "em protocolo",
+              colorKey: "secondary",
+              desc: "Defensor assumiu o caso e está realizando o protocolo.",
+            },
+            {
+              label: "protocolado",
+              colorKey: "success",
+              desc: "Caso concluído no Defsul com número do processo e capa processual.",
             },
           ].map((s, i) => (
             <div
