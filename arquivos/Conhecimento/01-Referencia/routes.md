@@ -1,334 +1,281 @@
-# Referência da API — Mães em Ação · DPE-BA
+# Referencia da API - Maes em Acao / DPE-BA
 
-> **Versão:** 4.5 · **Atualizado em:** 2026-04-30 (System Configs + Announcements + BI Overrides)
+> **Versao:** 6.0
+> **Atualizado em:** 2026-05-12
+> **Fonte:** `backend/server.js` e `backend/src/routes/*.js`
 
-Esta documentação lista as principais rotas do backend do Mães em Ação.  
-Todas as rotas são prefixadas com `/api`. Exemplo: `https://api.mutirao.dpe.ba.gov.br/api/casos`.
-
----
-
-## 🛡️ Autenticação
-
-Para rotas marcadas como **Protegidas**, é exigido o envio de um token JWT no cabeçalho `Authorization`:
-`Authorization: Bearer <seu_token_aqui>`
-
-### Cargos e Permissões (`cargo`)
-O sistema utiliza os seguintes cargos, extraídos do JWT:
-* `admin`, `gestor`: Acesso total (leitura, escrita e ações críticas/destrutivas). Bypass global de unidade. Pode listar e gerenciar defensores de todas as sedes.
-* `coordenador`: Acesso de leitura e escrita. Restricted a casos da própria unidade via `requireSameUnit`. Pode gerenciar defensores da sua própria unidade.
-* `defensor`, `servidor`, `estagiario`: Acesso de leitura e escrita. Restricted a casos da própria unidade. **Novidade:** Distribuição de casos agora valida o cargo do profissional alvo conforme o nível de atendimento (L1/L2).
-* `visualizador`: Apenas leitura (bloqueado pelo middleware `requireWriteAccess`). Restricted a casos da própria unidade.
-
-> **RBAC Case-Insensitive:** O sistema normaliza todos os cargos para minúsculas antes da validação, garantindo consistência técnica independente da entrada no banco de dados.
+Todas as rotas abaixo sao prefixadas por `/api`, exceto quando indicado.
 
 ---
 
-## 1. Casos (`/api/casos`)
+## 1. Convencoes de Seguranca
 
-### Rotas Públicas
-Rotas acessíveis por qualquer usuário (ex: assistidos submetendo demandas).
+### Autenticacao JWT
 
-| Método | Rota                       | Descrição                                                                    |
-| :----- | :------------------------- | :--------------------------------------------------------------------------- |
-| `POST` | `/novo`                    | Cria um novo caso. Aceita `multipart/form-data` contendo áudio e documentos. |
-| `GET`  | `/buscar-cpf`              | Busca casos pelo CPF do assistido.                                           |
-| `POST` | `/:id/upload-complementar` | Envio de documentos complementares para um caso existente.                   |
-| `POST` | `/:id/reagendar`           | Solicita o reagendamento de um caso pelo assistido.                          |
+Rotas protegidas recebem:
 
-### Rotas de Controle de Sessão (Locking)
-Exigem autenticação. Fundamentais para evitar edição concorrente.
+```http
+Authorization: Bearer <jwt>
+```
 
-| Método | Rota            | Descrição                                                |
-| :----- | :-------------- | :------------------------------------------------------- |
-| `PATCH`| `/:id/lock`     | Tenta travar o caso para o usuário (Retorna 423 se ocupado)|
-| `PATCH`| `/:id/unlock`   | Libera o caso manualmente para outros usuários           |
+O token e validado por `authMiddleware` com `JWT_SECRET` e algoritmo `HS256`.
 
-> **Nota:** Todas as rotas que utilizam o parâmetro `/:id` (exceto uploads públicos) aplicam o middleware `requireSameUnit`, impedindo acesso cruzado entre unidades.
+### API Key do Scanner
 
-### Rotas de Scanner (Balcão)
-Endpoint otimizado para alto volume.
+Rotas de scanner recebem:
 
-| Método | Rota            | Descrição                                         |
-| :----- | :-------------- | :------------------------------------------------ |
-| `POST` | `/api/scanner/upload` | Upload em lote de documentos via aplicativo/web |
+```http
+x-api-key: <API_KEY_SERVIDORES>
+```
 
-### Rotas Protegidas (Leitura)
-Exigem autenticação do Defensor.
+### Ticket de Download
 
-| Método | Rota             | Descrição                                                             |
-| :----- | :--------------- | :-------------------------------------------------------------------- |
-| `GET`  | `/`              | Lista e filtra os casos.                                              |
-| `GET`  | `/resumo`        | Retorna o resumo de contagens para o Dashboard (sem dados sensíveis). |
-| `GET`  | `/notificacoes`  | Lista notificações dos casos do defensor.                             |
-| `GET`  | `/:id`           | Retorna os detalhes completos de um caso específico.                  |
-| `GET`  | `/:id/historico` | Retorna a trilha de auditoria/histórico do caso.                      |
+Downloads diretos usam ticket curto em query string:
 
-### Rotas Protegidas (Escrita)
-Exigem autenticação e permissão de modificação.
+```http
+GET /api/casos/:id/download-zip?ticket=<ticket>
+GET /api/casos/:id/documento/download?ticket=<ticket>&path=<storage_path>
+```
 
-| Método   | Rota                        | Descrição                                                              |
-| :------- | :-------------------------- | :--------------------------------------------------------------------- |
-| `PATCH`  | `/notificacoes/:id/lida`    | Marca notificação como lida.                                           |
-| `POST`   | `/:id/gerar-fatos`          | Regenera o sumário dos fatos via IA.                                   |
-| `POST`   | `/:id/gerar-termo`          | Gera o Termo de Declaração.                                            |
-| `POST`   | `/:id/finalizar`            | Finaliza o caso e integra com sistema Solar (opcional upload de capa). |
-| `POST`   | `/:id/reverter-finalizacao` | Desfaz a finalização do caso.                                          |
-| `POST`   | `/:id/resetar-chave`        | Reseta a chave de acesso do caso.                                      |
-| `PATCH`  | `/:id/status`               | Altera manualmente o status do caso.                                   |
-| `DELETE` | `/:id`                      | Deleta completamente o caso.                                           |
-| `PATCH`  | `/:id/feedback`             | Salva feedback do defensor sobre o caso.                               |
-| `PATCH`  | `/:id/agendar`              | Realiza o agendamento de uma reunião.                                  |
-| `POST`   | `/:id/regerar-minuta`       | Recria a minuta da petição via IA.                                     |
-| `POST`   | `/:id/upload-minuta`        | Substitui a minuta do caso por um arquivo `.docx` enviado manualmente. |
-| `POST`   | `/:id/reprocessar`          | Reprocessa arquivos do caso na fila.                                   |
-| `PATCH`  | `/:id/documento/renomear`   | Renomeia um documento específico do caso.                              |
-| `PATCH`  | `/:id/arquivar`             | Arquiva ou desarquiva um caso.                                         |
-| `POST`   | `/:id/distribuir`           | Distribui o caso para um profissional. Exige cargo privilegiado.       |
+O ticket e gerado por `POST /api/casos/:id/gerar-ticket-download`.
 
-### Rotas de Download Seguro (Ticket JWT)
-Um ticket de curta duração deve ser obtido via `POST /:id/gerar-ticket-download` e usado nas rotas abaixo. O ticket evita expor o JWT principal em URLs de download.
+### Middlewares Importantes
 
-| Método | Rota                         | Descrição                                                             |
-| :----- | :--------------------------- | :---------------------------------------------------------------------- |
-| `POST` | `/:id/gerar-ticket-download` | Gera ticket JWT `{ purpose: "download" }` para download autenticado.   |
-| `GET`  | `/:id/download-zip`          | Baixa todos os documentos do caso como `.zip` (usando `?ticket=`).     |
-| `GET`  | `/:id/documento/download`    | Baixa um documento individual (usando `?ticket=&path=`).               |
-
-### Detalhamento das Rotas de Casos
-
-#### `POST /novo`
-*Pública* — Submissão de demanda pelo assistido.
-* **Request:**
-  * Headers: `Content-Type: multipart/form-data`
-  * Body (Form Data): `audio` (File, Opc), `documentos` (Array de Files, máx 20, Opc), `nome` (String, Obrig), `cpf` (String, Obrig, 11 dígitos, sem restrição de unicidade), `telefone` (String, Obrig), `tipoAcao` (String, Obrig), `dados_formulario` (JSON Object).
-* **Response (201 Created):** `{ "protocolo": "...", "chaveAcesso": "...", "message": "...", "status": "recebido", "avisos": [] }`
-* **Erro:** `400` CPF inválido, `500` erro geral.
-* **Observação:** Salva arquivos no Supabase e dispara o job QStash para processar a IA.
-
-#### `GET /buscar-cpf`
-*Pública* — Assistido consultando seus casos.
-* **Request:** Query Param: `cpf`
-* **Response (200 OK):** Array simplificado de casos.
-
-#### `POST /:id/upload-complementar`
-*Pública* — Para o assistido enviar documentos quando status `aguardando_docs`.
-* **Request:** Form Data com `cpf`, `chave` e `documentos` (Array de Files).
-* **Observação:** Requer autenticação por chave de acesso sem hash (o backend hasheia e verifica). Altera status para `documentos_entregues`.
-
-#### `POST /:id/reagendar`
-*Pública*
-* **Request:** JSON com `cpf`, `chave`, `motivo`, `data_sugerida`.
-* **Observação:** Move o atual para tabela de histórico, anula os dados do agendamento corrente e muda o status principal para `reagendamento_solicitado`.
-
-#### `GET /`
-*Protegida*
-* **Request:** Query Params: `arquivado` (Boolean, default: false), `cpf` (String), `limite` (Number).
-* **Response (200 OK):** Lista de casos ordenados temporalmente.
-
-#### `GET /resumo`
-*Protegida*
-* **Response (200 OK):** Contagens agrupadas por status estatísticos, alimentando os cards no dashboard.
-
-#### `GET /notificacoes`
-*Protegida*
-* **Response (200 OK):** As 20 notificações mais recentes do sistema (ex: de uplaods).
-
-#### `GET /:id`
-*Protegida*
-* **Response (200 OK):** Objeto com todas urls de documentos, `dados_formulario` destrinchados.
-
-#### `GET /:id/historico`
-*Protegida*
-* **Request:** Query Params: `entidade` (default: "casos").
-* **Response (200 OK):** Array de logs de auditoria mostrando `acao`, `entidade` e nome preenchido do defensor vinculados àquele caso.
-* **Segurança LGPD:** Metadados de auditoria em operações de distribuição e arquivamento são sanitizados para remover nomes e CPFs das partes, mantendo apenas IDs técnicos.
-
-#### `PATCH /notificacoes/:id/lida`
-*Protegida*
-* **Observação:** Marca `lida = true` na notificação pelo ID.
-
-#### `POST /:id/gerar-fatos`
-*Protegida (Exclusiva para `admin`)*
-* **Response (200 OK):** Caso atualizado com conteúdo da IA regerado e sanitizado (ex: sem expor dados originais via placeholders PII) e salvo em `peticao_inicial_rascunho`.
-* **Erro:** `403` Acesso Negado (caso user logado não seja `admin`).
-
-#### `POST /:id/gerar-termo`
-*Protegida (Exclusiva para `admin`)*
-* **Request:** Body vazio.
-* **Observação:** Renderiza em background (via docxtemplater) o formato físico do Termo de Declaração no Bucket, salvando link gerado.
-
-#### `POST /:id/finalizar`
-*Protegida (Requer escrita `requireWriteAccess`)*
-* **Request:** Form Data: `numero_solar` (Unique), `numero_processo`, `capa` (File Opcional).
-* **Observação:** O processo é movido para o derradeiro status `encaminhado_solar` gravando metadatas.
-
-#### `POST /:id/reverter-finalizacao`
-*Protegida (Exclusiva para `admin`)*
-* **Observação:** Estorna o status `encaminhado_solar` devolvendo o processo à doca `processado`, apagando da base da nuvem sua respectiva capa.
-
-#### `PATCH /:id/status`
-*Protegida (Requer escrita `requireWriteAccess`)*
-* **Request:** JSON: `status`, `descricao_pendencia`.
-* **Observação:** Altera o rumo prático da solicitação. Frontend infere as modalidades do agendamento (online, fisicos) baseado nas atualizações nominais deste endpoint.
-
-#### `DELETE /:id`
-*Protegida (Exclusiva para `admin`)*
-* **Observação:** Destrutivo. Elimina a linha do caso do Supabase PostgreSQL e purga logicamente tudo ligado ao mesmo nos 3 buckets do Storage!
-
-#### `PATCH /:id/agendar`
-*Protegida (Requer escrita `requireWriteAccess`)*
-* **Request:** JSON: `agendamento_data` (ISO), `agendamento_link`.
-* **Observação:** Formalmente registra se agendamento está `agendado` ou `pendente`. 
-
-#### `POST /:id/regerar-minuta`
-*Protegida (Exclusiva para `admin`)*
-* **Observação:** Através do PizZip, reescreve a `peticao_inicial_rascunho` para a nuvem da Docxtemplater, regerando o documento legível real na interface sem chamar IAs novamente (o texto vem do próprio request atual salvo no banco).
-
-#### `POST /:id/reprocessar`
-*Protegida (Requer escrita `requireWriteAccess`)*
-* **Observação:** Roda por `setImmediate` local o `processarCasoEmBackground()` bypassando a assinatura de QStash para tentar reler de forma resiliente documentos de erro do OCR. 
+- `globalLimiter`: 5000 requests / 15 min.
+- `searchLimiter`: 500 buscas / 15 min.
+- `creationLimiter`: 300 criacoes/uploads / 1 hora.
+- `requireSameUnit`: protege rotas numericas de caso contra IDOR.
+- `requireWriteAccess`: exige cargo na whitelist de escrita.
+- `auditMiddleware`: registra operacoes protegidas.
 
 ---
 
-## 2. Defensores (`/api/defensores`)
+## 2. Rotas Globais
 
-Gerenciamento de acesso e contas dos Defensores Públicos.
-
-| Método   | Rota                  | Segurança    | Descrição                                |
-| :------- | :-------------------- | :----------- | :--------------------------------------- |
-| `POST`   | `/login`              | 🌐 Pública   | Autenticação do defensor; retorna o JWT. |
-| `POST`   | `/register`           | 🔒 Protegida | Cria um novo usuário defensor.           |
-| `GET`    | `/`                   | 🔒 Protegida | Lista todos os defensores cadastrados.   |
-| `PUT`    | `/:id`                | 🔒 Protegida | Altera os dados de um defensor.          |
-| `DELETE` | `/:id`                | 🔒 Protegida | Remove um usuário.                       |
-| `POST`   | `/:id/reset-password` | 🔒 Protegida | Reseta a senha de um defensor.           |
-
-### Detalhamento das Rotas de Defensores
-
-#### `POST /login`
-*Pública*
-* **Request:** JSON: `email`, `senha`.
-* **Response (200 OK):** Retorna `{ "token": "...", "defensor": { id, nome, email, cargo, unidade_id, unidade_nome } }`.
-* **Erro:** `401 Unauthorized` (Credenciais falhas).
-* **Observação:** O JWT agora inclui `unidade_id`, permitindo filtro automático de casos por unidade sem consultas extras ao banco.
-
-#### `POST /register`
-*Protegida (Exclusiva para `admin`)*
-* **Request:** JSON: `nome`, `email` (único na view constraint DB), `senha` (>= 6 chr), `cargo` (válidos, bloqueado para 'operador', que inexiste dinamicamente), `unidade_id` (obrigatório — selecionar unidade de lotação).
-
-#### `GET /`
-*Protegida (Acesso: `admin`, `coordenador`, `gestor`)*
-* **Response (200 OK):** Lista de perfis do time. Se o cargo for `admin`, vê todas as sedes. Se for `coordenador` ou `gestor`, vê apenas membros da própria `unidade_id`.
-* **Observação:** Dados de senha são restritos. Senha_hash nunca é exposta.
-
-#### `PUT /:id`
-*Protegida*
-* **Request:** JSON parameters to update (ex: `nome`, `cargo`, `unidade_id`).
-* **Observação:** Modifica o perfil e gerencia acesso do operador. Inclui troca de unidade.
-
-#### `DELETE /:id`
-*Protegida (Exclusiva para `admin`)*
-* **Observação:** Protege exclusão recursiva (`req.user.id !== id` bloqueia auto-exclusão).
-
-#### `POST /:id/reset-password`
-*Protegida (Exclusiva para `admin`)*
-* **Request:** JSON: `senha`
-* **Observação:** Reset forçado comandado pela administração, sem e-mail de recovery.
+| Metodo | Rota | Seguranca | Descricao |
+|:--|:--|:--|:--|
+| `GET` | `/api/health` | Publica | Healthcheck basico da API |
+| `GET` | `/api/files/*` | Publica/local | Servidor estatico para fallback local em `uploads/` |
 
 ---
 
-## 3. Unidades (`/api/unidades`)
+## 3. Casos - `/api/casos`
 
-Gerenciamento das sedes regionais da Defensoria Pública.
+### 3.1 Rotas Publicas
 
-| Método   | Rota   | Segurança    | Descrição                                                           |
-| :------- | :----- | :----------- | :------------------------------------------------------------------ |
-| `GET`    | `/`    | 🔒 Protegida | Lista todas as unidades com contagem de membros e casos.            |
-| `POST`   | `/`    | 🔒 Admin     | Cria uma nova unidade (nome, comarca, sistema judicial).            |
-| `PUT`    | `/:id` | 🔒 Admin     | Atualiza dados da unidade.                                          |
-| `DELETE` | `/:id` | 🔒 Admin     | Remove unidade (bloqueado se houver membros ou casos vinculados).   |
+| Metodo | Rota | Middlewares | Descricao |
+|:--|:--|:--|:--|
+| `POST` | `/novo` | `creationLimiter`, `upload.fields(audio, documentos)` | Cria novo caso |
+| `GET` | `/buscar-cpf` | `searchLimiter` | Busca casos por CPF em fluxo publico/triagem |
+| `POST` | `/:id/upload-complementar` | `creationLimiter`, `upload.fields(documentos)` | Anexa documentos complementares |
 
-### Detalhamento das Rotas de Unidades
+### 3.2 Downloads com Ticket
 
-#### `GET /`
-*Protegida* — Acessível a qualquer usuário logado (popula selects no frontend).
-* **Response (200 OK):** Array de objetos: `{ id, nome, comarca, sistema, ativo, total_membros, total_casos }`.
+Estas rotas ficam antes do `authMiddleware`; o acesso depende de `validateDownloadTicket`.
 
-#### `POST /`
-*Protegida (Exclusiva para `admin`)*
-* **Request:** JSON: `nome` (obrig), `comarca` (obrig), `sistema` (opcional, default: "solar").
-* **Response (201 Created):** Objeto da unidade criada.
-* **Observação:** A `comarca` é o campo-chave para vincular automaticamente os casos (comparação case-insensitive com `cidade_assinatura` do formulário).
+| Metodo | Rota | Seguranca | Descricao |
+|:--|:--|:--|:--|
+| `GET` | `/:id/download-zip` | Ticket JWT `purpose=download` | Baixa documentos do caso em ZIP |
+| `GET` | `/:id/documento/download` | Ticket JWT `purpose=download` | Baixa arquivo individual |
 
-#### `PUT /:id`
-*Protegida (Exclusiva para `admin`)*
-* **Request:** JSON com campos a atualizar: `nome`, `comarca`, `sistema`, `ativo`.
+### 3.3 Rotas Protegidas de Leitura e Notificacao
 
-#### `DELETE /:id`
-*Protegida (Exclusiva para `admin`)*
-* **Validação de Integridade:** Retorna `400 Bad Request` se houver defensores ou casos vinculados à unidade, informando a contagem exata.
+A partir daqui o router aplica `authMiddleware` e `auditMiddleware`.
+
+| Metodo | Rota | Seguranca | Descricao |
+|:--|:--|:--|:--|
+| `GET` | `/` | JWT | Lista casos com filtros |
+| `GET` | `/resumo` | JWT | Contagens para dashboard |
+| `GET` | `/notificacoes` | JWT | Lista notificacoes do usuario |
+| `PATCH` | `/notificacoes/:id/lida` | JWT | Marca notificacao como lida |
+
+### 3.4 Rotas Numericas com Isolamento de Caso
+
+Antes destas rotas, o router aplica `requireSameUnit` para `/:id(\\d+)`.
+
+| Metodo | Rota | Seguranca | Descricao |
+|:--|:--|:--|:--|
+| `GET` | `/:id/exportar-solar` | JWT + unidade/regional/assistencia | Retorna payload normalizado para SOLAR |
+| `GET` | `/:id` | JWT + unidade/regional/assistencia | Detalhes completos do caso com URLs assinadas |
+| `POST` | `/:id/gerar-ticket-download` | JWT + unidade/regional/assistencia | Gera ticket JWT de download por 30s |
+
+### 3.5 Rotas Protegidas de Escrita
+
+Antes destas rotas, o router aplica `requireWriteAccess`.
+
+| Metodo | Rota | Descricao |
+|:--|:--|:--|
+| `POST` | `/:id/gerar-fatos` | Regenera "Dos Fatos"; exige admin ou responsavel pelo caso |
+| `POST` | `/:id/gerar-termo` | Gera termo de declaracao DOCX; respeita lock/dono/assistencia |
+| `POST` | `/:id/finalizar` | Finaliza/protocola o caso, opcionalmente com upload de capa |
+| `POST` | `/:id/reverter-finalizacao` | Reverte `protocolado` para `pronto_para_analise`; apenas admin |
+| `POST` | `/:id/resetar-chave` | Retorna 410; chave de acesso esta desativada |
+| `DELETE` | `/:id` | Exclui caso e arquivos relacionados; apenas admin |
+| `PATCH` | `/:id/status` | Atualiza status pela maquina de estados |
+| `PATCH` | `/:id/feedback` | Salva feedback textual |
+| `POST` | `/:id/regerar-minuta` | Regera DOCX a partir dos dados atuais |
+| `POST` | `/:id/upload-minuta` | Substitui minuta por arquivo enviado manualmente |
+| `POST` | `/:id/reprocessar` | Reprocessa caso localmente por `setImmediate()` |
+| `PATCH` | `/:id/documento/renomear` | Renomeia documento anexado |
+| `DELETE` | `/:id/documento/:documentoId` | Exclui documento anexado |
+| `PATCH` | `/:id/arquivar` | Arquiva/desarquiva caso |
+| `PATCH` | `/:id/juridico` | Salva edicao parcial de dados preenchidos: partes, juridico e dados extraidos |
+| `POST` | `/:id/solicitar-assistencia` | Solicita colaboracao de outro defensor |
+| `POST` | `/assistencia/:assistencia_id/responder` | Aceita ou recusa assistencia |
+| `GET` | `/:id/historico` | Lista historico/auditoria do caso |
+| `POST` | `/:id/distribuir` | Distribui/encaminha caso para usuario alvo |
+| `PATCH` | `/:id/lock` | Trava caso para atendimento/protocolo |
+| `PATCH` | `/:id/unlock` | Libera locks; admin, gestor ou coordenador |
+
+### 3.6 Observacoes de Casos
+
+- `/:id` numerico passa por `requireSameUnit`.
+- `assistencia/:assistencia_id/responder` nao dispara `requireSameUnit`, pois `assistencia_id` e UUID.
+- Upload complementar publico nao exige chave de acesso no codigo atual; usa ID/protocolo/CPF para localizar caso.
+- `resetar-chave` esta desativado e retorna HTTP 410.
+- `finalizar` define `status = "protocolado"`.
+- `PATCH /:id/juridico` aceita payload parcial com chaves `partes`, `juridico` e `dados_extraidos`.
+- O salvamento de dados preenchidos usa whitelist de campos para `casos_partes` e `casos_juridico`; campos fora da lista sao ignorados.
+- CPFs enviados por essa rota sao persistidos sem pontuacao em `partes` e em entradas conhecidas de `dados_extraidos`.
+- `dados_extraidos` deve ser objeto simples; valores invalidos nao viram merge de JSON flexivel.
+- Em `dados_extraidos`, arquivos brutos e URLs geradas (`audioBlob`, `documentFiles`, `calculo_prisao_arquivo`, `calculo_penhora_arquivo`, `url_*`) nao sao persistidos por essa rota.
+- A rota executa a transacao Prisma antes dos upserts espelho no Supabase, quando Supabase esta configurado.
+- O controle admin de cidade de assinatura em `DetalhesCaso` usa esta rota enviando `juridico.cidade_assinatura`.
 
 ---
 
-## 4. Background Jobs (`/api/jobs`)
+## 4. Defensores - `/api/defensores`
 
-Webhook para processamento assíncrono gerenciado pelo [Upstash QStash].
+| Metodo | Rota | Seguranca | Descricao |
+|:--|:--|:--|:--|
+| `POST` | `/login` | Publica | Autentica usuario interno e retorna JWT |
+| `POST` | `/register` | JWT | Cadastra membro, com regra hierarquica no controller |
+| `GET` | `/` | JWT | Lista equipe conforme cargo/regional/unidade |
+| `PUT` | `/:id` | JWT | Atualiza membro, com regra hierarquica no controller |
+| `DELETE` | `/:id` | JWT | Remove/desativa membro conforme regra do controller |
+| `GET` | `/colegas` | JWT | Lista colegas disponiveis para colaboracao |
+| `GET` | `/encaminhamento` | JWT + `requireWriteAccess` | Lista defensores para encaminhamento |
+| `POST` | `/:id/reset-password` | JWT | Reseta senha conforme regra do controller |
 
-| Método | Rota       | Segurança     | Descrição                                                             |
-| :----- | :--------- | :------------ | :-------------------------------------------------------------------- |
-| `POST` | `/process` | 🔑 Assinatura | Endpoint consumido pelo QStash para processar transcrições e minutas. |
+Notas:
 
-### Detalhamento 
-
-#### `POST /process`
-*Protegida (QStash Verify Signature)*
-* **Request:** Headers possuindo assinatura, Body JSON com payload `protocolo`, `url_audio`, `urls_documentos`, `dados_formulario`.
-* **Response (200):** Resposta imediata de sucesso para broker antes do I/O real pesadíssimo via callback `setImmediate`.
-
----
-
-* **Response (200 OK):** Capaz de tratar colisões limpo de multi-casos em PostgreSQL relativos a este CPF numérico (pois podem existir vários casos perfeitamente válidos pro CPF pai), decifrando qual deles é visível a partir daquela `chave` recebida descritografada. Status é mapeado em strings mais humanas para o front (`em triagem` ao invés da linguagem back e IAs).
-
----
-
-## 6. Configurações (`/api/config`)
-
-Gerenciamento de parâmetros do sistema, janelas de BI e avisos.
-
-| Método | Rota | Segurança | Descrição |
-| :----- | :--- | :-------- | :---------- |
-| `GET`  | `/`  | 🔒 Protegida | Retorna todas as configurações do sistema. |
-| `POST` | `/`  | 🔒 Admin     | Atualiza ou cria configurações (aceita lote ou individual). |
-| `GET`  | `/bi/overrides` | 🔒 Protegida | Retorna overrides de acesso ao BI. |
-| `POST` | `/bi/overrides` | 🔒 Admin     | Define overrides de acesso para cargos específicos. |
+- Senhas sao validadas com bcrypt.
+- O controller normaliza cargos em lowercase para comparacoes.
+- Coordenadores possuem restricoes por regional.
+- Admin pode operar globalmente.
 
 ---
 
-## 7. BI e Relatórios (`/api/bi`)
+## 5. Unidades - `/api/unidades`
 
-| Método | Rota | Segurança | Descrição |
-| :----- | :--- | :-------- | :---------- |
-| `GET`  | `/stats` | 🔒 BI Access | Retorna estatísticas agregadas. |
-| `GET`  | `/export` | 🔒 BI Access | Gera e baixa relatório XLSX. |
-
-> **Acesso ao BI:** Protegido por janelas de horário e overrides configurados em `/api/config`.
-
----
-
-## 6. Valores Extraídos (`ARCHITECTURE.md` / `BUSINESS_RULES.md`)
-
-* **status (`casos`):** `recebido`, `processando`, `processado`, `erro`, `em_analise`, `aguardando_documentos`, `aguardando_docs` (legado), `documentos_entregues`, `documentocao_completa`, `reuniao_agendada`, `reuniao_online_agendada`, `reuniao_presencial_agendada`, `aguardando_protocolo`, `reagendamento_solicitado`, `encaminhado_solar`.
-* **cargo (`defensores`):** `admin`, `defensor`, `estagiario`, `recepcao`, `visualizador`.
-* **tipo_acao (`dicionarioAcoes`):** `fixacao_alimentos`, `exec_penhora`, `exec_prisao`, `exec_cumulado`, `def_penhora`, `def_prisao`, `def_cumulado`, `alimentos_gravidicos`, `termo_declaracao`.
+| Metodo | Rota | Seguranca | Descricao |
+|:--|:--|:--|:--|
+| `GET` | `/` | Publica | Lista unidades para selects e painel |
+| `POST` | `/` | JWT + audit; controller exige admin | Cria unidade |
+| `PUT` | `/:id` | JWT + audit; controller exige admin | Atualiza unidade |
+| `DELETE` | `/:id` | JWT + audit; controller exige admin | Remove unidade se nao houver vinculos |
 
 ---
 
-## 7. Filtro por Unidade (Segurança Regional)
+## 6. Scanner - `/api/scanner`
 
-As seguintes rotas aplicam filtro automático por `unidade_id` extraído do JWT:
+O router inteiro usa `apiKeyMiddleware`.
 
-| Rota | Comportamento |
-|:-----|:-------------|
-| `GET /api/casos` | Admin vê tudo; demais veem apenas casos da sua unidade |
-| `GET /api/casos/resumo` | Estatísticas filtradas pela unidade do usuário logado |
-| `POST /api/casos/novo` | Vincula o caso à unidade correspondente à `cidade_assinatura` |
+| Metodo | Rota | Seguranca | Descricao |
+|:--|:--|:--|:--|
+| `POST` | `/upload` | `x-api-key`, `upload.array(documentos, 20)` | Recebe lote de documentos por protocolo |
+
+Comportamento:
+
+- Exige `protocolo` no body.
+- Salva no bucket/pasta `documentos`.
+- Cria registros em `documentos`.
+- Se o caso esta `aguardando_documentos`, muda para `documentacao_completa`.
+- Nao dispara IA/minuta nesse endpoint.
+
+---
+
+## 7. Jobs - `/api/jobs`
+
+| Metodo | Rota | Seguranca | Descricao |
+|:--|:--|:--|:--|
+| `POST` | `/process` | Assinatura Upstash QStash | Recebe job de processamento |
+
+Detalhes:
+
+- Usa `Receiver` da Upstash.
+- Valida `upstash-signature` contra `req.rawBody`.
+- Responde rapido e processa com `setImmediate()`.
+- Payload esperado inclui `protocolo`, `dados_formulario`, `urls_documentos`, `url_audio`, `url_peticao`.
+
+---
+
+## 8. Status Publico - `/api/status`
+
+| Metodo | Rota | Seguranca | Descricao |
+|:--|:--|:--|:--|
+| `GET` | `/` | Publica | Consulta casos por query `cpf` |
+| `GET` | `/cpf/:cpf` | Publica | Consulta por CPF ou protocolo limpo |
+
+Observacao:
+
+- O controller atual retorna status interno diretamente.
+- Nao ha autenticacao por chave de acesso nesse controller.
+
+---
+
+## 9. BI - `/api/bi`
+
+O router aplica `authMiddleware` e depois `requireBiAccess`.
+
+Acesso BI:
+
+- `admin`
+- `gestor`
+- `coordenador`
+
+| Metodo | Rota | Seguranca | Descricao |
+|:--|:--|:--|:--|
+| `POST` | `/gerar` | BI access | Gera dados agregados de relatorio |
+| `POST` | `/export-xlsx` | BI access | Exporta relatorio XLSX |
+| `POST` | `/export-xlsx-lote` | `admin` ou `gestor` | Exporta XLSX em lote |
+| `GET` | `/overrides` | BI access | Lista overrides/registros de horario |
+| `POST` | `/overrides` | `admin` | Cria override |
+| `DELETE` | `/overrides/:id` | `admin` | Remove override |
+
+---
+
+## 10. Configuracoes - `/api/config`
+
+O router aplica `authMiddleware` e restringe a `admin` ou `gestor`.
+
+| Metodo | Rota | Seguranca | Descricao |
+|:--|:--|:--|:--|
+| `GET` | `/` | `admin` ou `gestor` | Lista configuracoes do sistema |
+| `PUT` | `/` | `admin` ou `gestor` | Atualiza configuracao individual ou em lote |
+
+---
+
+## 11. Debug - `/api/debug`
+
+| Metodo | Rota | Seguranca | Descricao |
+|:--|:--|:--|:--|
+| `GET` | `/supabase` | Publica | Testa conectividade/configuracao Supabase |
+
+---
+
+## 12. Codigos de Resposta Relevantes
+
+| Codigo | Uso |
+|:--|:--|
+| `200` | Sucesso |
+| `201` | Criacao de recurso |
+| `400` | Entrada invalida |
+| `401` | JWT/ticket/API key ausente ou invalido |
+| `403` | Cargo sem permissao ou IDOR |
+| `404` | Recurso nao encontrado |
+| `409` | Conflito de status/concorrencia |
+| `410` | Funcionalidade desativada (`resetar-chave`) |
+| `423` | Caso bloqueado por outro usuario |
+| `429` | Rate limit |
+| `500` | Erro interno |

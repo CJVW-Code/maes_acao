@@ -344,6 +344,32 @@
     border-left: 4px solid var(--color-highlight) !important;
   }
 
+  .card-aviso-minuta {
+    border: 2px solid var(--color-laranja);
+    border-left: 8px solid var(--color-error);
+    background: linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--color-laranja) 22%, var(--color-surface)) 0%,
+      color-mix(in oklab, var(--color-primary) 10%, var(--color-surface)) 100%
+    );
+    box-shadow:
+      0 18px 35px -18px color-mix(in oklab, var(--color-laranja) 70%, transparent),
+      0 0 0 3px color-mix(in oklab, var(--color-laranja) 16%, transparent);
+  }
+
+  .card-aviso-minuta__header {
+    border-bottom: 1px solid color-mix(in oklab, var(--color-laranja) 35%, transparent);
+    color: var(--color-error);
+  }
+
+  .card-aviso-minuta__icon {
+    color: var(--color-error);
+  }
+
+  .card-aviso-minuta__text {
+    color: var(--color-text);
+  }
+
   /* -------------------------------------------------------------
      DASHBOARD 3.1 -- GRID & CARDS
   ---------------------------------------------------------------- */
@@ -580,5 +606,4 @@
     100% { background-position: -200% 0; }
   }
 }
-
 

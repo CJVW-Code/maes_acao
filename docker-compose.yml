@@ -12,7 +12,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./docker/init.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./arquivos/Conhecimento/01-Referencia/schema_maes_em_acao_v1.0.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U maes -d maes_em_acao"]
       interval: 5s

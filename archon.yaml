@@ -1,0 +1,39 @@
+project:
+  name: maes-em-acao
+  stack: node-javascript
+
+rules:
+  # 1. Impede que Controllers acessem diretamente o banco de dados via Prisma
+  # Severidade em "warn" pois o código atual ainda utiliza Prisma diretamente nos controllers (ex: biController, defensoresController)
+  - id: no_controller_repo
+    severity: warn
+    source_match: "backend/src/controllers/**/*.js"
+    forbidden_import: "backend/src/config/prisma.js"
+    forbidden_call: "prisma"
+
+  # Impede que Controllers acessem diretamente o banco de dados via Supabase JS
+  # Severidade em "warn" pelo uso direto em casosController, lockController, etc.
+  - id: no_controller_repo
+    severity: warn
+    source_match: "backend/src/controllers/**/*.js"
+    forbidden_import: "backend/src/config/supabase.js"
+    forbidden_call: "supabase"
+
+  # 2. Exige a utilização de Controllers como orquestradores
+  # Rotas não devem acessar serviços de IA (geminiService, pipelineService) diretamente.
+  - id: require_service_layer
+    severity: block
+    source_match: "backend/src/routes/**/*.js"
+    forbidden_import: "backend/src/services/**/*.js"
+
+  # 3. Previne cruzamento direto entre domínios (No Cross Domain)
+  # Controllers de domínios distintos não devem invocar uns aos outros para evitar acoplamento.
+  - id: no_cross_domain
+    severity: block
+    source_match: "backend/src/controllers/scannerController.js"
+    forbidden_import: "backend/src/controllers/casosController.js"
+
+  - id: no_cross_domain
+    severity: block
+    source_match: "backend/src/controllers/biController.js"
+    forbidden_import: "backend/src/controllers/lockController.js"

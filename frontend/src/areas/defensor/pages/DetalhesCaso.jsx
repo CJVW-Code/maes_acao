@@ -21,6 +21,7 @@ import {
   History,
   Copy,
   Archive,
+  X,
   ArchiveRestore,
   LayoutDashboard,
   User,
@@ -32,6 +33,7 @@ import {
   Wand2,
   PlayCircle,
   ExternalLink,
+  Pencil,
 } from "lucide-react";
 import { ModalDistribuicao } from "../components/casos/ModalDistribuicao";
 import { API_BASE } from "../../../utils/apiBase";
@@ -46,6 +48,7 @@ import { formatCurrencyMask, numeroParaExtenso } from "../../../utils/formatters
 import { InfoAssistido } from "../components/detalhes/InfoAssistido";
 import { PainelDocumentos } from "../components/detalhes/PainelDocumentos";
 import { PainelCasosRelacionados } from "../components/detalhes/PainelCasosRelacionados";
+import { SearchableSelect } from "../../../components/ui/SearchableSelect";
 const fetcher = async (url) => {
   try {
     const response = await authFetch(url);
@@ -182,6 +185,10 @@ export const DetalhesCaso = () => {
   const [activeTab, setActiveTab] = useState("visao_geral");
   const [memoriaCalculo, setMemoriaCalculo] = useState("");
   const [isSavingJuridico, setIsSavingJuridico] = useState(false);
+  const [isEditingRelato, setIsEditingRelato] = useState(false);
+  const [relatoDraft, setRelatoDraft] = useState("");
+  const [isSavingRelato, setIsSavingRelato] = useState(false);
+  const [isUpdatingRelatoMinuta, setIsUpdatingRelatoMinuta] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [colegas, setColegas] = useState([]);
   const [isLoadingColegas, setIsLoadingColegas] = useState(false);
@@ -195,6 +202,8 @@ export const DetalhesCaso = () => {
   const [autosType, setAutosType] = useState(null); // 'apartados' ou 'proprios_autos'
   const [autosSubtype, setAutosSubtype] = useState(null); // 'provisorio' ou 'definitivo'
   const [isDistribuirOpen, setIsDistribuirOpen] = useState(false);
+  const [cidadeAssinaturaAdmin, setCidadeAssinaturaAdmin] = useState("");
+  const [isSavingCidadeAssinatura, setIsSavingCidadeAssinatura] = useState(false);
   const currentCaseIdRef = useRef(null);
   const currentCaseUpdatedAtRef = useRef(null);
   const [isDirty, setIsDirty] = useState(false);
@@ -251,6 +260,40 @@ export const DetalhesCaso = () => {
     () => caso?.tipo_acao === "fixacao_alimentos" || caso?.tipo_acao === "alimentos_gravidicos",
     [caso?.tipo_acao],
   );
+
+  const { data: unidades = [] } = useSWR(
+    token && user?.cargo === "admin" ? "/unidades" : null,
+    fetcher,
+    { revalidateOnFocus: false },
+  );
+
+  const cidadeAssinaturaAtual = useMemo(
+    () =>
+      caso?.juridico?.cidade_assinatura ||
+      caso?.CIDADEASSINATURA ||
+      caso?.cidade_assinatura ||
+      caso?.unidade?.comarca ||
+      "",
+    [caso],
+  );
+
+  const cidadeAssinaturaOptions = useMemo(() => {
+    const comarcas = new Set();
+    return unidades
+      .filter((unidade) => {
+        if (!unidade?.comarca || comarcas.has(unidade.comarca)) return false;
+        comarcas.add(unidade.comarca);
+        return true;
+      })
+      .map((unidade) => ({
+        value: unidade.comarca,
+        label: unidade.regional ? `${unidade.comarca} (${unidade.regional})` : unidade.comarca,
+      }));
+  }, [unidades]);
+
+  useEffect(() => {
+    setCidadeAssinaturaAdmin(cidadeAssinaturaAtual);
+  }, [cidadeAssinaturaAtual]);
 
   // 3. Ajuste sutil no seu salvarPendencia
   const handleSalvarPendencia = async () => {
@@ -756,6 +799,249 @@ export const DetalhesCaso = () => {
     }
   };
 
+  const handleSaveDadosPreenchidos = async (payload, options = {}) => {
+    const confirmado = await confirm(
+      "Depois de salvar estes dados, sera necessario regerar a minuta para atualizar o DOCX. Qualquer modificacao feita manualmente na minuta atual sera perdida ao regerar. Se voce abrir a minuta e ainda aparecer a versao antiga, aguarde alguns instantes e tente novamente.",
+      "Regerar Minuta Depois",
+      {
+        confirmLabel: "Entendi, salvar",
+        hideCancel: true,
+        closeOnBackdrop: false,
+      },
+    );
+
+    if (!confirmado) return;
+
+    setIsSavingJuridico(true);
+    let dadosSalvos = false;
+    try {
+      const res = await fetch(`${API_BASE}/casos/${id}/juridico`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Erro ao salvar dados preenchidos.");
+      }
+
+      await mutate();
+      toast.success("Dados preenchidos salvos.");
+      dadosSalvos = true;
+
+      if (!options.shouldOfferRegenerateFacts) return;
+
+      const deveAtualizarMinuta = await confirm(
+        "Guarda e convivencia foram alteradas. Regerar agora os fatos com IA e atualizar a minuta substituira a minuta atual. Se voce abrir a minuta e ainda aparecer a versao antiga, aguarde alguns instantes e tente novamente.",
+        "Atualizar Fatos e Minuta",
+        {
+          confirmLabel: "Entendi, atualizar",
+          hideCancel: true,
+          closeOnBackdrop: false,
+        },
+      );
+
+      if (!deveAtualizarMinuta) return;
+
+      setIsGenerating(true);
+
+      const fatosResponse = await fetch(`${API_BASE}/casos/${id}/gerar-fatos`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!fatosResponse.ok) {
+        const err = await fatosResponse.json().catch(() => ({}));
+        throw new Error(err.error || "Dados salvos, mas falhou ao regerar os fatos.");
+      }
+
+      await fatosResponse.json().catch(() => null);
+
+      setIsGenerating(false);
+      setIsRegeneratingMinuta(true);
+
+      const minutaResponse = await fetch(`${API_BASE}/casos/${id}/regerar-minuta`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ solo_cumulado: false, force_all: false }),
+      });
+
+      if (!minutaResponse.ok) {
+        const err = await minutaResponse.json().catch(() => ({}));
+        throw new Error(err.error || "Fatos atualizados, mas falhou ao regerar a minuta.");
+      }
+
+      const casoComMinuta = await minutaResponse.json();
+      await mutate(casoComMinuta, { revalidate: true });
+      toast.success("Dados, fatos e minuta atualizados.");
+    } catch (error) {
+      toast.error(error.message);
+      if (!dadosSalvos) throw error;
+    } finally {
+      setIsSavingJuridico(false);
+      setIsGenerating(false);
+      setIsRegeneratingMinuta(false);
+    }
+  };
+
+  const handleSaveRelato = async () => {
+    const relatoTexto = relatoDraft.trim();
+    if (!relatoTexto) {
+      toast.warning("Informe o relato antes de salvar.");
+      return;
+    }
+
+    setIsSavingRelato(true);
+    try {
+      const res = await fetch(`${API_BASE}/casos/${id}/juridico`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          relato: { relato_texto: relatoTexto },
+          dados_extraidos: {
+            relato_texto: relatoTexto,
+            relato: relatoTexto,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Erro ao salvar relato.");
+      }
+
+      const casoAtualizado = await res.json();
+      await mutate(casoAtualizado, { revalidate: false });
+      setRelatoDraft(casoAtualizado?.relato_texto || relatoTexto);
+      setIsEditingRelato(false);
+      setIsSavingRelato(false);
+      toast.success("Relato salvo.");
+
+      const deveAtualizarMinuta = await confirm(
+        "Relato salvo. Regerar agora os fatos e atualizar a minuta substituira a minuta atual e qualquer edicao manual feita nela sera perdida. Se voce abrir a minuta e ainda aparecer a versao antiga, aguarde alguns instantes e tente novamente.",
+        "Atualizar Minuta",
+        {
+          confirmLabel: "Entendi, atualizar",
+          hideCancel: true,
+          closeOnBackdrop: false,
+        },
+      );
+
+      if (!deveAtualizarMinuta) return;
+
+      setIsUpdatingRelatoMinuta(true);
+      setIsGenerating(true);
+
+      const fatosResponse = await fetch(`${API_BASE}/casos/${id}/gerar-fatos`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!fatosResponse.ok) {
+        const err = await fatosResponse.json().catch(() => ({}));
+        throw new Error(err.error || "Relato salvo, mas falhou ao regerar os fatos.");
+      }
+
+      await fatosResponse.json().catch(() => null);
+
+      setIsGenerating(false);
+      setIsRegeneratingMinuta(true);
+
+      const minutaResponse = await fetch(`${API_BASE}/casos/${id}/regerar-minuta`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ solo_cumulado: false, force_all: false }),
+      });
+
+      if (!minutaResponse.ok) {
+        const err = await minutaResponse.json().catch(() => ({}));
+        throw new Error(err.error || "Fatos atualizados, mas falhou ao regerar a minuta.");
+      }
+
+      const casoComMinuta = await minutaResponse.json();
+      await mutate(casoComMinuta, { revalidate: true });
+      toast.success("Relato, fatos e minuta atualizados.");
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsSavingRelato(false);
+      setIsUpdatingRelatoMinuta(false);
+      setIsGenerating(false);
+      setIsRegeneratingMinuta(false);
+    }
+  };
+
+  const handleCancelEditRelato = () => {
+    setRelatoDraft(caso?.relato_texto || "");
+    setIsEditingRelato(false);
+  };
+
+  const handleSaveCidadeAssinatura = async () => {
+    if (!cidadeAssinaturaAdmin) {
+      toast.warning("Selecione a cidade de assinatura.");
+      return;
+    }
+
+    if (cidadeAssinaturaAdmin === cidadeAssinaturaAtual) {
+      toast.warning("A cidade de assinatura selecionada ja e a atual.");
+      return;
+    }
+
+    const confirmado = await confirm(
+      "A cidade de assinatura sera usada nos proximos documentos gerados. Se ja houver minuta, sera necessario regerar o DOCX para refletir a alteracao. Deseja salvar?",
+      "Alterar Cidade de Assinatura",
+    );
+
+    if (!confirmado) return;
+
+    setIsSavingCidadeAssinatura(true);
+    try {
+      const res = await fetch(`${API_BASE}/casos/${id}/juridico`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          juridico: {
+            cidade_assinatura: cidadeAssinaturaAdmin,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Erro ao salvar cidade de assinatura.");
+      }
+
+      await mutate();
+      toast.success("Cidade de assinatura atualizada.");
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsSavingCidadeAssinatura(false);
+    }
+  };
+
   const handleReverterFinalizacao = async () => {
     if (
       !(await confirm(
@@ -1171,6 +1457,7 @@ export const DetalhesCaso = () => {
 
       if (isNewCase || (isUpdated && !isDirty)) {
         setFeedback(caso.feedback || "");
+        if (!isEditingRelato) setRelatoDraft(caso.relato_texto || "");
         setPendenciaTexto(caso.descricao_pendencia || "");
         setNumSolar(caso.numero_solar || "");
         setMemoriaCalculo(caso.juridico?.memoria_calculo || "");
@@ -1193,7 +1480,7 @@ export const DetalhesCaso = () => {
         setIsDirty(false);
       }
     }
-  }, [caso, isDirty]);
+  }, [caso, isDirty, isEditingRelato]);
 
   if (isLoading) {
     return <div className="card text-center text-muted">Carregando detalhes...</div>;
@@ -1467,7 +1754,11 @@ export const DetalhesCaso = () => {
         {/* ABA 1: VISÃO GERAL */}
         {activeTab === "visao_geral" && (
           <div className="space-y-6 animate-fade-in">
-            <InfoAssistido caso={caso} />
+            <InfoAssistido
+              caso={caso}
+              onSave={handleSaveDadosPreenchidos}
+              isSaving={isSavingJuridico}
+            />
 
             {/* BOTÃO ASSUMIR CASO (PARA COORDENADOR E GESTOR) */}
             {["admin", "gestor", "coordenador"].includes(user?.cargo?.toLowerCase()) &&
@@ -1510,11 +1801,67 @@ export const DetalhesCaso = () => {
               isDeletingDoc={isDeletingDoc}
             />
             <div className="card space-y-4">
-              <div className="flex items-center gap-3">
-                <FileText />
-                <h2 className="heading-2">Relato do caso</h2>
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-3">
+                  <FileText />
+                  <h2 className="heading-2">Relato do caso</h2>
+                </div>
+                {!isEditingRelato && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRelatoDraft(caso.relato_texto || "");
+                      setIsEditingRelato(true);
+                    }}
+                    className="btn btn-ghost btn-sm border border-soft md:self-start"
+                    disabled={isSavingRelato || isUpdatingRelatoMinuta}
+                  >
+                    <Pencil size={16} />
+                    Editar relato
+                  </button>
+                )}
               </div>
-              <CollapsibleText className="text-primary" text={caso.relato_texto} />
+              {isEditingRelato ? (
+                <div className="space-y-4">
+                  <textarea
+                    className="input min-h-[220px] resize-y leading-relaxed"
+                    value={relatoDraft}
+                    onChange={(event) => setRelatoDraft(event.target.value)}
+                    disabled={isSavingRelato || isUpdatingRelatoMinuta}
+                    placeholder="Digite o relato do caso."
+                  />
+                  <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={handleCancelEditRelato}
+                      className="btn btn-ghost border border-soft"
+                      disabled={isSavingRelato || isUpdatingRelatoMinuta}
+                    >
+                      <X size={18} />
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveRelato}
+                      className="btn btn-primary"
+                      disabled={isSavingRelato || isUpdatingRelatoMinuta}
+                    >
+                      {isSavingRelato || isUpdatingRelatoMinuta ? (
+                        <Loader2 size={18} className="animate-spin" />
+                      ) : (
+                        <Save size={18} />
+                      )}
+                      {isUpdatingRelatoMinuta
+                        ? "Atualizando minuta..."
+                        : isSavingRelato
+                          ? "Salvando..."
+                          : "Salvar relato"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <CollapsibleText className="text-primary" text={caso.relato_texto} />
+              )}
             </div>
           </div>
         )}
@@ -1885,6 +2232,28 @@ export const DetalhesCaso = () => {
                             Nenhum documento gerado ainda.
                           </div>
                         )}
+                      </div>
+                    </div>
+
+                    <div className="card card-aviso-minuta space-y-3">
+                      <div className="card-aviso-minuta__header flex items-center gap-2 pb-2">
+                        <AlertTriangle size={18} className="card-aviso-minuta__icon" />
+                        <h3 className="heading-3">Avisos</h3>
+                      </div>
+
+                      <div className="card-aviso-minuta__text space-y-2 text-sm font-semibold">
+                        <p>
+                          Na edicao de dados, as alteracoes so entram na minuta quando voce opta
+                          por regerar os fatos e a minuta no proprio ato de salvar.
+                        </p>
+                        <p>
+                          Ao regerar a minuta, o arquivo atual sera substituido. Confira primeiro
+                          todos os dados preenchidos e depois analise a minuta atualizada.
+                        </p>
+                        <p>
+                          Se a pre-visualizacao ainda mostrar a versao antiga apos regerar,
+                          aguarde alguns instantes e tente abrir novamente.
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -2342,6 +2711,44 @@ export const DetalhesCaso = () => {
               Esta ação de exclusão não pode ser desfeita. Todos os dados do caso serão removidos
               permanentemente.
             </p>
+          )}
+          {user?.cargo === "admin" && (
+            <div className="border border-soft rounded-lg p-4 space-y-3">
+              <div>
+                <h3 className="font-bold text-main">Cidade de assinatura</h3>
+                <p className="text-sm text-muted">
+                  Altera a comarca usada na assinatura das proximas minutas geradas.
+                </p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                <label className="block space-y-2">
+                  <span className="text-sm font-semibold text-main">Comarca</span>
+                  <SearchableSelect
+                    name="cidade_assinatura_admin"
+                    placeholder="Pesquise pela comarca..."
+                    options={cidadeAssinaturaOptions}
+                    value={cidadeAssinaturaAdmin}
+                    onChange={(event) => setCidadeAssinaturaAdmin(event.target.value)}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={handleSaveCidadeAssinatura}
+                  disabled={isSavingCidadeAssinatura || !cidadeAssinaturaAdmin}
+                  className="btn btn-primary justify-center"
+                >
+                  {isSavingCidadeAssinatura ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <Save size={18} />
+                  )}
+                  {isSavingCidadeAssinatura ? "Salvando..." : "Salvar cidade"}
+                </button>
+              </div>
+              <p className="text-xs text-muted">
+                Cidade atual: {cidadeAssinaturaAtual || "Nao informada"}.
+              </p>
+            </div>
           )}
           {user?.cargo === "admin" && <TimelineAuditoria registroId={caso.id} />}
         </div>
