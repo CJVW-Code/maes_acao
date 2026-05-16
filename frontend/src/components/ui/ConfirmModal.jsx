@@ -17,7 +17,9 @@ export const ConfirmModal = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={() => handleClose(false)}
+            onClick={() => {
+              if (confirmState.closeOnBackdrop) handleClose(false);
+            }}
           />
 
           {/* Modal */}
@@ -41,17 +43,19 @@ export const ConfirmModal = () => {
             </p>
 
             <div className="flex gap-3 pt-4">
-              <button
-                onClick={() => handleClose(false)}
-                className="btn btn-ghost flex-1 border border-soft hover:bg-error/5"
-              >
-                Cancelar
-              </button>
+              {!confirmState.hideCancel && (
+                <button
+                  onClick={() => handleClose(false)}
+                  className="btn btn-ghost flex-1 border border-soft hover:bg-error/5"
+                >
+                  Cancelar
+                </button>
+              )}
               <button
                 onClick={() => handleClose(true)}
                 className="btn btn-primary flex-1 bg-primary hover:bg-error"
               >
-                Confirmar
+                {confirmState.confirmLabel}
               </button>
             </div>
           </motion.div>

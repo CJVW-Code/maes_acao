@@ -15,15 +15,21 @@ export const ConfirmProvider = ({ children }) => {
     isOpen: false,
     message: "",
     title: "Confirmação",
+    confirmLabel: "Confirmar",
+    hideCancel: false,
+    closeOnBackdrop: true,
     resolve: null,
   });
 
-  const confirm = useCallback((message, title = "Tem certeza?") => {
+  const confirm = useCallback((message, title = "Tem certeza?", options = {}) => {
     return new Promise((resolve) => {
       setConfirmState({
         isOpen: true,
         message,
         title,
+        confirmLabel: options.confirmLabel || "Confirmar",
+        hideCancel: Boolean(options.hideCancel),
+        closeOnBackdrop: options.closeOnBackdrop ?? true,
         resolve,
       });
     });

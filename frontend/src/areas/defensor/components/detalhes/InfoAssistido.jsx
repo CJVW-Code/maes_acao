@@ -99,6 +99,15 @@ const normalizeFilhosCpf = (filhos = []) =>
       }))
     : [];
 
+const normalizeComparableText = (value) =>
+  value === undefined || value === null ? "" : String(value).trim();
+
+const hasGuardChanges = (currentState, originalState) =>
+  normalizeComparableText(currentState.opcaoGuarda) !==
+    normalizeComparableText(originalState.opcaoGuarda) ||
+  normalizeComparableText(currentState.descricaoGuarda) !==
+    normalizeComparableText(originalState.descricaoGuarda);
+
 const resolveAcaoEspecifica = (caso = {}, dados = {}) => {
   const raw = dados.acaoEspecifica || caso.tipo_acao || "";
   if (String(raw).includes("exec") || String(raw).includes("def_")) return "execucao_alimentos";
@@ -524,7 +533,9 @@ export const InfoAssistido = ({ caso, onSave, isSaving = false }) => {
     }
 
     setFormErrors({});
-    await onSave?.(buildSavePayload(formState));
+    await onSave?.(buildSavePayload(formState), {
+      shouldOfferRegenerateFacts: hasGuardChanges(formState, buildFormStateFromCase(caso)),
+    });
     setShowReview(true);
     setIsEditing(false);
     setActiveEditSection(null);

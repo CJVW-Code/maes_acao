@@ -4307,6 +4307,12 @@ export const salvarDadosJuridicos = async (req, res) => {
     }, {});
 
   const partesData = pickAllowed(body.partes, allowedPartesFields);
+  const relatoTextoSource =
+    body.relato?.relato_texto ??
+    (isPlainObject(body.dados_extraidos)
+      ? body.dados_extraidos.relato_texto ?? body.dados_extraidos.relato
+      : undefined);
+  const relatoTexto = typeof relatoTextoSource === "string" ? relatoTextoSource : undefined;
   const normalizeCpfFields = (target, fields) => {
     fields.forEach((field) => {
       if (target[field] !== undefined && target[field] !== null) {
@@ -4372,6 +4378,10 @@ export const salvarDadosJuridicos = async (req, res) => {
     const parsedExtra = safeJsonParse(iaRecord?.dados_extraidos, {});
     const currentExtra = isPlainObject(parsedExtra) ? parsedExtra : {};
     const extraData = normalizeCpfEntries(pickSafeExtra(body.dados_extraidos));
+    if (relatoTexto !== undefined) {
+      extraData.relato_texto = relatoTexto;
+      extraData.relato = relatoTexto;
+    }
     const mergedExtra = { ...currentExtra, ...extraData };
 
     if (Object.keys(partesData).length > 0) {
@@ -4403,11 +4413,15 @@ export const salvarDadosJuridicos = async (req, res) => {
     }
 
     if (Object.keys(extraData).length > 0) {
+      const iaData = {
+        dados_extraidos: mergedExtra,
+        ...(relatoTexto !== undefined ? { relato_texto: relatoTexto } : {}),
+      };
       operacoes.push(
         prisma.casos_ia.upsert({
           where: { caso_id: casoId },
-          update: { dados_extraidos: mergedExtra },
-          create: { caso_id: casoId, dados_extraidos: mergedExtra },
+          update: iaData,
+          create: { caso_id: casoId, ...iaData },
         }),
       );
     }
@@ -4446,14 +4460,30 @@ export const salvarDadosJuridicos = async (req, res) => {
       }
 
       if (Object.keys(extraData).length > 0) {
+        const iaPayload = {
+          dados_extraidos: mergedExtra,
+          ...(relatoTexto !== undefined ? { relato_texto: relatoTexto } : {}),
+        };
         const { error } = await supabase
           .from("casos_ia")
-          .upsert({ caso_id: id, dados_extraidos: mergedExtra }, { onConflict: "caso_id" });
+          .upsert({ caso_id: id, ...iaPayload }, { onConflict: "caso_id" });
         if (error) throw error;
       }
     }
 
-    res.status(200).json({ success: true });
+    const casoAtualizadoRaw = await prisma.casos.findUnique({
+      where: { id: casoId },
+      include: {
+        partes: true,
+        ia: true,
+        juridico: true,
+        documentos: true,
+        unidade: { select: { nome: true, sistema: true, comarca: true } },
+      },
+    });
+    const casoAtualizado = await attachSignedUrls(mapCasoRelations(casoAtualizadoRaw));
+
+    res.status(200).json(stringifyBigInts(casoAtualizado));
   } catch (error) {
     logger.error(`Erro ao salvar dados jurídicos do caso ${id}: ${error.message}`);
     res.status(500).json({ error: "Erro ao salvar dados jurídicos." });
@@ -4549,6 +4579,16 @@ export const regenerarDosFatos = async (req, res) => {
     currentExtra.peticao_inicial_rascunho = `DOS FATOS\n\n${dosFatosTexto}`;
 
     if (isSupabaseConfigured) {
+      await prisma.casos_ia.update({
+        where: { caso_id: BigInt(id) },
+        data: {
+          dos_fatos_gerado: dosFatosTexto,
+          peticao_inicial_rascunho: currentExtra.peticao_inicial_rascunho,
+          peticao_completa_texto: null,
+          dados_extraidos: currentExtra,
+        },
+      });
+
       const { error: updateError } = await supabase
         .from("casos_ia")
         .update({
@@ -4923,6 +4963,11 @@ export const regerarMinuta = async (req, res) => {
           where: { caso_id: BigInt(id) },
           data: iaUpdateData,
         });
+        const { error: iaError } = await supabase
+          .from("casos_ia")
+          .update(iaUpdateData)
+          .eq("caso_id", id);
+        if (iaError) throw iaError;
       } else {
         await prisma.casos_ia.update({
           where: { caso_id: BigInt(id) },
@@ -4959,7 +5004,15 @@ export const regerarMinuta = async (req, res) => {
       currentExtra.url_peticao_penhora = docxPath;
 
       if (isSupabaseConfigured) {
-        await supabase
+        await prisma.casos_ia.update({
+          where: { caso_id: BigInt(id) },
+          data: {
+            url_peticao: docxPath,
+            url_peticao_penhora: docxPath,
+            dados_extraidos: currentExtra,
+          },
+        });
+        const { error: iaError } = await supabase
           .from("casos_ia")
           .update({
             url_peticao: docxPath,
@@ -4967,6 +5020,7 @@ export const regerarMinuta = async (req, res) => {
             dados_extraidos: currentExtra,
           })
           .eq("caso_id", id);
+        if (iaError) throw iaError;
       } else {
         await prisma.casos_ia.update({
           where: { caso_id: BigInt(id) },
