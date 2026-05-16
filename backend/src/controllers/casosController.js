@@ -4187,6 +4187,17 @@ export const atualizarStatusCaso = async (req, res) => {
       data: updateData,
     });
 
+    if (isSupabaseConfigured) {
+      const { error: supabaseError } = await supabase
+        .from("casos")
+        .update(updateData)
+        .eq("id", id);
+
+      if (supabaseError) {
+        throw new Error(`Falha ao atualizar caso no Supabase: ${supabaseError.message}`);
+      }
+    }
+
     const casoAtualizadoComUrls = await attachSignedUrls(data);
     res.status(200).json(stringifyBigInts(casoAtualizadoComUrls));
   } catch (error) {
@@ -4579,9 +4590,16 @@ export const regenerarDosFatos = async (req, res) => {
     currentExtra.peticao_inicial_rascunho = `DOS FATOS\n\n${dosFatosTexto}`;
 
     if (isSupabaseConfigured) {
-      await prisma.casos_ia.update({
+      await prisma.casos_ia.upsert({
         where: { caso_id: BigInt(id) },
-        data: {
+        update: {
+          dos_fatos_gerado: dosFatosTexto,
+          peticao_inicial_rascunho: currentExtra.peticao_inicial_rascunho,
+          peticao_completa_texto: null,
+          dados_extraidos: currentExtra,
+        },
+        create: {
+          caso_id: BigInt(id),
           dos_fatos_gerado: dosFatosTexto,
           peticao_inicial_rascunho: currentExtra.peticao_inicial_rascunho,
           peticao_completa_texto: null,
@@ -5202,6 +5220,7 @@ export const buscarPorCpf = async (req, res) => {
             id,
             protocolo,
             status,
+            descricao_pendencia,
             unidade_id,
             numero_processo,
             numero_solar,
@@ -5246,6 +5265,7 @@ export const buscarPorCpf = async (req, res) => {
             id: true,
             protocolo: true,
             status: true,
+            descricao_pendencia: true,
             unidade_id: true,
             numero_processo: true,
             numero_solar: true,
